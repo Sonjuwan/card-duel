@@ -1,0 +1,17 @@
+[
+  {"id":"recruit","name":"신병","kind":"minion","class":"neutral","rarity":"basic","cost":1,"attack":1,"health":2,"tribe":"none","description":""},
+  {"id":"fox","name":"숲 여우","kind":"minion","class":"neutral","rarity":"basic","cost":1,"attack":2,"health":1,"tribe":"beast","description":""},
+  {"id":"scout","name":"정찰병","kind":"minion","class":"neutral","rarity":"basic","cost":1,"attack":1,"health":1,"tribe":"none","description":""},
+  {"id":"guard","name":"성문 경비병","kind":"minion","class":"neutral","rarity":"basic","cost":2,"attack":2,"health":3,"tribe":"none","description":""},
+  {"id":"wolf","name":"회색 늑대","kind":"minion","class":"neutral","rarity":"basic","cost":2,"attack":3,"health":2,"tribe":"beast","description":""},
+  {"id":"sailor","name":"갑판원","kind":"minion","class":"neutral","rarity":"common","cost":2,"attack":2,"health":2,"tribe":"pirate","description":""},
+  {"id":"beetle","name":"갑옷 딱정벌레","kind":"minion","class":"neutral","rarity":"common","cost":3,"attack":2,"health":5,"tribe":"beast","description":""},
+  {"id":"swordsman","name":"방랑 검사","kind":"minion","class":"neutral","rarity":"basic","cost":3,"attack":3,"health":3,"tribe":"none","description":""},
+  {"id":"drake","name":"어린 비룡","kind":"minion","class":"neutral","rarity":"rare","cost":4,"attack":4,"health":4,"tribe":"dragon","description":""},
+  {"id":"golem","name":"석재 골렘","kind":"minion","class":"neutral","rarity":"common","cost":4,"attack":3,"health":6,"tribe":"none","description":""},
+  {"id":"raider","name":"사막 약탈자","kind":"minion","class":"neutral","rarity":"common","cost":5,"attack":5,"health":5,"tribe":"none","description":""},
+  {"id":"ogre","name":"동굴 거인","kind":"minion","class":"neutral","rarity":"basic","cost":6,"attack":6,"health":6,"tribe":"none","description":""},
+  {"id":"serpent","name":"심해 뱀","kind":"minion","class":"neutral","rarity":"rare","cost":7,"attack":7,"health":6,"tribe":"beast","description":""},
+  {"id":"colossus","name":"고대 수호자","kind":"minion","class":"neutral","rarity":"rare","cost":8,"attack":7,"health":9,"tribe":"none","description":""},
+  {"id":"wyrm","name":"폭풍 용","kind":"minion","class":"neutral","rarity":"rare","cost":9,"attack":9,"health":9,"tribe":"dragon","description":""}
+]

@@ -1,0 +1,1168 @@
+[
+  {
+    "id": "grommash_hellscream",
+    "name": "전쟁의 광전사",
+    "kind": "minion",
+    "class": "warrior",
+    "rarity": "legendary",
+    "cost": 8,
+    "attack": 4,
+    "health": 9,
+    "tribe": "none",
+    "description": "돌진. 격노: 공격력 +6.",
+    "keywords": [
+      "charge"
+    ],
+    "enrageAttack": 6
+  },
+  {
+    "id": "alakir",
+    "name": "바람 군주",
+    "kind": "minion",
+    "class": "shaman",
+    "rarity": "legendary",
+    "cost": 8,
+    "attack": 3,
+    "health": 5,
+    "tribe": "none",
+    "description": "질풍, 돌진, 천상의 보호막, 도발",
+    "keywords": [
+      "windfury",
+      "charge",
+      "divineShield",
+      "taunt"
+    ]
+  },
+  {
+    "id": "edwin_vancleef",
+    "name": "그림자단 두목",
+    "kind": "minion",
+    "class": "rogue",
+    "rarity": "legendary",
+    "cost": 3,
+    "attack": 2,
+    "health": 2,
+    "tribe": "none",
+    "description": "연계: 이번 턴 앞서 사용한 카드마다 +2/+2.",
+    "battlecry": [
+      {
+        "kind": "buff",
+        "target": "self",
+        "attack": 2,
+        "health": 2,
+        "per": "previousCards",
+        "condition": {
+          "kind": "combo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tirion_fordring",
+    "name": "빛의 수호기사",
+    "kind": "minion",
+    "class": "paladin",
+    "rarity": "legendary",
+    "cost": 8,
+    "attack": 6,
+    "health": 6,
+    "tribe": "none",
+    "description": "천상의 보호막, 도발. 죽음의 메아리: 5/3 무기 장착.",
+    "keywords": [
+      "divineShield",
+      "taunt"
+    ],
+    "deathrattle": [
+      {
+        "kind": "equip",
+        "attack": 5,
+        "durability": 3,
+        "cardId": "ashbringer"
+      }
+    ]
+  },
+  {
+    "id": "king_krush",
+    "name": "거대 공룡왕",
+    "kind": "minion",
+    "class": "hunter",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 8,
+    "health": 8,
+    "tribe": "beast",
+    "description": "돌진",
+    "keywords": [
+      "charge"
+    ]
+  },
+  {
+    "id": "cenarius",
+    "name": "숲의 반신",
+    "kind": "minion",
+    "class": "druid",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 5,
+    "health": 8,
+    "tribe": "none",
+    "description": "선택: 다른 아군 하수인 +2/+2 또는 도발 2/2 나무정령 둘 소환.",
+    "choices": [
+      {
+        "label": "숲의 축복",
+        "effects": [
+          {
+            "kind": "buff",
+            "target": "otherFriendlyMinions",
+            "attack": 2,
+            "health": 2
+          }
+        ]
+      },
+      {
+        "label": "숲의 수호자",
+        "effects": [
+          {
+            "kind": "summon",
+            "cardId": "cenarius_treant",
+            "count": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lord_jaraxxus",
+    "name": "지옥의 군주",
+    "kind": "minion",
+    "class": "warlock",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 3,
+    "health": 15,
+    "tribe": "demon",
+    "description": "전투의 함성: 내 영웅을 생명력 15의 군주로 교체하고 3/8 무기 장착.",
+    "battlecry": [
+      {
+        "kind": "replaceHero",
+        "form": "jaraxxus",
+        "health": 15,
+        "weaponCardId": "blood_fury"
+      }
+    ]
+  },
+  {
+    "id": "archmage_antonidas",
+    "name": "대마법사 현자",
+    "kind": "minion",
+    "class": "mage",
+    "rarity": "legendary",
+    "cost": 7,
+    "attack": 5,
+    "health": 7,
+    "tribe": "none",
+    "description": "내가 주문을 사용할 때마다 화염구를 손에 추가.",
+    "triggers": [
+      {
+        "event": "friendlySpellPlayed",
+        "effects": [
+          {
+            "kind": "addCard",
+            "cardId": "flame_sphere",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "prophet_velen",
+    "name": "빛의 예언자",
+    "kind": "minion",
+    "class": "priest",
+    "rarity": "legendary",
+    "cost": 7,
+    "attack": 7,
+    "health": 7,
+    "tribe": "none",
+    "description": "내 주문과 영웅 능력의 피해 및 치유량이 두 배.",
+    "spellAndPowerMultiplier": 2
+  },
+  {
+    "id": "bloodmage_thalnos",
+    "name": "피의 마법사",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 2,
+    "attack": 1,
+    "health": 1,
+    "tribe": "none",
+    "description": "주문 공격력 +1. 죽음의 메아리: 카드 한 장 뽑기.",
+    "spellDamage": 1,
+    "deathrattle": [
+      {
+        "kind": "draw",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "lorewalker_cho",
+    "name": "전승의 현인",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 2,
+    "attack": 0,
+    "health": 4,
+    "tribe": "none",
+    "description": "어느 쪽이든 주문을 사용하면 상대의 손에 복사본 추가.",
+    "triggers": [
+      {
+        "event": "anySpellPlayed",
+        "effects": [
+          {
+            "kind": "copySpellToOther"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "millhouse_manastorm",
+    "name": "혼돈의 마나술사",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 2,
+    "attack": 4,
+    "health": 4,
+    "tribe": "none",
+    "description": "전투의 함성: 다음 상대 턴 동안 상대 주문 비용 0.",
+    "battlecry": [
+      {
+        "kind": "enemyFreeSpellsNextTurn"
+      }
+    ]
+  },
+  {
+    "id": "nat_pagle",
+    "name": "낚시 명인",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 2,
+    "attack": 0,
+    "health": 4,
+    "tribe": "none",
+    "description": "내 턴 시작 시 50% 확률로 카드 한 장 뽑기.",
+    "startTurn": [
+      {
+        "kind": "draw",
+        "amount": 1,
+        "condition": {
+          "kind": "chance",
+          "percent": 50
+        }
+      }
+    ]
+  },
+  {
+    "id": "king_mukla",
+    "name": "바나나의 왕",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 3,
+    "attack": 5,
+    "health": 5,
+    "tribe": "beast",
+    "description": "전투의 함성: 상대 손에 바나나 두 개 추가.",
+    "battlecry": [
+      {
+        "kind": "addCard",
+        "cardId": "mukla_banana",
+        "count": 2,
+        "side": "enemy"
+      }
+    ]
+  },
+  {
+    "id": "tinkmaster_overspark",
+    "name": "기계 변환술사",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "tribe": "none",
+    "description": "전투의 함성: 다른 무작위 하수인을 5/5 데빌사우루스 또는 1/1 다람쥐로 변신.",
+    "battlecry": [
+      {
+        "kind": "randomTransform",
+        "target": "randomOtherMinion",
+        "cardIds": [
+          "tink_devil",
+          "tink_squirrel"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "old_murk_eye",
+    "name": "늙은 지느러미",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 4,
+    "attack": 2,
+    "health": 4,
+    "tribe": "murloc",
+    "description": "돌진. 전장의 다른 멀록 하나당 공격력 +1.",
+    "keywords": [
+      "charge"
+    ],
+    "attackPerOtherTribe": {
+      "tribe": "murloc",
+      "amount": 1
+    }
+  },
+  {
+    "id": "captain_greenskin",
+    "name": "선장 초록수염",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 5,
+    "attack": 5,
+    "health": 4,
+    "tribe": "pirate",
+    "description": "전투의 함성: 내 무기 공격력과 내구도 +1.",
+    "battlecry": [
+      {
+        "kind": "buffWeapon",
+        "attack": 1,
+        "durability": 1
+      }
+    ]
+  },
+  {
+    "id": "harrison_jones",
+    "name": "유물 탐험가",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 5,
+    "attack": 5,
+    "health": 4,
+    "tribe": "none",
+    "description": "전투의 함성: 상대 무기를 파괴하고 내구도만큼 카드 뽑기.",
+    "battlecry": [
+      {
+        "kind": "destroyEnemyWeaponDraw"
+      }
+    ]
+  },
+  {
+    "id": "leeroy_jenkins",
+    "name": "무모한 돌격대장",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 4,
+    "attack": 6,
+    "health": 2,
+    "tribe": "none",
+    "description": "돌진. 전투의 함성: 상대편에 1/1 새끼용 둘 소환.",
+    "keywords": [
+      "charge"
+    ],
+    "battlecry": [
+      {
+        "kind": "summon",
+        "cardId": "leeroy_whelp",
+        "count": 2,
+        "side": "enemy"
+      }
+    ]
+  },
+  {
+    "id": "cairne_bloodhoof",
+    "name": "대족장",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 4,
+    "health": 5,
+    "tribe": "none",
+    "description": "죽음의 메아리: 4/5 후계자 소환.",
+    "deathrattle": [
+      {
+        "kind": "summon",
+        "cardId": "baine_bloodhoof",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "the_black_knight",
+    "name": "검은 기사",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 4,
+    "health": 5,
+    "tribe": "none",
+    "description": "전투의 함성: 적 도발 하수인 하나 파괴.",
+    "targetRule": "enemyTauntMinion",
+    "battlecry": [
+      {
+        "kind": "destroy",
+        "target": "chosen"
+      }
+    ]
+  },
+  {
+    "id": "sylvanas_windrunner",
+    "name": "망자의 여왕",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 5,
+    "health": 5,
+    "tribe": "none",
+    "description": "죽음의 메아리: 무작위 적 하수인 하나 지배.",
+    "deathrattle": [
+      {
+        "kind": "control",
+        "target": "randomEnemyMinion"
+      }
+    ]
+  },
+  {
+    "id": "hogger",
+    "name": "놀의 우두머리",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 4,
+    "health": 4,
+    "tribe": "none",
+    "description": "내 턴이 끝날 때 2/2 도발 놀 소환.",
+    "endTurn": [
+      {
+        "kind": "summon",
+        "cardId": "hogger_gnoll",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "illidan_stormrage",
+    "name": "배신자 악마사냥꾼",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 7,
+    "health": 5,
+    "tribe": "demon",
+    "description": "내가 카드를 사용할 때마다 2/1 아지노스의 불꽃 소환.",
+    "triggers": [
+      {
+        "event": "friendlyCardPlayed",
+        "effects": [
+          {
+            "kind": "summon",
+            "cardId": "illidan_flame",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "baron_geddon",
+    "name": "불의 남작",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 7,
+    "attack": 7,
+    "health": 5,
+    "tribe": "none",
+    "description": "내 턴이 끝날 때 다른 모든 캐릭터에게 피해 2.",
+    "endTurn": [
+      {
+        "kind": "damage",
+        "target": "otherCharacters",
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": "gruul",
+    "name": "산맥의 폭군",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 8,
+    "attack": 7,
+    "health": 7,
+    "tribe": "none",
+    "description": "매 턴이 끝날 때 +1/+1.",
+    "endAnyTurn": [
+      {
+        "kind": "buff",
+        "target": "self",
+        "attack": 1,
+        "health": 1
+      }
+    ]
+  },
+  {
+    "id": "ragnaros",
+    "name": "불의 군주",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 8,
+    "attack": 8,
+    "health": 8,
+    "tribe": "none",
+    "description": "공격할 수 없음. 내 턴 끝에 무작위 적에게 피해 8.",
+    "noAttack": true,
+    "endTurn": [
+      {
+        "kind": "damage",
+        "target": "randomEnemy",
+        "amount": 8
+      }
+    ]
+  },
+  {
+    "id": "alexstrasza",
+    "name": "생명의 용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 8,
+    "health": 8,
+    "tribe": "dragon",
+    "description": "전투의 함성: 선택한 영웅의 생명력을 15로 설정.",
+    "targetRule": "anyHero",
+    "battlecry": [
+      {
+        "kind": "setHeroHealth",
+        "target": "chosen",
+        "amount": 15
+      }
+    ]
+  },
+  {
+    "id": "malygos",
+    "name": "비전의 용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 4,
+    "health": 12,
+    "tribe": "dragon",
+    "description": "주문 공격력 +5.",
+    "spellDamage": 5
+  },
+  {
+    "id": "nozdormu",
+    "name": "시간의 용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 8,
+    "health": 8,
+    "tribe": "dragon",
+    "description": "플레이어의 턴 시간이 15초로 제한.",
+    "turnTimeLimitSeconds": 15
+  },
+  {
+    "id": "onyxia",
+    "name": "검은용의 여왕",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 8,
+    "health": 8,
+    "tribe": "dragon",
+    "description": "전투의 함성: 내 전장을 1/1 새끼용으로 가득 채움.",
+    "battlecry": [
+      {
+        "kind": "summon",
+        "cardId": "onyxia_whelp",
+        "count": 7
+      }
+    ]
+  },
+  {
+    "id": "ysera",
+    "name": "꿈의 용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 9,
+    "attack": 4,
+    "health": 12,
+    "tribe": "dragon",
+    "description": "내 턴이 끝날 때 무작위 꿈 카드 한 장 추가.",
+    "endTurn": [
+      {
+        "kind": "addRandomCard",
+        "cardIds": [
+          "dream",
+          "nightmare",
+          "ysera_awakens",
+          "laughing_sister",
+          "emerald_drake"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "deathwing",
+    "name": "파멸의 검은용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 10,
+    "attack": 12,
+    "health": 12,
+    "tribe": "dragon",
+    "description": "전투의 함성: 다른 모든 하수인을 파괴하고 내 손패를 모두 버림.",
+    "battlecry": [
+      {
+        "kind": "destroy",
+        "target": "otherMinions"
+      },
+      {
+        "kind": "discard",
+        "amount": 10
+      }
+    ]
+  },
+  {
+    "id": "gelbin_mekkatorque",
+    "name": "발명의 대가",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 6,
+    "health": 6,
+    "tribe": "none",
+    "description": "전투의 함성: 무작위 발명품 하나 소환.",
+    "battlecry": [
+      {
+        "kind": "summonRandom",
+        "cardIds": [
+          "homing_chicken",
+          "repair_bot",
+          "emboldener",
+          "poultryizer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "elite_tauren_chieftain",
+    "name": "록의 대족장",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 5,
+    "attack": 5,
+    "health": 5,
+    "tribe": "none",
+    "description": "전투의 함성: 양쪽 손에 무작위 공연 카드 하나 추가.",
+    "battlecry": [
+      {
+        "kind": "addRandomCard",
+        "cardIds": [
+          "power_of_the_horde",
+          "i_am_murloc",
+          "rogues_do_it"
+        ],
+        "count": 1,
+        "side": "both"
+      }
+    ]
+  },
+  {
+    "id": "the_beast",
+    "name": "거대한 야수",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "legendary",
+    "cost": 6,
+    "attack": 9,
+    "health": 7,
+    "tribe": "beast",
+    "description": "죽음의 메아리: 상대편에 3/3 핑클 아인혼 소환.",
+    "deathrattle": [
+      {
+        "kind": "summon",
+        "cardId": "finkle_einhorn",
+        "count": 1,
+        "side": "enemy"
+      }
+    ]
+  },
+  {
+    "id": "cenarius_treant",
+    "name": "숲의 나무정령",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "tribe": "none",
+    "description": "도발",
+    "collectible": false,
+    "keywords": [
+      "taunt"
+    ]
+  },
+  {
+    "id": "ashbringer",
+    "name": "파멸의 검",
+    "kind": "weapon",
+    "class": "paladin",
+    "rarity": "legendary",
+    "cost": 5,
+    "attack": 5,
+    "durability": 3,
+    "collectible": false,
+    "description": ""
+  },
+  {
+    "id": "blood_fury",
+    "name": "피의 격노",
+    "kind": "weapon",
+    "class": "warlock",
+    "rarity": "basic",
+    "cost": 3,
+    "attack": 3,
+    "durability": 8,
+    "collectible": false,
+    "description": ""
+  },
+  {
+    "id": "jaraxxus_infernal",
+    "name": "지옥불정령",
+    "kind": "minion",
+    "class": "warlock",
+    "rarity": "basic",
+    "cost": 6,
+    "attack": 6,
+    "health": 6,
+    "tribe": "demon",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "mukla_banana",
+    "name": "바나나",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 1,
+    "description": "하수인 하나에게 +1/+1.",
+    "effects": [
+      {
+        "kind": "buff",
+        "target": "chosen",
+        "attack": 1,
+        "health": 1
+      }
+    ],
+    "targetRule": "anyMinion"
+  },
+  {
+    "id": "tink_devil",
+    "name": "데빌사우루스",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 5,
+    "attack": 5,
+    "health": 5,
+    "tribe": "beast",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "tink_squirrel",
+    "name": "다람쥐",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "tribe": "beast",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "leeroy_whelp",
+    "name": "새끼용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "tribe": "dragon",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "baine_bloodhoof",
+    "name": "후계자",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 4,
+    "attack": 4,
+    "health": 5,
+    "tribe": "none",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "hogger_gnoll",
+    "name": "놀",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "tribe": "none",
+    "description": "도발",
+    "collectible": false,
+    "keywords": [
+      "taunt"
+    ]
+  },
+  {
+    "id": "illidan_flame",
+    "name": "아지노스의 불꽃",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 2,
+    "health": 1,
+    "tribe": "none",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "onyxia_whelp",
+    "name": "새끼용",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "tribe": "dragon",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "dream",
+    "name": "꿈",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 0,
+    "description": "하수인을 소유자의 손으로 되돌림.",
+    "effects": [
+      {
+        "kind": "bounce",
+        "target": "chosen"
+      }
+    ],
+    "targetRule": "anyMinion"
+  },
+  {
+    "id": "nightmare",
+    "name": "악몽",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 0,
+    "description": "하수인 +5/+5. 다음 내 턴 시작 시 파괴.",
+    "effects": [
+      {
+        "kind": "buff",
+        "target": "chosen",
+        "attack": 5,
+        "health": 5
+      },
+      {
+        "kind": "deferredDestroy",
+        "target": "chosen",
+        "timing": "startTurn"
+      }
+    ],
+    "targetRule": "anyMinion"
+  },
+  {
+    "id": "ysera_awakens",
+    "name": "이세라의 각성",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 2,
+    "description": "이세라를 제외한 모든 캐릭터에게 피해 5.",
+    "effects": [
+      {
+        "kind": "damage",
+        "target": "allCharacters",
+        "amount": 5,
+        "excludeCardId": "ysera"
+      }
+    ]
+  },
+  {
+    "id": "laughing_sister",
+    "name": "웃음의 자매",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 3,
+    "attack": 3,
+    "health": 5,
+    "tribe": "none",
+    "description": "주문 및 영웅 능력의 대상이 되지 않음.",
+    "collectible": false,
+    "untargetableBySpells": true
+  },
+  {
+    "id": "emerald_drake",
+    "name": "에메랄드 비룡",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 4,
+    "attack": 7,
+    "health": 6,
+    "tribe": "dragon",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "homing_chicken",
+    "name": "유도 닭",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 0,
+    "health": 1,
+    "tribe": "none",
+    "description": "내 턴 시작 시 자신을 파괴하고 카드 3장 뽑기.",
+    "collectible": false,
+    "startTurn": [
+      {
+        "kind": "destroy",
+        "target": "self"
+      },
+      {
+        "kind": "draw",
+        "amount": 3
+      }
+    ]
+  },
+  {
+    "id": "repair_bot",
+    "name": "수리 로봇",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 0,
+    "health": 3,
+    "tribe": "none",
+    "description": "내 턴 끝에 무작위 피해 입은 캐릭터의 생명력 6 회복.",
+    "collectible": false,
+    "endTurn": [
+      {
+        "kind": "heal",
+        "target": "randomDamagedCharacter",
+        "amount": 6
+      }
+    ]
+  },
+  {
+    "id": "emboldener",
+    "name": "강화 로봇",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 0,
+    "health": 4,
+    "tribe": "none",
+    "description": "내 턴 끝에 무작위 하수인 하나에게 +1/+1.",
+    "collectible": false,
+    "endTurn": [
+      {
+        "kind": "buff",
+        "target": "randomMinion",
+        "attack": 1,
+        "health": 1
+      }
+    ]
+  },
+  {
+    "id": "poultryizer",
+    "name": "닭 변환기",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 0,
+    "health": 3,
+    "tribe": "none",
+    "description": "내 턴 시작 시 무작위 다른 하수인을 1/1 닭으로 변신.",
+    "collectible": false,
+    "startTurn": [
+      {
+        "kind": "randomTransform",
+        "target": "randomOtherMinion",
+        "cardIds": [
+          "poultry_chicken"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poultry_chicken",
+    "name": "닭",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "tribe": "beast",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "power_of_the_horde",
+    "name": "호드의 힘",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 4,
+    "description": "무작위 호드 하수인 소환.",
+    "effects": [
+      {
+        "kind": "summonRandom",
+        "cardIds": [
+          "cairne_bloodhoof",
+          "frost_guard",
+          "crystal_sentinel",
+          "wind_farseer",
+          "tauren_guard",
+          "citadel_guard"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "i_am_murloc",
+    "name": "나는 멀록!",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 4,
+    "description": "1/1 멀록 3~5마리 소환.",
+    "effects": [
+      {
+        "kind": "summon",
+        "cardId": "concert_murloc",
+        "count": 3,
+        "countMax": 5
+      }
+    ]
+  },
+  {
+    "id": "rogues_do_it",
+    "name": "도적의 공연",
+    "kind": "spell",
+    "class": "neutral",
+    "rarity": "basic",
+    "collectible": false,
+    "cost": 4,
+    "description": "피해 4를 주고 카드 한 장 뽑기.",
+    "effects": [
+      {
+        "kind": "damage",
+        "target": "chosen",
+        "amount": 4
+      },
+      {
+        "kind": "draw",
+        "amount": 1
+      }
+    ],
+    "targetRule": "anyCharacter"
+  },
+  {
+    "id": "concert_murloc",
+    "name": "멀록",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 1,
+    "attack": 1,
+    "health": 1,
+    "tribe": "murloc",
+    "description": "",
+    "collectible": false
+  },
+  {
+    "id": "finkle_einhorn",
+    "name": "핑클 아인혼",
+    "kind": "minion",
+    "class": "neutral",
+    "rarity": "basic",
+    "cost": 3,
+    "attack": 3,
+    "health": 3,
+    "tribe": "none",
+    "description": "",
+    "collectible": false
+  }
+]

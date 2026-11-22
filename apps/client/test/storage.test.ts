@@ -1,0 +1,24 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createCatalog, validateDeck, createGame, starterDeck, getPlayerView, applyAction } from '../../../packages/engine/src/index.ts';
+import type { Deck } from '../../../packages/engine/src/index.ts';
+import { draftKey,readDraft,saveDraft,mergeRoomView } from '../src/storage.ts';
+import type { RoomView } from '../../../packages/protocol.ts';
+const catalog=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.19.0.json',import.meta.url),'utf8')));
+function store(){const m=new Map<string,string>();return {get length(){return m.size;},key:(i:number)=>[...m.keys()][i]??null,getItem:(k:string)=>m.get(k)??null,setItem:(k:string,v:string)=>{m.set(k,v);}};}
+test('draft preserves a partial or intentionally empty deck across reload',()=>{const s=store(),d:Deck={heroClass:'priest',cards:['wolf','wolf']};assert.equal(saveDraft(d,'one',s),true);assert.deepEqual(readDraft(catalog,'one',s),d);d.cards=[];assert.equal(saveDraft(d,'one',s),true);assert.deepEqual(readDraft(catalog,'one',s),d);});
+test('valid draft migrates to new balance hash; old snapshot remains isolated and unchanged',()=>{const s=store(),d:Deck={heroClass:'mage',cards:['wolf']};saveDraft(d,'old',s);const next=readDraft(catalog,'new',s);assert.deepEqual(next,d);next.cards.push('wisp');saveDraft(next,'new',s);assert.deepEqual(readDraft(catalog,'old',s),d);assert.deepEqual(readDraft(catalog,'new',s),next);assert.notEqual(draftKey('old'),draftKey('new'));});
+test('legacy v0.20 storage without a marker recovers one unambiguous compatible draft',()=>{const s=store(),d:Deck={heroClass:'mage',cards:['wolf']};s.setItem(draftKey('old'),JSON.stringify(d));s.setItem('unrelated','unchanged');assert.deepEqual(readDraft(catalog,'new',s),d);assert.equal(s.getItem('unrelated'),'unchanged');s.setItem(draftKey('another'),JSON.stringify({heroClass:'priest',cards:[]}));validateDeck(readDraft(catalog,'new',s),catalog);assert.equal(s.getItem(draftKey('old')),JSON.stringify(d));});
+test('incompatible old draft is never silently migrated or deleted',()=>{const s=store(),d:Deck={heroClass:'mage',cards:['golem','wolf']};saveDraft(d,'old',s);validateDeck(readDraft(catalog,'new',s),catalog);assert.equal(s.getItem(draftKey('old')),JSON.stringify(d));});
+test('corrupt, oversized or illegal draft falls back to a legal deck',()=>{const s=store();for(const raw of ['{bad',JSON.stringify({heroClass:'mage',cards:['invalid']}),JSON.stringify({heroClass:'mage',cards:Array(31).fill('wolf')}),JSON.stringify({heroClass:'mage',cards:['wolf','wolf','wolf']})]){s.setItem(draftKey('bad'),raw);validateDeck(readDraft(catalog,'bad',s),catalog);}});
+test('unavailable or denied storage cannot break the deck editor',()=>{const s={getItem(){throw Error('denied');},setItem(){throw Error('denied');}};const d=readDraft(catalog,'one',s);validateDeck(d,catalog);assert.equal(saveDraft(d,'one',s),false);assert.equal(saveDraft(d,'one'),false);});
+test('room view merge cannot roll back a newer revision, but accepts connectivity changes and new rooms',()=>{let game=createGame(catalog,[starterDeck(catalog,'mage'),starterDeck(catalog,'warrior')],{seed:1});const initial:RoomView={code:'ABC234',seat:0,mode:'human',status:'playing',opponentConnected:true,state:getPlayerView(game,0)};game=applyAction(game,0,{type:'mulligan',replace:[]});const latest={...initial,state:getPlayerView(game,0)};assert.equal(mergeRoomView(latest,initial),latest);assert.equal(mergeRoomView(latest,{...initial,state:null}),latest);const disconnected={...latest,opponentConnected:false};assert.equal(mergeRoomView(latest,disconnected),disconnected);const newRoom={...initial,code:'DEF567'};assert.equal(mergeRoomView(latest,newRoom),newRoom);});
+test('delayed pending or legacy acknowledgement keeps exact saved reward receipt',()=>{
+  const pending:RoomView={code:'ABC234',seat:0,mode:'bot',status:'finished',opponentConnected:true,state:null,ranked:{rank:1,deckPower:1,intelligence:1,reward:'pending'}};
+  const summary={xp:140,questAdvanced:true,questCompleted:true,questBonusXp:110,unlockedCards:['wolf'],rankAfter:2};
+  const saved:RoomView={...pending,ranked:{...pending.ranked!,reward:'saved',rewardDetails:summary}};
+  assert.deepEqual(mergeRoomView(saved,pending).ranked,saved.ranked);
+  assert.deepEqual(mergeRoomView(saved,{...pending,ranked:{...pending.ranked!,reward:'saved'}}).ranked,saved.ranked);
+});
+test('delayed account PvP result cannot undo confirmed history settlement',()=>{const saved:RoomView={code:'ABC234',seat:0,mode:'human',status:'finished',opponentConnected:true,state:null,ownedPvp:true,pvpReward:'saved'};assert.equal(mergeRoomView(saved,{...saved,pvpReward:'pending'}).pvpReward,'saved');assert.equal(mergeRoomView(saved,{...saved,code:'ABC235',pvpReward:'pending'}).pvpReward,'pending');});

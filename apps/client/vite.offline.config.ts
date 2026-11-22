@@ -1,0 +1,11 @@
+import {defineConfig} from 'vite';
+import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
+import {CardStore} from '../server/card-store.ts';
+import {aiCatalogHash,readGameChampion} from '../server/ai-profile-store.ts';
+import {DEFAULT_BOT_WEIGHTS} from '../../packages/engine/src/index.ts';
+const root=fileURLToPath(new URL('.',import.meta.url));
+const {cards,catalog}=new CardStore().read();
+const catalogHash=createHash('sha256').update(JSON.stringify(cards)).digest('hex');
+const champion=readGameChampion(aiCatalogHash(catalog));
+export default defineConfig({root,base:'./',define:{__OFFLINE_CARDS__:JSON.stringify(cards),__OFFLINE_PROFILE__:JSON.stringify({catalogHash,weights:champion?.weights??DEFAULT_BOT_WEIGHTS,generation:champion?.promotions??0})},build:{outDir:fileURLToPath(new URL('../../dist/offline',import.meta.url)),emptyOutDir:true,assetsInlineLimit:Infinity,cssCodeSplit:false,modulePreload:false,rollupOptions:{input:fileURLToPath(new URL('./offline.html',import.meta.url))}}});

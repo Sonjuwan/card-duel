@@ -1,0 +1,46 @@
+/* Fixed, non-interactive, and mounted in body to escape the arena clipping. */
+.card-hover-panel{position:fixed;z-index:1000;top:50%;transform:translateY(-50%);width:min(490px,calc(100vw - 28px));box-sizing:border-box;max-height:calc(100vh - 28px);display:grid;grid-template-columns:minmax(0,224px) minmax(0,1fr);align-items:center;gap:17px;padding:15px;background:linear-gradient(140deg,#57402c,#292323 48%,#171923);color:#f9ebcf;border:2px solid #d5af6f;border-radius:16px;box-shadow:0 15px 55px #000d,inset 0 0 0 4px #392c20,inset 0 0 0 5px #a27a48;pointer-events:none;user-select:none;isolation:isolate}
+.card-hover-panel.hover-left{left:clamp(14px,3vw,50px)}
+.card-hover-panel.hover-right{right:clamp(14px,3vw,50px)}
+.card-hover-panel .hover-large-card{height:auto;width:100%;max-width:none;min-width:0;min-height:0;aspect-ratio:5/8;padding:9px 8px 6px;transform:none;flex:none;text-align:center}
+.hover-large-card .card-art,.hover-large-card.kind-spell .card-art,.hover-large-card.kind-secret .card-art,.hover-large-card.kind-coin .card-art{flex:0 0 auto;width:min(100%,64cqh,max(1px,calc(100cqh - 90px)));min-height:0;aspect-ratio:1/1}
+.hover-large-card .card-name{font-size:clamp(13px,9cqi,20px);white-space:normal;line-height:1.16;padding:5px 2px}
+.hover-large-card .card-type{font-size:clamp(10px,7cqi,15px);margin:3px 0}
+.hover-large-card .card-copy{font-size:clamp(11px,7cqi,16px);line-height:1.26;padding:2px 4px}
+.hover-large-card .card-mana{width:clamp(30px,22cqi,47px);height:clamp(34px,24cqi,51px);font-size:clamp(19px,15cqi,30px)}
+.hover-large-card .stat{width:clamp(28px,21cqi,42px);height:clamp(28px,21cqi,42px);font-size:clamp(18px,14cqi,28px)}
+.hover-details{display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:0;overflow-wrap:anywhere}
+.hover-caption{font-size:12px;font-weight:800;color:#dbb879;letter-spacing:.03em}
+.hover-details>strong{font-size:clamp(17px,2.1vw,25px);line-height:1.18;color:#ffe1a5}
+.hover-class{font-size:12px;color:#cbb99a}
+.hover-description{font-size:16px;line-height:1.6;white-space:pre-wrap;color:#fff3de;padding:10px 0;border-top:1px solid #a9885366;border-bottom:1px solid #a9885366;width:100%}
+.hover-description>small{display:block;font-size:12px;color:#f4ba9e;margin-top:5px}
+.hover-keywords{display:grid;gap:5px;margin:0;width:100%;font-size:12px;line-height:1.35;color:#eddbc0}
+.hover-keywords>div{padding:4px 0;border-bottom:1px solid #a9885333}
+.hover-keywords dt{font-weight:850;color:#e9ca82}
+.hover-keywords dd{margin:2px 0 0}
+.hover-live{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#f4dcb8;line-height:1.4}
+.hover-live>b{font-size:12px;color:#aadea5}
+.hover-reason{color:#edb69d;font-size:12px}
+.hover-dismiss{font-size:11px;color:#b9a994;padding-top:5px}
+.hover-example.card-hover-panel{position:relative;inset:auto;transform:none;margin:24px auto;max-height:none}
+/* Preserve a stable hitbox until the one-second preview appears. */
+.classic-table .hand-card-slot:hover>.battle-card,.classic-table .hand-card-slot:focus-within>.battle-card,.is-dragging .classic-table .hand-card-slot:hover>.battle-card{transform:none}
+.classic-table .hand-card-slot:focus-within:not(:has(.is-selected)){transform:translateY(calc(var(--fan-dip) * .32)) rotate(calc(var(--fan-angle) * .55))}
+.card-set-tabs{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:10px 0 7px}
+.card-set-tabs>button{flex:0 1 auto;min-height:36px;padding:8px 15px;border:1px solid #a6814d;border-radius:8px;background:linear-gradient(#5f4830,#372c26);color:#f1d6ac;font-weight:800}
+.card-set-tabs>button[aria-pressed=true]{background:linear-gradient(#f1d49b,#bc8d45);color:#382415;border-color:#ffe2a6;box-shadow:0 0 0 1px #e7b965,0 3px 7px #0006}
+.card-set-tabs>button small{font-size:11px;margin-left:5px;font-weight:650;opacity:.85}
+.card-set-tabs>span{font-size:11px;color:#d6bc98}
+.collection-set-label{display:flex;justify-content:center;gap:5px;font-size:10px;color:#cbb49a}
+.collection-set-label .set-original{color:#a4d4f9}
+.collection-set-label .set-basic{color:#e8c99b}
+@media(min-width:1160px) and (min-height:620px){
+  .card-hover-panel{width:min(550px,calc(100vw - 28px));grid-template-columns:minmax(0,255px) minmax(0,1fr)}
+}
+@media(max-width:600px){
+  .card-hover-panel{width:calc(100vw - 20px);grid-template-columns:minmax(0,43%) minmax(0,1fr);gap:10px;padding:10px}
+  .card-hover-panel.hover-left{left:10px}.card-hover-panel.hover-right{right:10px}
+  .hover-description{font-size:13px;line-height:1.4;padding:7px 0}.hover-details{gap:6px}.hover-live{font-size:11px}.hover-dismiss{font-size:10px}
+}
+@media(max-height:480px){.card-hover-panel{grid-template-columns:minmax(0,150px) minmax(0,1fr);width:min(400px,calc(100vw - 20px));gap:10px;padding:10px}.hover-description{font-size:12px;line-height:1.35}.hover-details{gap:4px}}

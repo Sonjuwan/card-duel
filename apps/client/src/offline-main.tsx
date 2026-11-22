@@ -1,0 +1,20 @@
+/// <reference types="vite/client" />
+import {createRoot} from 'react-dom/client';
+import {App} from './App.tsx';
+import {loadPublicCatalog} from './data.ts';
+import InlineWorker from './local-duel.worker.ts?worker&inline';
+import type {PublicAiProfile} from '../../../packages/protocol.ts';
+import {unlockBattleSound} from './battle-sound.ts';
+import './styles.css';
+import './battle.css';
+import './classic-table.css';
+import './local-cards.css';
+import './painted-art.css';
+import './hover-preview.css';
+import './battle-fx.css';
+declare const __OFFLINE_CARDS__:unknown;
+declare const __OFFLINE_PROFILE__:PublicAiProfile;
+window.addEventListener('pointerdown',unlockBattleSound,{passive:true});
+window.addEventListener('keydown',unlockBattleSound);
+loadPublicCatalog(__OFFLINE_CARDS__,__OFFLINE_PROFILE__.catalogHash);
+createRoot(document.getElementById('root')!).render(<App standalone workerFactory={()=>new InlineWorker()} initialAiProfile={__OFFLINE_PROFILE__}/>);

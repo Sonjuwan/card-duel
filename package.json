@@ -1,0 +1,57 @@
+{
+  "name": "card-duel",
+  "version": "0.91.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "test": "node --test \"packages/engine/test/*.test.ts\" \"apps/server/test/*.test.ts\" \"apps/admin/test/*.test.ts\" apps/client/test/storage.test.ts apps/client/test/battle-report.test.ts apps/client/test/battle-actions.test.ts apps/client/test/table-visuals.test.ts apps/client/test/local-art.test.ts apps/client/test/hover-timing.test.ts apps/client/test/card-sets.test.ts apps/client/test/painted-art.test.ts apps/client/test/battle-fx.test.ts apps/client/test/local-duel.test.ts apps/client/test/solo-settings.test.ts apps/client/test/touch-gesture.test.ts apps/client/test/session-recovery.test.ts apps/client/test/account-status.test.ts apps/client/test/account-request.test.ts apps/client/test/catalog-request.test.ts",
+    "typecheck": "tsc --noEmit",
+    "demo": "node apps/cli/demo.ts",
+    "audit": "node apps/cli/audit.ts",
+    "ai-smoke": "node apps/cli/ai-smoke.ts",
+    "ai:release": "node apps/cli/ai-release.ts",
+    "benchmark:device": "node apps/cli/benchmark-device-ai.ts",
+    "benchmark:strength": "node apps/cli/benchmark-strength.ts",
+    "stress": "node apps/cli/stress.ts",
+    "build": "vite build --config apps/client/vite.config.ts",
+    "build:offline": "vite build --config apps/client/vite.offline.config.ts && node apps/client/test/build-offline.mjs",
+    "test:offline-browser": "npm run build:offline && node --test apps/client/test/standalone-browser.test.ts",
+    "test:offline-built": "npm run build:offline && node --test apps/client/test/standalone-build.test.ts",
+    "test:browser": "npm run build && node --test apps/client/test/browser.test.ts",
+    "test:account-browser": "npm run build && node --test apps/client/test/account-browser.test.ts",
+    "test:render": "vite build --config apps/client/vite.config.ts --ssr test/render-smoke.tsx --outDir ../../dist/render-test --emptyOutDir && node --test dist/render-test/render-smoke.js",
+    "preview:interface": "vite build --config apps/client/vite.config.ts --ssr test/preview.tsx --outDir ../../dist/interface-preview --emptyOutDir && node dist/interface-preview/preview.js",
+    "preview:animation": "node apps/client/test/build-animation-preview.mjs",
+    "test:preview": "npm run preview:interface && npm run preview:animation && npm run build && node --test apps/client/test/offline-preview.test.ts",
+    "server": "node apps/server/main.ts",
+    "account:role": "node apps/server/account-role.ts",
+    "account:backup": "node apps/server/account-backup-cli.ts",
+    "verify:deployment": "node apps/cli/verify-deployment.ts",
+    "progression:simulate": "node apps/cli/progression-sim.ts",
+    "online:load": "node apps/cli/online-load.ts",
+    "lan:test": "node apps/cli/lan-test.ts",
+    "online:smoke": "node apps/cli/online-smoke.ts",
+    "online:acceptance": "node apps/cli/online-acceptance.ts",
+    "test:online-smoke": "npm run build && node --test apps/client/test/online-smoke.test.ts apps/client/test/server-process.test.ts apps/client/test/online-acceptance.test.ts",
+    "web": "npm run build && npm run server",
+    "balance": "node apps/admin/main.ts",
+    "balance:sim": "node apps/cli/balance-sim.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "playwright": "1.65.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.8"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "catalogHash": "4fda1c70ee9d13b2bafdc894021b7d550081b92c524d5b9aa100904d48307afb",
+  "weights": {
+    "health": 0.72,
+    "lowHealth": 1.1,
+    "criticalHealth": 2.15,
+    "body": 1.15,
+    "attack": 1.17,
+    "durability": 0.83,
+    "ability": 1.03,
+    "keyword": 1.1,
+    "weapon": 1.05,
+    "hand": 1.65,
+    "handQuality": 0.3,
+    "secret": 1.5,
+    "mana": 0.65,
+    "overload": 0.92,
+    "fatigue": 0.45,
+    "pressure": 1.24,
+    "initiative": 0.2,
+    "trade": 0.1,
+    "face": 0.1
+  },
+  "generation": 276,
+  "games": 6848,
+  "minutes": 26.755783333333333,
+  "promotions": 0,
+  "validatedWins": 0,
+  "validatedGames": 0,
+  "updatedAt": "2026-11-22T04:01:47.172Z"
+}

@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: card-duel
+    runtime: node
+    plan: free
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci && npm run typecheck && npm run build && npm run verify:deployment
+    startCommand: npm run server
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 24.13.0
+      - key: CARD_DUEL_HOST
+        value: 0.0.0.0
+      - key: CARD_DUEL_PUBLIC_DEPLOY
+        value: '1'
+      - key: CARD_DUEL_ACCOUNT_BACKEND
+        value: supabase
+      - key: CARD_DUEL_EMAIL_RECOVERY
+        value: '0'
+      - key: CARD_DUEL_MAINTENANCE
+        value: '1'
+      - key: CARD_DUEL_PUBLIC_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false

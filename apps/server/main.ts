@@ -1,0 +1,26 @@
+import { createDuelServer, loadCatalog } from './server.ts';
+import { allowedGameBind } from './config.ts';
+import { LocalAccountStore } from './account-store.ts';
+import { SupabaseAccountStore } from './supabase-accounts.ts';
+import { loadGrowth } from './growth-store.ts';
+import {cloudConfig,verifyCloudStorage} from './deployment-check.ts';
+import {WorkerBotExecutor} from './bot-executor.ts';
+import {verifyRankedDecks} from '../../packages/progression.ts';
+const port=Number(process.env.PORT??3000);
+if(!Number.isInteger(port)||port<1||port>65535)throw new Error('잘못된 PORT');
+const host=process.env.CARD_DUEL_HOST??'127.0.0.1';
+if(!allowedGameBind(host,process.env.CARD_DUEL_ACCOUNT_BACKEND,process.env.CARD_DUEL_PUBLIC_ORIGIN,process.env.CARD_DUEL_PUBLIC_DEPLOY))throw new Error('공개 바인딩은 Supabase 저장소와 HTTPS 공개 출처를 명시한 경우에만 허용됩니다.');
+const cloud=process.env.CARD_DUEL_ACCOUNT_BACKEND==='supabase';
+if(process.env.CARD_DUEL_ACCOUNT_BACKEND&&!['local','supabase'].includes(process.env.CARD_DUEL_ACCOUNT_BACKEND))throw new Error('잘못된 CARD_DUEL_ACCOUNT_BACKEND');
+const catalog=loadCatalog(),growth=loadGrowth(catalog);
+verifyRankedDecks(catalog,growth);
+const config=cloud?cloudConfig(process.env):undefined;
+if(config)await verifyCloudStorage(config);
+const accounts=config?new SupabaseAccountStore({...config,growth,emailRecovery:process.env.CARD_DUEL_EMAIL_RECOVERY==='1'}):new LocalAccountStore(process.env.CARD_DUEL_ACCOUNT_DB??'data/accounts/accounts.sqlite',growth);
+const restoreRooms=await accounts.loadRoomSnapshots();
+const maintenance=await accounts.initializeMaintenance(process.env.CARD_DUEL_MAINTENANCE==='1');
+const {http,io,flush}=createDuelServer(catalog,{trustedOrigin:process.env.CARD_DUEL_PUBLIC_ORIGIN,accounts,growth,restoreRooms,botExecutor:new WorkerBotExecutor(catalog),maintenance});
+let stopping=false;
+async function stop(){if(stopping)return;stopping=true;await io.close();const saved=await flush();if(accounts instanceof LocalAccountStore)accounts.close();if(!saved)process.exitCode=1;}
+process.once('SIGTERM',()=>void stop());process.once('SIGINT',()=>void stop());
+http.listen(port,host,()=>console.log(`Card Duel: http://${host}:${port}`));

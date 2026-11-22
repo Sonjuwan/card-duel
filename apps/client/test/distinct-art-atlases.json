@@ -1,0 +1,777 @@
+[
+  {
+    "group": "distinct-1",
+    "cells": [
+      {
+        "id": "ancient_warden",
+        "asset": "distinct-ancient-warden",
+        "scene": "ancient woodland keeper, moss-covered antlers, druid staff and green cloak"
+      },
+      {
+        "id": "shape_guardian",
+        "asset": "distinct-shape-guardian",
+        "scene": "feral druid with antler crown transforming into a clawed bear, dynamic low angle"
+      },
+      {
+        "id": "beast_tamer",
+        "asset": "distinct-beast-tamer",
+        "scene": "rugged hound trainer kneeling beside a hunting dog, leather whistle"
+      },
+      {
+        "id": "glacial_construct",
+        "asset": "distinct-glacial-construct",
+        "scene": "towering translucent blue water elemental, swirling fluid arms and bubbles"
+      },
+      {
+        "id": "mana_wyrm",
+        "asset": "distinct-mana-wyrm",
+        "scene": "small serpentine blue mana wyrm suspended above a violet crystal"
+      },
+      {
+        "id": "courier",
+        "asset": "distinct-courier",
+        "scene": "mischievous goblin treasure collector squatting over a treasure chest, sneaky grin"
+      },
+      {
+        "id": "frost_guard",
+        "asset": "distinct-frost-guard",
+        "scene": "Frostwolf orc grunt with icy fur shoulders, rough stone axe"
+      },
+      {
+        "id": "reef_oracle",
+        "asset": "distinct-reef-oracle",
+        "scene": "red-finned fishfolk acolyte holding a shell censer"
+      },
+      {
+        "id": "cold_oracle",
+        "asset": "distinct-cold-oracle",
+        "scene": "pale blue polar fishfolk oracle with frosted staff and icicles"
+      },
+      {
+        "id": "tide_caller",
+        "asset": "distinct-tide-caller",
+        "scene": "orange-finned fishfolk tidesinger blowing a conch, splash"
+      },
+      {
+        "id": "boar_trapper",
+        "asset": "distinct-boar-trapper",
+        "scene": "spiny quilboar hunter with crossbow in scrubland"
+      },
+      {
+        "id": "banner_captain",
+        "asset": "distinct-banner-captain",
+        "scene": "armored draenei-like horned guardian raising two protective shields"
+      },
+      {
+        "id": "harsh_sergeant",
+        "asset": "distinct-harsh-sergeant",
+        "scene": "angry human drill sergeant pointing a finger, military cap"
+      },
+      {
+        "id": "pack_wolf",
+        "asset": "distinct-pack-wolf",
+        "scene": "large snarling alpha wolf with dark fur leading smaller wolves"
+      },
+      {
+        "id": "reef_guard",
+        "asset": "distinct-reef-guard",
+        "scene": "green fishfolk coastal hunter holding a fishing spear"
+      },
+      {
+        "id": "cold_seer",
+        "asset": "distinct-cold-seer",
+        "scene": "blue fishfolk elder in a coral crown casting cleansing light"
+      },
+      {
+        "id": "shadow_blade",
+        "asset": "distinct-shadow-blade",
+        "scene": "hooded knife duelist in motion, twin gleaming short blades"
+      },
+      {
+        "id": "wind_harpy",
+        "asset": "distinct-wind-harpy",
+        "scene": "female winged harpy swooping over a cliff, feathered claws"
+      },
+      {
+        "id": "angry_chicken",
+        "asset": "distinct-angry-chicken",
+        "scene": "enraged tiny white rooster lunging with raised red comb"
+      },
+      {
+        "id": "silver_knight",
+        "asset": "distinct-silver-knight",
+        "scene": "silver-armored mounted knight on armored horse, upright lance"
+      },
+      {
+        "id": "clockwork_smith",
+        "asset": "distinct-clockwork-smith",
+        "scene": "gnome engineer wrestling with a mechanical dragon's gears"
+      },
+      {
+        "id": "senior_inventor",
+        "asset": "distinct-senior-inventor",
+        "scene": "eccentric elderly gnome inventor peering through magnifying goggles, complicated contraption"
+      },
+      {
+        "id": "citadel_guard",
+        "asset": "distinct-citadel-guard",
+        "scene": "tall blue-skinned troll shieldmaster bracing ornate rectangular shield"
+      },
+      {
+        "id": "core_hound",
+        "asset": "distinct-core-hound",
+        "scene": "massive twin-headed lava hound with black rocky fur, ember jaws"
+      },
+      {
+        "id": "citadel_champion",
+        "asset": "distinct-citadel-champion",
+        "scene": "human king-like elite champion in blue gold armor raising a banner"
+      }
+    ]
+  },
+  {
+    "group": "distinct-2",
+    "cells": [
+      {
+        "id": "sun_walker",
+        "asset": "distinct-sun-walker",
+        "scene": "radiant tauren paladin with sun-shaped shield and sunlit plate"
+      },
+      {
+        "id": "master_smith",
+        "asset": "distinct-master-smith",
+        "scene": "stooped master swordsmith holding unfinished gilded sword at anvil"
+      },
+      {
+        "id": "knife_juggler",
+        "asset": "distinct-knife-juggler",
+        "scene": "grinning acrobat juggler tossing several knives in a tavern"
+      },
+      {
+        "id": "light_warden",
+        "asset": "distinct-light-warden",
+        "scene": "robed holy guardian with bright small lantern, vigilant expression"
+      },
+      {
+        "id": "iron_dwarf",
+        "asset": "distinct-iron-dwarf",
+        "scene": "black-bearded iron dwarf, black metal armor and forge hammer"
+      },
+      {
+        "id": "young_brewer",
+        "asset": "distinct-young-brewer",
+        "scene": "young jovial dwarven brewmaster lifting foaming tankard"
+      },
+      {
+        "id": "port_guard",
+        "asset": "distinct-port-guard",
+        "scene": "gruff human seaport bodyguard with club and rope, harbor background"
+      },
+      {
+        "id": "fen_creeper",
+        "asset": "distinct-fen-creeper",
+        "scene": "towering swamp moss monster with vine arms, yellow eyes"
+      },
+      {
+        "id": "cave_mage",
+        "asset": "distinct-cave-mage",
+        "scene": "huge two-headed ogre mage, two different facial expressions, arcane staff"
+      },
+      {
+        "id": "blade_raider",
+        "asset": "distinct-blade-raider",
+        "scene": "terrifying pirate in broad tricorn, cutlass and torn black sail"
+      },
+      {
+        "id": "stampede_kodo",
+        "asset": "distinct-stampede-kodo",
+        "scene": "stampeding horned kodo beast, dusty savannah"
+      },
+      {
+        "id": "peak_commando",
+        "asset": "distinct-peak-commando",
+        "scene": "snowy mountain dwarf commando with long rifle, crouching on ridge"
+      },
+      {
+        "id": "arena_berserker",
+        "asset": "distinct-arena-berserker",
+        "scene": "muscular green jungle troll berserker with tribal tattoos roaring"
+      },
+      {
+        "id": "jungle_tiger",
+        "asset": "distinct-jungle-tiger",
+        "scene": "orange striped jungle tiger crouching among ferns"
+      },
+      {
+        "id": "young_hawk",
+        "asset": "distinct-young-hawk",
+        "scene": "small golden red dragonhawk with feathered dragon wings hovering"
+      },
+      {
+        "id": "stone_warden",
+        "asset": "distinct-stone-warden",
+        "scene": "stone guardian lion statue with jade armor, temple gates"
+      },
+      {
+        "id": "ancient_watcher",
+        "asset": "distinct-ancient-watcher",
+        "scene": "ancient stone watcher statue with weathered humanoid face, cracked mossy stone hands"
+      },
+      {
+        "id": "secret_keeper",
+        "asset": "distinct-secret-keeper",
+        "scene": "mysterious hooded female secretkeeper guarding a locked violet book"
+      },
+      {
+        "id": "ancient_mage",
+        "asset": "distinct-ancient-mage",
+        "scene": "elderly elven archmage with pale flowing beard and starlit staff"
+      },
+      {
+        "id": "silver_protector",
+        "asset": "distinct-silver-protector",
+        "scene": "silver-clad paladin protector holding slender shield over ally"
+      },
+      {
+        "id": "light_entity",
+        "asset": "distinct-light-entity",
+        "scene": "golden living entity of light, humanoid silhouette made of soft luminous ribbons"
+      },
+      {
+        "id": "shadow_healer",
+        "asset": "distinct-shadow-healer",
+        "scene": "dark-robed female soul priest with glowing violet eyes and dark purple healing aura"
+      },
+      {
+        "id": "masked_agent",
+        "asset": "distinct-masked-agent",
+        "scene": "masked rogue master of disguise, half mask held over sly face"
+      },
+      {
+        "id": "bandit_leader",
+        "asset": "distinct-bandit-leader",
+        "scene": "leather-clad bandit ringleader gesturing from a shadowy alley"
+      },
+      {
+        "id": "mana_tide",
+        "asset": "distinct-mana-tide",
+        "scene": "ornate flowing mana tide totem with blue crystals and rippling energy"
+      }
+    ]
+  },
+  {
+    "group": "distinct-3",
+    "cells": [
+      {
+        "id": "void_sentinel",
+        "asset": "distinct-void-sentinel",
+        "scene": "blue-violet shadow elemental demon with broad shoulders, smoky lower body, braced stance"
+      },
+      {
+        "id": "doom_guard",
+        "asset": "distinct-doom-guard",
+        "scene": "muscular crimson winged doomguard with horned head and huge sword"
+      },
+      {
+        "id": "abyssal_colossus",
+        "asset": "distinct-abyssal-colossus",
+        "scene": "towering rocky infernal demon with burning green cracks, fists punching ground"
+      },
+      {
+        "id": "charge_officer",
+        "asset": "distinct-charge-officer",
+        "scene": "female orc battle commander blowing war horn, mounted on war wolf"
+      },
+      {
+        "id": "war_smith",
+        "asset": "distinct-war-smith",
+        "scene": "orc blacksmith forging a heavy axe on anvil, sparks"
+      },
+      {
+        "id": "harsh_overseer",
+        "asset": "distinct-harsh-overseer",
+        "scene": "cruel muscular overseer swinging barbed whip, snarling"
+      },
+      {
+        "id": "blood_veteran",
+        "asset": "distinct-blood-veteran",
+        "scene": "female dwarf armorsmith hammering steel breastplate in forge"
+      },
+      {
+        "id": "frenzy_fighter",
+        "asset": "distinct-frenzy-fighter",
+        "scene": "foaming red-haired berserker roaring with dual axes"
+      },
+      {
+        "id": "misdirection",
+        "asset": "distinct-misdirection",
+        "scene": "secret: two diverging arrows, cloaked archer misdirected toward a decoy"
+      },
+      {
+        "id": "fire_trap",
+        "asset": "distinct-fire-trap",
+        "scene": "concealed pressure plate triggering amber explosive trap, smoke"
+      },
+      {
+        "id": "freeze_trap",
+        "asset": "distinct-freeze-trap",
+        "scene": "metal jaw trap freezing into blue ice, frosty forest"
+      },
+      {
+        "id": "ice_barrier",
+        "asset": "distinct-ice-barrier",
+        "scene": "thick curved crystalline ice shield around a wizard, reflected snow"
+      },
+      {
+        "id": "vaporize",
+        "asset": "distinct-vaporize",
+        "scene": "silhouette of charging attacker dissolving into blue-violet smoke"
+      },
+      {
+        "id": "mirror_entity",
+        "asset": "distinct-mirror-entity",
+        "scene": "wizard's magical glass mirror showing a living identical duplicate escaping its surface"
+      },
+      {
+        "id": "noble_sacrifice",
+        "asset": "distinct-noble-sacrifice",
+        "scene": "silver-armored sacrificial guardian leaping to shield another knight from an incoming spear"
+      },
+      {
+        "id": "root_bloom",
+        "asset": "distinct-root-bloom",
+        "scene": "small seedling rapidly sprouts with branching green roots, rich soil"
+      },
+      {
+        "id": "grove_choice",
+        "asset": "distinct-grove-choice",
+        "scene": "druid claw glyph intertwined with green leaf rune on rocky talisman"
+      },
+      {
+        "id": "forest_soul",
+        "asset": "distinct-forest-soul",
+        "scene": "forest tree spirits emerge from several ancient trunks under misty moon"
+      },
+      {
+        "id": "wild_surge",
+        "asset": "distinct-wild-surge",
+        "scene": "wild druid shapeshifter bounding forward with clawed silhouette"
+      },
+      {
+        "id": "fertile_land",
+        "asset": "distinct-fertile-land",
+        "scene": "fertile magical field, vines and bright seeds bursting from dark soil"
+      },
+      {
+        "id": "thorn_claw",
+        "asset": "distinct-thorn-claw",
+        "scene": "enormous bear claw rakes wooden shield, three clean cuts"
+      },
+      {
+        "id": "return_to_earth",
+        "asset": "distinct-return-to-earth",
+        "scene": "ancient vines wrap and decompose a stone golem back into earth"
+      },
+      {
+        "id": "fanged_bite",
+        "asset": "distinct-fanged-bite",
+        "scene": "close-up of beast fangs snapping at an armored arm"
+      },
+      {
+        "id": "wild_growth",
+        "asset": "distinct-wild-growth",
+        "scene": "druid summons two glowing green mana seeds above open palm"
+      },
+      {
+        "id": "wild_mark",
+        "asset": "distinct-wild-mark",
+        "scene": "wild paw-print rune carved on a leaf-wreathed boulder"
+      }
+    ]
+  },
+  {
+    "group": "distinct-4",
+    "cells": [
+      {
+        "id": "verdant_touch",
+        "asset": "distinct-verdant-touch",
+        "scene": "two hands healing a wounded forest creature using gentle green glow"
+      },
+      {
+        "id": "explosive_shot",
+        "asset": "distinct-explosive-shot",
+        "scene": "explosive fiery arrow impacts a shield with orange burst"
+      },
+      {
+        "id": "wild_arrow",
+        "asset": "distinct-wild-arrow",
+        "scene": "hunter's huge trained wolf leaps at prey while archer commands from behind"
+      },
+      {
+        "id": "hidden_arrow",
+        "asset": "distinct-hidden-arrow",
+        "scene": "precise silver arrow strikes center of moving target"
+      },
+      {
+        "id": "prey_mark",
+        "asset": "distinct-prey-mark",
+        "scene": "small angular red hunter's target mark glowing on stag silhouette"
+      },
+      {
+        "id": "double_volley",
+        "asset": "distinct-double-volley",
+        "scene": "two arrows in synchronized flight through forest"
+      },
+      {
+        "id": "tracking_trail",
+        "asset": "distinct-tracking-trail",
+        "scene": "tracker kneels to inspect beast pawprints and a broken branch"
+      },
+      {
+        "id": "flare",
+        "asset": "distinct-flare",
+        "scene": "single white-gold flare bursts above a dark clearing, dispelling shadows"
+      },
+      {
+        "id": "hound_release",
+        "asset": "distinct-hound-release",
+        "scene": "three different hunting hounds charging from open wooden kennel"
+      },
+      {
+        "id": "mirage_patrol",
+        "asset": "distinct-mirage-patrol",
+        "scene": "three translucent blue mage copies flank the real wizard"
+      },
+      {
+        "id": "winter_field",
+        "asset": "distinct-winter-field",
+        "scene": "a circular freezing vortex swirling around boots on dungeon floor"
+      },
+      {
+        "id": "ice_lance",
+        "asset": "distinct-ice-lance",
+        "scene": "one long spear of ice flies across dark cavern, bright tip"
+      },
+      {
+        "id": "cold_cone",
+        "asset": "distinct-cold-cone",
+        "scene": "cone-shaped icy wind and powder snow sweeping from gloved hand"
+      },
+      {
+        "id": "blessed_champion",
+        "asset": "distinct-blessed-champion",
+        "scene": "holy armored champion raises sword as gold rays converge on him"
+      },
+      {
+        "id": "silencing_rune",
+        "asset": "distinct-silencing-rune",
+        "scene": "quieted sorcerer with finger at lips and broken magical sigil"
+      },
+      {
+        "id": "mind_claim",
+        "asset": "distinct-mind-claim",
+        "scene": "priest manipulates a warrior as puppet via thin violet threads"
+      },
+      {
+        "id": "weakpoint_sentence",
+        "asset": "distinct-weakpoint-sentence",
+        "scene": "violet shadow needle strikes a crouching weak minion"
+      },
+      {
+        "id": "giant_sentence",
+        "asset": "distinct-giant-sentence",
+        "scene": "giant defeated by looming dark violet execution glyph above its head"
+      },
+      {
+        "id": "mass_dispel",
+        "asset": "distinct-mass-dispel",
+        "scene": "wide silver-dove circle dispelling colorful runes in a ritual chamber"
+      },
+      {
+        "id": "mind_burst",
+        "asset": "distinct-mind-burst",
+        "scene": "two opposing violet beams split an enemy's psychic silhouette"
+      },
+      {
+        "id": "thought_echo",
+        "asset": "distinct-thought-echo",
+        "scene": "two translucent thought objects lifted from a dreaming stranger"
+      },
+      {
+        "id": "mental_glimpse",
+        "asset": "distinct-mental-glimpse",
+        "scene": "seer peers through an ethereal eye inside a clear crystal ball"
+      },
+      {
+        "id": "life_barrier",
+        "asset": "distinct-life-barrier",
+        "scene": "golden translucent holy aegis over a single armored figure"
+      },
+      {
+        "id": "spirit_doubling",
+        "asset": "distinct-spirit-doubling",
+        "scene": "two golden spirit silhouettes overlap around praying cleric"
+      },
+      {
+        "id": "smoke_veil",
+        "asset": "distinct-smoke-veil",
+        "scene": "hooded ally vanishing behind swirls of charcoal smoke, purple accent"
+      }
+    ]
+  },
+  {
+    "group": "distinct-5",
+    "cells": [
+      {
+        "id": "twin_strike",
+        "asset": "distinct-twin-strike",
+        "scene": "two crossed slashing blades tearing dark fabric"
+      },
+      {
+        "id": "weapon_hone",
+        "asset": "distinct-weapon-hone",
+        "scene": "wicked blade coated in green venom dripping from vial"
+      },
+      {
+        "id": "cold_blade",
+        "asset": "distinct-cold-blade",
+        "scene": "assassin dagger frosted at its tip, icy blue and steel"
+      },
+      {
+        "id": "blade_burst",
+        "asset": "distinct-blade-burst",
+        "scene": "swirling arc of silver blades around rogue in motion"
+      },
+      {
+        "id": "night_strike",
+        "asset": "distinct-night-strike",
+        "scene": "low-angle ambush strike with dagger cutting a crimson slash"
+      },
+      {
+        "id": "skull_strike",
+        "asset": "distinct-skull-strike",
+        "scene": "blunt dagger hilt striking a helmet, bright flash"
+      },
+      {
+        "id": "precise_stab",
+        "asset": "distinct-precise-stab",
+        "scene": "ambusher thrusting dagger from behind shadowy pillar"
+      },
+      {
+        "id": "needle_cut",
+        "asset": "distinct-needle-cut",
+        "scene": "delicate poison needle piercing worn leather, green droplets"
+      },
+      {
+        "id": "knife_fan",
+        "asset": "distinct-knife-fan",
+        "scene": "five knives fan outward from gloved hand against stone wall"
+      },
+      {
+        "id": "silent_execution",
+        "asset": "distinct-silent-execution",
+        "scene": "hooded assassin silently aiming dagger at unsuspecting silhouette"
+      },
+      {
+        "id": "treachery",
+        "asset": "distinct-treachery",
+        "scene": "two guards turned against one another by thin crimson illusion"
+      },
+      {
+        "id": "rapid_mission",
+        "asset": "distinct-rapid-mission",
+        "scene": "swift rogue racing through alley with rolled mission scroll"
+      },
+      {
+        "id": "smoke_escape",
+        "asset": "distinct-smoke-escape",
+        "scene": "figure dissolves into cloud of grey smoke and empty cloak"
+      },
+      {
+        "id": "shadow_step",
+        "asset": "distinct-shadow-step",
+        "scene": "rogue steps sideways into dark rippling shadow portal"
+      },
+      {
+        "id": "storm_retreat",
+        "asset": "distinct-storm-retreat",
+        "scene": "rogue's quick hand knocks opponent dazed with nonlethal blow"
+      },
+      {
+        "id": "totem_resilience",
+        "asset": "distinct-totem-resilience",
+        "scene": "tribal wooden totem strengthened by sturdy bands, warm rune"
+      },
+      {
+        "id": "stone_edge",
+        "asset": "distinct-stone-edge",
+        "scene": "ancient stone hammer with glowing earthen crystal head"
+      },
+      {
+        "id": "ancestral_renewal",
+        "asset": "distinct-ancestral-renewal",
+        "scene": "tribal healer raises pale ancestor spirit over injured warrior"
+      },
+      {
+        "id": "frost_jolt",
+        "asset": "distinct-frost-jolt",
+        "scene": "brief blue icy shockwave emerging from hand"
+      },
+      {
+        "id": "thunderstorm",
+        "asset": "distinct-thunderstorm",
+        "scene": "storm cloud above small battlefield with many lightning strikes"
+      },
+      {
+        "id": "earth_shock",
+        "asset": "distinct-earth-shock",
+        "scene": "earthquake fissure and rock shards under enemy minion"
+      },
+      {
+        "id": "forked_bolt",
+        "asset": "distinct-forked-bolt",
+        "scene": "two forked bolts of lightning strike separate rocks"
+      },
+      {
+        "id": "lava_burst",
+        "asset": "distinct-lava-burst",
+        "scene": "orange lava projectile bursts from volcanic vent"
+      },
+      {
+        "id": "spirit_pack",
+        "asset": "distinct-spirit-pack",
+        "scene": "two ghostly translucent blue spirit wolves side by side"
+      },
+      {
+        "id": "overpower",
+        "asset": "distinct-overpower",
+        "scene": "dark magic augments demonic arm with powerful green flame"
+      }
+    ]
+  },
+  {
+    "group": "distinct-6",
+    "cells": [
+      {
+        "id": "demon_pact",
+        "asset": "distinct-demon-pact",
+        "scene": "warlock offers small demon inside violet sacrifice circle, non-graphic"
+      },
+      {
+        "id": "decay_mark",
+        "asset": "distinct-decay-mark",
+        "scene": "corrupted tree branch with black rot spreading to green leaf"
+      },
+      {
+        "id": "demon_seek",
+        "asset": "distinct-demon-seek",
+        "scene": "warlock's telescope and arcane detection rune reveals hidden demon silhouette"
+      },
+      {
+        "id": "soul_drain",
+        "asset": "distinct-soul-drain",
+        "scene": "violet thread of life energy flows from silhouette into warlock's palm"
+      },
+      {
+        "id": "infernal_blast",
+        "asset": "distinct-infernal-blast",
+        "scene": "hellfire sweeps across a stone courtyard, several burning pillars"
+      },
+      {
+        "id": "infernal_fire",
+        "asset": "distinct-infernal-fire",
+        "scene": "green fel flame ignites cursed rune on demon claw"
+      },
+      {
+        "id": "shadow_flame",
+        "asset": "distinct-shadow-flame",
+        "scene": "inky purple-black fire consuming sacrificial shadow figure"
+      },
+      {
+        "id": "life_thread",
+        "asset": "distinct-life-thread",
+        "scene": "thin coiled shadow thread connecting target to two hands"
+      },
+      {
+        "id": "soul_flame",
+        "asset": "distinct-soul-flame",
+        "scene": "warlock conjures tiny concentrated red-violet soul flame in his hand"
+      },
+      {
+        "id": "battle_cry",
+        "asset": "distinct-battle-cry",
+        "scene": "front-facing armored warrior charges spear-first, forward motion"
+      },
+      {
+        "id": "inner_wrath",
+        "asset": "distinct-inner-wrath",
+        "scene": "red-orange rage ignites warrior's eyes and clenched fist"
+      },
+      {
+        "id": "battle_frenzy",
+        "asset": "distinct-battle-frenzy",
+        "scene": "wounded enraged warrior raises both axes, dark battle scene"
+      },
+      {
+        "id": "battle_rage",
+        "asset": "distinct-battle-rage",
+        "scene": "many fatigued warriors roar together raising weapons"
+      },
+      {
+        "id": "twin_cleave",
+        "asset": "distinct-twin-cleave",
+        "scene": "broad blade sweeps across two armored shields, motion arc"
+      },
+      {
+        "id": "fatal_finish",
+        "asset": "distinct-fatal-finish",
+        "scene": "warrior drives decisive sword strike against cracked armor, non-graphic"
+      },
+      {
+        "id": "blade_cyclone",
+        "asset": "distinct-blade-cyclone",
+        "scene": "whirling warrior spinning with axe, circular dust and motion"
+      },
+      {
+        "id": "champion_strike",
+        "asset": "distinct-champion-strike",
+        "scene": "heroic warrior strikes forward, brilliant steel slash across shield"
+      },
+      {
+        "id": "test_of_steel",
+        "asset": "distinct-test-of-steel",
+        "scene": "two armored warriors clash swords, close-up sparks at center"
+      },
+      {
+        "id": "final_stand",
+        "asset": "distinct-final-stand",
+        "scene": "defiant commander shouts rally cry while raising standard"
+      },
+      {
+        "id": "healing_hammer",
+        "asset": "distinct-healing-hammer",
+        "scene": "ornate silver longsword with gold hilt and a healing blue gem, upright diagonal"
+      },
+      {
+        "id": "dawn_mace",
+        "asset": "distinct-dawn-mace",
+        "scene": "ceremonial golden knight's mace with white sun emblem"
+      },
+      {
+        "id": "ambush_dagger",
+        "asset": "distinct-ambush-dagger",
+        "scene": "small curved assassin's dagger, hooked black steel and green gemstone"
+      },
+      {
+        "id": "storm_mace",
+        "asset": "distinct-storm-mace",
+        "scene": "ornate heavy shaman axe with blue lightning inlaid head, leather grip"
+      },
+      {
+        "id": "great_waraxe",
+        "asset": "distinct-great-waraxe",
+        "scene": "massive double-headed arcanite great axe with jagged steel edges, red leather haft"
+      }
+    ]
+  }
+]

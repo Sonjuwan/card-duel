@@ -1,0 +1,119 @@
+import {applyAction,createGame,getPlayerView,isBotDifficulty,rankBotActions,strategicDeck,DECK_STYLES,validateDeck,turnTimeLimitSeconds,RuleError,validateBotWeights,HERO_CLASSES,RULES} from '../../../packages/engine/src/index.ts';
+import type {Action,BattleVisualEvent,GameState,Catalog,Deck,HeroClass,BotDifficulty,BotWeights,PlayerId,DeckStyle} from '../../../packages/engine/src/index.ts';
+import {describeAcceptedAction} from '../../../packages/battle-animation.ts';
+import {scaledBattleTiming,ANIMATION_SPEEDS} from '../../../packages/protocol.ts';
+import type {BattleAnimation,RoomView,AnimationSpeed} from '../../../packages/protocol.ts';
+import {deviceBudget} from './device-budget.ts';
+import type {DeviceInfo,DeviceMode} from './device-budget.ts';
+const opaqueCardId=()=>typeof globalThis.crypto!=='undefined'?Array.from(crypto.getRandomValues(new Uint32Array(4)),x=>x.toString(16).padStart(8,'0')).join(''):Array.from({length:4},()=>Math.floor(Math.random()*4294967296).toString(16).padStart(8,'0')).join('');
+
+export interface LocalDuelInput{
+  catalog:Catalog;deck:Deck;heroClass:HeroClass;difficulty:BotDifficulty;seed:number;code:string;
+  style?:DeckStyle;weights?:BotWeights;generation?:number;deviceMode?:DeviceMode;device?:DeviceInfo;
+  firstPlayer?:PlayerId;deckSeed?:number;animationSpeed?:AnimationSpeed;catalogHash?:string;
+}
+export interface LocalSaveSummary{catalogHash:string;code:string;heroClass:HeroClass;opponent:HeroClass;difficulty:BotDifficulty;turn:number;phase:GameState['phase'];revision:number;savedAt:string;}
+/** Private snapshot: never include this in any message to the React renderer. */
+export interface LocalDuelCheckpoint{schema:1;catalogHash:string;summary:LocalSaveSummary;input:Omit<LocalDuelInput,'catalog'|'device'>;state:Omit<GameState,'catalog'>;remainingMs?:number;botTurn:number;botActions:number;}
+const integer=(n:unknown,min:number,max=Number.MAX_SAFE_INTEGER)=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=min&&n<=max;
+export function publicSaveSummary(saved:LocalDuelCheckpoint,hash:string):LocalSaveSummary{
+  const s=saved?.summary;if(saved?.schema!==1||saved.catalogHash!==hash||s?.catalogHash!==hash||typeof s.code!=='string'||!s.code||s.code.length>128||!HERO_CLASSES.includes(s.heroClass)||!HERO_CLASSES.includes(s.opponent)||!isBotDifficulty(s.difficulty)||!integer(s.turn,0,RULES.maxTurns)||!integer(s.revision,0)||!['mulligan','playing','finished'].includes(s.phase)||typeof s.savedAt!=='string'||!Number.isFinite(Date.parse(s.savedAt)))throw new RuleError('손상된 경기 저장 데이터');
+  return {catalogHash:hash,code:s.code,heroClass:s.heroClass,opponent:s.opponent,difficulty:s.difficulty,turn:s.turn,phase:s.phase,revision:s.revision,savedAt:s.savedAt};
+}
+function checkSavedState(s:Omit<GameState,'catalog'>,catalog:Catalog){
+  if(!s||!['mulligan','playing','finished'].includes(s.phase)||!integer(s.revision,0)||!integer(s.rng,0,0xffffffff)||!integer(s.nextId,1)||!integer(s.turn,0,RULES.maxTurns)||![0,1].includes(s.firstPlayer)||![0,1].includes(s.activePlayer)||!Array.isArray(s.players)||s.players.length!==2||!Array.isArray(s.history)||s.history.length>60||s.phase==='finished'&&(![null,0,1].includes(s.winner)||!['health','fatigue','concede','turnLimit'].includes(s.reason??''))||s.phase!=='finished'&&(s.winner!==null||s.reason!==null))throw new RuleError('저장 경기의 상태가 손상되었습니다.');
+  const ids=new Set<string>();const card=(c:{instanceId:string;cardId:string})=>{if(!c||typeof c.instanceId!=='string'||!c.instanceId||ids.has(c.instanceId)||!Object.hasOwn(catalog,c.cardId))throw new RuleError('저장 경기의 카드가 올바르지 않습니다.');ids.add(c.instanceId);};
+  for(const p of s.players){if(!p||!HERO_CLASSES.includes(p.heroClass)||!integer(p.maxHealth??30,1,30)||!integer(p.health,0,p.maxHealth??30)||!integer(p.armor,0)||!integer(p.mana,0,10)||!integer(p.maxMana,0,10)||!integer(p.heroAttack,0)||!integer(p.heroAttacksRemaining,0,2)||!integer(p.pendingOverload,0)||!integer(p.lockedMana,0,10)||!integer(p.cardsPlayedThisTurn,0)||typeof p.heroPowerUsed!=='boolean'||!Array.isArray(p.hand)||p.hand.length>10||!Array.isArray(p.deck)||!Array.isArray(p.board)||p.board.length>7||!Array.isArray(p.secrets)||p.secrets.length>5||!integer(p.fatigue,0)||typeof p.mulliganDone!=='boolean')throw new RuleError('저장 경기의 플레이어 상태가 손상되었습니다.');
+    for(const c of [...p.hand,...p.deck,...p.secrets,...p.board])card(c);for(const m of p.board)if(catalog[m.cardId].kind!=='minion'||!integer(m.attack,0)||!integer(m.health,1,m.maxHealth)||!integer(m.attacksRemaining,0,2))throw new RuleError('저장 경기의 하수인 상태가 손상되었습니다.');
+    if(p.weapon&&(!integer(p.weapon.attack,0)||!integer(p.weapon.durability,1)||p.weapon.cardId&&!Object.hasOwn(catalog,p.weapon.cardId)))throw new RuleError('저장 경기의 무기 상태가 손상되었습니다.');if(p.secrets.some(c=>catalog[c.cardId].kind!=='secret'))throw new RuleError('저장 경기의 비밀 카드가 올바르지 않습니다.');
+  }
+  if(s.pendingChoice){if(s.phase!=='playing'||s.pendingChoice.owner!==s.activePlayer||!Array.isArray(s.pendingChoice.cards)||!s.pendingChoice.cards.length||s.pendingChoice.cards.length>10)throw new RuleError('저장 경기의 선택 상태가 손상되었습니다.');for(const c of s.pendingChoice.cards)card(c);}
+  if(s.history.some(e=>!e||!integer(e.turn,0,RULES.maxTurns)||![0,1].includes(e.player)||typeof e.message!=='string'))throw new RuleError('저장 경기의 기록이 손상되었습니다.');
+}
+/** Local solo authority lives exclusively inside the worker. Only the same
+ * public RoomView used by online matches is emitted to the UI. */
+export class LocalDuel{
+  private state:GameState;
+  private animation?:BattleAnimation;
+  private deadline?:number;
+  private timedTurn?:number;
+  private limit?:number;
+  private botTurn=-1;
+  private botActions=0;
+  readonly style:DeckStyle;
+  private readonly input:LocalDuelInput;
+  constructor(input:LocalDuelInput){
+    this.input={...input,deckSeed:input.deckSeed??((input.seed^0x9ef1672)>>>0)};
+    if(!isBotDifficulty(input.difficulty))throw new RuleError('잘못된 AI 난이도');
+    validateDeck(input.deck,input.catalog);
+    this.style=input.style??(input.difficulty>=16?'legendary':'practice');
+    if(!DECK_STYLES.includes(this.style))throw new RuleError('잘못된 AI 덱 스타일');
+    if(input.animationSpeed!==undefined&&!ANIMATION_SPEEDS.includes(input.animationSpeed))throw new RuleError('잘못된 연출 속도');
+    const opponent=strategicDeck(input.catalog,input.heroClass,this.style,this.input.deckSeed);
+    this.state=createGame(input.catalog,[input.deck,opponent],{seed:input.seed,firstPlayer:input.firstPlayer,runtime:{instanceId:opaqueCardId}});
+  }
+  checkpoint(now=Date.now()):LocalDuelCheckpoint|null{
+    const hash=this.input.catalogHash;if(!hash||!/^[a-f0-9]{64}$/.test(hash))return null;
+    const {catalog:_,device:__,...input}=this.input,{catalog:___,...state}=this.state;
+    return structuredClone({schema:1,catalogHash:hash,summary:{catalogHash:hash,code:this.input.code,heroClass:state.players[0].heroClass,opponent:state.players[1].heroClass,difficulty:this.input.difficulty,turn:state.turn,phase:state.phase,revision:state.revision,savedAt:new Date(now).toISOString()},input:{...input,style:this.style},state,...(this.deadline!==undefined?{remainingMs:Math.max(0,this.deadline-now)}:{}),botTurn:this.botTurn,botActions:this.botActions});
+  }
+  static restore(saved:LocalDuelCheckpoint,catalog:Catalog,hash:string,device?:DeviceInfo,now=Date.now()):LocalDuel{
+    publicSaveSummary(saved,hash);
+    if(!/^[a-f0-9]{64}$/.test(hash)||saved.input?.catalogHash!==hash||saved.summary.code!==saved.input.code||saved.summary.difficulty!==saved.input.difficulty||!integer(saved.input.seed,0,0xffffffff)||!integer(saved.input.deckSeed,0,0xffffffff)||!integer(saved.input.generation??0,0)||saved.input.firstPlayer!==undefined&&![0,1].includes(saved.input.firstPlayer)||saved.input.deviceMode!==undefined&&!['auto','fast','strong'].includes(saved.input.deviceMode)||!integer(saved.botTurn,-1,RULES.maxTurns)||!integer(saved.botActions,0,600)||saved.input.weights&&!validateBotWeights(saved.input.weights))throw new RuleError('현재 카드 버전과 일치하지 않거나 손상된 저장 경기입니다.');
+    const duel=new LocalDuel({...saved.input,catalog,device});const state=structuredClone(saved.state);checkSavedState(state,duel.state.catalog);
+    if(saved.summary.revision!==state.revision||saved.summary.phase!==state.phase||saved.summary.turn!==state.turn||saved.summary.heroClass!==state.players[0].heroClass||saved.summary.opponent!==state.players[1].heroClass||saved.input.deck.heroClass!==state.players[0].heroClass||saved.input.heroClass!==state.players[1].heroClass)throw new RuleError('저장 경기의 요약이 일치하지 않습니다.');
+    duel.state={...state,catalog:duel.state.catalog};duel.botTurn=saved.botTurn;duel.botActions=saved.botActions;duel.updateClock(now);
+    if(duel.deadline!==undefined){if(!integer(saved.remainingMs,0,duel.limit!*1000))throw new RuleError('저장 경기의 남은 시간이 손상되었습니다.');duel.deadline=now+saved.remainingMs!;}else if(saved.remainingMs!==undefined)throw new RuleError('저장 경기의 시간 제한이 일치하지 않습니다.');
+    return duel;
+  }
+  rematch(code:string,seed:number){if(this.state.phase!=='finished')throw new RuleError('경기가 끝난 후 다시 대전할 수 있습니다.');return new LocalDuel({...this.input,code,seed,style:this.style});}
+  view():RoomView{
+    return {code:this.input.code,seat:0,mode:'bot',botEngine:'device',botDifficulty:this.input.difficulty,botTrainingGeneration:this.input.generation??0,botDeckStyle:this.style,animationSpeed:this.input.animationSpeed??'normal',status:this.state.phase==='finished'?'finished':'playing',opponentConnected:true,state:getPlayerView(this.state,0),...(this.animation?{animation:structuredClone(this.animation)}:{}),...(this.deadline!==undefined?{turnDeadlineMs:this.deadline}:{})};
+  }
+  private apply(actor:PlayerId,action:Action,now=Date.now()){
+    const before=this.state,trace:BattleVisualEvent[]=[];
+    this.state=applyAction(before,actor,action,{instanceId:opaqueCardId,visualEvent:e=>{if(trace.length<96)trace.push(e);}});
+    this.animation=describeAcceptedAction(before,this.state,actor,action,trace);
+    this.updateClock(now);
+  }
+  private updateClock(now:number){
+    const limit=turnTimeLimitSeconds(this.state);
+    if(limit===undefined){this.deadline=undefined;this.timedTurn=undefined;this.limit=undefined;return;}
+    if(this.deadline===undefined||this.timedTurn!==this.state.turn){this.timedTurn=this.state.turn;this.deadline=now+limit*1000;}
+    else if(this.limit!==undefined&&limit<this.limit)this.deadline=Math.min(this.deadline,now+limit*1000);
+    this.limit=limit;
+  }
+  turnDeadline(){return this.deadline;}
+  expireTurn(now=Date.now()):boolean{
+    if(this.state.phase!=='playing'||this.deadline===undefined||now<this.deadline)return false;
+    const actor=this.state.activePlayer;
+    if(this.state.pendingChoice?.owner===actor&&this.state.pendingChoice.cards.length)this.apply(actor,{type:'chooseDeckCard',instanceId:this.state.pendingChoice.cards[0].instanceId},now);
+    if(this.state.phase==='playing'&&this.state.activePlayer===actor)this.apply(actor,{type:'endTurn'},now);
+    return true;
+  }
+  act(revision:number,action:Action):RoomView{
+    if(revision!==this.state.revision)throw new RuleError('오래된 게임 화면입니다.');
+    if(this.deadline!==undefined&&Date.now()>=this.deadline)throw new RuleError('턴 시간이 만료되었습니다.');
+    this.apply(0,action);return this.view();
+  }
+  botReady():boolean{
+    const s=this.state;
+    return s.phase==='mulligan'&&s.players[0].mulliganDone&&!s.players[1].mulliganDone||s.phase==='playing'&&s.activePlayer===1;
+  }
+  botDelay():number{return this.input.animationSpeed==='instant'?35:this.animation?scaledBattleTiming(this.animation,this.input.animationSpeed).duration+(this.input.animationSpeed==='fast'?90:170):350;}
+  botStep():boolean{
+    if(this.expireTurn())return true;
+    if(!this.botReady())return false;
+    const s=this.state;
+    if(this.botTurn!==s.turn){this.botTurn=s.turn;this.botActions=0;}
+    const budget=deviceBudget(this.input.difficulty,this.input.deviceMode,this.input.device);
+    const actions=this.botActions>=40&&s.phase==='playing'&&!s.pendingChoice?[{type:'endTurn'} as const]:rankBotActions(getPlayerView(s,1),s.catalog,1,this.input.difficulty,{...budget,weights:this.input.weights});
+    if(this.expireTurn())return true;
+    for(const action of actions){
+      try{this.apply(1,action);this.botActions++;return true;}catch(e){if(!(e instanceof RuleError))throw e;}
+    }
+    throw Error('AI could not make a valid move.');
+  }
+}
+export type LocalRequest={type:'start';input:LocalDuelInput;replaceSave?:LocalSaveSummary|null}|{type:'act';requestId:number;revision:number;action:Action}|{type:'inspectSave';catalogHash:string}|{type:'resume';catalog:Catalog;catalogHash:string;device?:DeviceInfo;expectedCode?:string}|{type:'pause';requestId:number}|{type:'discard';catalogHash:string;requestId:number;expected?:LocalSaveSummary}|{type:'rematch';code:string;seed:number;requestId:number};
+export type LocalResponse={type:'view';view:RoomView;requestId?:number;save?:LocalSaveSummary|null;saveAvailable?:boolean;resumed?:boolean}|{type:'saveInfo';save:LocalSaveSummary|null;available:boolean}|{type:'paused';requestId:number;save:LocalSaveSummary}|{type:'discarded';requestId:number;save:LocalSaveSummary|null;available:boolean}|{type:'error';error:string;requestId?:number;save?:LocalSaveSummary|null;saveAvailable?:boolean};

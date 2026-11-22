@@ -1,0 +1,136 @@
+import { useContext } from 'react';
+import type { DragEvent, ReactNode } from 'react';
+import { canAttackMinion, getHeroPower } from '../../../packages/engine/src/index.ts';
+import type { Card, Catalog, HeroClass, Minion, PublicPlayer } from '../../../packages/engine/src/index.ts';
+import { className, heroPowerDescription, keywords, tribes } from './data.ts';
+import { LocalCardArt, LocalHeroArt, LocalPowerArt, LocalCardBack } from './local-art.tsx';
+import { useCardName, ClassicNamesContext, displayCardName } from './card-names.ts';
+import { fanSlot } from './table-visuals.ts';
+import { useCardHover } from './hover-context.ts';
+
+type Glyph = HeroClass|'neutral'|'minion'|'spell'|'weapon'|'secret'|'coin'|'deck'|'life'|'shield'|'mana'|'beast'|'demon'|'dragon'|'murloc'|'pirate'|'totem';
+const glyphs:Record<Glyph,ReactNode>={
+  warrior:<><path d="m13 12 33 33-8 8L5 20zM38 14 16 36m28-16L22 42M8 46l10 10 10-10"/><path d="m45 5 10 4-4 10-7 1-4-4z"/></>,
+  shaman:<><path d="M34 4 12 35h19l-2 25 23-34H33z"/><path d="m9 9 5 7m42 35-6-6"/></>,
+  rogue:<><path d="M9 8 48 33 31 42 22 57zM55 8 16 33l17 9 9 15z"/><path d="M22 22 42 42M42 22 22 42"/></>,
+  paladin:<><path d="M32 6v52M6 32h52M14 14l36 36m0-36L14 50"/><circle cx="32" cy="32" r="17"/><circle cx="32" cy="32" r="8"/></>,
+  hunter:<><path d="M19 5c31 14 31 40 0 54l5-27zM8 32h48m-9-7 9 7-9 7"/><path d="m19 5 5 27-5 27"/></>,
+  druid:<><path d="M52 8C25 8 9 25 15 43c18 6 35-10 37-35ZM12 55l29-29M18 38l15 1m4-16-1 13"/></>,
+  warlock:<><path d="M32 5 7 46h50zM13 25c4-10 14-15 19-15s15 5 19 15c-7 9-13 12-19 12s-12-3-19-12Z"/><circle cx="32" cy="25" r="5"/><path d="M32 46v13"/></>,
+  mage:<><path d="m12 53 29-29M38 13l10-7 10 10-7 10-10-2zM15 10v14M8 17h14M50 40v13m-7-6h14"/></>,
+  priest:<><path d="M32 5v54M13 21h38"/><path d="M32 8C12 8 7 20 7 31c0 14 12 25 25 25s25-11 25-25C57 20 52 8 32 8Z"/></>,
+  neutral:<><path d="M32 4 56 18v28L32 60 8 46V18Z"/><path d="m32 15 15 17-15 17-15-17Z"/></>,
+  minion:<><circle cx="32" cy="19" r="11"/><path d="M10 56v-9c0-12 10-20 22-20s22 8 22 20v9Z"/></>,
+  beast:<><ellipse cx="12" cy="22" rx="7" ry="10" transform="rotate(-24 12 22)"/><ellipse cx="26" cy="13" rx="7" ry="10"/><ellipse cx="43" cy="15" rx="7" ry="10" transform="rotate(15 43 15)"/><ellipse cx="53" cy="29" rx="6" ry="9" transform="rotate(24 53 29)"/><path d="M20 38c7-11 19-11 24 0 4 6 10 15 3 20-5 3-10-4-16-4s-11 7-17 3c-7-5 1-14 6-19Z"/></>,
+  demon:<><path d="M9 5c2 18 3 22 13 23M55 5c-2 18-3 22-13 23M14 25c3-8 11-13 18-13s15 5 18 13v14c0 13-10 20-18 20s-18-7-18-20Z"/><path d="m21 32 7 5m15-5-7 5m-13 9 9 5 9-5"/></>,
+  dragon:<><path d="M8 54c2-21 12-26 27-22L27 12l27-7-4 20 9 7-20 4c-4 15-12 21-31 25Z"/><path d="M12 42 5 13l24 14m12-8 5 2m-6 21 9 9"/></>,
+  murloc:<><path d="M6 32c11-16 28-23 43-7l9-8v30l-9-8C34 55 17 48 6 32Z"/><circle cx="24" cy="30" r="5"/><path d="m29 45 10-8m-9-22 2-9 12 13"/></>,
+  pirate:<><path d="M10 15c0-7 8-12 22-12s22 5 22 12l-5 20H15Z"/><path d="M11 35h42M15 54 49 42M15 42l34 12"/><circle cx="24" cy="24" r="4"/><circle cx="40" cy="24" r="4"/><path d="m30 31 2-3 2 3"/></>,
+  totem:<><path d="M16 5h32v54H16ZM7 17h50M7 33h50M7 49h50"/><path d="m24 10 8 5 8-5m-16 16 8 5 8-5m-16 16 8 5 8-5"/></>,
+  spell:<><path d="M32 4 38 24l22 8-22 8-6 20-6-20L4 32l22-8Z"/><path d="m52 8 4 4m-44 40 4 4"/></>,
+  weapon:<><path d="m47 5 12 1-1 12-35 34-11-11zM7 36l21 21M9 55l-4 4"/></>,
+  secret:<><path d="M8 31c14-21 34-21 48 0-14 21-34 21-48 0Z"/><circle cx="32" cy="31" r="10"/><path d="M32 5v8m0 38v8"/></>,
+  coin:<><circle cx="32" cy="32" r="26"/><circle cx="32" cy="32" r="18"/><path d="M32 19v26m8-22h-11c-13 0-13 11 0 11h6c13 0 13 11 0 11H24"/></>,
+  deck:<><rect x="14" y="5" width="36" height="54" rx="6"/><path d="M22 13h20v38H22zM32 23l8 9-8 9-8-9Z"/></>,
+  life:<path d="M32 56 8 31C-7 7 23-2 32 17 41-2 71 7 56 31Z"/>,
+  shield:<path d="M32 5 55 14v19c0 12-12 21-23 27C21 54 9 45 9 33V14Z"/>,
+  mana:<path d="M32 3 54 19v26L32 61 10 45V19Z M32 3v58M10 19l22 13 22-13M10 45l22-13 22 13"/>,
+};
+export function Sigil({kind,className:extra=''}:{kind:Glyph;className?:string}){
+  return <svg className={`sigil sigil-${kind} ${extra}`} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{glyphs[kind]}</svg>;
+}
+export function cardDescription(card:Card){return card.kind==='coin'?'이번 턴에 마나 1을 얻습니다.':card.description||'효과 없음';}
+export const cardKindLabel:Record<Card['kind'],string>={coin:'동전',minion:'하수인',spell:'주문',weapon:'무기',secret:'비밀'};
+function cardFaction(card:Card):Glyph{return card.kind==='coin'?'coin':card.class;}
+export function factionLabel(card:Card){return card.kind==='coin'?'시스템':card.class==='neutral'?'중립':className[card.class];}
+export function minionTags(m:Minion):string[]{return [
+  ...(m.keywords??[]).map(k=>keywords[k]),
+  ...(m.silenced?['침묵']:[]),
+  ...(m.auraCharge&&!m.keywords?.includes('charge')?['돌진(지속)']:[]),
+  ...(m.auraWindfury&&!m.keywords?.includes('windfury')?['질풍(지속)']:[]),
+  ...(m.bonusSpellDamage?[`주문 공격력 +${m.bonusSpellDamage}`]:[]),
+  ...(m.stealthUntilStartOf!==undefined?['임시 은신']:[]),
+  ...(m.drawOnAttackOwners?.length?['공격 시 드로우']:[]),
+  ...(m.deathrattleSummons?.length?['소환 죽음의 메아리']:[]),
+  ...(m.frozenThroughTurn!==undefined?['빙결']:[]),
+  ...(m.immuneThisTurn?['면역']:[]),
+  ...(m.returnController!==undefined?['임시 조종']:[]),
+  ...((m.destroyAtStartOf?.length||m.destroyAtEndOf?.length)?['파멸 예정']:[])];}
+export type Inspectable={card:Card;minion?:Minion;weapon?:{attack:number;durability:number};cost?:number;reason?:string;title?:string};
+type Interactive={enabled?:boolean;ready?:boolean;selected?:boolean;targeted?:boolean;sourceId?:string;onClick?:()=>void;onInspect?:(item:Inspectable)=>void;onDragStart?:(event:DragEvent<HTMLButtonElement>)=>void;onDragEnd?:()=>void;onDragOver?:(event:DragEvent<HTMLButtonElement>)=>void;onDrop?:(event:DragEvent<HTMLButtonElement>)=>void;};
+
+export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false,selected=false,onClick,onInspect,onDragStart,onDragEnd,mulligan=false,sourceId}:Interactive&{card:Card;cost?:number;reason?:string;mulligan?:boolean}){
+  const displayName=useCardName(card);const info={card,cost,reason};const rarity=card.kind==='coin'?'basic':card.rarity;const hover=useCardHover(info);
+  return <button type="button" className={`battle-card faction-${cardFaction(card)} kind-${card.kind} rarity-${rarity}${ready?' is-ready':''}${selected?' is-selected':''}${!enabled?' is-disabled':''}${mulligan&&selected?' is-replacing':''}`} data-preview-card={card.id} data-preview-cost={cost} data-action-source={sourceId} aria-disabled={!enabled} aria-description={cardDescription(card)} aria-pressed={mulligan||sourceId?.startsWith('card:')?selected:undefined} aria-label={`${displayName}, 마나 ${cost}, ${cardKindLabel[card.kind]}${card.kind==='minion'?`, 공격력 ${card.attack}, 생명력 ${card.health}`:card.kind==='weapon'?`, 공격력 ${card.attack}, 내구도 ${card.durability}`:''}${reason?`, ${reason}`:''}${mulligan&&selected?', 교체 선택':''}`} onClick={()=>{hover.clear();if(enabled&&!hover.consumeTouchClick())onClick?.();}} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.clear} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd}>
+    <span className={`card-mana${cost<card.cost?' discounted':cost>card.cost?' increased':''}`}>{cost}</span>
+    <span className="card-art"><LocalCardArt card={card}/></span>
+    <span className="card-name">{displayName}</span>
+    <span className="card-type">{cardKindLabel[card.kind]}{card.kind==='minion'&&tribes[card.tribe]?' · '+tribes[card.tribe]:''}</span>
+    <span className="card-copy">{cardDescription(card)}</span>
+    {card.kind==='minion'||card.kind==='weapon'?<span className="card-statline"><span className="stat stat-attack">{card.attack}</span><span className="rarity-gem" aria-label={rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}/><span className="stat stat-health">{card.kind==='minion'?card.health:card.durability}</span></span>:<span className="card-statline no-stats"><span className="rarity-gem" aria-label={rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}/></span>}
+    {mulligan&&selected&&<span className="replace-banner">교체</span>}
+  </button>;
+}
+export function BattleMinion({card,minion,catalog,ownTurn,enabled=false,ready=false,selected=false,targeted=false,onClick,onInspect,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,entering=false,delta=0}:Interactive&{card:Card;minion:Minion;catalog:Catalog;ownTurn:boolean;entering?:boolean;delta?:number}){
+  const displayName=useCardName(card);const tags=minionTags(minion),status=minion.frozenThroughTurn!==undefined?'빙결':card.kind==='minion'&&card.noAttack&&!minion.silenced?'공격 불가':ownTurn&&canAttackMinion(minion,catalog)?`공격 가능 ${minion.attacksRemaining}회`:'대기';
+  const info={card,minion};const hover=useCardHover(info);const taunt=minion.keywords?.includes('taunt'),shield=minion.keywords?.includes('divineShield'),stealth=minion.keywords?.includes('stealth')||minion.stealthUntilStartOf!==undefined;
+  return <button type="button" className={`battle-minion faction-${cardFaction(card)}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${taunt?' has-taunt':''}${shield?' has-shield':''}${stealth?' has-stealth':''}${minion.frozenThroughTurn!==undefined?' is-frozen':''}${minion.silenced?' is-silenced':''}${minion.immuneThisTurn?' is-immune':''}${entering?' is-entering':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-preview-card={card.id} data-preview-minion={minion.instanceId} data-action-source={sourceId} aria-disabled={!enabled} aria-description={minion.silenced?'침묵 (효과 제거)':cardDescription(card)} aria-label={`${displayName}, 공격력 ${minion.attack}, 생명력 ${minion.health}, ${[...tags,status].join(', ')}`} onClick={()=>{hover.clear();if(enabled&&!hover.consumeTouchClick())onClick?.();}} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.clear} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
+    <span className="minion-medallion"><LocalCardArt card={card}/>{shield&&<span className="shield-ring"/>}{stealth&&<span className="stealth-veil"/>}</span>
+    <span className="minion-title">{displayName}</span>
+    <span className="minion-statline"><span className="stat stat-attack">{minion.attack}</span><span className="minion-status" title={[...tags,status].join(' · ')}>{tags.length?tags.slice(0,2).join(' · '):status}</span><span className={`stat stat-health${minion.health<minion.maxHealth?' damaged':''}`}>{minion.health}</span></span>{delta!==0&&<span className={`motion-delta ${delta<0?'damage':'heal'}`} aria-hidden="true">{delta>0?'+':''}{delta}</span>}
+  </button>;
+}
+export function HeroPortrait({player,label,enabled=false,ready=false,selected=false,targeted=false,onClick,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,delta=0}:Interactive&{player:PublicPlayer;label:string;delta?:number}){
+  const attack=player.heroAttack+(player.weapon?.attack??0);
+  return <button type="button" className={`hero-portrait faction-${player.heroClass}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${player.heroFrozenThroughTurn!==undefined?' is-frozen':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-action-source={sourceId} aria-disabled={!enabled} aria-label={`${label} · ${(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])}, 생명력 ${player.health}, 방어도 ${player.armor}, 공격력 ${attack}${player.heroFrozenThroughTurn!==undefined?', 빙결':''}`} title={`${label} · ${(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])} · 생명력 ${player.health}${player.armor?` · 방어도 ${player.armor}`:''} · 공격력 ${attack}${player.heroFrozenThroughTurn!==undefined?' · 빙결':''}${player.heroImmuneThisTurn?' · 면역':''}`} onClick={()=>{if(enabled)onClick?.();}} draggable={enabled&&!!onDragStart} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
+    <span className="hero-emblem"><LocalHeroArt heroClass={player.heroClass} heroForm={player.heroForm}/></span>
+    <span className="hero-label">{label} · {(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])}</span>
+    {attack>0&&<span className="stat stat-attack hero-attack">{attack}</span>}
+    {player.armor>0&&<span className="hero-armor"><Sigil kind="shield"/>{player.armor}</span>}
+    <span className="stat stat-health hero-health">{player.health}</span>
+    {player.heroFrozenThroughTurn!==undefined&&<span className="hero-freeze">빙결</span>}{player.heroImmuneThisTurn&&<span className="hero-freeze hero-immune">면역</span>}{delta!==0&&<span className={`motion-delta ${delta<0?'damage':'heal'}`} aria-hidden="true">{delta>0?'+':''}{delta}</span>}
+  </button>;
+}
+export function HeroPower({player,onClick,enabled=false,ready=false,selected=false,reason,sourceId}:{player:PublicPlayer;onClick?:()=>void;enabled?:boolean;ready?:boolean;selected?:boolean;reason?:string;sourceId?:string}){
+  const power=getHeroPower(player);
+  return <button type="button" className={`hero-power faction-${player.heroClass}${ready?' is-ready':''}${selected?' is-selected':''}${player.heroPowerUsed?' spent':''}`} data-action-source={sourceId} aria-disabled={!enabled} aria-label={`${power.name} (${power.cost}마나)${reason?', '+reason:''}`} title={`${power.name} (${power.cost}마나) · ${(player.heroForm==='jaraxxus'?'6/6 지옥불정령을 소환합니다.':player.shadowformLevel?'캐릭터 하나에게 피해 '+(player.shadowformLevel+1)+'를 줍니다.':heroPowerDescription[player.heroClass])}${reason?' · '+reason:''}`} onClick={()=>{if(enabled)onClick?.();}}>
+    <span className="power-medallion"><LocalPowerArt heroClass={player.heroClass} shadowformLevel={player.shadowformLevel} heroForm={player.heroForm}/><span className="power-mana">{power.cost}</span></span><span className="power-label">{player.heroPowerUsed?'사용 완료':power.name}</span>
+  </button>;
+}
+export function WeaponSlot({player,catalog}:{player:PublicPlayer;catalog:Catalog}){
+  const classicNames=useContext(ClassicNamesContext);
+  const weapon=player.weapon,card=weapon?.cardId?catalog[weapon.cardId]:undefined,name=card?displayCardName(card,classicNames):'장착 무기';
+  const hover=useCardHover(weapon&&card?{card,weapon}:null);
+  return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onPointerCancel={hover.clear} onFocus={e=>{if(card)hover.start(e.currentTarget);}} onBlur={hover.clear} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack">{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
+}
+export function ManaDisplay({player,compact=false}:{player:PublicPlayer;compact?:boolean}){
+  const unlocked=Math.max(0,player.maxMana-player.lockedMana),extra=Math.max(0,player.mana-unlocked);
+  const slots=Math.min(10,Math.max(0,player.maxMana+extra));
+  const gem=(i:number)=>i>=slots?'future':i>=unlocked&&i<player.maxMana?'locked':i<Math.min(player.mana,unlocked)||i>=player.maxMana&&i<player.maxMana+extra?'filled':'spent';
+  return <div className={`mana-display${compact?' compact':''}`} aria-label={`마나 ${player.mana}/${player.maxMana}${player.lockedMana?`, 잠긴 마나 ${player.lockedMana}`:''}${player.pendingOverload?`, 다음 턴 과부하 ${player.pendingOverload}`:''}`} title={`마나 ${player.mana}/${player.maxMana}${player.lockedMana?` · 잠김 ${player.lockedMana}`:''}${player.pendingOverload?` · 다음 과부하 ${player.pendingOverload}`:''}`}>
+    <span className="mana-number"><Sigil kind="mana"/>{player.mana}<small>/{player.maxMana}</small></span>
+    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=><span key={i} className={`mana-crystal ${gem(i)}`}>{gem(i)==='locked'?'×':''}</span>)}</span>
+    {(player.pendingOverload>0||player.lockedMana>0)&&<span className="mana-warning">{player.lockedMana>0?`잠김 ${player.lockedMana}`:''}{player.lockedMana>0&&player.pendingOverload>0?' · ':''}{player.pendingOverload>0?`다음 과부하 ${player.pendingOverload}`:''}</span>}
+  </div>;
+}
+export function HiddenHand({count}:{count:number}){
+  return <div className="hidden-hand" aria-label={`상대 손패 ${count}장`}><div className="card-back-row" aria-hidden="true">{Array.from({length:Math.max(0,Math.min(10,count))},(_,i)=><span key={i} className={`opponent-card-slot ${fanSlot(i,Math.min(10,count))}`}><span className="card-back"><LocalCardBack/></span></span>)}</div><span className="hand-count">손패 {count}/10</span></div>;
+}
+export function DeckPile({player,label}:{player:PublicPlayer;label:string}){
+  return <div className={`deck-pile${!player.deckCount?' empty':''}`} aria-label={`${label} 덱 ${player.deckCount}장${player.fatigue?`, 탈진 ${player.fatigue}`:''}`} title={`${label} 덱 ${player.deckCount}장${player.fatigue?` · 탈진 ${player.fatigue}`:''}`}><span className="deck-stack" aria-hidden="true"><span/><span/><span><LocalCardBack/></span></span><span className="deck-number">{player.deckCount}</span><small>{player.fatigue?`탈진 ${player.fatigue}`:`${label} 덱`}</small></div>;
+}
+function SecretGem({card,name}:{card?:Card;name?:string}){
+  const hover=useCardHover(card?{card}:null);
+  return <span className="secret-gem" title={name??'비공개 비밀'} tabIndex={card?0:undefined} onPointerEnter={e=>{if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onPointerCancel={hover.clear} onFocus={e=>{if(card)hover.start(e.currentTarget);}} onBlur={hover.clear}>?</span>;
+}
+export function Secrets({count,names,cards}:{count:number;names?:string[];cards?:Card[]}){
+  return <div className="secret-row" aria-label={`${names?'내 비밀':'상대 비밀'} ${count}개${names?.length?', '+names.join(', '):''}`} title={names?`내 비밀: ${names.join(', ')||'없음'}`:`상대 비밀 ${count}개 (이름 비공개)`}>{Array.from({length:count},(_,i)=><SecretGem key={i} card={cards?.[i]} name={names?.[i]}/>)}{count===0&&<small>비밀 없음</small>}</div>;
+}
+export function CardInspector({item,catalog}:{item:Inspectable|null;catalog:Catalog}){
+  if(!item)return <div className="card-inspector empty"><Sigil kind="deck"/><b>카드 확인</b><p>카드에 마우스를 올리면 능력과 상태가 표시됩니다.</p></div>;
+  return <InspectedCard item={item} catalog={catalog}/>;
+}
+function InspectedCard({item,catalog}:{item:Inspectable;catalog:Catalog}){
+  const {card,minion,cost,reason}=item;const displayName=useCardName(card);
+  return <div className={`card-inspector faction-${cardFaction(card)}`} aria-label="카드 상세"><div className="inspect-heading"><span className="inspect-sigil"><LocalCardArt card={card}/></span><div><strong>{displayName}</strong><small>{factionLabel(card)} · {cardKindLabel[card.kind]}</small></div></div><div className="inspect-stats"><span>마나 <b>{cost??card.cost}</b></span>{card.kind==='minion'&&<><span>공격 <b>{minion?.attack??card.attack}</b></span><span>체력 <b>{minion?.health??card.health}</b></span></>}{card.kind==='weapon'&&<><span>공격 <b>{card.attack}</b></span><span>내구 <b>{card.durability}</b></span></>}</div><p>{minion?.silenced?'침묵 (효과 제거)':cardDescription(card)}</p>{minion&&<small className="inspect-status">{minionTags(minion).join(' · ')||'추가 상태 없음'}</small>}{reason&&<small className="inspect-reason">{reason}</small>}{card.kind==='minion'&&card.tribe!=='none'&&<small>{tribes[card.tribe]}</small>}{minion&&canAttackMinion(minion,catalog)&&<small>남은 공격 {minion.attacksRemaining}회</small>}</div>;
+}

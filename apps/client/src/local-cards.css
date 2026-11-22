@@ -1,0 +1,154 @@
+/* v0.26: self-contained collectible cards. One live DOM frame and one
+   inline original illustration; no overlay of a remote full-card image. */
+.original-art{display:block;width:100%;height:100%;min-width:0;min-height:0;max-width:none;max-height:none;pointer-events:none;user-select:none}
+.local-card-back-art{display:block;width:100%;height:100%;max-width:100%;max-height:100%;pointer-events:none}
+.card-back:has(.local-card-back-art),.classic-table .card-back:has(.local-card-back-art){padding:0;border-width:1px;background:#342b28;overflow:hidden}
+.deck-stack>span:has(.local-card-back-art),.classic-table .deck-stack>span:has(.local-card-back-art){padding:0;border-width:1px;background:#342b28;overflow:hidden}
+.battle-card{
+  --paper:#ebd9b6;--paper-dark:#c1a579;--frame-edge:#705132;--frame-shine:#dfbc79;--banner:#cda66a;
+  container-type:size;box-sizing:border-box;display:flex;flex-direction:column;justify-content:start;gap:0;align-items:stretch;
+  padding:5px 5px 3px;border:3px solid var(--frame-edge);border-radius:18% 18% 9px 9px/12% 12% 9px 9px;
+  background:linear-gradient(105deg,var(--paper-dark),var(--paper) 10%,var(--paper) 82%,var(--paper-dark));
+  box-shadow:0 4px 7px #1b110bd1,inset 0 0 0 1px var(--frame-shine),inset 0 0 0 3px var(--frame-edge),inset 0 0 0 4px var(--frame-shine);
+  color:#38291e;overflow:visible;
+}
+.battle-card.faction-warrior{--paper:#e4bea4;--paper-dark:#a65f45;--frame-edge:#743e30;--frame-shine:#e5ab78;--banner:#c79367}
+.battle-card.faction-shaman{--paper:#d7e2d5;--paper-dark:#729b9e;--frame-edge:#37646d;--frame-shine:#acd8d1;--banner:#91b8ad}
+.battle-card.faction-rogue{--paper:#d5d8d4;--paper-dark:#818b91;--frame-edge:#46545c;--frame-shine:#d0d6d2;--banner:#aeb9b6}
+.battle-card.faction-paladin{--paper:#f7e3ac;--paper-dark:#c49c52;--frame-edge:#90642b;--frame-shine:#ffe3a1;--banner:#e6c378}
+.battle-card.faction-hunter{--paper:#d7e2ac;--paper-dark:#839c5d;--frame-edge:#51713e;--frame-shine:#c5db8a;--banner:#b4c77e}
+.battle-card.faction-druid{--paper:#e4d1af;--paper-dark:#ae8556;--frame-edge:#705438;--frame-shine:#dccc90;--banner:#c8ab78}
+.battle-card.faction-warlock{--paper:#e2cce8;--paper-dark:#9273a2;--frame-edge:#653575;--frame-shine:#e2bde5;--banner:#c7a5cc}
+.battle-card.faction-mage{--paper:#d8def4;--paper-dark:#899ace;--frame-edge:#475c98;--frame-shine:#cbddff;--banner:#b1c3eb}
+.battle-card.faction-priest{--paper:#f2eee0;--paper-dark:#c4bba1;--frame-edge:#84775d;--frame-shine:#fffbdc;--banner:#ddd4b5}
+.battle-card.kind-spell,.battle-card.kind-secret{border:3px solid var(--frame-edge);border-radius:14px 14px 8px 8px;background:linear-gradient(110deg,var(--paper-dark),var(--paper) 13%,var(--paper) 86%,var(--paper-dark))}
+.battle-card.kind-weapon{border:3px solid #555e63;background:linear-gradient(110deg,#8b979c,#e2e2ce 15%,#e9dfc2 85%,#929a94);border-radius:20px 20px 9px 9px}
+.battle-card.kind-coin{--paper:#fceaaa;--paper-dark:#d3a448;--frame-edge:#ae762f;--frame-shine:#ffe3a1;--banner:#edc875;border-radius:12px;border-color:var(--frame-edge);background:linear-gradient(110deg,#ac7b35,#fae3a3 14%,#fcebb6 85%,#c49345)}
+.battle-card .card-art{display:block;position:relative;flex:0 0 auto;min-height:0;height:auto;aspect-ratio:1/1;width:min(100%,62cqh,max(1px,calc(100cqh - 55px)));align-self:center;margin:0 auto;overflow:hidden;border:2px solid var(--frame-edge);border-radius:16% 16% 7% 7%;background:#2d2d32;box-shadow:0 1px 3px #241709,0 0 0 1px var(--frame-shine);opacity:1}
+.battle-card .card-art::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 6px 1px #100b10c7;pointer-events:none}
+.battle-card.kind-spell .card-art,.battle-card.kind-secret .card-art,.battle-card.kind-coin .card-art{border-radius:7px;flex-basis:auto}
+.battle-card.kind-weapon .card-art{border-radius:18% 18% 7% 7%}
+.battle-card .card-name{flex:none;display:block;min-height:15px;margin:-1px -3px 0;padding:2px 2px 3px;color:#37271b;border:1px solid var(--frame-edge);border-radius:4px;background:linear-gradient(0deg,var(--banner),var(--paper) 56%,var(--banner));box-shadow:0 2px 2px #3b281f6e;font-family:system-ui,"Malgun Gothic",sans-serif;font-weight:950;letter-spacing:-.035em;line-height:1.14;text-shadow:0 1px #fff7d79e;font-size:clamp(9px,10.6cqi,15px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.battle-card.kind-spell .card-name,.battle-card.kind-secret .card-name{background:linear-gradient(0deg,var(--banner),var(--paper) 56%,var(--banner));border-color:var(--frame-edge);color:#37271b;text-shadow:0 1px #fff7d79e}
+.battle-card .card-type{flex:none;display:block;margin:1px 0;color:#6c5947;font-size:clamp(8px,7.8cqi,10.5px);font-weight:800;line-height:1.07;letter-spacing:-.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.battle-card .card-copy{display:block;flex:1;min-height:0;overflow:hidden;overflow-wrap:anywhere;padding:1px 2px;color:#35281e;font-size:clamp(8px,9.5cqi,13px);line-height:1.22;font-weight:650;text-align:center}
+.battle-card .card-mana{z-index:4;top:-6px;left:-6px;width:clamp(23px,22cqi,36px);height:clamp(25px,25cqi,41px);border:2px solid #ccecff;background:radial-gradient(circle at 31% 13%,#b8f0ff,#5299dc 30%,#1a55a0 72%,#112f71);clip-path:polygon(50% 0,91% 20%,98% 74%,67% 100%,33% 100%,2% 74%,9% 20%);font-size:clamp(15px,17cqi,24px);text-shadow:1px 1px 2px #0b214d}
+.battle-card .card-mana.discounted{background:radial-gradient(circle at 30% 20%,#c5ffbb,#438f50 44%,#177c42)}
+.battle-card .card-mana.increased{background:radial-gradient(circle at 30% 20%,#ffba93,#b84539 44%,#7f242a)}
+.battle-card .card-statline{flex:none;min-height:0;display:flex;align-items:center;margin:0 -4px -4px;position:relative;z-index:2}
+.battle-card .stat{box-sizing:border-box;width:clamp(21px,23cqi,34px);height:clamp(21px,23cqi,34px);font-size:clamp(13px,16cqi,22px);font-weight:950;text-shadow:1px 1px 2px #301f12;border:2px solid #f6e6b1}
+.battle-card .stat-attack{border-radius:43% 50% 44% 50%;background:radial-gradient(circle at 30% 20%,#fdf0a0,#d29629 42%,#93601f)}
+.battle-card .stat-health{border-radius:48% 48% 40% 40%;background:radial-gradient(circle at 33% 14%,#ffaea6,#cf4a37 48%,#821b20)}
+.battle-card .card-statline.no-stats{min-height:9px;margin-bottom:0}
+.battle-card .rarity-gem{flex:none;height:9px;width:9px;transform:rotate(45deg);border-radius:1px}
+.battle-card.rarity-basic .rarity-gem{height:5px;width:5px;opacity:.6}
+.battle-card.is-disabled .card-art{opacity:1}
+.battle-card.is-ready{outline:2px solid #a6ef7a;box-shadow:0 0 12px #7fe45d9c,inset 0 0 0 2px var(--frame-shine)}
+.battle-card.is-selected{outline:3px solid #ffe2a3;box-shadow:0 0 11px #ffce75bd}
+.battle-card.is-replacing{filter:saturate(.65)}
+.battle-card .replace-banner{z-index:6}
+.collection.classic-collection .battle-card{min-height:0;width:100%;height:auto;aspect-ratio:5/8;max-width:168px}
+.collection.classic-collection .card-copy{font-size:clamp(9px,9.4cqi,14px)}
+.collection.classic-collection .card-name{font-size:clamp(10px,10.6cqi,15px)}
+.mulligan-cards .battle-card,.choice-cards .battle-card{height:auto;aspect-ratio:5/8;max-width:174px;min-height:0}
+.mulligan-cards .card-name,.choice-cards .card-name{white-space:normal;font-size:clamp(9px,11cqi,16px);padding:3px 2px}
+.mulligan-cards .card-copy,.choice-cards .card-copy{font-size:clamp(10px,10.1cqi,15px);padding:2px}
+/* Make illustration fit the original shapes in every surface. Only the
+   containing portrait is clipped; status badges and card corners stay outside. */
+.hero-emblem,.class-emblem,.deck-banner-icon,.inspect-sigil{overflow:hidden}
+.hero-emblem{width:clamp(49px,7vw,85px);height:calc(var(--hero-h) - 30px);border-radius:43% 43% 8px 8px}
+.hero-emblem .original-art,.class-emblem .original-art,.deck-banner-icon .original-art,.inspect-sigil .original-art{border-radius:inherit}
+.minion-medallion .original-art,.power-medallion .original-art,.weapon-medallion .original-art{position:absolute;inset:0;border-radius:inherit}
+.power-medallion .original-art,.weapon-medallion .original-art{inset:2px;width:calc(100% - 4px);height:calc(100% - 4px)}
+.power-mana,.weapon-medallion>.stat{z-index:3}
+.class-emblem{padding:0}
+.deck-banner-icon .original-art{width:100%;height:100%}
+.deck-sidebar .deck-list>button:has(.local-deck-tile){position:relative;isolation:isolate;overflow:hidden;text-shadow:0 1px 3px #1b1510}
+.local-deck-tile{position:absolute;right:0;top:0;width:76%;height:100%;opacity:.57;z-index:-1;pointer-events:none;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 56%)}
+.local-deck-tile .original-art{width:100%;height:100%}
+.inspect-sigil{padding:0;min-width:38px}
+/* At the hero's edge, the whole card stays on the board. A smaller fan
+   amplitude protects the stat corners even with all ten cards in hand. */
+@media(min-width:941px){
+  /* 48% of the tabletop is now reserved for the two minion rows. */
+  .classic-table .arena-field{grid-template-rows:4.5% 12% 24% 1% 24% 12% 22.5%}
+  .classic-table .own-hand{min-height:0}
+  .classic-table .battle-hand{height:calc(100% - 10px);bottom:4px;padding:0 clamp(28px,4vw,60px) 12px;align-items:flex-end}
+  .classic-table .hand-card-slot{height:100%;max-height:205px;aspect-ratio:5/8;width:auto;flex:0 1 auto;max-width:135px;min-width:59px;transform:translateY(calc(var(--fan-dip) * .32)) rotate(calc(var(--fan-angle) * .55));transform-origin:bottom center}
+  .classic-table .hand-card-slot>.battle-card{height:100%;width:100%;min-width:0;max-width:none}
+  .classic-table .battle-hand[data-count="5"] .hand-card-slot,.classic-table .battle-hand[data-count="6"] .hand-card-slot{margin-inline:-3px}
+  .classic-table .battle-hand[data-count="7"] .hand-card-slot,.classic-table .battle-hand[data-count="8"] .hand-card-slot{margin-inline:-6px}
+  .classic-table .battle-hand[data-count="9"] .hand-card-slot,.classic-table .battle-hand[data-count="10"] .hand-card-slot{margin-inline:-9px}
+  .classic-table .hand-card-slot:has(.is-selected),.classic-table .hand-card-slot:focus-within{transform:translateY(-10px) rotate(0)}
+  .classic-table .hand-card-slot>.battle-card .card-copy{font-size:clamp(8px,9cqi,12px)}
+  .classic-table .hand-card-slot>.battle-card .card-name{font-size:clamp(8px,10.4cqi,13px)}
+  .classic-table .arena-board{padding:3px 8px 5px}
+  .classic-table .minion-row{container-type:size;--unit-count:1;--slot-reserve:calc((var(--unit-count) - 1) * 5px + 12px);--unit-size:min(164px,calc((100cqh - 16px) / 1.12),calc((100cqw - var(--slot-reserve)) / var(--unit-count)));height:100%;min-height:0;padding:0 4px;overflow:visible;justify-content:center}
+  .classic-table .minion-row[data-board-count="2"]{--unit-count:2}
+  .classic-table .minion-row[data-board-count="3"]{--unit-count:3}
+  .classic-table .minion-row[data-board-count="4"]{--unit-count:4}
+  .classic-table .minion-row[data-board-count="5"]{--unit-count:5}
+  .classic-table .minion-row[data-board-count="6"]{--unit-count:6}
+  .classic-table .minion-row[data-board-count="7"]{--unit-count:7}
+  .classic-table .friendly-minions{--slot-reserve:calc((var(--unit-count) + 1) * 16px + 12px)}
+  .classic-table .friendly-minions[data-board-count="7"]{--slot-reserve:52px}
+  .classic-table .board-segment{flex:0 0 auto}
+  .classic-table .minion-row .battle-minion{width:var(--unit-size);height:calc(var(--unit-size) * 1.12);flex:0 0 auto;min-width:0;border-radius:27% 27% 20% 20%;border-width:3px;padding:0}
+  .classic-table .minion-row .battle-minion.has-taunt{border-radius:18% 18% 22% 22%;border-width:4px}
+  .classic-table .minion-medallion,.classic-table .battle-minion.has-taunt .minion-medallion{inset:3px 3px auto;width:auto;height:auto;aspect-ratio:1/1;border-radius:19% 19% 14% 14%;overflow:visible}
+  .classic-table .minion-title{bottom:5px;left:2px;right:2px;line-height:1.15;font-size:clamp(9px,1.45vh,13px)}
+  .classic-table .minion-statline{bottom:-7px;left:-3px;width:calc(100% + 6px)}
+  .classic-table .minion-statline .stat{width:clamp(23px,3.65vh,33px);height:clamp(23px,3.65vh,33px);font-size:clamp(15px,2.6vh,23px)}
+  .classic-table .minion-status{max-width:calc(100% - 48px)}
+  .classic-table .position-slot{height:calc(var(--unit-size) * .88);min-height:50px;flex:0 0 auto}
+  .classic-table .minion-medallion .original-art{width:100%;height:100%}
+  .classic-table .hero-emblem{inset:4px 4px 10px}
+  .classic-table .hero-power,.classic-table .weapon-slot{height:100%;padding-bottom:3px;justify-content:flex-end}
+  .classic-table .weapon-medallion,.classic-table .power-medallion{width:clamp(32px,6.6vh,58px);height:clamp(32px,6.6vh,58px)}
+  .classic-table .card-back{height:clamp(32px,5.4vh,52px)}
+}
+/* Keep narrow screens scrollable rather than squeezing seven portraits into unreadable slivers. */
+@media(max-width:940px){
+  .classic-table{--board-h:clamp(125px,20vh,170px)}
+  .classic-table .minion-row{min-height:calc(var(--board-h) - 22px);padding:8px 5px 12px;overflow-x:auto;overflow-y:hidden;justify-content:safe center;scrollbar-width:thin}
+  .classic-table .board-segment{flex:0 0 auto}
+  .classic-table .minion-row .battle-minion{position:relative;width:clamp(76px,11vw,112px);height:calc(clamp(76px,11vw,112px) * 1.12);min-width:clamp(76px,11vw,112px);flex:0 0 auto;border-radius:25% 25% 18% 18%;padding:0}
+  .classic-table .minion-medallion{position:absolute;inset:3px 3px auto;aspect-ratio:1/1;width:auto;height:auto;border-radius:18% 18% 13% 13%;overflow:visible}
+  .classic-table .minion-title{position:absolute;bottom:3px;left:3px;right:3px;margin:0;background:#372617d9;text-align:center;font-size:9px}
+  .classic-table .minion-statline{position:absolute;bottom:-6px;left:-2px;width:calc(100% + 4px);margin:0}
+  .classic-table .position-slot{height:80px;flex:0 0 auto}
+}
+@media(min-width:941px) and (hover:hover) and (pointer:fine){
+  .classic-table .hand-card-slot:hover>.battle-card,.classic-table .hand-card-slot:focus-within>.battle-card{transform:translateY(-18px) scale(1.42);transform-origin:bottom center}
+  .classic-table .hand-card-slot:hover,.classic-table .hand-card-slot:focus-within{z-index:9}
+  .is-dragging .classic-table .hand-card-slot:hover>.battle-card{transform:translateY(-10px)}
+}
+@media(max-width:660px){
+  .hero-emblem{width:57px;height:45px}
+  .battle-card{padding:3px}
+  .battle-card .card-name{font-size:clamp(9px,10cqi,12px)}
+  .battle-card .card-copy{font-size:clamp(8px,9.8cqi,11px)}
+  .mulligan-cards .battle-card,.choice-cards .battle-card{max-width:118px}
+  .collection.classic-collection .battle-card{max-width:150px}
+}
+/* Two readable book leaves are independent grids: 3 columns x 2 rows each. */
+.collection.classic-collection.collection-book{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;padding:14px 16px 12px;max-height:none;overflow:visible;align-items:start}
+.collection-book .collection-leaf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);gap:13px 7px;min-width:0;align-items:start;z-index:1}
+.collection-book .collection-item{min-width:0;align-items:center;gap:3px}
+.collection-book .collection-item>small{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;padding:1px 4px}
+.collection-book .collection-blank{min-height:clamp(85px,13vw,190px);border:1px dashed #a98b6260;border-radius:8px;background:#bc9d6420}
+.deck-workspace-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 8px}
+.deck-workspace-nav button{border:2px solid #967140;background:linear-gradient(#60452f,#33251e);color:#f7e4bd;padding:12px 4px;white-space:nowrap}
+.deck-workspace-nav button[aria-pressed="true"]{background:linear-gradient(#e6c888,#ac7936);color:#302016;border-color:#f6d99a}
+.workspace-heroes{margin:18px 0}.workspace-heroes .class-choice small{font-size:10px;color:#f2deb3}
+.saved-deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:12px}
+.saved-deck-entry{display:flex;gap:12px;align-items:flex-start;padding:12px;border:2px solid #9c7645;border-radius:12px;background:linear-gradient(120deg,#69472d,#30251e);min-width:0}
+.saved-deck-entry>div:last-child{flex:1;min-width:0;overflow-wrap:anywhere}.saved-deck-entry details{margin-top:8px}.saved-deck-entry ol{padding-left:22px;font-size:12px}.empty-saved{padding:38px 8px;text-align:center}
+@media(max-width:800px){.collection.classic-collection.collection-book{grid-template-columns:minmax(0,1fr);gap:18px}.collection-book::after{display:none}.deck-workspace-nav{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-book .collection-leaf{gap:10px 7px}}
+@media(prefers-reduced-motion:reduce){
+  .classic-table .hand-card-slot:hover>.battle-card,.classic-table .hand-card-slot:focus-within>.battle-card{transform:none}
+}
+.rarity-legendary .rarity-gem{background:#f09833;border-color:#9d4e13;box-shadow:0 0 5px #ffd38c}
+.rarity-legendary.battle-card{border-color:#b98032}
+.turn-countdown{font-size:12px;color:#ffe0a0;text-align:center;font-variant-numeric:tabular-nums}
+.turn-countdown[data-urgent=true]{color:#ff8659}
