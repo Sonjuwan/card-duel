@@ -143,3 +143,27 @@ export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'im
     else{tone(460,180,.45,.22,'triangle');tone(940,410,.32,.10,'sine');noise(.35,2600,320,.20);}
   }catch{/* A closed audio context should not affect the match. */}
 }
+
+/** Use the unlocked audio device and bound a clip independently of its file. */
+export async function playEmbeddedVoice(bytes:ArrayBuffer,level:number,active:()=>boolean,onEnd:()=>void){
+  const audio=context;
+  if(!audio||audio.state!=='running'||muted)return;
+  try{
+    const buffer=await audio.decodeAudioData(bytes);
+    if(!active()||audio.state!=='running'||muted||buffer.duration>3.5)return;
+    const source=audio.createBufferSource(),gain=audio.createGain();
+    source.buffer=buffer;
+    gain.gain.value=.8*level/100;
+    source.connect(gain);
+    gain.connect(audio.destination);
+    source.onended=()=>{cleanup();onEnd();};
+    function cleanup(){source.onended=null;source.disconnect();gain.disconnect();}
+    source.start();
+    return ()=>{try{source.stop();}catch{}cleanup();};
+  }catch{/* Decode and playback errors are handled by the dialogue fallback. */}
+}
+
+export function playCardPickup(){
+  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  try{noise(.085,1500,580,.12,0,'bandpass');tone(350,260,.075,.05,'triangle');}catch{}
+}

@@ -1,5 +1,7 @@
+import {approvedVoiceBytes,findVoiceClip} from './voice-clips.ts';
+import {playEmbeddedVoice} from './battle-sound.ts';
 import type {DialogueLine} from './battle-dialogue.ts';
-import {battleSoundEnabled,battleSoundVolume,normalSoundVolume} from './battle-sound.ts';
+import {battleSoundEnabled,normalSoundVolume} from './battle-sound.ts';
 
 let enabled=true,voiceVolume=100;
 try{enabled=globalThis.localStorage?.getItem('card-duel-dialogue-voice')!=='off';voiceVolume=normalSoundVolume(globalThis.localStorage?.getItem('card-duel-dialogue-volume'));}catch{}
@@ -24,22 +26,45 @@ export function installedKoreanVoiceCount():number{
   try{return typeof SpeechSynthesisUtterance==='undefined'?0:(globalThis.speechSynthesis?.getVoices()??[]).filter(v=>v.localService&&/^ko(?:[-_]|$)/i.test(v.lang)).length;}catch{return 0;}
 }
 type Item={line:DialogueLine;expires:number};
+let clipToken:object|null=null, stopClip:(()=>void)|undefined;
 let waiting:Item[]=[],current:SpeechSynthesisUtterance|null=null,watchdog:ReturnType<typeof setTimeout>|undefined;
 export function stopDialogueVoice(){
+  clipToken=null;stopClip?.();stopClip=undefined;
   waiting=[];if(watchdog)clearTimeout(watchdog);watchdog=undefined;
   if(current){current=null;try{globalThis.speechSynthesis?.cancel();}catch{}}
 }
 function drain():boolean{
   if(globalThis.document?.hidden){stopDialogueVoice();return false;}
-  if(current||!enabled||!battleSoundEnabled()||battleSoundVolume()===0||voiceVolume===0)return false;
+  if(current||clipToken||!enabled||!battleSoundEnabled()||voiceVolume===0)return false;
   const item=waiting.shift();if(!item)return false;
   if(item.expires<Date.now())return drain();
+  const clip=findVoiceClip(item.line);
+  if(!clip)return speakItem(item);
+  const token={};
+  clipToken=token;
+  const active=()=>clipToken===token&&Date.now()<item.expires&&!globalThis.document?.hidden;
+  const finish=(fallback:boolean)=>{
+    if(clipToken!==token)return;
+    clipToken=null;stopClip=undefined;
+    if(fallback&&item.expires>Date.now()&&speakItem(item))return;
+    drain();
+  };
+  void approvedVoiceBytes(clip).then(async bytes=>{
+    if(!active()){finish(false);return;}
+    const stop=bytes?await playEmbeddedVoice(bytes,voiceVolume,active,()=>finish(false)):undefined;
+    if(clipToken!==token){stop?.();return;}
+    if(!stop){finish(true);return;}
+    stopClip=stop;
+  }).catch(()=>finish(true));
+  return true;
+}
+function speakItem(item:Item):boolean{
   try{
     const synth=globalThis.speechSynthesis,voice=synth&&localKoreanVoice(synth.getVoices(),item.line.cardId??item.line.speaker);
     if(!voice||typeof SpeechSynthesisUtterance==='undefined'){waiting=[];return false;}
     const utterance=new SpeechSynthesisUtterance(item.line.text);
     utterance.voice=voice;utterance.lang=voice.lang;utterance.pitch=item.line.pitch;utterance.rate=item.line.rate;
-    utterance.volume=Math.min(1,.8*battleSoundVolume()*voiceVolume/10000);
+    utterance.volume=Math.min(1,.8*voiceVolume/100);
     current=utterance;
     const done=()=>{if(current!==utterance)return;if(watchdog)clearTimeout(watchdog);watchdog=undefined;current=null;drain();};
     utterance.onend=done;utterance.onerror=done;
@@ -50,7 +75,7 @@ function drain():boolean{
 /** Short, bounded queue. Area attacks show all captions but never queue a
  * whole board of speech or delay the actual game action. */
 export function speakDialogue(lines:readonly DialogueLine[]){
-  if(globalThis.document?.hidden||!enabled||!battleSoundEnabled()||battleSoundVolume()===0||voiceVolume===0)return;
+  if(globalThis.document?.hidden||!enabled||!battleSoundEnabled()||voiceVolume===0)return;
   const now=Date.now();waiting=waiting.filter(item=>item.expires>=now);
   for(const line of lines.slice(0,2))waiting.push({line,expires:now+3500});
   if(waiting.length>3)waiting=waiting.slice(-3);
@@ -60,7 +85,7 @@ export function speakDialogue(lines:readonly DialogueLine[]){
  * action playback. Distinguish requesting speech from successful playback. */
 export function previewDialogue(line:DialogueLine):'requested'|'muted'|'unavailable'|'failed'{
   if(globalThis.document?.hidden)return 'failed';
-  if(!enabled||!battleSoundEnabled()||battleSoundVolume()===0||voiceVolume===0)return 'muted';
-  if(!installedKoreanVoiceCount())return 'unavailable';
+  if(!enabled||!battleSoundEnabled()||voiceVolume===0)return 'muted';
+  if(!findVoiceClip(line)&&!installedKoreanVoiceCount())return 'unavailable';
   stopDialogueVoice();waiting=[{line,expires:Date.now()+3500}];return drain()?'requested':'failed';
 }

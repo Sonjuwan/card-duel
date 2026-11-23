@@ -246,12 +246,12 @@ test('only installed Korean voices are accepted and the speech queue respects mu
   try{
     setBattleSound(true);setBattleSoundVolume(50);setDialogueVoiceEnabled(true);
     const line=heroEmote('mage',0,'greet'),hit=heroEmote('warrior',1,'threat');
-    speakDialogue([line,hit]);assert.equal(spoken.length,1);assert.equal(spoken[0].voice,local);assert.equal(spoken[0].volume,.4);
+    speakDialogue([line,hit]);assert.equal(spoken.length,1);assert.equal(spoken[0].voice,local);assert.equal(spoken[0].volume,.8);
     spoken[0].onend?.();assert.equal(spoken.length,2);
     setDialogueVoiceEnabled(false);assert.equal(dialogueVoiceEnabled(),false);assert.equal(cancelled,1);
     speakDialogue([line]);assert.equal(spoken.length,2);
-    setDialogueVoiceEnabled(true);setBattleSoundVolume(0);speakDialogue([line]);assert.equal(spoken.length,2);
-    setBattleSoundVolume(100);setBattleSound(false);speakDialogue([line]);assert.equal(spoken.length,2);
+    setDialogueVoiceEnabled(true);setBattleSoundVolume(0);speakDialogue([line]);assert.equal(spoken.length,3);
+    setBattleSoundVolume(100);setBattleSound(false);speakDialogue([line]);assert.equal(spoken.length,3);
   }finally{
     stopDialogueVoice();setDialogueVoiceEnabled(true);setBattleSoundVolume(100);setBattleSound(true);
     if(synthDescriptor)Object.defineProperty(globalThis,'speechSynthesis',synthDescriptor);else Reflect.deleteProperty(globalThis,'speechSynthesis');
@@ -266,7 +266,7 @@ test('independent dialogue volume and preview honor mute, offline-only voices an
   Object.defineProperty(globalThis,'SpeechSynthesisUtterance',{configurable:true,value:FakeUtterance});Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>storage.get(k)??null,setItem:(k:string,v:string)=>storage.set(k,v)}});
   Object.defineProperty(globalThis,'document',{configurable:true,value:page});
   try{const line=heroEmote('mage',0,'greet');setBattleSound(true);setBattleSoundVolume(50);setDialogueVoiceEnabled(true);setDialogueVoiceVolume(25);
-    assert.equal(dialogueVoiceVolume(),25);assert.equal(storage.get('card-duel-dialogue-volume'),'25');assert.equal(installedKoreanVoiceCount(),1);assert.equal(previewDialogue(line),'requested');assert.equal(spoken[0].volume,.1);assert.equal(spoken[0].voice,local);
+    assert.equal(dialogueVoiceVolume(),25);assert.equal(storage.get('card-duel-dialogue-volume'),'25');assert.equal(installedKoreanVoiceCount(),1);assert.equal(previewDialogue(line),'requested');assert.equal(spoken[0].volume,.2);assert.equal(spoken[0].voice,local);
     setDialogueVoiceVolume(0);assert.equal(cancelled,1);assert.equal(previewDialogue(line),'muted');assert.equal(battleSoundVolume(),50);
     setDialogueVoiceVolume(100);voices=[remote];assert.equal(installedKoreanVoiceCount(),0);assert.equal(previewDialogue(line),'unavailable');assert.equal(spoken.length,1);
     voices=[local];fail=true;assert.equal(previewDialogue(line),'failed');assert.equal(spoken.length,1);
@@ -488,4 +488,18 @@ test('ordered public combat beats preserve shield, damage and death before visib
     {kind:'shield',side:1,target},{kind:'damage',side:1,target,amount:3},{kind:'death',side:1,target}
   ]};
   assert.deepEqual(battleSequence(nextPlayback(base,after)!),['보호막 소모','피해 3','하수인 사망','하수인 1장 등장']);
+});
+
+test('embedded voice requires approval and a matching checksum and maps by public subject',async()=>{
+  const {approvedVoiceBytes,findVoiceClip,VOICE_CLIPS}=await import('../src/voice-clips.ts');
+  const {createHash}=await import('node:crypto');
+  const fixture=Buffer.from('hash-check fixture, not an audio asset');
+  const clip={key:'hero:mage:emote',source:'test fixture',license:'test fixture',redistributionApproved:true as const,sha256:createHash('sha256').update(fixture).digest('hex'),base64:fixture.toString('base64')};
+  const line=heroEmote('mage',0,'greet');
+  assert.equal(findVoiceClip(line,VOICE_CLIPS),undefined);
+  assert.equal(findVoiceClip(line,[clip]),clip);
+  assert.equal(findVoiceClip(heroEmote('warrior',0,'greet'),[clip]),undefined);
+  assert.deepEqual(Buffer.from((await approvedVoiceBytes(clip))!),fixture);
+  assert.equal(await approvedVoiceBytes({...clip,sha256:'0'.repeat(64)}),undefined);
+  assert.equal(await approvedVoiceBytes({...clip,license:''}),undefined);
 });

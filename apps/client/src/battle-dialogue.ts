@@ -63,7 +63,7 @@ const special:Record<string,Partial<Record<'play'|'attack'|'hit'|'death',string>
   gruul:{play:'산도 내 앞에서 무너진다!',attack:'으아아! 부숴라!',hit:'더 커진다!',death:'산이... 무너진다.'},
   ragnaros:{play:'화염의 왕좌에서 내려왔다!',attack:'모두 불타리라!',hit:'불길은 꺼지지 않는다!',death:'재 속에서... 기다리리.'}
 };
-export type DialogueLine={side:PlayerId;speaker:string;text:string;kind:DialogueKind;pitch:number;rate:number;cardId?:string};
+export type DialogueLine={side:PlayerId;speaker:string;text:string;kind:DialogueKind;pitch:number;rate:number;cardId?:string;hero?:HeroClass};
 export type DialoguePlan={start:DialogueLine[];impact:DialogueLine[];death:DialogueLine[]};
 function variation(id:string,revision:number,lines:readonly string[]){let hash=revision>>>0;for(const c of id)hash=(Math.imul(hash,31)+c.charCodeAt(0))>>>0;return lines[hash%lines.length];}
 function performanceProfile(p:VoiceProfile,id:string,kind:'play'|'attack'|'hit'|'death',card:boolean){
@@ -80,10 +80,10 @@ function profile(card:Card|undefined,hero:HeroClass):VoiceProfile{
 }
 export function cardDialogue(card:Card|undefined,hero:HeroClass,side:PlayerId,kind:'play'|'attack'|'hit'|'death',revision:number,name=(c:Card)=>c.name):DialogueLine{
   const p=profile(card,hero),id=card?.id??hero;
-  return {side,speaker:card?name(card):className[hero],text:(card&&special[id]?.[kind])||variation(id,revision,p[kind]),kind,...performanceProfile(p,id,kind,!!card),...(card?{cardId:id}:{})};
+  return {side,speaker:card?name(card):className[hero],text:(card&&special[id]?.[kind])||variation(id,revision,p[kind]),kind,...performanceProfile(p,id,kind,!!card),...(card?{cardId:id}:{hero})};
 }
 export function heroEmote(hero:HeroClass,side:PlayerId,emote:Emote):DialogueLine{
-  const v=HERO_DIALOGUE[hero];return {side,speaker:className[hero],kind:'emote',text:v.emotes[emote],pitch:v.pitch,rate:v.rate};
+  const v=HERO_DIALOGUE[hero];return {side,speaker:className[hero],kind:'emote',hero,text:v.emotes[emote],pitch:v.pitch,rate:v.rate};
 }
 export function dialoguePlan(a:BattleAnimation,before:PlayerView,after:PlayerView,seat:PlayerId,catalog:Catalog,name=(c:Card)=>c.name):DialoguePlan{
   const start:DialogueLine[]=[],impact:DialogueLine[]=[],death:DialogueLine[]=[];
