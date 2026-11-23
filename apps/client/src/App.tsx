@@ -112,7 +112,7 @@ function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,
     <details className="deck-share"><summary>친구와 덱 공유하기</summary><p>공유 코드를 생성해 복사하거나 친구의 코드를 붙여넣어 불러오세요. 완성된 30장 덱만 공유할 수 있습니다.</p><textarea ref={shareRef} aria-label="덱 공유 코드" value={shareCode} onChange={e=>setShareCode(e.target.value)} placeholder="덱 공유 코드를 붙여넣으세요" maxLength={8192}/><div className="controls"><button disabled={deck.cards.length!==30} onClick={()=>{try{setShareCode(exportDeckCode(catalog,deck));setStorageMessage('덱 공유 코드 생성 완료');}catch(e){setStorageMessage((e as Error).message);}}}>공유 코드 만들기</button><button className="secondary" disabled={!shareCode.trim()} onClick={copyShare}>복사</button><button className="secondary" disabled={!shareCode.trim()} onClick={()=>{try{const next=importDeckCode(catalog,shareCode);setDeck(next);setStorageMessage('공유 덱 불러오기 완료');}catch(e){setStorageMessage((e as Error).message);}}}>공유 코드 불러오기</button></div></details>
     </LobbyDialog>
     <div className="controls saved-decks"><input placeholder="저장할 덱 이름" value={deckName} maxLength={40} onChange={e=>setDeckName(e.target.value)}/><button disabled={mutating||deck.cards.length!==30} onClick={save}>덱 저장</button>{!workspaceMode&&<><select value={savedIndex} onChange={e=>setSavedIndex(e.target.value)}><option value="">저장된 덱 ({saved.length})</option>{saved.map((d,i)=><option key={d.name} value={i}>{d.name} · {className[d.deck.heroClass]}</option>)}</select><button className="secondary" disabled={!savedIndex} onClick={load}>불러오기</button><button className="secondary" disabled={mutating||!savedIndex} onClick={removeSaved}>삭제</button></>}{storageMessage&&<small role="status">{storageMessage}</small>}</div>
-    <small className="deck-edit-notice" role="status">{notice?.message}</small>
+    <small className="deck-edit-notice" role="status" aria-atomic="true">{notice?.message}</small>
     </div>
     <div className="deck-layout"><div className="book-pane"><div className="book-shortcuts">
     {([deck.heroClass,'neutral'] as const).map(key=>{const first=pageResult.spreads.findIndex(spread=>spread.key===key);return <button type="button" key={key} className="secondary" disabled={first<0} aria-pressed={pageResult.current?.key===key} onClick={()=>setPage(first)}><Sigil kind={key}/>{key==='neutral'?'공용':className[key as HeroClass]}</button>;})}
@@ -178,12 +178,13 @@ export function DeckWorkspace({initialScreen='classes',onPlay,...props}:DeckEdit
 }
 export { Battle } from './Battle.tsx';
 type OfflineMode='player'|'developer';
-type AppProps={standalone?:boolean;workerFactory?:()=>Worker;initialAiProfile?:import('../../../packages/protocol.ts').PublicAiProfile;initialOfflineMode?:OfflineMode};
+type LobbyView='home'|'play'|'decks'|'catalog';
+type AppProps={initialLobbyView?:LobbyView;standalone?:boolean;workerFactory?:()=>Worker;initialAiProfile?:import('../../../packages/protocol.ts').PublicAiProfile;initialOfflineMode?:OfflineMode};
 export function App(props:AppProps={}){
   const [slot,setSlot]=useState<SoloSlot>(()=>props.standalone?readSelectedSlot():1);
   return <AppSession key={slot} {...props} slot={slot} onSlotChange={next=>{rememberSlot(next);setSlot(next);}}/>;
 }
-function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiProfile,initialOfflineMode='player',slot,onSlotChange}:AppProps&{slot:SoloSlot;onSlotChange:(slot:SoloSlot)=>void}){
+function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiProfile,initialOfflineMode='player',initialLobbyView='home',slot,onSlotChange}:AppProps&{slot:SoloSlot;onSlotChange:(slot:SoloSlot)=>void}){
   const storage=useMemo(()=>soloSlotStorage(slot),[slot]);
   const makeWorker=(target:SoloSlot)=>{if(!baseWorkerFactory)throw Error('저장 슬롯 작업 스레드가 없습니다.');const worker=baseWorkerFactory();if(standalone&&target!==1)worker.postMessage({type:'selectSlot',slot:target});return worker;};
   const workerFactory=baseWorkerFactory?()=>makeWorker(slot):undefined;
@@ -231,7 +232,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     try{if(!workerFactory)throw Error('Missing worker factory');probe=workerFactory();probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{if(data.type==='saveInfo')finish(data);else if(data.type==='error')finish();};probe.onerror=()=>finish();timer=setTimeout(()=>finish(),5000);probe.postMessage({type:'inspectSave',catalogHash,...(standalone?{catalog}:{})} satisfies LocalRequest);}catch{finish();}
     return()=>{stopped=true;close();};
   },[saveProbe]);
-  const [lobbyView,setLobbyView]=useState<'home'|'play'|'decks'|'catalog'>('home');
+  const [lobbyView,setLobbyView]=useState<LobbyView>(initialLobbyView);
   const screenScrollRef=useRef<HTMLDivElement|null>(null);
   const openLobbyView=(next:'play'|'decks'|'catalog',restoreFocus=false)=>{
     setLobbyView(next);screenScrollRef.current?.scrollTo(0,0);

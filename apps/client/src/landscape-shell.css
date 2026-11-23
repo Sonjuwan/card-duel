@@ -643,7 +643,7 @@
    full card details and report controls a dedicated accessible, scrollable
    full-screen sheet. The drawer never changes game actions or records. */
 .battle-tools-toggle,.battle-tools-close{display:none}
-@media (pointer:coarse) and (orientation:landscape) and (max-height:760px){
+@media (pointer:coarse) and (orientation:landscape) and (max-height:760px), (orientation:landscape) and (max-height:600px){
   .game-main .duel-toolbar .battle-tools-toggle{display:inline-flex;align-items:center;min-height:44px;white-space:nowrap}
   .game-main .duel-screen.phase-playing>.battle-utilities:not([data-tools-open="true"]),
   .game-main .duel-screen.phase-finished>.battle-utilities:not([data-tools-open="true"]){display:none}
@@ -844,4 +844,24 @@
   .lobby-main .deck-workspace .deck-workspace-nav{grid-template-columns:repeat(4,minmax(0,1fr))}
   .deck-workspace [data-deck-screen="saved"] .saved-deck-entry{padding:3px;gap:4px}
   .deck-workspace [data-deck-screen="saved"] .saved-deck-entry .deck-banner-icon{display:none}
+}
+
+.game-main .battle-arena.classic-table>.arena-left{overflow:visible;z-index:23}
+.impact-rail{display:grid;align-content:start;gap:4px;container-type:inline-size}
+.impact-rail-entry{position:relative}
+.impact-icon.secondary{position:relative;width:clamp(44px,65cqi,64px);aspect-ratio:1;padding:0;overflow:hidden;display:grid;place-items:center}
+.impact-kind{position:absolute;right:0;bottom:0;min-width:18px;padding:1px 2px;border-radius:4px 0 0 0;background:#302115;color:#fff2cb;font-weight:800}
+.impact-portrait{display:block;width:100%;height:100%;overflow:hidden;border-radius:6px}
+.impact-portrait :is(img,svg){display:block;width:100%;height:100%;object-fit:cover}
+.impact-preview{display:none;position:absolute;left:calc(clamp(44px,65cqi,64px) + 6px);top:0;z-index:1;width:min(292px,55dvw);max-height:42dvh;overflow:auto;padding:10px;border:1px solid #c4a168;border-radius:8px;background:#30251f;color:#fff1ce;box-shadow:0 5px 18px #0b0807a6}
+.impact-rail-entry:nth-child(n+3)>.impact-preview{top:auto;bottom:0}
+.impact-preview[data-open="true"]{display:block}
+.impact-matchup{display:flex;align-items:center;gap:8px;margin:5px 0}
+.impact-matchup>div{display:grid;max-width:46%;gap:3px;font-size:12px}
+.impact-matchup .impact-portrait{width:72px;aspect-ratio:1}
+.impact-effects{display:grid;gap:4px;padding:0;list-style:none}
+.impact-effects li{display:flex;align-items:center;gap:6px}
+.impact-effects .impact-portrait{width:30px;aspect-ratio:1;flex:none}
+@media (orientation:landscape) and (max-height:600px){
+  .game-main .battle-arena.classic-table>.arena-left{display:none}
 }

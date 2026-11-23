@@ -39,10 +39,10 @@ test('portrait guide offers manual rotation and fullscreen only through direct i
   assert.match(component,/자동 화면 회전이 제한되어 있어요/);
 });
 test('battle, deck maker and card catalog are actual switched game screens',()=>{
-  assert.match(app,/useState<'play'\|'decks'\|'catalog'>\('play'\)/);
+  assert.match(app,/initialLobbyView='home'/);
   assert.match(app,/aria-label="게임 메뉴"[^\n]*>.*카드 도감<\/button><\/nav>/);
   assert.match(app,/lobbyView==='catalog'\?<CardBrowser\/>/);
-  assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks'\)\}/);
+  assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
 test('tapping an unplayable hand card expands its text without committing a card action',()=>{
@@ -55,12 +55,11 @@ test('tapping an unplayable hand card expands its text without committing a card
   assert.match(pieces,/aria-expanded=\{previewOpen\|\|Boolean\(sourceId\?\.startsWith\('card:'\)&&selected\)\|\|undefined\}/);
   assert.match(shell,/\.hand-card-slot:has\(>\.battle-card\.is-preview-expanded\)>\.battle-card \.card-copy/);
 });
-test('lobby is a two-column hub with isolated safe scrolling and deck/catalog as alternate screens',()=>{
-  assert.match(app,/lobbyView==='play'\?<div className="play-hub"><div className="play-support">/);
-  assert.match(app,/<\/div><\/div><PlayLobby deck=/);
-  assert.match(app,/showPractice=\{!standalone\|\|offlineMode==='developer'\}\/><\/div>:lobbyView==='catalog'/);
-  assert.match(shell,/\.lobby-main \.play-hub\{[^}]*grid-template-columns:minmax\(0,35%\) minmax\(0,1fr\)/);
-  assert.match(shell,/\.lobby-main \.play-hub>\.play-support,[\s\S]*overflow-y:auto/);
+test('battle setup uses a single canvas with secondary records in a dialog',()=>{
+  assert.match(app,/lobbyView==='play'\?<div className="play-hub"/);
+  assert.match(app,/<LobbyDialog label="슬롯 · 성장 · 저장 경기">/);
+  assert.match(shell,/\.lobby-main \.play-hub\{display:flex;flex-direction:column\}/);
+  assert.match(shell,/\.lobby-main \.play-hub>\.play-lobby\{display:flex;flex-direction:column;gap:6px;overflow:visible\}/);
 });
 test('landscape rail wins over the classic desktop absolute layout at wider mobile viewports',()=>{
   assert.match(shell,/\.battle\.phase-playing \.battle-arena\.classic-table>\.arena-field,[\s\S]*position:relative;inset:auto;grid-column:1;grid-row:1/);

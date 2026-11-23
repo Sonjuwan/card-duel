@@ -926,3 +926,9 @@ PWA 웹페이지 + 로컬 저장 솔로 우선. 유저/개발자 모드, 25랭�
 
 - Normal summons now reveal the public card, draw a summoning circle, and land over 2 seconds on either side. Reused the serial playback timeline and tied FX cleanup to each cue. Fast and instant modes remain available.
 - Chromium observed a single FX layer, a two-second summon, a reserved end turn, and the AI card reveal.
+
+### UI battle overhaul · Phase 6
+
+- Added illustrated public-action history, with source and target portraits, damage and defense details, desktop hover and keyboard focus, and a compact landscape history drawer.
+- Chromium verified two queued commands during a summon, then summon → summon → end turn with one active FX layer. Offline PWA save continuity, separate slots, and combined backup/restore passed.
+- The candidate build stamps v0.298.0 in an isolated build copy. Verify physical Android/iOS touch and audio plus a direct update from the original v0.197 build before any release.

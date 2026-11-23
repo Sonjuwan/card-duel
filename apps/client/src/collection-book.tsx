@@ -37,7 +37,7 @@ export function CollectionBook<T extends Card>({cards,renderCard,size=12,paging}
       [0,1].map(leaf=><div key={leaf} className="collection-leaf" data-book-page={leaf===0?'left':'right'} aria-label={leaf===0?'왼쪽 페이지':'오른쪽 페이지'}>{cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).map(c=>renderCard(c))}{Array.from({length:Math.max(0,perLeaf-cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).length)},(_,i)=><span key={`empty-${i}`} className="collection-blank" aria-hidden="true"/>)}</div>)}
   </div>
   {paging&&<button type="button" className="book-edge secondary" disabled={paging.page>=paging.pages-1} onClick={()=>turn(1)} aria-label="다음 페이지">▶</button>}
-  {paging&&<span className="book-page-status" role="status">{paging.label}</span>}
+  {paging&&<span className="book-page-status" role="status" aria-live="polite" aria-atomic="true">{paging.label}</span>}
   </div>;
 }
 
