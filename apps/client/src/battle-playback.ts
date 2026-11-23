@@ -65,7 +65,7 @@ export class PlaybackTimeline {
       return;
     }
     this.latest=incoming;
-    if(incoming.state.revision!==previous.state.revision+1||this.pending.length>=8){
+    if(incoming.state.revision!==previous.state.revision+1){
       this.dispose();this.show(incoming);this.onCue(null);return;
     }
     this.pending.push(incoming);this.process();

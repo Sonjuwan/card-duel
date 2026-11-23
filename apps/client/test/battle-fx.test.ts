@@ -339,6 +339,15 @@ test('duplication, skipped revisions, initial connection and mismatched events c
   assert.equal(nextPlayback(before,{...next,state:{...next.state!,revision:next.state!.revision+2}}),null);
   assert.equal(nextPlayback(before,{...next,code:'OTHER1'}),null);
 });
+test('ordinary summons last two seconds and retain fast and instant modes',()=>{
+  const summon={kind:'summon',actor:0,revision:1} as const;
+  assert.deepEqual(battleAnimationTiming(summon),{duration:2000,impact:1600});
+  const before=room(ready(),0);
+  const after={...before,state:{...before.state!,revision:before.state!.revision+1},animation:{...summon,revision:before.state!.revision+1}};
+  assert.equal(nextPlayback(before,after)?.duration,2000);
+  assert.equal(nextPlayback(before,{...after,animationSpeed:'fast'})?.duration,1100);
+  assert.equal(nextPlayback(before,{...after,animationSpeed:'instant'}),null);
+});
 test('every action timing has a visible buildup and recovery; heavy spells last 1.9 seconds',()=>{
   for(const kind of ['attack','heroAttack','summon','spell','weapon','secret','coin','power','turn','choice'] as const){
     const a:BattleAnimation={kind,actor:0,revision:5};const t=battleAnimationTiming(a);assert.ok(t.duration>=650&&t.impact>0&&t.impact<t.duration);

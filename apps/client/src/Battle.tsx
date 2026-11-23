@@ -193,7 +193,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const previousView=useRef<PlayerView|undefined>(undefined);
   const [motion,setMotion]=useState<TableMotion|null>(null);
   useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),1000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
-  const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision?motion:null;
+  const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision&&(!room.animation||cue?.animation.revision===motion?.revision)?motion:null;
   const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!inputBlocked;
   const ownChoiceOpen=!!s&&s.phase==='playing'&&!playing&&((!!s.choicePending&&!!s.self.pendingChoice?.length&&connected&&opponentReady)||(active&&selected?.kind==='cardChoice'));
   // End-of-match results are a genuine modal. The next/new game controls

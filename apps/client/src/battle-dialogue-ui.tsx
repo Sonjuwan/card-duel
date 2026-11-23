@@ -45,16 +45,35 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
   };
   useEffect(()=>{
     if(!connected||!room.state)return;
-    const prev=before.current;before.current=room;
     if(document.hidden)return;
     // Non-instant playback announces at the cue's own start and impact.
     if(cue&&cue.before.state&&cue.after.state){
       const key=cue.before.code+':'+cue.animation.revision;
-      if(lastCue.current!==key){lastCue.current=key;showPlan(dialoguePlan(cue.animation,cue.before.state,cue.after.state,room.seat,catalog,name),cue.impact);}
-    }else if(room.animationSpeed==='instant'&&prev?.state){
-      const a=freshAcceptedAnimation(prev,room);if(a){const key=room.code+':'+a.revision;if(lastCue.current!==key){lastCue.current=key;showPlan(dialoguePlan(a,prev.state,room.state,room.seat,catalog,name),80);}}
+      if(lastCue.current!==key){
+        lastCue.current=key;
+        stopDialogueVoice();
+        setCaptions([]);
+        const plan=dialoguePlan(cue.animation,cue.before.state,cue.after.state,room.seat,catalog,name);
+        show(plan.start);
+        const impact=setTimeout(()=>show(plan.impact),cue.impact);
+        const death=setTimeout(()=>show(plan.death),Math.min(cue.duration-1,cue.impact+180));
+        return ()=>{clearTimeout(impact);clearTimeout(death);stopDialogueVoice();setCaptions([]);};
+      }
     }
-  },[room.code,room.state?.revision,cue,connected,room.animationSpeed]);
+  },[room.code,cue,connected]);
+  useEffect(()=>{
+    if(!connected||!room.state)return;
+    const prev=before.current;
+    before.current=room;
+    if(document.hidden||room.animationSpeed!=='instant'||!prev?.state)return;
+    const a=freshAcceptedAnimation(prev,room);
+    if(a){
+      stopDialogueVoice();
+      setCaptions([]);
+      showPlan(dialoguePlan(a,prev.state,room.state,room.seat,catalog,name),80);
+      return ()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];stopDialogueVoice();setEmoteCooldown(false);};
+    }
+  },[room.code,room.state?.revision,connected,room.animationSpeed]);
   const emote=(choice:Emote)=>{
     if(document.hidden||emoteCooldown||!connected||room.mode!=='bot'||room.state?.phase!=='playing')return;
     const {self,opponent}=room.state;setEmoteCooldown(true);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import { BattleCard } from './battle-pieces.tsx';
@@ -6,8 +6,8 @@ import { LocalCardBack } from './local-art.tsx';
 import type { PlaybackCue } from './battle-playback.ts';
 import { animationTheme, FX_COLORS, impactChanges, impactFeedback, defenseImpactLabel, fxRenderBudget,fxFramePressure,fxAutoAdaptation,fxCanvasGeometryChanged,fxNeedsCanvasAnimation,departureVisual,departureSoundKind,summonVisuals,projectedSummonX,clipBoardFxAnchor,offscreenFxMarkers,fxEdgeMarkerBounds,fxEdgeMarkerLabel,createImpactLabelCache,createParticleCache,fxRandom } from './battle-fx-model.ts';
 import type { FxTheme,FxLabel,FxAnchor,FxEdgeMarker } from './battle-fx-model.ts';
-import { playBattleSound,playBattleDepartureSound } from './battle-sound.ts';
-import {playBattleHaptic} from './battle-haptics.ts';
+import { playBattleSound,playBattleDepartureSound,stopBattleSound } from './battle-sound.ts';
+import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
 import {battleFxQuality} from './battle-fx-quality.ts';
 import {prepareFxGhost} from './battle-fx-ghost.ts';
 import {paintBurstParticles} from './battle-fx-particles.ts';
@@ -91,7 +91,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
   const canvas=useRef<HTMLCanvasElement>(null),cardReveal=useRef<HTMLDivElement>(null);
   const adaptiveUntil=useRef(0);
   const card=cue?.animation.cardId?catalog[cue.animation.cardId]:undefined;
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     const arena=arenaRef.current,layer=canvas.current;
     if(!cue||!arena||!layer||!cue.before.state||!cue.after.state||document.hidden)return;
     const a=cue.animation,seat=cue.before.seat,side=a.actor===seat?'self':'enemy',rect=arena.getBoundingClientRect();
@@ -177,15 +177,16 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
       ],{duration:cue.duration,fill:'both'}));
     }
     const reveal=cardReveal.current;
+    const summon=a.kind==='summon';
     if(reveal&&typeof reveal.animate==='function'&&!reduced){
       const r=center(reveal)??boardCenter,hand=arena.querySelector(side==='self'?'.own-hand':'.hidden-hand');
       const source=center(hand)??from;
       const end=a.kind==='summon'?destination:a.kind==='weapon'||a.kind==='secret'||a.kind==='coin'?from:to;
       animations.push(reveal.animate([
         {opacity:.1,transform:`translate(${source.x-r.x}px,${source.y-r.y}px) scale(.38) rotate(${side==='self'?9:-9}deg)`,offset:0},
-        {opacity:1,transform:'translate(0,0) scale(1) rotate(0)',offset:.23,easing:'ease-in-out'},
-        {opacity:1,transform:'translate(0,0) scale(1)',offset:Math.max(.25,cue.impact/cue.duration-.12)},
-        {opacity:.1,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.28)`,offset:Math.min(.85,cue.impact/cue.duration+.13)},
+        {opacity:1,transform:'translate(0,0) scale(1) rotate(0)',offset:summon?.15:.23,easing:'ease-in-out'},
+        {opacity:1,transform:'translate(0,0) scale(1)',offset:summon?.52:Math.max(.25,cue.impact/cue.duration-.12)},
+        {opacity:.1,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.28)`,offset:summon?.80:Math.min(.85,cue.impact/cue.duration+.13)},
         {opacity:0,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.2)`,offset:1},
       ],{duration:cue.duration,fill:'both'}));
     }
@@ -293,16 +294,22 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
           }
         }
       }
+      if(ctx&&!reduced&&!canvasInvalid&&summon&&elapsed>=cue.duration*.49&&elapsed<cue.impact){
+        const progress=clamp((elapsed-cue.duration*.49)/(cue.impact-cue.duration*.49));
+        const colors=FX_COLORS[theme];
+        ring(ctx,destination,23+54*progress,colors[1],.76,3,.46);
+        ring(ctx,destination,14+36*progress,colors[0],.55,2,.46);
+      }
       if(elapsed<cue.duration)frame=requestAnimationFrame(paint);
       else {if(!impacted)impact();ctx?.clearRect(0,0,rect.width,rect.height);}
     };
     if(ctx)frame=requestAnimationFrame(paint);
     timeouts.push(setTimeout(impact,cue.impact));
-    return()=>{cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
+    return()=>{stopBattleSound();stopBattleHaptics();cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
   },[cue,arenaRef,card,catalog]);
   if(!cue)return null;
   const a=cue.animation,own=a.actor===cue.before.seat,showCard=!!card||a.kind==='secret';
-  return <div className="battle-fx-layer" aria-hidden="true" data-fx-kind={a.kind} data-fx-side={own?'own':'enemy'} key={a.revision}>
+  return <div className="battle-fx-layer" inert aria-hidden="true" data-fx-revision={a.revision} data-fx-kind={a.kind} data-fx-side={own?'own':'enemy'} key={a.revision}>
     <canvas ref={canvas} className="battle-fx-canvas"/>
     {showCard&&<div className="fx-play-card" ref={cardReveal} data-card-reveal-kind={a.kind}>{card?<BattleCard card={card}/>:<div className="fx-secret-card"><LocalCardBack/><strong>비밀 설치</strong></div>}</div>}
   </div>;

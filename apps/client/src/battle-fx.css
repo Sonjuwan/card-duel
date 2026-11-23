@@ -167,3 +167,8 @@
 @media(pointer:coarse),(max-width:660px){
   .battle-emote-menu[open] .battle-emote-options{position:fixed;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;max-height:min(60dvh,420px);overscroll-behavior:contain;touch-action:pan-y;z-index:70}
 }
+
+.battle-fx-layer[data-fx-kind="summon"] .fx-play-card{
+  left:50%;top:48%;margin-left:calc(-1 * clamp(60px,8vw,115px));margin-top:calc(-1 * clamp(80px,14dvh,175px));
+  width:clamp(120px,16vw,230px);height:min(43dvh,340px);aspect-ratio:auto
+}

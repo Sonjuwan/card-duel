@@ -1230,3 +1230,8 @@ v0.7.0을 보존하고, 2014년 6월 기준 카드 대조의 첫 묶음을 시�
 
 - Added cancellable FIFO reservations, a four-intent limit, duplicate suppression, and revalidation against the latest approved view before each worker/server request.
 - Three queue tests passed. Chromium accepted and cancelled an end-turn reservation during a summon, then saved and resumed the approved position.
+
+### UI battle overhaul · Phase 5
+
+- Normal summons now reveal the public card, draw a summoning circle, and land over 2 seconds on either side. Reused the serial playback timeline and tied FX cleanup to each cue. Fast and instant modes remain available.
+- Chromium observed a single FX layer, a two-second summon, a reserved end turn, and the AI card reveal.
