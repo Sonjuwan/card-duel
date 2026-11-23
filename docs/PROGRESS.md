@@ -1241,3 +1241,11 @@ v0.7.0을 보존하고, 2014년 6월 기준 카드 대조의 첫 묶음을 시�
 - Added illustrated public-action history, with source and target portraits, damage and defense details, desktop hover and keyboard focus, and a compact landscape history drawer.
 - Chromium verified two queued commands during a summon, then summon → summon → end turn with one active FX layer. Offline PWA save continuity, separate slots, and combined backup/restore passed.
 - The candidate build stamps v0.298.0 in an isolated build copy. Verify physical Android/iOS touch and audio plus a direct update from the original v0.197 build before any release.
+
+### Specification 1618575 follow-up
+
+- Existing menu, card book, hand previews, FIFO and serial playback were retained. c877855 adds immediate deck feedback (14 focused tests).
+- f25a874 adds numbered reservations, authoritative deadline display/dispatch and ordered public-event captions (52 focused tests).
+- 6b590a6 adds approved embedded voice lookup, content verification, scoped playback and local Korean TTS fallback (48 focused tests). No recording was bundled.
+- See HANDOFF.md for audio provenance, engine trace limitations, remaining browser matrix and the timed PvP backlog case.
+- c726c63 stops prior speech in the effect cleanup before the next cue's audio starts. The v0.299.0 local HTML and PWA package passed the full release gate. Chromium validated the short timed-turn fixture and real v0.298.0 same-origin upgrade with offline resume.
