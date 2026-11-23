@@ -1,3 +1,4 @@
+import {VOICE_CLIPS} from './voice-clips.ts';
 import type { BattleAnimation } from '../../../packages/protocol.ts';
 import type {GameState,PlayerId} from '../../../packages/engine/src/index.ts';
 import type { FxTheme,ImpactFeedback } from './battle-fx-model.ts';
@@ -48,7 +49,7 @@ export function setBattleSound(enabled:boolean){
 /** A browser requires a real user gesture before starting audio. */
 export function unlockBattleSound(event?:Event){
   const Constructor=globalThis.AudioContext??(globalThis as typeof globalThis&{webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
-  if(muted||volume===0||!Constructor||globalThis.document?.hidden)return;
+  if(muted||volume===0&&!VOICE_CLIPS.length||!Constructor||globalThis.document?.hidden)return;
   try{
     if(context?.state==='closed'){stopBattleSound();context=undefined;master=undefined;engineNoise=undefined;resuming=undefined;}
     if(!context){context=new Constructor();master=context.createGain();const compressor=context.createDynamicsCompressor();compressor.threshold.value=-18;compressor.ratio.value=6;master.gain.value=gainForSettings();master.connect(compressor);compressor.connect(context.destination);}

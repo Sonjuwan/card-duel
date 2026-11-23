@@ -1,3 +1,4 @@
+import {stopDialogueVoice} from './dialogue-voice.ts';
 import { useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/index.ts';
@@ -305,7 +306,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     };
     if(ctx)frame=requestAnimationFrame(paint);
     timeouts.push(setTimeout(impact,cue.impact));
-    return()=>{stopBattleSound();stopBattleHaptics();cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
+    return()=>{stopDialogueVoice();stopBattleSound();stopBattleHaptics();cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
   },[cue,arenaRef,card,catalog]);
   if(!cue)return null;
   const a=cue.animation,own=a.actor===cue.before.seat,showCard=!!card||a.kind==='secret';
