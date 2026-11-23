@@ -2,11 +2,12 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 const app=readFileSync(new URL('../apps/client/src/App.tsx',import.meta.url),'utf8');
-test('persistent menu tabs identify each screen and announce its current pressed state',()=>{
+test('the home menu opens each independent screen with focus restoration',()=>{
+  assert.match(app,/lobbyView==='home'/);
   for(const tab of ['play','decks','catalog']){
-    assert.match(app,new RegExp(`data-lobby-tab="${tab}" onClick=\\{\\(\\)=>openLobbyView\\('${tab}'\\)\\}`));
-    assert.match(app,new RegExp(`aria-pressed=\\{lobbyView==='${tab}'\\}`));
+    assert.ok(app.includes(`data-lobby-tab="${tab}" onClick={()=>openLobbyView('${tab}',true)}`));
   }
+  assert.match(app,/data-lobby-tab=\{lobbyView\}/);
 });
 test('navigation from unmounted panels returns focus to the matching persistent tab',()=>{
   assert.match(app,/const openLobbyView=\(next:'play'\|'decks'\|'catalog',restoreFocus=false\)=>\{/);

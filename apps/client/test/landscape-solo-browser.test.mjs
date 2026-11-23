@@ -27,6 +27,8 @@ test('landscape mobile PWA stays within one screen from lobby through first turn
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(`http://127.0.0.1:${addr.port}/`);
+  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
   await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).waitFor();
 
   async function checkCanvas(label){
@@ -44,7 +46,7 @@ test('landscape mobile PWA stays within one screen from lobby through first turn
   }
   await checkCanvas('lobby');
   await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
-  await page.getByRole('heading',{name:'시작 카드 선택'}).waitFor();
+  await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await checkCanvas('mulligan');
 
   const confirm=page.getByRole('button',{name:/^확정 \(\d+장 교체\)$/});

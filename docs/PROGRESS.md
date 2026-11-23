@@ -1210,3 +1210,8 @@ v0.7.0을 보존하고, 2014년 6월 기준 카드 대조의 첫 묶음을 시�
 - 덱 편집 마나 분포를 `role="img"`로 묶고 총 카드 수, 비어 있지 않은 비용 구간의 장수 및 10마나 이상을 화면 읽기 프로그램이 이해할 수 있도록 표시. 개별 막대의 중복 낭독 방지.
 - 새 순수 함수 테스트 3/3 통과(Node 22 `--experimental-strip-types`). `npm ci --offline`은 의존성 캐시 부재(`xmlhttprequest-ssl`)로 실패; Node 24도 없음. 따라서 전체 테스트/타입 검사/웹 빌드 미실행, v0.126 전체 검증판을 대체하지 않음.
 - 다음 작업: Node 24 및 의존성 복구 후 전체 회귀/렌더/PWA/독립 HTML 확인, 실제 모바일 스크린리더와 전투 성능 검증.
+
+### UI battle overhaul · Phase 1
+
+- Added standalone home navigation and focused battle setup, with slot, progression, settings, and account dialogs.
+- Node 24 typecheck, 4 navigation/focus checks, and Chromium landscape PWA first-turn test passed.

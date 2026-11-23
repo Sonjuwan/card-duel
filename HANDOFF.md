@@ -901,3 +901,8 @@ PWA 웹페이지 + 로컬 저장 솔로 우선. 유저/개발자 모드, 25랭�
 - Reconciled concurrent v0.296 source branches; preserved both the gitless Node24 local build helper (6ecafe0) and the compiled-PWA real Chromium landscape release gate (4a4f914).
 - Local builder now installs Chromium and requires both complete offline PWA save/resume browser test and landscape no-scroll/hero-alignment test before promoting a new compiled playable artifact. Failed build retains old compiled executable.
 - Build remains source-only on this isolated Node22 host without npm/React/Vite dependencies; a device/online release must not be claimed until full Node24 CI/local build and human phone testing pass.
+
+### UI battle overhaul · Phase 1
+
+- Added standalone home navigation and focused battle setup, with slot, progression, settings, and account dialogs.
+- Node 24 typecheck, 4 navigation/focus checks, and Chromium landscape PWA first-turn test passed.

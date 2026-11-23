@@ -788,3 +788,25 @@
      Keep the message mounted so it can be dismissed in the lobby. */
   body:has(.game-main .duel-screen) .landscape-fullscreen-feedback{visibility:hidden;pointer-events:none}
 }
+
+.lobby-page-nav{display:flex;align-items:center;gap:12px;flex:none;margin:0 0 5px}
+.lobby-page-nav button,.play-support>button,.lobby-account button{min-height:44px}
+.lobby-dialog{width:min(760px,92dvw);max-height:85dvh;overflow:auto;background:#25202a;color:#f8efda;border:1px solid #bda069;border-radius:12px}
+.lobby-dialog::backdrop{background:#09070ac9}
+.lobby-dialog>form{position:sticky;top:0;display:flex;justify-content:flex-end;z-index:1}
+.lobby-dialog>form button{min-height:44px}
+@media (orientation:landscape){
+  .lobby-main>.screen-content>.lobby-home[aria-label="게임 메뉴"]{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:clamp(8px,2vw,30px);padding:clamp(8px,3vw,42px);background:none}
+  .lobby-home button{display:grid;justify-items:center;align-content:center;gap:12px;min-height:clamp(100px,40dvh,350px);font-size:clamp(16px,3vw,36px)}
+  .lobby-main .play-hub{display:flex;flex-direction:column}
+  .lobby-main .play-hub>.play-support{height:auto;flex-direction:row;flex:none;overflow:visible}
+  .lobby-main .play-hub>.play-lobby{height:auto;flex:1;overflow-y:auto}
+}
+@media (orientation:landscape){
+  .lobby-main .play-hub>.play-lobby{display:flex;flex-direction:column;gap:6px;overflow:visible}
+  .lobby-main .play-hub .hero-gallery{grid-template-columns:repeat(9,minmax(0,1fr))}
+  .lobby-main .play-hub .class-choice{min-width:0;min-height:44px;padding:3px}
+  .lobby-main .play-hub .class-emblem{width:clamp(23px,5dvh,54px);height:clamp(23px,5dvh,54px)}
+  .lobby-main .play-hub .mode-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .lobby-main .play-hub .mode-grid>button,.lobby-main .play-lobby>button{min-height:44px}
+}
