@@ -270,7 +270,6 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const nextFresh=SOLO_SLOTS.find(freshSlot);
   const switchOfflineMode=(next:OfflineMode)=>{if(next===offlineMode||busyRef.current||workerRef.current)return;modeDecks.current[offlineMode]=deck;const stored=offlineMode==='developer'?saveDeveloperDraft(deck,catalogHash,storage):saveDraft(deck,catalogHash,storage);setDeck(modeDecks.current[next]??(next==='developer'?readDeveloperDraft(catalog,catalogHash,storage):readDraft(catalog,catalogHash,storage)));setUndoDecks([]);setOfflineMode(next);setLobbyView('play');setError(stored?'':'현재 편집 덱은 이번 실행에서만 유지됩니다. 브라우저 저장소를 확인하세요.');};
   const switchSlot=(next:SoloSlot)=>{if(next===slot||busyRef.current||workerRef.current||lobbyView!=='play')return;if(!(offlineMode==='developer'?saveDeveloperDraft(deck,catalogHash,storage):saveDraft(deck,catalogHash,storage))){setError('현재 편집 덱을 저장하지 못했습니다. 저장 공간을 확인하세요.');return;}onSlotChange(next);};
-  const [classicNames,setClassicNames]=useState(true);
   const changeBusy=(value:boolean)=>{busyRef.current=value;setBusy(value);};
   const saveSession=(value:Session|null)=>{sessionRef.current=value;try{if(value)sessionStorage.setItem(sessionKey,JSON.stringify(value));else sessionStorage.removeItem(sessionKey);}catch{/* Storage may be disabled; current-tab session remains in memory. */}};
   const saveTicket=(value:string|null)=>{ticketRef.current=value;saveRoomTicket(sessionStore(),value);};
@@ -394,7 +393,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const rematch=()=>{
     const worker=workerRef.current;if(!worker||room?.state?.phase!=='finished'||busyRef.current)return;changeBusy(true);setError('');clearWatchdog();workerWatchdog.current=setTimeout(()=>markWorkerStalled('재대전 응답이 지연됩니다.'),12000);try{worker.postMessage({type:'rematch',code:newLocalCode(),seed:random32(),requestId:++localRequestId.current} satisfies LocalRequest);}catch{recoverLocalWorker('재대전 요청을 전달하지 못했습니다.');}
   };
-  return <ClassicNamesContext.Provider value={classicNames}><main className={room?'game-main':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><p className="eyebrow">INDEPENDENT CARD GAME · v{project.version}</p><h1>Card Duel</h1></div></div><div className="connection"><button type="button" className="secondary art-toggle" aria-pressed={classicNames} onClick={()=>setClassicNames(v=>!v)}>{classicNames?'자체 이름으로':'클래식 이름으로'}</button><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div><LandscapeExperience/></header>
+  return <main className={room?'game-main':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><p className="eyebrow">INDEPENDENT CARD GAME · v{project.version}</p><h1>Card Duel</h1></div></div><div className="connection"><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div><LandscapeExperience/></header>
     <div className="screen-content" id="card-duel-screen" ref={screenScrollRef}>
     {(error||workerStalled)&&<div className="error" role="alert">{error||'기기 AI 작업 응답을 기다리는 중입니다.'}{workerStalled?<><small>응답을 기다리거나 마지막으로 저장된 상태를 복구할 수 있습니다.</small><button type="button" className="secondary" onClick={recoverStalledWorker}>마지막 저장으로 복구</button></>:<button className="secondary" onClick={()=>setError('')}>닫기</button>}</div>}
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
@@ -412,5 +411,5 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     </>}
     </div>
     <footer>독자 카드 {Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false).length}종 · 9개 직업 · 개발 중인 테스트 버전<small className="reference-notice">자체 제작 일러스트 · 인터넷 이미지 요청 없음</small></footer>
-  </main></ClassicNamesContext.Provider>;
+  </main>;
 }

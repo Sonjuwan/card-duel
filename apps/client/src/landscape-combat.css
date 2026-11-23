@@ -100,3 +100,25 @@
 @media (pointer:coarse) and (orientation:landscape) and (max-height:540px) and (prefers-reduced-motion:reduce){
   .battle .arena-field .hand-card-slot>.battle-card{transition:none}
 }
+
+@media (hover:hover) and (pointer:fine){
+  .game-main .own-hand .hand-card-slot>.battle-card{
+    --hand-shift:0px;
+    transform:translateX(var(--hand-shift));
+    transition:transform 120ms ease;
+  }
+  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:is(:hover,:focus-within){z-index:35}
+  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
+    transform:scale(1.42);
+    transform-origin:bottom center;
+    transition-duration:100ms;
+  }
+  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:is(:hover,:focus-within):first-child>.battle-card{transform-origin:bottom left}
+  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:is(:hover,:focus-within):last-child:not(:first-child)>.battle-card{transform-origin:bottom right}
+  .game-main .own-hand .hand-card-slot:has(~ .hand-card-slot:is(:hover,:focus-within))>.battle-card{--hand-shift:-12px}
+  .game-main .own-hand .hand-card-slot:is(:hover,:focus-within)~.hand-card-slot>.battle-card{--hand-shift:12px}
+  .game-main .battle.is-dragging .own-hand .hand-card-slot>.battle-card{--hand-shift:0px}
+}
+@media (prefers-reduced-motion:reduce){
+  .game-main .own-hand .hand-card-slot>.battle-card{transition:none!important}
+}

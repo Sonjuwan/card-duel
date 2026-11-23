@@ -911,3 +911,8 @@ PWA 웹페이지 + 로컬 저장 솔로 우선. 유저/개발자 모드, 25랭�
 
 - Added class-to-neutral book navigation, responsive spreads, filter dialogs, and paginated deck lists.
 - Eight focused checks passed. Real Chromium verified the class boundary in both directions and card detail on desktop.
+
+### UI battle overhaul · Phase 3
+
+- Removed the name switch and always display classic card names, including public battle history. All 443 cards and tokens have mappings.
+- Added 100 ms mouse hand enlargement and 120 ms sibling movement. Removed the always-open arena inspector while keeping explicit card details. Typecheck and 21 focused tests passed.

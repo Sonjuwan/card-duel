@@ -1220,3 +1220,8 @@ v0.7.0을 보존하고, 2014년 6월 기준 카드 대조의 첫 묶음을 시�
 
 - Added class-to-neutral book navigation, responsive spreads, filter dialogs, and paginated deck lists.
 - Eight focused checks passed. Real Chromium verified the class boundary in both directions and card detail on desktop.
+
+### UI battle overhaul · Phase 3
+
+- Removed the name switch and always display classic card names, including public battle history. All 443 cards and tokens have mappings.
+- Added 100 ms mouse hand enlargement and 120 ms sibling movement. Removed the always-open arena inspector while keeping explicit card details. Typecheck and 21 focused tests passed.
