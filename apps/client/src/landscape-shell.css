@@ -865,3 +865,5 @@
 @media (orientation:landscape) and (max-height:600px){
   .game-main .battle-arena.classic-table>.arena-left{display:none}
 }
+
+.deck-entry[data-recent="true"],.mana-curve>[data-recent="true"]{outline:2px solid #ffe29c;outline-offset:-2px;border-radius:5px}
