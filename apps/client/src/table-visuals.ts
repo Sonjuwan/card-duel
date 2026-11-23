@@ -64,3 +64,11 @@ export function deriveTableMotion(previous:PlayerView|undefined,next:PlayerView,
   if(previous.activePlayer!==next.activePlayer&&next.phase==='playing')motion.turn=next.activePlayer===seat?'own':'enemy';
   return motion;
 }
+
+export function groupedCollection<T>(groups:readonly {key:string;items:readonly T[]}[],requested:number,size:number){
+  const spreads=groups.flatMap(group=>Array.from({length:Math.ceil(group.items.length/size)},(_,index)=>({
+    key:group.key,index,pages:Math.ceil(group.items.length/size),items:group.items.slice(index*size,(index+1)*size)
+  })));
+  const {page,pages}=collectionPage(spreads,requested,1);
+  return {page,pages,spreads,current:spreads[page]};
+}

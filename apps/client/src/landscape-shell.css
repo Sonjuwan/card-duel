@@ -350,9 +350,7 @@
     font-size:clamp(12px,3.2dvh,16px);padding:5px;
   }
 }
-/* Card collection and deck-making are complete game screens, not document
- * pages. Their small filter/toolbar rows scroll locally; card pages and the
- * live deck each have their own scroll pane. The viewport never scrolls. */
+/* Card collection and deck-making share the fixed game viewport. */
 @media (orientation:landscape){
   html,body{overscroll-behavior:none}
   #root{height:100dvh;min-height:0;overflow:hidden}
@@ -366,7 +364,7 @@
   .lobby-main .deck-workspace-nav button{min-height:44px;padding:4px;min-width:0;font-size:clamp(11px,1.5dvw,14px)}
   .lobby-main .deck-workspace>[data-deck-screen="classes"],
   .lobby-main .deck-workspace>[data-deck-screen="saved"]{
-    flex:1 1 0%;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+    flex:1 1 0%;min-height:0;overflow:visible;
   }
   .lobby-main .deck-workspace>[data-deck-screen="build"]{
     display:flex;flex-direction:column;flex:1 1 0%;min-height:0;overflow:hidden;
@@ -376,9 +374,7 @@
     padding:clamp(4px,.7dvw,12px);overflow:hidden;
   }
   .lobby-main .deck-editor-controls,.lobby-main .card-browser-controls{
-    flex:0 1 auto;min-height:46px;max-height:clamp(67px,26dvh,155px);
-    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
-    scrollbar-width:thin;padding:2px 4px;
+    display:flex;align-items:center;gap:6px;flex:none;padding:2px 4px;
   }
   .lobby-main .deck-panel .deck-layout{
     flex:1 1 0%;min-height:0;min-width:0;overflow:hidden;
@@ -386,12 +382,11 @@
     gap:clamp(4px,1dvw,15px);align-items:stretch;
   }
   .lobby-main .deck-panel .deck-layout>div{
-    min-height:0;min-width:0;overflow-x:hidden;overflow-y:auto;
-    overscroll-behavior:contain;scrollbar-width:thin;
+    min-height:0;min-width:0;overflow:visible;
   }
   .lobby-main .deck-panel .deck-sidebar{
-    height:100%;min-height:0;max-height:100%;overflow-y:auto;
-    position:relative;top:auto;overscroll-behavior:contain;scrollbar-width:thin;
+    height:100%;min-height:0;max-height:100%;overflow:visible;
+    position:relative;top:auto;
   }
   .lobby-main .deck-panel .deck-sidebar .deck-list{max-height:none;min-height:0;overflow:visible}
   .lobby-main .deck-panel .collection.classic-collection.collection-book{
@@ -400,7 +395,6 @@
 }
 @media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
   .lobby-main .deck-workspace-nav button{min-height:44px}
-  .lobby-main .deck-editor-controls,.lobby-main .card-browser-controls{max-height:min(28dvh,111px)}
   .lobby-main .deck-panel .deck-layout{grid-template-columns:minmax(0,1fr) clamp(144px,30dvw,240px)}
   .lobby-main .deck-panel .deck-layout .collection-pages{margin-top:5px}
   .lobby-main .deck-panel .deck-editor-controls button,
@@ -797,6 +791,7 @@
 .lobby-dialog>form button{min-height:44px}
 @media (orientation:landscape){
   .lobby-main>.screen-content>.lobby-home[aria-label="게임 메뉴"]{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:clamp(8px,2vw,30px);padding:clamp(8px,3vw,42px);background:none}
+  .lobby-home .sigil{width:clamp(30px,10dvh,100px);height:clamp(30px,10dvh,100px)}
   .lobby-home button{display:grid;justify-items:center;align-content:center;gap:12px;min-height:clamp(100px,40dvh,350px);font-size:clamp(16px,3vw,36px)}
   .lobby-main .play-hub{display:flex;flex-direction:column}
   .lobby-main .play-hub>.play-support{height:auto;flex-direction:row;flex:none;overflow:visible}
@@ -809,4 +804,44 @@
   .lobby-main .play-hub .class-emblem{width:clamp(23px,5dvh,54px);height:clamp(23px,5dvh,54px)}
   .lobby-main .play-hub .mode-grid{display:flex;flex-wrap:wrap;gap:6px}
   .lobby-main .play-hub .mode-grid>button,.lobby-main .play-lobby>button{min-height:44px}
+}
+
+.book-shortcuts{display:flex;align-items:center;gap:5px;flex:none}
+.book-shortcuts .sigil{width:20px;height:20px;vertical-align:middle;margin-right:4px}
+.book-shortcuts button,.book-edge{min-width:44px;min-height:44px}
+.collection-spread{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr) auto;min-height:0;gap:4px;flex:1}
+.collection-spread>.collection-book{grid-column:2;grid-row:1}
+.book-edge:first-child{grid-column:1}
+.book-edge{grid-column:3;grid-row:1;align-self:stretch;padding-inline:4px}
+.book-page-status{grid-column:1/-1;text-align:center}
+@media (orientation:landscape){
+  .lobby-main .card-browser>.deck-layout{grid-template-columns:minmax(0,1fr)}
+  .lobby-main .book-pane{display:flex;flex-direction:column;gap:4px}
+  .lobby-main .deck-panel .collection.classic-collection.collection-book{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:0;padding:4px;align-items:stretch}
+  .collection-book .collection-leaf{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:4px;min-height:0;align-items:stretch}
+  .lobby-main .collection-book[data-book-size="6"] .collection-leaf{grid-template-rows:minmax(0,1fr)}
+  .lobby-main .collection-book[data-book-size="4"] .collection-leaf{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr)}
+  .collection-book .collection-item{display:flex;min-height:0;position:relative}
+  .collection.classic-collection.collection-book .battle-card{height:auto;min-height:0;flex:1;width:100%;max-width:165px;overflow:hidden}
+  .collection.classic-collection.collection-book .battle-card .card-art{height:0;min-height:22px;width:100%;flex:1;aspect-ratio:auto}
+  .collection-book .collection-blank{min-height:0}
+  .collection-book .battle-card .card-copy,.collection-book .battle-card .card-type{display:none}
+  .collection-book .deck-card-detail-trigger{display:block;min-height:44px;width:100%;max-width:165px;padding:3px;font-size:11px}
+  .deck-panel .deck-sidebar .mana-curve{max-height:54px;margin:2px 0}
+  .deck-panel .deck-sidebar .deck-stats{gap:2px}
+  .deck-panel .deck-sidebar .deck-entry button,.deck-editor-controls>button,.card-browser-controls>button{min-height:44px}
+  .deck-editor-controls .saved-decks{margin:0}
+  .deck-editor-controls .saved-decks input{width:clamp(98px,24vw,260px)}
+  .deck-editor-controls .deck-edit-notice{margin:0;font-size:11px}
+  .deck-workspace [data-deck-screen="classes"] .workspace-heroes{grid-template-columns:repeat(9,minmax(0,1fr));padding:3px}
+  .deck-workspace [data-deck-screen="classes"] .class-choice{min-width:0;min-height:44px;padding:2px}
+  .deck-workspace [data-deck-screen="classes"] .class-emblem{width:clamp(24px,6dvh,52px);height:clamp(24px,6dvh,52px)}
+  .deck-workspace [data-deck-screen="saved"] .saved-deck-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (orientation:landscape) and (max-height:540px){
+  .deck-workspace [data-deck-screen="classes"]>p,.deck-workspace [data-deck-screen="classes"] .selected-deck-banner,
+  .deck-workspace [data-deck-screen="saved"]>p:not([role]),.deck-workspace .workspace-heroes small,.deck-builder .deck-stats span{display:none}
+  .lobby-main .deck-workspace .deck-workspace-nav{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .deck-workspace [data-deck-screen="saved"] .saved-deck-entry{padding:3px;gap:4px}
+  .deck-workspace [data-deck-screen="saved"] .saved-deck-entry .deck-banner-icon{display:none}
 }

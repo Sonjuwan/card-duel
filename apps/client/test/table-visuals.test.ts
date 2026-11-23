@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {applyAction,createCatalog,createGame,getPlayerView,practiceDeck} from '../../../packages/engine/src/index.ts';
-import {fanSlot,collectionPage,collectionNavigation,deriveTableMotion} from '../src/table-visuals.ts';
+import {groupedCollection,fanSlot,collectionPage,collectionNavigation,deriveTableMotion} from '../src/table-visuals.ts';
 
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.21.0.json',import.meta.url),'utf8')));
 function ready(){let s=createGame(catalog,[practiceDeck(catalog,'mage'),practiceDeck(catalog,'warrior')],{seed:123,firstPlayer:0});s=applyAction(s,0,{type:'mulligan',replace:[]});return applyAction(s,1,{type:'mulligan',replace:[]});}
@@ -76,4 +76,18 @@ test('visual changes are derived solely from consecutive authorized player views
   assert.equal('hand' in next.opponent,false);
   next.revision++;assert.equal(deriveTableMotion(prev,next,0).drawn.size,0);
   assert.equal(deriveTableMotion(undefined,next,0).summoned.size,0);
+});
+
+test('grouped spreads keep the class boundary and reach every card at both sizes',()=>{
+  for(const size of [4,6,12]){
+    const classCards=Array.from({length:15},(_,i)=>`class-${i}`);
+    const neutralCards=Array.from({length:21},(_,i)=>`neutral-${i}`);
+    const groups=[{key:'class',items:classCards},{key:'neutral',items:neutralCards}];
+    const boundary=Math.ceil(classCards.length/size);
+    const next=groupedCollection(groups,boundary,size);
+    assert.equal(next.current.key,'neutral');
+    assert.equal(next.current.index,0);
+    assert.equal(groupedCollection(groups,boundary-1,size).current.key,'class');
+    assert.deepEqual(next.spreads.flatMap(spread=>spread.items),[...classCards,...neutralCards]);
+  }
 });

@@ -906,3 +906,8 @@ PWA 웹페이지 + 로컬 저장 솔로 우선. 유저/개발자 모드, 25랭�
 
 - Added standalone home navigation and focused battle setup, with slot, progression, settings, and account dialogs.
 - Node 24 typecheck, 4 navigation/focus checks, and Chromium landscape PWA first-turn test passed.
+
+### UI battle overhaul · Phase 2
+
+- Added class-to-neutral book navigation, responsive spreads, filter dialogs, and paginated deck lists.
+- Eight focused checks passed. Real Chromium verified the class boundary in both directions and card detail on desktop.
