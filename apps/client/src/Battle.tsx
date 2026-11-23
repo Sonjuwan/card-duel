@@ -1,3 +1,4 @@
+import {BattleIntentQueue,isBattleIntent,validateBattleIntent} from './battle-intents.ts';
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent,PointerEvent,MouseEvent,KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { BOT_DIFFICULTY_NAMES, cardChoiceReason, heroPowerReason, publicCardCost, publicCardReason, sameTarget } from '../../../packages/engine/src/index.ts';
@@ -34,12 +35,59 @@ import {independentActivation} from './hover-timing.ts';
 import {secondsUntilDeadline,watchDeadlineSeconds} from './battle-clock.ts';
 import {landscapeHandPreviewShift,dismissPeekOnHandFocus} from './landscape-hand-preview.ts';
 
-type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;lastSavedAt?:string};
+type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;intentEpoch?:number;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;lastSavedAt?:string};
 export function Battle(props:BattleProps){
   const playback=useBattlePlayback(props.room,props.connected);
-  return <HoverPreviewProvider resetKey={`${props.room.code}:${props.room.state?.phase}:${props.connected}:${playback.playing}`} refreshKey={playback.room.state?.revision}><BattleView {...props} room={playback.room} busy={props.busy||playback.playing} cue={playback.cue} playing={playback.playing}/></HoverPreviewProvider>;
+  const queue=useRef(new BattleIntentQueue()).current;
+  const [pending,setPending]=useState(0),[intentNotice,setIntentNotice]=useState('');
+  const current=props.room.state;
+  const context=`${props.room.code}:${props.room.seat}:${current?.turn}:${props.intentEpoch??0}`;
+  const queueContext=useRef(context);
+  const eligible=props.connected&&props.room.opponentConnected&&!props.saveRetryable&&current?.phase==='playing'&&current.activePlayer===props.room.seat&&!current.choicePending;
+  const visible=playback.room.state;
+  const inputBlocked=!eligible||queue.full||queue.ending||props.busy&&!queue.inFlight;
+  const cancelPending=()=>{
+    queue.cancelPending();
+    setPending(0);
+    setIntentNotice('예약을 취소했습니다.');
+  };
+  useEffect(()=>{
+    if(!eligible||queueContext.current!==context){
+      queueContext.current=context;
+      if(queue.pending.length)setIntentNotice('경기 상태가 바뀌어 남은 예약을 취소했습니다.');
+      queue.clear();
+      setPending(0);
+      return;
+    }
+    if(props.busy)return;
+    queue.acknowledge();
+    if(playback.playing)return;
+    for(let action=queue.take();action;action=queue.take()){
+      setPending(queue.pending.length);
+      const reason=validateBattleIntent(current,props.room.seat,catalog,action);
+      if(!reason){props.send(action);return;}
+      queue.acknowledge();
+      setIntentNotice(`예약 취소 · ${reason}`);
+    }
+  },[context,current,eligible,pending,playback.playing,props.busy,props.send,props.room.seat,queue]);
+  const submit=(action:Action)=>{
+    if(!isBattleIntent(action)){
+      if(props.busy||playback.playing)return;
+      if(queue.pending.length)cancelPending();
+      props.send(action);
+      return;
+    }
+    // Only offer actions the player could select from the current visual frame.
+    if(inputBlocked||!visible||validateBattleIntent(visible,props.room.seat,catalog,action))return;
+    if(!queue.offer(action)){setIntentNotice('이미 예약했거나 예약 한도에 도달했습니다.');return;}
+    setPending(queue.pending.length);
+    setIntentNotice('');
+  };
+  return <HoverPreviewProvider resetKey={`${props.room.code}:${props.room.state?.phase}:${props.connected}`} refreshKey={visible?.revision}>
+    <BattleView {...props} send={submit} room={playback.room} busy={props.busy||playback.playing||pending>0} inputBlocked={inputBlocked} pending={pending} intentNotice={intentNotice} cancelPending={cancelPending} cue={playback.cue} playing={playback.playing}/>
+  </HoverPreviewProvider>;
 }
-function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,lastSavedAt,connected,busy,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean}){
+function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,lastSavedAt,connected,busy,inputBlocked,pending,intentNotice,cancelPending,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean;inputBlocked:boolean;pending:number;intentNotice:string;cancelPending:()=>void}){
   const classicNames=useContext(ClassicNamesContext);
   const [selected,setSelected]=useState<Selection|null>(null);
   const [sound,setSound]=useState(battleSoundEnabled);
@@ -146,7 +194,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [motion,setMotion]=useState<TableMotion|null>(null);
   useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),1000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
   const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision?motion:null;
-  const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!busy;
+  const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!inputBlocked;
   const ownChoiceOpen=!!s&&s.phase==='playing'&&!playing&&((!!s.choicePending&&!!s.self.pendingChoice?.length&&connected&&opponentReady)||(active&&selected?.kind==='cardChoice'));
   // End-of-match results are a genuine modal. The next/new game controls
   // receive focus when playback ends; Tab must not navigate the hidden arena.
@@ -443,7 +491,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   if(s.phase==='mulligan')return <section className="battle duel-screen phase-mulligan">{title}<div className="mulligan-arena classic-mulligan" inert={!!inspectedOverlay}><TableDecor/><div className="mulligan-opponent"><HiddenHand count={s.opponent.handCount}/><HeroPortrait player={s.opponent} label={enemyLabel}/></div><div className="mulligan-heading"><span className="mulligan-order">{s.firstPlayer===seat?'선공':'후공'}</span><h3>첫 손패를 선택하세요</h3><p>{!opponentReady?pauseMessage:s.self.mulliganDone?'상대의 선택을 기다리는 중입니다.':'바꾸고 싶은 카드를 클릭한 후 확정하세요.'}</p>{mulliganInspectable&&<div className="mulligan-inspection-controls"><label>설명할 카드<select aria-label="설명을 확인할 첫 손패 카드" value={mulliganInspectable.instanceId} onChange={e=>setMulliganInspectId(e.target.value)}>{s.self.hand.map(c=><option key={c.instanceId} value={c.instanceId}>{displayCardName(catalog[c.cardId],classicNames)}</option>)}</select></label><button type="button" className="secondary mulligan-inspection-open" onClick={()=>inspectBoardMinion({card:catalog[mulliganInspectable.cardId],cost:publicCardCost(s,seat,catalog[mulliganInspectable.cardId],catalog,mulliganInspectable.costDiscount)})}>카드 설명 확대</button></div>}</div><div className="mulligan-cards">{s.self.hand.map(c=><BattleCard key={c.instanceId} card={catalog[c.cardId]} mulligan selected={replace.includes(c.instanceId)} enabled={!s.self.mulliganDone&&connected&&opponentReady&&!busy} onClick={()=>{setMulliganInspectId(c.instanceId);setReplace(old=>old.includes(c.instanceId)?old.filter(x=>x!==c.instanceId):[...old,c.instanceId]);}}/>)}</div><button className="mulligan-confirm" disabled={s.self.mulliganDone||busy||!connected||!opponentReady} onClick={e=>perform({type:'mulligan',replace},e.detail===0)}>확정 ({replace.length}장 교체)</button><div className="mulligan-self"><HeroPortrait player={s.self} label="나"/></div></div>{inspectDialog}</section>;
   return <section data-animation-speed={room.animationSpeed??"normal"} className={`battle duel-screen phase-${s.phase}${active?' my-turn':''}${currentDrag?' is-dragging':''}${highlight?' has-selection':''}${playing?' is-playing-fx':''}${room.animation?.revision===s.revision?' has-fx-revision':''}`}>
     {title}
-    <div className="arena-message" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={messageRef} onKeyDownCapture={targetKeys} data-drop-feedback={currentDrag?dropFeedback??undefined:dropNotice?'notice':undefined}><span className={`turn-lamp${active?' live':''}`}/><span role="status" aria-live={currentDrag?"off":"polite"}>{status}{selected&&!currentDrag&&legalTargets.length>0&&<small className="target-key-hint"> · 방향키/Enter</small>}</span>{connected&&!opponentReady&&reconnectLeft!==null&&<small className="reconnect-countdown" aria-live="off"> · 남은 재접속 시간 {Math.floor(reconnectLeft/60)}분 {reconnectLeft%60}초</small>}{selectedHandInspectable&&!currentDrag&&currentInspector&&<button type="button" className="secondary selected-card-inspect" aria-label={`${displayCardName(currentInspector.card,classicNames)} 카드 설명 전체 보기`} onClick={()=>inspectBoardMinion(currentInspector)}>카드 설명 확대</button>}{active&&!currentDrag&&<PlacementPicker view={s} seat={seat} catalog={catalog} selection={selected} position={boardPosition} onChoose={choosePosition}/>}{selected?.kind==='held'&&active&&<button type="button" className="selected-card-use" onClick={e=>applyIntent(planCard(s,seat,catalog,selected.id,boardPosition),e.detail===0)}>선택 카드 내기</button>}{selected&&!currentDrag&&legalTargets.length>0&&<TargetPicker key={`${s.revision}:${aimSource}:${selected.kind==='card'?selected.choice??'':''}`} view={s} seat={seat} targets={legalTargets} catalog={catalog} sourceLabel={targetSourceLabel} onChoose={choose}/>}{selected&&<button className="secondary selection-cancel" onClick={()=>setSelected(null)}>선택 취소 <kbd>Esc</kbd></button>}{room.mode==='bot'&&s.phase==='playing'&&<EmoteMenu hero={s.self.heroClass} onEmote={dialogue.emote} cooldown={dialogue.emoteCooldown}/>}</div>
+    <div className="arena-message" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={messageRef} onKeyDownCapture={targetKeys} data-drop-feedback={currentDrag?dropFeedback??undefined:dropNotice?'notice':undefined}><span className={`turn-lamp${active?' live':''}`}/><span role="status" aria-live={currentDrag?"off":"polite"}>{status}{intentNotice&&<small> · {intentNotice}</small>}{selected&&!currentDrag&&legalTargets.length>0&&<small className="target-key-hint"> · 방향키/Enter</small>}</span>{pending>0&&<button className="secondary" type="button" onClick={cancelPending} aria-label={`예약 ${pending}개 취소`}>예약 {pending} · 취소</button>}{connected&&!opponentReady&&reconnectLeft!==null&&<small className="reconnect-countdown" aria-live="off"> · 남은 재접속 시간 {Math.floor(reconnectLeft/60)}분 {reconnectLeft%60}초</small>}{selectedHandInspectable&&!currentDrag&&currentInspector&&<button type="button" className="secondary selected-card-inspect" aria-label={`${displayCardName(currentInspector.card,classicNames)} 카드 설명 전체 보기`} onClick={()=>inspectBoardMinion(currentInspector)}>카드 설명 확대</button>}{active&&!currentDrag&&<PlacementPicker view={s} seat={seat} catalog={catalog} selection={selected} position={boardPosition} onChoose={choosePosition}/>}{selected?.kind==='held'&&active&&<button type="button" className="selected-card-use" onClick={e=>applyIntent(planCard(s,seat,catalog,selected.id,boardPosition),e.detail===0)}>선택 카드 내기</button>}{selected&&!currentDrag&&legalTargets.length>0&&<TargetPicker key={`${s.revision}:${aimSource}:${selected.kind==='card'?selected.choice??'':''}`} view={s} seat={seat} targets={legalTargets} catalog={catalog} sourceLabel={targetSourceLabel} onChoose={choose}/>}{selected&&<button className="secondary selection-cancel" onClick={()=>setSelected(null)}>선택 취소 <kbd>Esc</kbd></button>}{room.mode==='bot'&&s.phase==='playing'&&<EmoteMenu hero={s.self.heroClass} onEmote={dialogue.emote} cooldown={dialogue.emoteCooldown}/>}</div>
     <div className="battle-arena classic-table" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={arenaRef} onKeyDownCapture={targetKeys} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={nativeDragOver} onDropCapture={nativeDrop} onDragLeave={e=>{if(!e.relatedTarget||!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget)){setDropFeedback(null);setTouchSlot(undefined);setDropTarget(undefined);hideAim();}}} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();if(selected?.kind==='cardChoice')cancelCardChoice();else{setSelected(null);clearDrag();}}}}>
       {touchGhost&&<div className="touch-drag-ghost" aria-hidden="true"><BattleCard card={catalog[s.self.hand.find(h=>h.instanceId===touchGhost)?.cardId??'']??catalog.__coin}/></div>}
       <TableDecor/><BattleEffects cue={cue} arenaRef={arenaRef} catalog={catalog}/>{visual?.turn&&<div className={`turn-flash ${visual.turn}`} role="status">{visual.turn==='own'?'내 턴':'상대 턴'}</div>}

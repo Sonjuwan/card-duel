@@ -1225,3 +1225,8 @@ v0.7.0을 보존하고, 2014년 6월 기준 카드 대조의 첫 묶음을 시�
 
 - Removed the name switch and always display classic card names, including public battle history. All 443 cards and tokens have mappings.
 - Added 100 ms mouse hand enlargement and 120 ms sibling movement. Removed the always-open arena inspector while keeping explicit card details. Typecheck and 21 focused tests passed.
+
+### UI battle overhaul · Phase 4
+
+- Added cancellable FIFO reservations, a four-intent limit, duplicate suppression, and revalidation against the latest approved view before each worker/server request.
+- Three queue tests passed. Chromium accepted and cancelled an end-turn reservation during a summon, then saved and resumed the approved position.
