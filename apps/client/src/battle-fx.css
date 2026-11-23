@@ -172,3 +172,8 @@
   left:50%;top:48%;margin-left:calc(-1 * clamp(60px,8vw,115px));margin-top:calc(-1 * clamp(80px,14dvh,175px));
   width:clamp(120px,16vw,230px);height:min(43dvh,340px);aspect-ratio:auto
 }
+
+.board-segment{position:relative}
+.intent-badge{position:absolute;top:3px;right:3px;z-index:12;pointer-events:none;min-width:20px;text-align:center;border-radius:8px;border:1px dashed #ffe7ad;background:#30263c;color:#fff5da;font-weight:800}
+.battle-sequence{position:absolute;left:50%;top:44%;translate:-50% -50%;z-index:29;pointer-events:none;padding:5px 10px;border-radius:7px;border:1px solid #f1cf8a;background:#31251eed;color:#fff1c9;font-weight:800;font-size:clamp(12px,2.5dvh,18px)}
+.battle-sequence small{font-weight:400}

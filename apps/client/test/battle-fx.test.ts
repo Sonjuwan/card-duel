@@ -476,3 +476,16 @@ test('particle geometry cache reuses deterministic samples with unchanged visual
  assert.notStrictEqual(cache(seed+1,scale,24),rich);assert.notStrictEqual(cache(seed,1.65,24),rich);
  assert.deepEqual(createParticleCache()(seed,scale,35),expanded);
 });
+
+test('ordered public combat beats preserve shield, damage and death before visible summons',async()=>{
+  const {battleSequence}=await import('../src/battle-sequence.ts');
+  const base=room(ready(),0);
+  const after=structuredClone(base);
+  after.state!.revision++;
+  after.state!.self.board.push({instanceId:'new',cardId:'recruit',attack:1,health:2,maxHealth:2,attacksRemaining:0});
+  const target={kind:'minion' as const,instanceId:'public-guard'};
+  after.animation={kind:'attack',actor:0,revision:after.state!.revision,events:[
+    {kind:'shield',side:1,target},{kind:'damage',side:1,target,amount:3},{kind:'death',side:1,target}
+  ]};
+  assert.deepEqual(battleSequence(nextPlayback(base,after)!),['보호막 소모','피해 3','하수인 사망','하수인 1장 등장']);
+});
