@@ -1,0 +1,73 @@
+{
+  "header": {
+    "version": "v0.23.0.json",
+    "hash": "4fda1c70ee9d13b2bafdc894021b7d550081b92c524d5b9aa100904d48307afb",
+    "weights": "ce191d64c9b8f36e43fbf3947d7f6a17a1d1cd9bdc0065c9c5d4267951c0b354",
+    "pairs": 9,
+    "seedOffset": 3500,
+    "target": 19,
+    "experiment": "decision-stable beginner/expert mixture (not production)",
+    "method": "same decks, seed and first player within each swapped pair; fixed public turn/seed/seat/revision draw; expert probability (level-1)/24; original weight and card snapshot, no time deadline"
+  },
+  "result": {
+    "target": 19,
+    "level": 18,
+    "expertProbability": 0.7083333333333334,
+    "wins": 9,
+    "losses": 9,
+    "draws": 0,
+    "capped": 0,
+    "valid": true,
+    "scoreRate": 0.5,
+    "bootstrap95": [
+      0.3333333333333333,
+      0.6666666666666666
+    ],
+    "pairs": 9,
+    "sweeps": 1,
+    "split": 7,
+    "lossSweeps": 1,
+    "pairScores": [
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "moves": 1058,
+    "expertDecisions": 362,
+    "beginnerDecisions": 156,
+    "seconds": 43
+  }
+}

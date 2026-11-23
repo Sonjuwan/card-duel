@@ -1,0 +1,1449 @@
+{
+  "schema": 1,
+  "scope": "read-only diagnostic fixtures; no user records",
+  "natural96": [
+    {
+      "version": "v0.23.0.json",
+      "hash": "a9265aa78e3695cfa3a22c87d5b6b1d0e9315177bed9eec155ea14f28c1ae962",
+      "weights": "ce191d64c9b8f36e43fbf3947d7f6a17a1d1cd9bdc0065c9c5d4267951c0b354",
+      "count": 96,
+      "offset": 5100,
+      "note": "Real local ranked games, top-level AI surrogate player, no account/device storage writes; not a human win rate or physical device timing."
+    },
+    {
+      "games": 3,
+      "rank": 2,
+      "xp": 90,
+      "owned": 96,
+      "questGames": 3,
+      "stats": {
+        "wins": 3,
+        "losses": 0,
+        "draws": 0
+      },
+      "moves": 155,
+      "restores": 4,
+      "backupChecks": 0,
+      "seconds": 5
+    },
+    {
+      "games": 6,
+      "rank": 3,
+      "xp": 210,
+      "owned": 104,
+      "questGames": 6,
+      "stats": {
+        "wins": 6,
+        "losses": 0,
+        "draws": 0
+      },
+      "moves": 366,
+      "restores": 10,
+      "backupChecks": 0,
+      "seconds": 12
+    },
+    {
+      "games": 10,
+      "rank": 3,
+      "xp": 490,
+      "owned": 120,
+      "questGames": 10,
+      "stats": {
+        "wins": 8,
+        "losses": 2,
+        "draws": 0
+      },
+      "moves": 582,
+      "restores": 17,
+      "backupChecks": 1,
+      "seconds": 16
+    },
+    {
+      "games": 11,
+      "rank": 4,
+      "xp": 540,
+      "owned": 122,
+      "questGames": 11,
+      "stats": {
+        "wins": 9,
+        "losses": 2,
+        "draws": 0
+      },
+      "moves": 656,
+      "restores": 19,
+      "backupChecks": 1,
+      "seconds": 19
+    },
+    {
+      "games": 15,
+      "rank": 5,
+      "xp": 750,
+      "owned": 132,
+      "questGames": 15,
+      "stats": {
+        "wins": 12,
+        "losses": 3,
+        "draws": 0
+      },
+      "moves": 943,
+      "restores": 27,
+      "backupChecks": 1,
+      "seconds": 26
+    },
+    {
+      "games": 18,
+      "rank": 6,
+      "xp": 960,
+      "owned": 141,
+      "questGames": 18,
+      "stats": {
+        "wins": 15,
+        "losses": 3,
+        "draws": 0
+      },
+      "moves": 1206,
+      "restores": 33,
+      "backupChecks": 1,
+      "seconds": 33
+    },
+    {
+      "games": 20,
+      "rank": 6,
+      "xp": 1200,
+      "owned": 150,
+      "questGames": 20,
+      "stats": {
+        "wins": 15,
+        "losses": 5,
+        "draws": 0
+      },
+      "moves": 1333,
+      "restores": 37,
+      "backupChecks": 2,
+      "seconds": 36
+    },
+    {
+      "games": 27,
+      "rank": 7,
+      "xp": 1600,
+      "owned": 164,
+      "questGames": 27,
+      "stats": {
+        "wins": 18,
+        "losses": 9,
+        "draws": 0
+      },
+      "moves": 1830,
+      "restores": 51,
+      "backupChecks": 2,
+      "seconds": 50
+    },
+    {
+      "games": 30,
+      "rank": 7,
+      "xp": 1995,
+      "owned": 176,
+      "questGames": 30,
+      "stats": {
+        "wins": 20,
+        "losses": 10,
+        "draws": 0
+      },
+      "moves": 2001,
+      "restores": 56,
+      "backupChecks": 3,
+      "seconds": 54
+    },
+    {
+      "games": 31,
+      "rank": 8,
+      "xp": 2085,
+      "owned": 179,
+      "questGames": 31,
+      "stats": {
+        "wins": 21,
+        "losses": 10,
+        "draws": 0
+      },
+      "moves": 2072,
+      "restores": 58,
+      "backupChecks": 3,
+      "seconds": 56
+    },
+    {
+      "games": 36,
+      "rank": 9,
+      "xp": 2485,
+      "owned": 190,
+      "questGames": 36,
+      "stats": {
+        "wins": 24,
+        "losses": 12,
+        "draws": 0
+      },
+      "moves": 2415,
+      "restores": 68,
+      "backupChecks": 3,
+      "seconds": 63
+    },
+    {
+      "games": 40,
+      "rank": 9,
+      "xp": 2950,
+      "owned": 202,
+      "questGames": 40,
+      "stats": {
+        "wins": 25,
+        "losses": 15,
+        "draws": 0
+      },
+      "moves": 2695,
+      "restores": 76,
+      "backupChecks": 4,
+      "seconds": 71
+    },
+    {
+      "games": 47,
+      "rank": 10,
+      "xp": 3445,
+      "owned": 214,
+      "questGames": 47,
+      "stats": {
+        "wins": 27,
+        "losses": 20,
+        "draws": 0
+      },
+      "moves": 3049,
+      "restores": 86,
+      "backupChecks": 4,
+      "seconds": 79
+    },
+    {
+      "games": 50,
+      "rank": 10,
+      "xp": 3885,
+      "owned": 224,
+      "questGames": 50,
+      "stats": {
+        "wins": 28,
+        "losses": 22,
+        "draws": 0
+      },
+      "moves": 3196,
+      "restores": 90,
+      "backupChecks": 5,
+      "seconds": 82
+    },
+    {
+      "games": 54,
+      "rank": 11,
+      "xp": 4245,
+      "owned": 231,
+      "questGames": 54,
+      "stats": {
+        "wins": 30,
+        "losses": 24,
+        "draws": 0
+      },
+      "moves": 3461,
+      "restores": 97,
+      "backupChecks": 5,
+      "seconds": 87
+    },
+    {
+      "games": 58,
+      "rank": 12,
+      "xp": 4700,
+      "owned": 241,
+      "questGames": 58,
+      "stats": {
+        "wins": 33,
+        "losses": 25,
+        "draws": 0
+      },
+      "moves": 3712,
+      "restores": 104,
+      "backupChecks": 5,
+      "seconds": 94
+    },
+    {
+      "games": 60,
+      "rank": 12,
+      "xp": 5200,
+      "owned": 251,
+      "questGames": 60,
+      "stats": {
+        "wins": 35,
+        "losses": 25,
+        "draws": 0
+      },
+      "moves": 3842,
+      "restores": 108,
+      "backupChecks": 6,
+      "seconds": 96
+    },
+    {
+      "games": 62,
+      "rank": 13,
+      "xp": 5410,
+      "owned": 255,
+      "questGames": 62,
+      "stats": {
+        "wins": 36,
+        "losses": 26,
+        "draws": 0
+      },
+      "moves": 3971,
+      "restores": 112,
+      "backupChecks": 6,
+      "seconds": 100
+    },
+    {
+      "games": 70,
+      "rank": 13,
+      "xp": 6390,
+      "owned": 272,
+      "questGames": 70,
+      "stats": {
+        "wins": 38,
+        "losses": 32,
+        "draws": 0
+      },
+      "moves": 4455,
+      "restores": 127,
+      "backupChecks": 7,
+      "seconds": 114
+    },
+    {
+      "games": 73,
+      "rank": 14,
+      "xp": 6690,
+      "owned": 277,
+      "questGames": 73,
+      "stats": {
+        "wins": 39,
+        "losses": 34,
+        "draws": 0
+      },
+      "moves": 4649,
+      "restores": 133,
+      "backupChecks": 7,
+      "seconds": 121
+    },
+    {
+      "games": 77,
+      "rank": 15,
+      "xp": 7250,
+      "owned": 287,
+      "questGames": 77,
+      "stats": {
+        "wins": 42,
+        "losses": 35,
+        "draws": 0
+      },
+      "moves": 4919,
+      "restores": 141,
+      "backupChecks": 7,
+      "seconds": 131
+    },
+    {
+      "games": 80,
+      "rank": 15,
+      "xp": 7925,
+      "owned": 298,
+      "questGames": 80,
+      "stats": {
+        "wins": 44,
+        "losses": 36,
+        "draws": 0
+      },
+      "moves": 5096,
+      "restores": 147,
+      "backupChecks": 8,
+      "seconds": 136
+    },
+    {
+      "games": 81,
+      "rank": 16,
+      "xp": 8095,
+      "owned": 300,
+      "questGames": 81,
+      "stats": {
+        "wins": 45,
+        "losses": 36,
+        "draws": 0
+      },
+      "moves": 5164,
+      "restores": 149,
+      "backupChecks": 8,
+      "seconds": 138
+    },
+    {
+      "games": 84,
+      "rank": 17,
+      "xp": 8635,
+      "owned": 309,
+      "questGames": 84,
+      "stats": {
+        "wins": 48,
+        "losses": 36,
+        "draws": 0
+      },
+      "moves": 5387,
+      "restores": 155,
+      "backupChecks": 8,
+      "seconds": 144
+    },
+    {
+      "games": 87,
+      "rank": 18,
+      "xp": 9205,
+      "owned": 317,
+      "questGames": 87,
+      "stats": {
+        "wins": 51,
+        "losses": 36,
+        "draws": 0
+      },
+      "moves": 5614,
+      "restores": 161,
+      "backupChecks": 8,
+      "seconds": 151
+    },
+    {
+      "games": 90,
+      "rank": 18,
+      "xp": 9985,
+      "owned": 328,
+      "questGames": 90,
+      "stats": {
+        "wins": 53,
+        "losses": 37,
+        "draws": 0
+      },
+      "moves": 5821,
+      "restores": 167,
+      "backupChecks": 9,
+      "seconds": 157
+    },
+    {
+      "games": 92,
+      "rank": 19,
+      "xp": 10285,
+      "owned": 332,
+      "questGames": 92,
+      "stats": {
+        "wins": 54,
+        "losses": 38,
+        "draws": 0
+      },
+      "moves": 5920,
+      "restores": 170,
+      "backupChecks": 9,
+      "seconds": 161
+    },
+    {
+      "games": 96,
+      "rank": 19,
+      "xp": 10915,
+      "owned": 341,
+      "questGames": 96,
+      "stats": {
+        "wins": 56,
+        "losses": 40,
+        "draws": 0
+      },
+      "moves": 6229,
+      "restores": 178,
+      "backupChecks": 10,
+      "seconds": 168
+    },
+    {
+      "complete": true,
+      "games": 96,
+      "ranksPlayed": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "classes": [
+        "warrior",
+        "shaman",
+        "rogue",
+        "paladin",
+        "hunter",
+        "druid",
+        "warlock",
+        "mage",
+        "priest"
+      ],
+      "rank": 19,
+      "xp": 10915,
+      "owned": 341,
+      "questCompleted": 9,
+      "stats": {
+        "wins": 56,
+        "losses": 40,
+        "draws": 0
+      },
+      "moves": 6229,
+      "restores": 178,
+      "backupChecks": 10,
+      "seconds": 168
+    }
+  ],
+  "natural144": [
+    {
+      "version": "v0.23.0.json",
+      "hash": "a9265aa78e3695cfa3a22c87d5b6b1d0e9315177bed9eec155ea14f28c1ae962",
+      "weights": "ce191d64c9b8f36e43fbf3947d7f6a17a1d1cd9bdc0065c9c5d4267951c0b354",
+      "count": 144,
+      "offset": 7000,
+      "note": "Real local ranked games, top-level AI surrogate player, no account/device storage writes; not a human win rate or physical device timing."
+    },
+    {
+      "games": 3,
+      "rank": 2,
+      "xp": 90,
+      "owned": 96,
+      "questGames": 3,
+      "stats": {
+        "wins": 3,
+        "losses": 0,
+        "draws": 0
+      },
+      "moves": 128,
+      "restores": 3,
+      "backupChecks": 0,
+      "seconds": 6
+    },
+    {
+      "games": 7,
+      "rank": 3,
+      "xp": 230,
+      "owned": 105,
+      "questGames": 7,
+      "stats": {
+        "wins": 6,
+        "losses": 1,
+        "draws": 0
+      },
+      "moves": 431,
+      "restores": 11,
+      "backupChecks": 0,
+      "seconds": 14
+    },
+    {
+      "games": 10,
+      "rank": 4,
+      "xp": 510,
+      "owned": 121,
+      "questGames": 10,
+      "stats": {
+        "wins": 9,
+        "losses": 1,
+        "draws": 0
+      },
+      "moves": 597,
+      "restores": 17,
+      "backupChecks": 1,
+      "seconds": 19
+    },
+    {
+      "games": 13,
+      "rank": 5,
+      "xp": 690,
+      "owned": 129,
+      "questGames": 13,
+      "stats": {
+        "wins": 12,
+        "losses": 1,
+        "draws": 0
+      },
+      "moves": 889,
+      "restores": 23,
+      "backupChecks": 1,
+      "seconds": 25
+    },
+    {
+      "games": 17,
+      "rank": 6,
+      "xp": 935,
+      "owned": 140,
+      "questGames": 17,
+      "stats": {
+        "wins": 15,
+        "losses": 2,
+        "draws": 0
+      },
+      "moves": 1199,
+      "restores": 31,
+      "backupChecks": 1,
+      "seconds": 34
+    },
+    {
+      "games": 20,
+      "rank": 6,
+      "xp": 1255,
+      "owned": 152,
+      "questGames": 20,
+      "stats": {
+        "wins": 16,
+        "losses": 4,
+        "draws": 0
+      },
+      "moves": 1467,
+      "restores": 37,
+      "backupChecks": 2,
+      "seconds": 43
+    },
+    {
+      "games": 23,
+      "rank": 7,
+      "xp": 1455,
+      "owned": 159,
+      "questGames": 23,
+      "stats": {
+        "wins": 18,
+        "losses": 5,
+        "draws": 0
+      },
+      "moves": 1659,
+      "restores": 43,
+      "backupChecks": 2,
+      "seconds": 48
+    },
+    {
+      "games": 27,
+      "rank": 8,
+      "xp": 1770,
+      "owned": 169,
+      "questGames": 27,
+      "stats": {
+        "wins": 21,
+        "losses": 6,
+        "draws": 0
+      },
+      "moves": 1908,
+      "restores": 51,
+      "backupChecks": 2,
+      "seconds": 56
+    },
+    {
+      "games": 30,
+      "rank": 9,
+      "xp": 2250,
+      "owned": 183,
+      "questGames": 30,
+      "stats": {
+        "wins": 24,
+        "losses": 6,
+        "draws": 0
+      },
+      "moves": 2130,
+      "restores": 57,
+      "backupChecks": 3,
+      "seconds": 61
+    },
+    {
+      "games": 36,
+      "rank": 10,
+      "xp": 2745,
+      "owned": 197,
+      "questGames": 36,
+      "stats": {
+        "wins": 27,
+        "losses": 9,
+        "draws": 0
+      },
+      "moves": 2483,
+      "restores": 67,
+      "backupChecks": 3,
+      "seconds": 68
+    },
+    {
+      "games": 40,
+      "rank": 10,
+      "xp": 3245,
+      "owned": 209,
+      "questGames": 40,
+      "stats": {
+        "wins": 28,
+        "losses": 12,
+        "draws": 0
+      },
+      "moves": 2740,
+      "restores": 75,
+      "backupChecks": 4,
+      "seconds": 76
+    },
+    {
+      "games": 43,
+      "rank": 11,
+      "xp": 3545,
+      "owned": 216,
+      "questGames": 43,
+      "stats": {
+        "wins": 30,
+        "losses": 13,
+        "draws": 0
+      },
+      "moves": 2928,
+      "restores": 81,
+      "backupChecks": 4,
+      "seconds": 79
+    },
+    {
+      "games": 47,
+      "rank": 12,
+      "xp": 4000,
+      "owned": 226,
+      "questGames": 47,
+      "stats": {
+        "wins": 33,
+        "losses": 14,
+        "draws": 0
+      },
+      "moves": 3158,
+      "restores": 89,
+      "backupChecks": 4,
+      "seconds": 85
+    },
+    {
+      "games": 50,
+      "rank": 12,
+      "xp": 4500,
+      "owned": 237,
+      "questGames": 50,
+      "stats": {
+        "wins": 34,
+        "losses": 16,
+        "draws": 0
+      },
+      "moves": 3367,
+      "restores": 95,
+      "backupChecks": 5,
+      "seconds": 89
+    },
+    {
+      "games": 53,
+      "rank": 13,
+      "xp": 4850,
+      "owned": 244,
+      "questGames": 53,
+      "stats": {
+        "wins": 36,
+        "losses": 17,
+        "draws": 0
+      },
+      "moves": 3572,
+      "restores": 101,
+      "backupChecks": 5,
+      "seconds": 96
+    },
+    {
+      "games": 57,
+      "rank": 14,
+      "xp": 5375,
+      "owned": 254,
+      "questGames": 57,
+      "stats": {
+        "wins": 39,
+        "losses": 18,
+        "draws": 0
+      },
+      "moves": 3882,
+      "restores": 109,
+      "backupChecks": 5,
+      "seconds": 104
+    },
+    {
+      "games": 60,
+      "rank": 15,
+      "xp": 6095,
+      "owned": 267,
+      "questGames": 60,
+      "stats": {
+        "wins": 42,
+        "losses": 18,
+        "draws": 0
+      },
+      "moves": 4083,
+      "restores": 115,
+      "backupChecks": 6,
+      "seconds": 110
+    },
+    {
+      "games": 65,
+      "rank": 16,
+      "xp": 6775,
+      "owned": 279,
+      "questGames": 65,
+      "stats": {
+        "wins": 45,
+        "losses": 20,
+        "draws": 0
+      },
+      "moves": 4452,
+      "restores": 125,
+      "backupChecks": 6,
+      "seconds": 125
+    },
+    {
+      "games": 69,
+      "rank": 17,
+      "xp": 7405,
+      "owned": 289,
+      "questGames": 69,
+      "stats": {
+        "wins": 48,
+        "losses": 21,
+        "draws": 0
+      },
+      "moves": 4752,
+      "restores": 132,
+      "backupChecks": 6,
+      "seconds": 134
+    },
+    {
+      "games": 70,
+      "rank": 17,
+      "xp": 7865,
+      "owned": 297,
+      "questGames": 70,
+      "stats": {
+        "wins": 49,
+        "losses": 21,
+        "draws": 0
+      },
+      "moves": 4817,
+      "restores": 134,
+      "backupChecks": 7,
+      "seconds": 135
+    },
+    {
+      "games": 73,
+      "rank": 18,
+      "xp": 8340,
+      "owned": 304,
+      "questGames": 73,
+      "stats": {
+        "wins": 51,
+        "losses": 22,
+        "draws": 0
+      },
+      "moves": 5004,
+      "restores": 140,
+      "backupChecks": 7,
+      "seconds": 141
+    },
+    {
+      "games": 78,
+      "rank": 19,
+      "xp": 9140,
+      "owned": 316,
+      "questGames": 78,
+      "stats": {
+        "wins": 54,
+        "losses": 24,
+        "draws": 0
+      },
+      "moves": 5375,
+      "restores": 150,
+      "backupChecks": 7,
+      "seconds": 152
+    },
+    {
+      "games": 80,
+      "rank": 19,
+      "xp": 9745,
+      "owned": 325,
+      "questGames": 80,
+      "stats": {
+        "wins": 55,
+        "losses": 25,
+        "draws": 0
+      },
+      "moves": 5536,
+      "restores": 154,
+      "backupChecks": 8,
+      "seconds": 156
+    },
+    {
+      "games": 84,
+      "rank": 20,
+      "xp": 10375,
+      "owned": 334,
+      "questGames": 84,
+      "stats": {
+        "wins": 57,
+        "losses": 27,
+        "draws": 0
+      },
+      "moves": 5837,
+      "restores": 161,
+      "backupChecks": 8,
+      "seconds": 167
+    },
+    {
+      "games": 87,
+      "rank": 21,
+      "xp": 11035,
+      "owned": 343,
+      "questGames": 87,
+      "stats": {
+        "wins": 60,
+        "losses": 27,
+        "draws": 0
+      },
+      "moves": 6035,
+      "restores": 167,
+      "backupChecks": 8,
+      "seconds": 172
+    },
+    {
+      "games": 90,
+      "rank": 21,
+      "xp": 11920,
+      "owned": 354,
+      "questGames": 90,
+      "stats": {
+        "wins": 62,
+        "losses": 28,
+        "draws": 0
+      },
+      "moves": 6204,
+      "restores": 173,
+      "backupChecks": 9,
+      "seconds": 177
+    },
+    {
+      "games": 91,
+      "rank": 22,
+      "xp": 12150,
+      "owned": 357,
+      "questGames": 91,
+      "stats": {
+        "wins": 63,
+        "losses": 28,
+        "draws": 0
+      },
+      "moves": 6270,
+      "restores": 175,
+      "backupChecks": 9,
+      "seconds": 178
+    },
+    {
+      "games": 100,
+      "rank": 23,
+      "xp": 13910,
+      "owned": 379,
+      "questGames": 100,
+      "stats": {
+        "wins": 66,
+        "losses": 34,
+        "draws": 0
+      },
+      "moves": 6945,
+      "restores": 192,
+      "backupChecks": 10,
+      "seconds": 193
+    },
+    {
+      "games": 103,
+      "rank": 24,
+      "xp": 14660,
+      "owned": 382,
+      "questGames": 103,
+      "stats": {
+        "wins": 69,
+        "losses": 34,
+        "draws": 0
+      },
+      "moves": 7219,
+      "restores": 198,
+      "backupChecks": 10,
+      "seconds": 201
+    },
+    {
+      "games": 109,
+      "rank": 25,
+      "xp": 15882,
+      "owned": 382,
+      "questGames": 109,
+      "stats": {
+        "wins": 72,
+        "losses": 36,
+        "draws": 1
+      },
+      "moves": 7671,
+      "restores": 210,
+      "backupChecks": 10,
+      "seconds": 214
+    },
+    {
+      "games": 110,
+      "rank": 25,
+      "xp": 16502,
+      "owned": 382,
+      "questGames": 110,
+      "stats": {
+        "wins": 73,
+        "losses": 36,
+        "draws": 1
+      },
+      "moves": 7772,
+      "restores": 212,
+      "backupChecks": 11,
+      "seconds": 219
+    },
+    {
+      "games": 120,
+      "rank": 25,
+      "xp": 18877,
+      "owned": 382,
+      "questGames": 120,
+      "stats": {
+        "wins": 78,
+        "losses": 41,
+        "draws": 1
+      },
+      "moves": 8361,
+      "restores": 230,
+      "backupChecks": 12,
+      "seconds": 237
+    },
+    {
+      "games": 130,
+      "rank": 25,
+      "xp": 21171,
+      "owned": 382,
+      "questGames": 130,
+      "stats": {
+        "wins": 82,
+        "losses": 46,
+        "draws": 2
+      },
+      "moves": 9056,
+      "restores": 250,
+      "backupChecks": 13,
+      "seconds": 260
+    },
+    {
+      "games": 140,
+      "rank": 25,
+      "xp": 23411,
+      "owned": 382,
+      "questGames": 140,
+      "stats": {
+        "wins": 86,
+        "losses": 52,
+        "draws": 2
+      },
+      "moves": 9608,
+      "restores": 266,
+      "backupChecks": 14,
+      "seconds": 277
+    },
+    {
+      "games": 144,
+      "rank": 25,
+      "xp": 24086,
+      "owned": 382,
+      "questGames": 144,
+      "stats": {
+        "wins": 87,
+        "losses": 55,
+        "draws": 2
+      },
+      "moves": 9866,
+      "restores": 273,
+      "backupChecks": 15,
+      "seconds": 286
+    },
+    {
+      "complete": true,
+      "games": 144,
+      "ranksPlayed": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "classes": [
+        "warrior",
+        "shaman",
+        "rogue",
+        "paladin",
+        "hunter",
+        "druid",
+        "warlock",
+        "mage",
+        "priest"
+      ],
+      "rank": 25,
+      "xp": 24086,
+      "owned": 382,
+      "questCompleted": 14,
+      "stats": {
+        "wins": 87,
+        "losses": 55,
+        "draws": 2
+      },
+      "moves": 9866,
+      "restores": 273,
+      "backupChecks": 15,
+      "seconds": 286
+    }
+  ],
+  "independentTiers": [
+    {
+      "version": "v0.23.0.json",
+      "hash": "a9265aa78e3695cfa3a22c87d5b6b1d0e9315177bed9eec155ea14f28c1ae962",
+      "weights": "ce191d64c9b8f36e43fbf3947d7f6a17a1d1cd9bdc0065c9c5d4267951c0b354",
+      "count": 25,
+      "offset": 9000,
+      "mode": "independent tier fixtures",
+      "note": "Real local ranked games, top-level AI surrogate player, no account/device storage writes; not a human win rate or physical device timing."
+    },
+    {
+      "fixtureRank": 1,
+      "hero": "warrior",
+      "opponent": "paladin",
+      "difficulty": 1,
+      "deckPower": 1,
+      "outcome": "win",
+      "actions": 49,
+      "restores": 1
+    },
+    {
+      "fixtureRank": 2,
+      "hero": "shaman",
+      "opponent": "druid",
+      "difficulty": 2,
+      "deckPower": 2,
+      "outcome": "win",
+      "actions": 87,
+      "restores": 3
+    },
+    {
+      "fixtureRank": 3,
+      "hero": "rogue",
+      "opponent": "mage",
+      "difficulty": 3,
+      "deckPower": 3,
+      "outcome": "win",
+      "actions": 56,
+      "restores": 5
+    },
+    {
+      "fixtureRank": 4,
+      "hero": "paladin",
+      "opponent": "warrior",
+      "difficulty": 4,
+      "deckPower": 4,
+      "outcome": "win",
+      "actions": 131,
+      "restores": 7
+    },
+    {
+      "fixtureRank": 5,
+      "hero": "hunter",
+      "opponent": "rogue",
+      "difficulty": 5,
+      "deckPower": 5,
+      "outcome": "loss",
+      "actions": 53,
+      "restores": 9
+    },
+    {
+      "fixtureRank": 6,
+      "hero": "druid",
+      "opponent": "hunter",
+      "difficulty": 6,
+      "deckPower": 6,
+      "outcome": "win",
+      "actions": 71,
+      "restores": 11
+    },
+    {
+      "fixtureRank": 7,
+      "hero": "warlock",
+      "opponent": "warlock",
+      "difficulty": 7,
+      "deckPower": 7,
+      "outcome": "win",
+      "actions": 58,
+      "restores": 13
+    },
+    {
+      "fixtureRank": 8,
+      "hero": "mage",
+      "opponent": "priest",
+      "difficulty": 8,
+      "deckPower": 8,
+      "outcome": "loss",
+      "actions": 74,
+      "restores": 15
+    },
+    {
+      "fixtureRank": 9,
+      "hero": "priest",
+      "opponent": "shaman",
+      "difficulty": 9,
+      "deckPower": 9,
+      "outcome": "win",
+      "actions": 76,
+      "restores": 17
+    },
+    {
+      "fixtureRank": 10,
+      "hero": "warrior",
+      "opponent": "paladin",
+      "difficulty": 10,
+      "deckPower": 10,
+      "outcome": "win",
+      "actions": 62,
+      "restores": 19
+    },
+    {
+      "fixtureRank": 11,
+      "hero": "shaman",
+      "opponent": "druid",
+      "difficulty": 11,
+      "deckPower": 11,
+      "outcome": "loss",
+      "actions": 102,
+      "restores": 21
+    },
+    {
+      "fixtureRank": 12,
+      "hero": "rogue",
+      "opponent": "mage",
+      "difficulty": 12,
+      "deckPower": 12,
+      "outcome": "win",
+      "actions": 80,
+      "restores": 23
+    },
+    {
+      "fixtureRank": 13,
+      "hero": "paladin",
+      "opponent": "warrior",
+      "difficulty": 13,
+      "deckPower": 13,
+      "outcome": "win",
+      "actions": 46,
+      "restores": 24
+    },
+    {
+      "fixtureRank": 14,
+      "hero": "hunter",
+      "opponent": "rogue",
+      "difficulty": 14,
+      "deckPower": 14,
+      "outcome": "loss",
+      "actions": 81,
+      "restores": 26
+    },
+    {
+      "fixtureRank": 15,
+      "hero": "druid",
+      "opponent": "hunter",
+      "difficulty": 15,
+      "deckPower": 15,
+      "outcome": "win",
+      "actions": 49,
+      "restores": 27
+    },
+    {
+      "fixtureRank": 16,
+      "hero": "warlock",
+      "opponent": "warlock",
+      "difficulty": 16,
+      "deckPower": 16,
+      "outcome": "win",
+      "actions": 56,
+      "restores": 29
+    },
+    {
+      "fixtureRank": 17,
+      "hero": "mage",
+      "opponent": "priest",
+      "difficulty": 17,
+      "deckPower": 17,
+      "outcome": "loss",
+      "actions": 81,
+      "restores": 31
+    },
+    {
+      "fixtureRank": 18,
+      "hero": "priest",
+      "opponent": "shaman",
+      "difficulty": 18,
+      "deckPower": 18,
+      "outcome": "win",
+      "actions": 50,
+      "restores": 33
+    },
+    {
+      "fixtureRank": 19,
+      "hero": "warrior",
+      "opponent": "paladin",
+      "difficulty": 19,
+      "deckPower": 19,
+      "outcome": "loss",
+      "actions": 81,
+      "restores": 35
+    },
+    {
+      "fixtureRank": 20,
+      "hero": "shaman",
+      "opponent": "druid",
+      "difficulty": 20,
+      "deckPower": 20,
+      "outcome": "win",
+      "actions": 165,
+      "restores": 37
+    },
+    {
+      "fixtureRank": 21,
+      "hero": "rogue",
+      "opponent": "mage",
+      "difficulty": 21,
+      "deckPower": 21,
+      "outcome": "loss",
+      "actions": 53,
+      "restores": 39
+    },
+    {
+      "fixtureRank": 22,
+      "hero": "paladin",
+      "opponent": "warrior",
+      "difficulty": 22,
+      "deckPower": 22,
+      "outcome": "win",
+      "actions": 84,
+      "restores": 41
+    },
+    {
+      "fixtureRank": 23,
+      "hero": "hunter",
+      "opponent": "rogue",
+      "difficulty": 23,
+      "deckPower": 23,
+      "outcome": "loss",
+      "actions": 66,
+      "restores": 43
+    },
+    {
+      "fixtureRank": 24,
+      "hero": "druid",
+      "opponent": "hunter",
+      "difficulty": 24,
+      "deckPower": 24,
+      "outcome": "win",
+      "actions": 38,
+      "restores": 44
+    },
+    {
+      "fixtureRank": 25,
+      "hero": "warlock",
+      "opponent": "warlock",
+      "difficulty": 25,
+      "deckPower": 25,
+      "outcome": "loss",
+      "actions": 55,
+      "restores": 46
+    },
+    {
+      "complete": true,
+      "games": 25,
+      "ranksPlayed": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "classes": [
+        "warrior",
+        "shaman",
+        "rogue",
+        "paladin",
+        "hunter",
+        "druid",
+        "warlock",
+        "mage",
+        "priest"
+      ],
+      "moves": 1804,
+      "restores": 46,
+      "backupChecks": 3,
+      "seconds": 55,
+      "mode": "independent tier fixtures",
+      "outcomes": {
+        "win": 16,
+        "loss": 9,
+        "draw": 0
+      }
+    }
+  ]
+}

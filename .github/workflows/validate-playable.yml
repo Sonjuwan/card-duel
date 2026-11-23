@@ -1,0 +1,67 @@
+name: Validate a playable Card Duel candidate
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_number:
+        description: "Source candidate number, e.g. 249 (must match HEAD commit)"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Fetch candidate source
+        uses: actions/checkout@v4
+      - name: Node 24 (required by the game)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Fail closed on unexpected card, rank or AI champion edits
+        run: npm run verify:release-baseline
+      - name: Stamp the candidate's real release version (CI checkout only)
+        run: node scripts/stamp-candidate-build.mjs '${{ inputs.candidate_number }}'
+      - name: Frontend syntax preflight (also usable without a browser)
+        run: npm run check:frontend-syntax
+      - name: TypeScript safety
+        run: npm run typecheck
+      - name: Complete offline/PWA build and integrity tests
+        run: npm run test:solo-app
+      - name: Offline gameplay and landscape PWA core regression gate
+        run: npm run test:playable-core
+      - name: Engine, game, and UI regression suite
+        run: npm test
+      - name: Two complete AI ranked duels with saves and reward settlement
+        run: npm run test:solo-journey
+      - name: React render smoke tests
+        run: npm run test:render
+      - name: Web application build
+        run: npm run build
+      - name: Install real Chromium for installed PWA end-to-end tests
+        run: npx playwright install --with-deps chromium
+      - name: Browser test for offline saves and update-resilient continuation
+        run: npm run test:solo-app-browser
+      - name: Real landscape mobile browser test (lobby → mulligan → battle)
+        run: npm run test:landscape-browser
+      - name: Deployment preflight
+        run: npm run verify:deployment
+      - name: Verify reproducible playable PWA packaging
+        run: npm run test:package-pwa
+      - name: Create downloadable test package (not a public deployment)
+        run: |
+          mkdir -p artifact
+          cp solo-offline.html artifact/Card-Duel-${{ inputs.candidate_number }}-standalone.html
+          cp -a dist/solo-app artifact/solo-app
+          node scripts/package-playable-pwa.mjs artifact
+          printf '%s\n' 'This is a test build, not yet physical-device verified.' 'To install PWA, host solo-app over HTTPS (or localhost) and add to home screen.' > artifact/README.txt
+      - name: Upload validated candidate for hands-on testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-duel-v0-${{ inputs.candidate_number }}-playtest
+          path: artifact/
+          retention-days: 7

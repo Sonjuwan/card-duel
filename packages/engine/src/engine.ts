@@ -197,7 +197,7 @@ function damage(s:GameState,target:Character,amount:number,resolver?:Resolver):b
       if(p.heroImmuneThisTurn)return false;
     }
     const absorbed=Math.min(p.armor,amount);
-    const before=p.health;p.armor-=absorbed;p.health=Math.max(0,p.health-(amount-absorbed));log(s,target.player,`영웅 피해 ${before-p.health}${absorbed?` (방어도 ${absorbed} 소모)`:''}`);const actual=absorbed+before-p.health;if(actual>0)emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:actual});return actual>0;
+    const before=p.health;p.armor-=absorbed;p.health=Math.max(0,p.health-(amount-absorbed));log(s,target.player,`영웅 피해 ${before-p.health}${absorbed?` (방어도 ${absorbed} 소모)`:''}`);const actual=absorbed+before-p.health;if(actual>0)emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:actual,armorAbsorbed:absorbed});return actual>0;
   } else {
     const m=target.minion;
     if(m.health<=0||m.immuneThisTurn)return false;

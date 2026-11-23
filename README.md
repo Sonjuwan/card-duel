@@ -1,4 +1,24 @@
-# Card Duel v0.91.0 개발 후보
+# Card Duel v0.102.0 개발 후보
+
+카드 버전이 바뀐 뒤 같은 슬롯에 이전 카드 버전의 진행 중 랭크가 남아 있으면 새 랭크 대전을 시작하지 않습니다. 이전 버전의 기록은 삭제하지 않으며 기존 주소에서 이전 릴리스로 복귀해 해당 경기를 완료한 후 최신 릴리스를 다시 적용합니다. 다른 슬롯은 독립적으로 이용할 수 있습니다. 기존 성장+덱 백업은 가능합니다. 카드 수치 변경 없는 UI 패치는 같은 카드 해시의 저장 게임을 그대로 읽습니다.
+
+**성장+덱 통합 백업:** 유저 모드의 성장 기록 백업 메뉴에서 현재 슬롯의 XP·랭크·해금 카드·퀘스트·랭크 전적과 저장 완료 덱을 하나의 JSON으로 내려받을 수 있습니다. 새 기기/미진행 슬롯의 성장 복원 메뉴에서 통합 파일을 한 번 선택하면 성장 복원 후 덱도 자동 추가합니다. 기존 성장과 덱을 덮어쓰지 않습니다. 두 저장소의 기록은 별도이므로 덱 추가만 실패하면 덱 리스트에서 같은 파일로 재시도합니다. 아직 저장하지 않은 편집 덱과 진행 중인 경기·연습 전적은 포함하지 않습니다. `docs/PWA-PAGE.md`에 PC 실행 및 추후 모바일 정적 페이지 연결을 구분했습니다.
+
+저장 슬롯 선택 화면은 각 슬롯의 랭크·XP·이어할 경기 유무를 미리 보여 줍니다. 새로 시작 버튼은 성장/경기/덱 등 기록이 없는 것으로 확인된 슬롯에만 표시되며, 기존 데이터를 삭제하는 기능은 아닙니다. 조회 오류는 빈 슬롯으로 표시하지 않습니다. 이전 카드 버전 경기의 존재도 표시합니다. 다른 슬롯의 성장/경기 기록을 수정하지 않는 읽기 전용 조회입니다.
+
+**현재 우선순위: PWA 웹앱 + 로컬 저장.** 첫 번째 저장 슬롯은 기존 버전의 저장 주소 및 키를 그대로 사용합니다. 로비에서 2·3번 슬롯을 선택하면 기존 기록을 지우지 않고 별개의 브론즈 5/XP 0 기록으로 시작할 수 있습니다(이미 사용한 슬롯은 기존 기록을 이어갑니다). 각 슬롯의 성장·경기·편집 덱·저장 덱·연습 기록·설정은 독립적으로 저장되며, 선택한 슬롯에서 성장/덱 백업을 내보내고 복원합니다. 서로 다른 기기나 출처의 데이터는 자동 공유하지 않습니다. 외부 서버 및 APK 제작은 후순위입니다. 실기 검증은 `docs/SOLO-ACCEPTANCE.md` 참조.
+
+개발자 모드에만 원래 최약/최강 AI 정책을 결정적으로 혼합하는 25단계 실험을 추가했습니다. 실제 유저 랭크에는 적용하지 않고 보상도 지급하지 않습니다. 200경기 비교에서 구간별 차이는 관찰했지만 인접한 모든 단계의 차이가 검증되지 않았습니다. `docs/AI-DIFFICULTY-AUDIT.md` 참조.
+
+**Android APK 제작 후보 소스:** 앱 고정 저장 주소, 외부 네트워크 권한 없는 내장 WebView, Android 시스템 문서 선택 기반의 성장/덱 백업, Android SDK만 사용하는 빌드·서명·검증 스크립트를 추가했습니다. `docs/ANDROID-APK.md`에 PC의 SDK 준비 및 개인 키로 APK를 만드는 방법이 있습니다. 현재 SDK가 없어 Android Activity 컴파일/서명/설치 시험은 미착수이며 APK는 제공하지 않습니다. 기존 PC 실행 방식과 온라인 코드는 유지합니다.
+
+오프라인 앱에 현재 버전 표시, 사용자 요청으로 브라우저 저장 공간 보호 승인 확인, 캐시 파일 유실 시 같은 릴리스 파일의 해시 검증 복구를 추가했습니다. 저장 보호를 승인받아도 브라우저 데이터 삭제, 기기 고장에 대비한 별도 백업이 필요합니다. 실제 PC/모바일 설치·업데이트 시험 순서는 `docs/SOLO-ACCEPTANCE.md`에 있습니다. 카드 데이터가 바뀌는 패치 전에는 랭크 경기를 먼저 완료하세요(서로 다른 카드 해시의 진행 경기 이전은 미지원).
+
+**PC 고정 주소 오프라인 앱 (실기 확인 전 개발 후보):** 완전한 배포 ZIP을 풀고 Node.js 24가 설치된 Windows에서 `start-offline-app.cmd`를 실행한 뒤 항상 `http://127.0.0.1:4179/`를 같은 브라우저 프로필로 엽니다. 제공된 `dist/solo-app/`이 있으면 npm 설치 또는 외부 서버 연결 없이 실행할 수 있습니다. 최초 캐시 완료 후 지원 브라우저에서 앱 설치를 시도할 수 있습니다. 새 버전에서는 동일 주소로 실행하고 경기 저장 후 모든 앱 창을 닫았다가 다시 열어 적용합니다. 저장 기록은 해당 브라우저의 주소에 연결되므로 기존 `solo-offline.html` 파일에서 이동할 때는 성장 및 덱 백업을 먼저 내보내고 새 주소에 복원하세요. 브라우저 데이터 삭제 시 기록이 사라질 수 있으므로 주기적 백업을 권장합니다. PC 실행 주소는 기기 내부에만 열리며 모바일 기기에서는 접속할 수 없습니다. 모바일은 추후 HTTPS PWA 배포 또는 APK가 필요합니다. 실제 Windows/Android 설치와 저장 복원은 아직 실기 확인 전입니다.
+
+개발용: `npm run build:solo-app`으로 독립 HTML 및 설치 패키지를 생성하고 `npm run solo:serve`로 고정 주소에서 실행합니다. 설치 패키지의 작은 `index.html`은 `game.js`와 그림을 포함한 `game.css`를 별도로 읽으며, 세 파일 모두 전체 해시 검증·오프라인 캐시에 포함됩니다. 파일 하나인 `solo-offline.html`도 그대로 생성됩니다. `npm run test:solo-app`은 실제 파일과 HTTP 제공, 구형 5파일/신형 7파일 간 업데이트·롤백, 캐시 검증/오프라인 응답/손상 패치 차단을 검사합니다. `npm run test:solo-app-browser`는 Chromium에서 휴대폰 크기로 네트워크 없는 랭크 이어하기를 검사하는 실기용 시험입니다. 서비스 워커는 동일 경로의 완전한 새 버전을 검증한 뒤 기존 창 종료 시 적용하며 IndexedDB와 localStorage에 손대지 않습니다.
+
+오프라인 유저 모드에서 25랭크 및 카드 전력별 해금 현황, 382종 카드 검색·필터·페이지, 다음 해금 XP, 9직업 순환 퀘스트, 최근 30경기 전적을 확인할 수 있습니다. 랭크 대전은 개발자용 절전 설정과 독립적으로 자동 탐색을 사용합니다. 카드 능력치와 AI 학습 데이터는 그대로 유지합니다.
 
 공개 Supabase 서버는 SQL 001~006과 실제 서버 역할의 RLS 우회 권한까지 읽기 전용으로 확인해야 시작한다. 기존 계정 행과 게임 보상에는 변경을 가하지 않는다.
 
@@ -79,6 +99,10 @@ PC·모바일의 같은 Wi-Fi 계정 연동 시험은 `start-lan-test.cmd`로 �
 **기기 AI 및 오프라인 솔로:** `solo-offline.html` 파일을 브라우저로 열면 서버 없이 실제 1~25단계 AI 대전, 덱 편집, 카드 보기, 전투 연출을 사용할 수 있다. `build-offline.cmd`는 현재 밸런스와 검증된 학습 결과로 파일을 다시 만든다. 일반 서버 게임에서는 기기 AI(기본)와 서버 AI를 선택한다. 자동/절전/최대 탐색 설정을 제공한다. Windows 및 Galaxy S24에서 실제 브라우저 동작은 아직 실기 측정이 필요하다.
 
 **솔로 대전 저장/이어하기 (v0.45.0 검증 후보):** 기기 AI의 승인된 각 행동을 브라우저 IndexedDB에 저장한다. 대전 화면의 `저장 후 나가기` 버튼 또는 새로고침 이후 대전 준비 화면의 `이어하기`로 진행 중인 게임을 복원할 수 있다. 남은 턴 시간과 멀리건/카드 선택, AI 설정을 복구한다. 완료 대전 결과도 다시 볼 수 있다. 같은 카드 밸런스와 브라우저 프로필/사이트 주소의 저장소를 사용해야 한다. 다른 탭에서 최신 저장을 가져간 뒤에는 이전 탭의 저장을 막는다. 저장 불가 표시가 나오면 해당 경기의 변경 사항은 저장되지 않으므로 새로고침하지 않는다. 파일 직접 열기에서 저장소가 제한되는 브라우저는 `start-game.cmd`로 로컬 서버 게임을 열고 기기 AI를 선택한다. 실제 브라우저 IndexedDB E2E 및 Android/Windows 실기는 아직 미확인이다. 서버 AI/친구 대전에는 이 기능을 적용하지 않는다.
+
+**오프라인 솔로 성장 (v0.92.0 개발 후보):** `solo-offline.html`의 솔로 랭크 유저 모드는 기존 성장 설정에 따라 보유 카드로만 25랭크 AI를 상대한다. 경기 결과와 XP/보유 카드/퀘스트/전적을 IndexedDB 동일 트랜잭션으로 저장하고, 중복 보상과 진행 중인 랭크 경기 덮어쓰기를 차단한다. 기존 전체 카드 연습은 XP를 지급하지 않는다. 성장 백업 JSON을 내려받고 새로운 로컬 성장 기록에만 복원할 수 있다(로컬 저장 덱·진행 경기 제외). 오프라인 백업은 수정 가능하므로 온라인 계정으로 인증 없이 가져오지 않는다. 파일 경로/브라우저 변경 전 성장 백업을 권장한다. APK는 아직 제공하지 않는다. Windows/Android 실제 저장 및 파일 다운로드·복원 시험 필요.
+
+**모드 분리/덱 백업 (v0.93.0 개발 후보):** 첫 실행 유저 모드에서는 보유 카드로 랭크 대전을 진행합니다. 개발자 모드를 선택하면 전체 카드로 연습하거나 실제 랭크 1~25의 덱/지능을 시험할 수 있습니다(성장 보상 없음). 모드별 편집 덱은 독립적으로 저장됩니다. 덱 리스트에서 저장 덱 백업/추가 복원으로 덱 이름·30장 카드 목록을 옮기세요. 기존 덱은 덮어쓰지 않으며 이름 충돌은 별도 이름, 중복은 건너뜁니다. 오프라인 모드는 로컬 사용 편의를 위한 구분이며 온라인 권한과 별개입니다.
 
 **CPU 학습 모드:** `train-ai-quiet.cmd` (절전), `train-ai-10h.cmd` (균형), `train-ai-max.cmd` (최대). 같은 카드 버전의 이어하기 결과를 공유하며 동시에 실행하지 않는다.
 
@@ -195,6 +219,8 @@ npm.cmd run test:render
 
 `npm.cmd run stress -- 1 123`은 경기 번호 123의 시드와 덱을 재현한다. `npm.cmd run stress -- 500 0 epic`은 영웅 카드를 18장씩 넣은 덱의 500경기를 실행하고 영웅 카드 사용 범위를 검사한다. `npm.cmd run ai-smoke`는 9개 직업과 5개 AI 난이도의 45경기를 자동 진행해 최신 카드와의 호환을 확인한다. AI 강도 측정이나 학습은 수행하지 않는다.
 
+`npm.cmd run benchmark:solo-journey -- 96 5100`은 새로운 검사 기록으로 실제 솔로 랭크 성장 경로를 실행하고 보상/보유 카드/직업 퀘스트/경기·성장 백업 왕복을 검증한다. `npm.cmd run benchmark:solo-journey -- 25 9000 --all-tiers`는 25개 독립 시작 프로필에서 모든 랭크의 실제 전투를 확인한다. 사용자 저장·카드·AI 학습 데이터는 변경하지 않는다. [솔로 성장 검증](docs/SOLO-JOURNEY-AUDIT.md) 참조.
+
 `npm ci`는 잠금 파일 기준으로 필요한 TypeScript, React, Socket.IO, Vite와 테스트 도구를 설치한다. 유료 API/서비스는 없다. 자동 시범 경기는 실제 엔진을 사용한 두 자동 플레이어 대전으로, 경쟁용 AI는 아니다.
 
 선택적으로 Windows에서 실제 브라우저 자동 테스트를 실행할 수 있다. 첫 실행 시 무료 Chromium 다운로드가 필요하다.
@@ -247,3 +273,33 @@ Git이 이름/이메일 설정을 요구한다면 이 저장소에만 `git confi
 - `docs/PLAYTEST.md`: Windows 첫 실행, AI/친구 플레이 및 밸런스 편집 단계별 점검 안내
 - `data/cards/README.md`: 카드 데이터 버전 관리
 
+
+
+### Source-only candidate → playable PWA (Windows / Mac / Linux)
+
+**Important:** a `card-duel-vNNN-candidate-source-and-verified-v197-play.zip` file contains
+**source candidate v0.NNN**, but the included executable is still the previously
+verified **v0.197**. Do not rename the old executable or publish the ZIP as v0.NNN.
+
+To make an actual testable executable from a downloaded candidate ZIP:
+
+1. Install Node.js **24** and ensure the computer can access npm. Extract the
+   full candidate ZIP into its own empty folder (including `RELEASE-STATUS.txt`).
+2. On Windows, double-click `BUILD-PLAYABLE.cmd`. On Mac/Linux, run
+   `sh BUILD-PLAYABLE.sh`. Or run `node scripts/build-local-playable.mjs`.
+3. The builder installs the *pinned* dependencies, checks approved data, then
+   runs TypeScript, full engine/React, saved-game, ranked-duel, offline/PWA
+   upgrade/rollback gates and actual Chromium landscape + save/resume tests. On success, `playable-release/` contains a new
+   stand-alone HTML, a PWA ZIP, and a SHA-256 validation report.
+4. Upload the **contents** of the new PWA ZIP to an HTTPS site; use the same
+   origin as previous installations to preserve browser IndexedDB saves.
+   Install it via the browser's “Add to Home Screen” / “Install app”.
+5. Finish an actual Android/PC playthrough before calling a candidate a
+   device-verified release. Packaging or automated tests alone do not verify
+   physical touch, audio, orientation, or browser permissions.
+
+If Node 24, dependencies, or any safety gate is unavailable, the builder
+**fails without promoting the candidate**, and restores the included earlier
+playable game assets. Keep the original candidate ZIP as a backup. The GitHub
+Actions `Validate a playable Card Duel candidate` workflow is an alternative
+when candidate sources have been pushed to a suitable GitHub branch.

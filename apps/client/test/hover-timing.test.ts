@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {CARD_HOVER_DELAY,createHoverTiming} from '../src/hover-timing.ts';
+import {CARD_HOVER_DELAY,createHoverTiming,createTouchPreviewGuard,independentActivation} from '../src/hover-timing.ts';
 
 function fixture(){
   const published:(string|null)[]=[];
@@ -16,6 +16,23 @@ function fixture(){
 }
 test('preview is absent at 999ms and opens at exactly 1000ms',()=>{
   const f=fixture();assert.equal(CARD_HOVER_DELAY,1000);f.hover.start('hand',()=> 'card');f.tick(999);assert.equal(f.current(),null);f.tick(1);assert.equal(f.current(),'card');
+});
+test('scrolling, cancelled touches and long presses never become card activation, while fresh taps work',()=>{
+  const guard=createTouchPreviewGuard();guard.begin(1,0,0,1000);assert.equal(guard.move(2,100,0),false);assert.equal(guard.move(1,9,0),true);assert.equal(guard.end(1,0,0,1150),true);assert.equal(guard.suppress(1151),true);assert.equal(guard.suppress(1450),false);
+  guard.begin(2,0,0,2000);guard.end(2,0,12,2100);assert.equal(guard.suppress(2101),true);guard.begin(3,0,0,2200);guard.end(3,1,2,2250);assert.equal(guard.suppress(2251),false);
+  guard.begin(4,0,0,3000);assert.equal(guard.cancel(5,3100),false);assert.equal(guard.cancel(4,3100),true);assert.equal(guard.suppress(3101),true);guard.reset();assert.equal(guard.suppress(3102),false);
+  guard.begin(6,0,0,4000);guard.end(6,0,0,5000);assert.equal(guard.suppress(5001),true);
+});
+test('only trusted non-pointer detail-zero clicks bypass an active touch click guard',()=>{
+  const keyboard={detail:0,isTrusted:true};
+  assert.equal(independentActivation(keyboard),true);assert.equal(independentActivation({...keyboard,pointerType:''}),true);
+  assert.equal(independentActivation({...keyboard,isTrusted:false}),false);
+  for(const pointerType of ['touch','pen','mouse'])assert.equal(independentActivation({...keyboard,pointerType}),false);
+  assert.equal(independentActivation({...keyboard,sourceCapabilities:{firesTouchEvents:true}}),false);
+  assert.equal(independentActivation({...keyboard,detail:1}),false);
+  const guard=createTouchPreviewGuard();guard.begin(1,0,0,0);guard.cancel(1,100);assert.equal(guard.suppress(110),true);
+  assert.equal(guard.suppress(110)&&!independentActivation(keyboard),false);
+  assert.equal(guard.suppress(111)&&!independentActivation({...keyboard,isTrusted:false}),true);
 });
 test('pointer exit before or after the deadline immediately cancels',()=>{
   const f=fixture();f.hover.start('card',()=> 'card');f.tick(999);f.hover.clear('card');f.tick(1);assert.equal(f.current(),null);assert.equal(f.timers.size,0);

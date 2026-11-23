@@ -186,7 +186,8 @@ export type Target = { kind: 'hero'; player?: PlayerId } | { kind: 'minion'; ins
 /** Optional presentation trace. Targets are already public characters, never
  * hand/deck objects. It is not stored in authoritative game state. */
 export type BattleVisualEvent =
-  | {kind:'damage'|'heal';target:Target;side:PlayerId;amount:number}
+  | {kind:'damage';target:Target;side:PlayerId;amount:number;armorAbsorbed?:number}
+  | {kind:'heal';target:Target;side:PlayerId;amount:number}
   | {kind:'shield'|'death';target:Target;side:PlayerId}
   | {kind:'combat';target:Target;side:PlayerId}
   | {kind:'secretTriggered';cardId:string;side:PlayerId};

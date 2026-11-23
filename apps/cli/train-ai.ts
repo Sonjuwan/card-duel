@@ -34,7 +34,13 @@ const sourceHash=sourceArg===undefined?undefined:/^[a-f0-9]{64}$/.test(sourceArg
 if(sourceHash===hash)throw Error('Transfer source and target catalog must differ.');
 if(sourceHash&&!readChampion(sourceHash,root))throw Error('No valid source champion: '+sourceArg);
 if(sourceHash&&args.includes('--no-transfer'))throw Error('Use either --transfer-from or --no-transfer.');
-const targetMs=arg('--seconds')!==undefined?numberArg('--seconds',10,1,864000)*1000:numberArg('--hours',10,.001,10000)*3600000;
+// The supervisor requests a fresh duration for each cycle, not a cumulative
+// target that would eventually expire. Existing --hours/--seconds stay cumulative.
+const runMs=arg('--run-seconds')===undefined?undefined:numberArg('--run-seconds',1800,1,864000)*1000;
+const stopFile=arg('--stop-file')===undefined?undefined:resolve(arg('--stop-file')!);
+const supervisorPid=arg('--supervisor-pid')===undefined?undefined:Math.floor(numberArg('--supervisor-pid',1,1,2**31-1));
+let targetMs=arg('--seconds')!==undefined?numberArg('--seconds',10,1,864000)*1000:numberArg('--hours',10,.001,10000)*3600000;
+if(runMs!==undefined&&(arg('--seconds')!==undefined||arg('--hours')!==undefined))throw Error('Use either --run-seconds or a cumulative target.');
 const power=(arg('--power')??'balanced') as TrainingMode,budget=trainingBudget(availableParallelism(),totalmem()/1024**3,power);
 const count=Math.floor(numberArg('--workers',budget.workers,1,8)),nodes=Math.floor(numberArg('--nodes',60,12,300));
 const screenPairs=Math.floor(numberArg('--pairs',8,1,100)),validationPairs=Math.floor(numberArg('--validation-pairs',Math.max(2,Math.min(100,screenPairs*2)),2,100));
@@ -55,6 +61,7 @@ function acquireLock(){
 }
 acquireLock();
 let workers:Worker[]=[];
+let parentWatch:ReturnType<typeof setInterval>|undefined;
 try{
   if(existsSync(checkpoint)){
     const raw=JSON.parse(readFileSync(checkpoint,'utf8')) as Checkpoint;
@@ -73,12 +80,20 @@ try{
   const imports=args.includes('--no-transfer')?[]:transferCandidates(state.champion,attempts,root,sourceHash).slice(0,sourceHash?1:3);
   const toImport=imports.filter(x=>x.source.fingerprint!==state.trial?.source?.fingerprint);
   const prior=state.elapsedMs,started=Date.now();
+  if(runMs!==undefined)targetMs=prior+runMs;
   const elapsed=()=>prior+Date.now()-started;
   let stop=false;
   process.on('SIGINT',()=>{if(!stop)console.log('Stopping after current games; saving progress...');stop=true;});
   process.on('SIGTERM',()=>{stop=true;});
+  if(supervisorPid!==undefined){let orphanedAt=0;parentWatch=setInterval(()=>{
+    try{process.kill(supervisorPid,0);}catch(e){if((e as NodeJS.ErrnoException).code==='ESRCH'){
+      if(!orphanedAt){orphanedAt=Date.now();stop=true;console.log('Supervisor is gone; saving and stopping.');}
+      // A hung worker must not run forever after its supervisor is gone.
+      if(Date.now()-orphanedAt>=180000)process.exit(1);
+    }}
+  },2000);parentWatch.unref();}
   const time=(ms:number)=>{const s=Math.floor(Math.max(0,ms)/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>String(n).padStart(2,'0')).join(':');};
-  const shouldStop=()=>stop||elapsed()>=targetMs;
+  const shouldStop=()=>stop||!!(stopFile&&existsSync(stopFile))||elapsed()>=targetMs;
   let lastSaved=0;
   function persist(running:boolean){
     lastSaved=Date.now();
@@ -162,6 +177,7 @@ try{
     persist(false);
   }
 }finally{
+  if(parentWatch)clearInterval(parentWatch);
   await Promise.all(workers.map(w=>w.terminate()));
   unlinkSync(lock);
 }

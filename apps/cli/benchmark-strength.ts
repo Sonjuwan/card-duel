@@ -1,8 +1,9 @@
 import {CardStore} from '../server/card-store.ts';
-import {aiCatalogHash,readChampion,aiWeightFingerprint} from '../server/ai-profile-store.ts';
+import {aiCatalogHash,readChampion,readGameChampion,aiWeightFingerprint} from '../server/ai-profile-store.ts';
 import {applyAction,createGame,getPlayerView,HERO_CLASSES,rankBotActions,RuleError,strategicDeck,isBotDifficulty,DECK_STYLES,DEFAULT_BOT_WEIGHTS} from '../../packages/engine/src/index.ts';
 import type {PlayerId,BotDifficulty,Deck,GameState,BotWeights} from '../../packages/engine/src/index.ts';
 import {pairedScoreStats} from './paired-benchmark-stats.ts';
+import {readTrainingResult} from './ai-training-result.ts';
 const {version,catalog}=new CardStore().read(),hash=aiCatalogHash(catalog);
 const pairs=Math.max(1,Math.min(100,Math.floor(Number(process.argv[2])||9))),opponents=(process.argv[3]??'3,6,11,18,24').split(',').map(Number);
 if(!opponents.every(isBotDifficulty))throw Error('Specify comma-separated opponent levels 1–25');
@@ -14,9 +15,10 @@ const opponentPolicy:1|2|3=opponentPolicyNumber;
 if(!Number.isSafeInteger(seedOffset)||seedOffset<0)throw Error('Specify a nonnegative integer seed offset');
 function modelFor(selection:string){
   if(selection==='default')return {label:'default',weights:DEFAULT_BOT_WEIGHTS,promotions:0};
+  if(selection.startsWith('file:')){const candidate=readTrainingResult(selection.slice(5));if(candidate.catalogHash!==hash)throw Error('Training result belongs to a different card catalog; revalidation is required.');return {label:'external:'+aiWeightFingerprint(candidate.champion.weights),weights:candidate.champion.weights,promotions:candidate.champion.promotions};}
   const selectedHash=selection==='current'?hash:selection;
-  if(!/^[a-f0-9]{64}$/.test(selectedHash))throw Error('Specify current, default, or the 64-character hash of an imported champion');
-  const model=readChampion(selectedHash);if(!model&&selection!=='current')throw Error('No saved champion for '+selectedHash);
+  if(!/^[a-f0-9]{64}$/.test(selectedHash))throw Error('Specify current, default, file:<training-result.json>, or the 64-character hash of an imported champion');
+  const model=selection==='current'?readGameChampion(hash):readChampion(selectedHash);if(!model&&selection!=='current')throw Error('No saved champion for '+selectedHash);
   return {label:model?.catalogHash??'default',weights:model?.weights??DEFAULT_BOT_WEIGHTS,promotions:model?.promotions??0};
 }
 const targetModel=modelFor(process.argv[8]??'current'),opponentModel=modelFor(process.argv[9]??'current');

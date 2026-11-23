@@ -1,0 +1,19 @@
+Card Duel v0.297.0 — locally compiled playable candidate
+Completed successfully: Node24 npm ci, data integrity, syntax, typecheck,
+core regression, full tests, 2 real engine matches, React render,
+web build, offline/PWA build, PWA upgrade/rollback and deployment preflight.
+This is NOT confirmation of real Android/iPhone touch or audio tests.
+To install, host the PWA ZIP contents over HTTPS on the SAME ORIGIN as your
+existing Card Duel installation to preserve browser saved games.
+Standalone HTML is for local file play, not for automatic PWA updates.
+Standalone SHA256: f6c22e595e0616b8e1896704a23a4c6829e95b6e434edd4f755c2f7cce00e9d8
+PWA ZIP SHA256: 3020f7e64a8d374909faf714127b5526a951c9b68e42613bb9ee38670cbaf9a6
+
+Validation details
+Node.js 24.22.3; 651 core tests, 837 full-suite tests and 61 React render tests passed.
+Chromium touch viewports: 844x390, 667x375 and 1024x600.
+Shared Chrome: AI responded, the battle was saved, and turn 3 and its board were restored.
+A separate Chromium playthrough reached an AI win through normal turn actions.
+Chromium confirmed PWA installability and offline save/resume. The optional upgrade test
+using the actual compiled v0.197 PWA was skipped because the source-only ZIP omitted it.
+Card, progression and AI data matched the source ZIP byte for byte.

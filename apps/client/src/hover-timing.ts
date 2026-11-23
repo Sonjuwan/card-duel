@@ -1,5 +1,25 @@
 export const CARD_HOVER_DELAY = 1000;
 
+/** A trusted keyboard/assistive click is independent of an interrupted touch.
+ * Do not treat a delayed pointer or synthetic detail-zero click as keyboard. */
+export function independentActivation(event:{detail:number;isTrusted:boolean;pointerType?:string;sourceCapabilities?:{firesTouchEvents?:boolean}|null}):boolean{
+  return event.isTrusted&&event.detail===0&&!event.pointerType&&!event.sourceCapabilities?.firesTouchEvents;
+}
+
+/** Cards in collections and mulligans can receive synthetic click events after
+ * a scroll or a long-press. Preserve the pointer identity until release. */
+export function createTouchPreviewGuard(){
+  let press:{id:number;x:number;y:number;at:number;moved:boolean}|null=null,suppressUntil=0;
+  const reset=()=>{press=null;suppressUntil=0;};
+  return {
+    begin(id:number,x:number,y:number,at:number){reset();press={id,x,y,at,moved:false};},
+    move(id:number,x:number,y:number){if(!press||press.id!==id)return false;if(Math.hypot(x-press.x,y-press.y)<8&&!press.moved)return false;press.moved=true;return true;},
+    end(id:number,x:number,y:number,at:number){if(!press||press.id!==id)return false;if(press.moved||Math.hypot(x-press.x,y-press.y)>=8||at-press.at>=CARD_HOVER_DELAY)suppressUntil=at+300;press=null;return true;},
+    cancel(id:number,at:number){if(!press||press.id!==id)return false;press=null;suppressUntil=at+300;return true;},
+    suppress(at:number){return at<suppressUntil;},reset,
+  };
+}
+
 /** A single pending card per view; a stale leave/timer cannot affect a newer card. */
 export function createHoverTiming<T>(publish:(value:T|null)=>void,clock={set:(fn:()=>void,ms:number)=>setTimeout(fn,ms),clear:(id:ReturnType<typeof setTimeout>)=>clearTimeout(id)}){
   let current:string|null=null, pending:ReturnType<typeof setTimeout>|undefined, generation=0, reader:(()=>T|null)|null=null, opened=false;

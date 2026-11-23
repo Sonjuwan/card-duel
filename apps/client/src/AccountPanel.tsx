@@ -7,6 +7,7 @@ import {catalog,className} from './data.ts';
 import {cardTierProgress,decodeAccountView,decodeAccountExport,decodeActivePresence,decodeDeveloperStatus,decodeGrowthView,developerPatchLabel,presenceState} from './account-status.ts';
 import type {PresenceSnapshot} from './account-status.ts';
 import {AccountRequestError,requestAccount as request} from './account-request.ts';
+import {watchVisiblePolling} from './visible-polling.ts';
 const requestView=async(...args:Parameters<typeof request>)=>{const value=decodeAccountView(await request<unknown>(...args));if(args[3]?.accountId&&args[3].accountId!==value.id)throw Error('요청한 계정과 응답 계정이 다릅니다. 다시 확인하세요.');return value;};
 
 export type AccountPlayMode='ranked'|'owned-create'|'owned-join'|'owned-match'|'account-resume'|'developer-test';
@@ -37,9 +38,11 @@ export function AccountPanel({deck,onLoad,onAuthChange,onPlay,onAccount,connecte
   useEffect(()=>{setName('');setRoomCode('');setCurrentPassword('');setNewPassword('');},[account?.id]);
   const updateDevInfo=(value:DeveloperStatus)=>{const now=Date.now();setDevInfo(value);setDevCheckedAt(now);setDevNow(now);setDevRefreshFailed(false);};
   const loadDevInfo=async()=>{if(!account)return;try{updateDevInfo(decodeDeveloperStatus(await request<unknown>('developer','GET',undefined,{accountId:account.id})));}catch(error){setDevRefreshFailed(true);throw error;}};
-  useEffect(()=>{if(account?.role!=='developer'||!devInfo||!expanded||!connected||busy||accountCheckFailed)return;const controller=new AbortController();let pending=false;
-    const refresh=()=>{setDevNow(Date.now());if(pending||document.visibilityState!=='visible')return;pending=true;void request<unknown>('developer','GET',undefined,{signal:controller.signal,accountId:account.id}).then(value=>{if(!controller.signal.aborted)updateDevInfo(decodeDeveloperStatus(value));}).catch(()=>{if(!controller.signal.aborted)setDevRefreshFailed(true);}).finally(()=>pending=false);};
-    refresh();const timer=setInterval(refresh,10000);return()=>{controller.abort();clearInterval(timer);};
+  useEffect(()=>{if(account?.role!=='developer'||!devInfo||!expanded||!connected||busy||accountCheckFailed)return;
+    return watchVisiblePolling({periodMs:10000,onTick:()=>setDevNow(Date.now()),run:async signal=>{
+      const value=await request<unknown>('developer','GET',undefined,{signal,accountId:account.id});
+      if(!signal.aborted)updateDevInfo(decodeDeveloperStatus(value));
+    },onError:()=>setDevRefreshFailed(true)});
   },[account?.id,account?.role,!!devInfo,expanded,connected,busy,maintenance,focusSync,accountCheckFailed]);
   useEffect(()=>{const refresh=()=>{if(document.visibilityState==='visible')setFocusSync(n=>n+1);};document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);return()=>{document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);};},[]);
   useEffect(()=>{if(busy)return;const controller=new AbortController(),key=accountCheckKey;void requestView('me','GET',undefined,{signal:controller.signal}).then(value=>{if(!controller.signal.aborted){if(lastKnownAccount.current!==null&&lastKnownAccount.current!==value.id)onAuthChange();lastKnownAccount.current=value.id;setAccountCheckFailed(false);setAccountVerifiedKey(key);setAccount(previous=>previous?.id===value.id&&previous.profile.revision>value.profile.revision?previous:value);}}).catch(error=>{if(!controller.signal.aborted){if(error instanceof AccountRequestError&&error.status===401&&error.message==='로그인이 필요합니다.'){if(lastKnownAccount.current!==null)onAuthChange();lastKnownAccount.current=null;setAccount(null);setAccountCheckFailed(false);setAccountVerifiedKey(key);}else setAccountCheckFailed(true);}}).finally(()=>{if(!controller.signal.aborted)setChecked(true);});return()=>controller.abort();},[accountCheckKey,busy]);

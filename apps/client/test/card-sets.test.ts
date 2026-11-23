@@ -2,12 +2,22 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCatalog,deckCards,HERO_CLASSES} from '../../../packages/engine/src/index.ts';
-import {cardSet,matchesCardSet,cardSetLabel,sortCardsForDisplay} from '../src/card-sets.ts';
-import {displayCardName} from '../src/card-names.ts';
+import {cardSet,matchesCardSet,cardSetLabel,sortCardsForDisplay,deckAddReason} from '../src/card-sets.ts';
+import {displayCardName,cardSearchTerms,matchesCardSearch} from '../src/card-names.ts';
 import {collectionPage} from '../src/table-visuals.ts';
 const active=JSON.parse(readFileSync('data/cards/active.json','utf8')) as {file:string};
 const catalog=createCatalog(JSON.parse(readFileSync('data/cards/'+active.file,'utf8')));
 const all=Object.values(catalog);
+test('deck editor addition feedback uses the engine copy cap and full deck limit',()=>{
+  const legendary=all.find(c=>c.kind!=='coin'&&c.rarity==='legendary')!,normal=catalog.wolf;
+  assert.equal(deckAddReason(legendary,29,0),undefined);assert.equal(deckAddReason(legendary,20,1),'동일 카드 최대 1장');assert.equal(deckAddReason(normal,29,1),undefined);assert.equal(deckAddReason(normal,29,2),'동일 카드 최대 2장');assert.equal(deckAddReason(normal,30,1),'덱이 30장으로 찼습니다.');
+});
+test('card search accepts both name modes, reordered words, compact spacing, and gameplay keywords',()=>{
+  for(const card of all){assert.ok(matchesCardSearch(card,cardSearchTerms(card.name)));assert.ok(matchesCardSearch(card,cardSearchTerms(displayCardName(card,true))));assert.ok(matchesCardSearch(card,cardSearchTerms(card.id)));}
+  const card=all.find(c=>c.kind==='minion'&&c.tribe==='beast'&&c.keywords?.includes('taunt'))!;
+  assert.ok(card);assert.ok(matchesCardSearch(card,cardSearchTerms('  도발   야수 ')));assert.ok(matchesCardSearch(card,cardSearchTerms('야수 도발')));assert.ok(matchesCardSearch(card,cardSearchTerms(card.id.replaceAll('_',' '))));
+  assert.ok(matchesCardSearch(card,cardSearchTerms(card.name.replaceAll(' ',''))));assert.ok(!matchesCardSearch(card,cardSearchTerms('도발 존재하지않는검색어')));
+});
 test('382 collectible cards partition into 133 basic and 249 original, never including generated cards',()=>{
   assert.equal(all.filter(c=>cardSet(c)==='basic').length,133);
   assert.equal(all.filter(c=>cardSet(c)==='original').length,249);

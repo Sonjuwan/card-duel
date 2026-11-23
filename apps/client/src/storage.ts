@@ -42,3 +42,14 @@ export function readDraft(catalog:Catalog,hash:string,storage?:StorageReader):De
 export function saveDraft(deck:Deck,hash:string,storage?:StorageWriter):boolean{
   try{if(!storage)return false;storage.setItem(draftKey(hash),JSON.stringify(deck));try{storage.setItem(lastDraftKey,hash);}catch{/* Draft is already stored; the migration hint is optional. */}return true;}catch{return false;}
 }
+
+// Developer experiments must not change the player's active deck or its
+// migration marker. Old developer drafts remain at their own catalog key.
+const developerDraftKey=(hash:string)=>`card-duel-developer-draft-${hash}`;
+export function readDeveloperDraft(catalog:Catalog,hash:string,storage?:StorageReader):Deck{
+  try{const raw=JSON.parse(storage?.getItem(developerDraftKey(hash))??'null'),repaired=repairDeck(catalog,raw);if(!repaired.discarded.length)return repaired.deck;}catch{}
+  return practiceDeck(catalog,'warrior');
+}
+export function saveDeveloperDraft(deck:Deck,hash:string,storage?:StorageWriter):boolean{
+  try{if(!storage)return false;storage.setItem(developerDraftKey(hash),JSON.stringify(deck));return true;}catch{return false;}
+}

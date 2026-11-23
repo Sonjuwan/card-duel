@@ -1,0 +1,790 @@
+/* One game canvas rather than a vertically scrolling document. Desktop and
+ * landscape devices use the same menu-to-battle navigation; overflow is kept
+ * inside the active panel so the game shell itself never scrolls. */
+@media (orientation:landscape){
+  html,body,#root{height:100%;width:100%;overflow:hidden}
+  .lobby-main,.game-main{
+    display:flex;flex-direction:column;width:100%;max-width:none;
+    height:100vh;height:100dvh;min-height:0;overflow:hidden;
+    padding: max(env(safe-area-inset-top,0px),clamp(2px,1dvh,12px))
+             max(env(safe-area-inset-right,0px),clamp(4px,1.2dvw,20px))
+             max(env(safe-area-inset-bottom,0px),clamp(2px,1dvh,12px))
+             max(env(safe-area-inset-left,0px),clamp(4px,1.2dvw,20px));
+  }
+  .lobby-main>.app-header,.game-main>.app-header{flex:none;min-height:0;padding-block:0 3px}
+  .lobby-main>.screen-content,.game-main>.screen-content{
+    display:flex;flex-direction:column;flex:1 1 0%;min-height:0;
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+    scrollbar-gutter:stable;
+  }
+  .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"]{
+    flex:none;position:sticky;top:0;z-index:50;margin:2px 0 6px;
+    padding:4px;background:#25202aef;border-radius:12px;
+  }
+  .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"] button{min-height:44px}
+  .game-main>.screen-content{overflow:hidden}
+  .game-main>.screen-content>.duel-screen{flex:1 1 0%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  .lobby-main>footer,.game-main>footer{flex:none;margin:1px 0 0;font-size:9px;line-height:1.2}
+  .lobby-main>footer .reference-notice,.game-main>footer .reference-notice{display:none}
+  .lobby-main .app-header .brand h1,.game-main .app-header .brand h1{font-size:clamp(18px,2.7vw,27px)}
+  .lobby-main .app-header .brand-emblem,.game-main .app-header .brand-emblem{height:34px;width:34px}
+  .lobby-main .app-header .brand,.game-main .app-header .brand{gap:8px}
+}
+/* Short phone canvases spend every usable row on the battleground. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .lobby-main>.app-header,.game-main>.app-header{min-height:30px}
+  .lobby-main .app-header .brand .eyebrow,.game-main .app-header .brand .eyebrow{display:none}
+  .lobby-main .app-header .connection,.game-main .app-header .connection{font-size:10px}
+  .lobby-main .app-header .brand-emblem,.game-main .app-header .brand-emblem{height:25px;width:25px}
+  .lobby-main .app-header button,.game-main .app-header button{padding:3px 7px;font-size:11px;min-height:28px}
+  .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"]{margin:0 0 3px;padding:2px}
+  .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"] button{min-height:44px}
+  .lobby-main>footer,.game-main>footer{display:none}
+}
+.landscape-fullscreen-control{font-size:11px;white-space:nowrap;min-height:35px}
+/* Installed PWA already opens without browser chrome: do not waste scarce
+ * landscape HUD space on a redundant fullscreen control. Portrait rotation
+ * guidance still offers an independent orientation-lock gesture. */
+@media (display-mode:standalone){.landscape-fullscreen-control{display:none}}
+.rotate-device-message{display:none}
+@media (pointer:coarse) and (orientation:portrait){
+  .rotate-device-message{
+    position:fixed;z-index:70000;inset:0;display:grid;place-items:center;
+    padding:clamp(14px,5vw,35px);background:radial-gradient(ellipse at 50% 15%,#365163 0%,#111d29 65%,#0f121a 100%);
+    color:#faf1dd;text-align:center;overflow-y:auto;
+  }
+  .rotate-device-panel{width:min(100%,440px);border:2px solid #c1a171;border-radius:18px;padding:24px 18px;background:#222d3cea;box-shadow:0 12px 32px #0008}
+  .rotate-device-panel .rotate-device-icon{font-size:76px;line-height:1.1;color:#e5bd71;transform:rotate(-30deg);margin-block:10px 18px}
+  .rotate-device-panel h2{font-size:clamp(22px,6vw,30px);margin-bottom:12px}
+  .rotate-device-panel p{font-size:14px;line-height:1.5;margin:8px auto;color:#e5dccb}
+  .rotate-device-panel button{min-height:48px;margin:16px 0 5px;background:#edc879;color:#322517;padding:12px 18px}
+  .rotate-device-status{color:#ffe8a6!important}
+  .landscape-fullscreen-control{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .rotate-device-panel .rotate-device-icon{animation:none}
+}
+/* Override the classic theme's 540px minimum canvas. Otherwise a 360px-high
+ * phone must scroll the battlefield and loses the entire point of landscape. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .battle.phase-playing .battle-arena.classic-table,
+  .game-main .battle.phase-finished .battle-arena.classic-table{
+    flex:1 1 0%;height:auto;min-height:0;max-height:none;overflow:hidden;
+    grid-template-columns:minmax(0,1fr) clamp(72px,12dvw,116px);
+  }
+  .game-main .duel-screen.phase-playing,.game-main .duel-screen.phase-finished{gap:2px}
+  .game-main .duel-screen .duel-title{flex:none;min-height:22px;padding-block:0}
+  .game-main .duel-screen .duel-title h2{font-size:13px}
+  .game-main .duel-screen .arena-message{flex:none;min-height:22px;max-height:35px;padding:1px 6px;font-size:10px;overflow:hidden}
+  .game-main .battle .arena-field{
+    grid-template-rows:clamp(6px,2dvh,12px) var(--landscape-hero-h) minmax(0,1fr) clamp(3px,1dvh,6px) minmax(0,1fr) var(--landscape-hero-h) var(--landscape-hand-h);
+  }
+  .game-main .battle .arena-field>.hero-zone{height:auto;min-height:0;max-height:100%;padding:0}
+  .game-main .battle .arena-field .hero-portrait{height:min(100%,var(--landscape-hero-h));width:clamp(46px,10dvw,73px);min-height:0;border-width:2px}
+  .game-main .battle .arena-field .hero-power,.game-main .battle .arena-field .weapon-slot{height:min(100%,var(--landscape-hero-h));min-height:0;width:clamp(30px,7dvw,46px);min-width:0}
+  .game-main .battle .arena-field .hero-power .power-medallion,.game-main .battle .arena-field .weapon-slot .weapon-medallion{width:31px;height:31px}
+  .game-main .battle .arena-field>.arena-board{min-height:0;height:100%;padding:0 3px}
+  .game-main .battle .arena-field .battle-minion{height:min(100%,clamp(34px,15dvh,72px))}
+  .game-main .battle .arena-field .minion-medallion{height:clamp(22px,8dvh,43px);width:clamp(22px,8dvh,43px)}
+  .game-main .battle .arena-field>.own-hand{height:auto;min-height:0;max-height:100%;overflow:visible}
+  .game-main .battle .arena-field .battle-hand{height:100%;inset:0;min-height:0;align-items:flex-end}
+  .game-main .battle .arena-field .hand-card-slot{height:var(--landscape-hand-h);min-height:0}
+  .game-main .battle .arena-field .hand-card-slot>.battle-card{transform:translateY(calc(var(--landscape-card-h) - var(--landscape-hand-h)))}
+  .game-main .battle .arena-field .hand-card-slot:has(>.battle-card.is-selected)>.battle-card,
+  .game-main .battle .arena-field .hand-card-slot:has(>.battle-card:focus-visible)>.battle-card{
+    transform:translate(calc((var(--landscape-card-w) - var(--landscape-card-open-w)) / 2 + var(--landscape-preview-shift, 0px)),calc(-1 * var(--landscape-hand-h)));
+  }
+  .game-main .battle .arena-right .turn-control .end-turn{min-height:44px}
+}
+/* Tapping a card that cannot currently be played must still let users read it.
+ * The peek is visual only: it does not select an action or submit a card. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .battle .arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded){z-index:25}
+  .battle .arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card{
+    width:var(--landscape-card-open-w);height:var(--landscape-card-open-h);min-height:0;
+    transform:translate(calc((var(--landscape-card-w) - var(--landscape-card-open-w)) / 2 + var(--landscape-preview-shift, 0px)),calc(-1 * var(--landscape-hand-h)));
+    box-shadow:0 10px 24px #08090ddd,0 0 0 3px #e7cc84;
+  }
+  .battle .arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card .card-copy,
+  .battle .arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card .card-type{
+    visibility:visible;font-size:12px;line-height:1.22;max-height:none;
+  }
+  .battle .arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card .card-name{
+    font-size:13px;white-space:normal;
+  }
+}
+/* The home screen is a game lobby, not a document full of stacked forms.
+ * Save slots/progression and the match setup have separate safe scroll areas.
+ * Switching to the deck or catalog screen replaces the entire play hub. */
+@media (orientation:landscape){
+  .lobby-main>.screen-content:has(.play-hub){overflow:hidden}
+  .lobby-main .play-hub{
+    flex:1 1 0%;min-height:0;min-width:0;display:grid;
+    grid-template-columns:minmax(0,35%) minmax(0,1fr);
+    gap:clamp(6px,1.1vw,16px);overflow:hidden;
+  }
+  .lobby-main .play-hub>.play-support,
+  .lobby-main .play-hub>.play-lobby{
+    min-height:0;height:100%;max-height:none;overflow-x:hidden;overflow-y:auto;
+    overscroll-behavior:contain;scrollbar-width:thin;scrollbar-gutter:stable;
+  }
+  .lobby-main .play-hub>.play-support{display:flex;flex-direction:column;gap:8px;min-width:0;padding:2px}
+  .lobby-main .play-hub .slot-panel{margin:0;min-width:0;flex-direction:column;align-items:stretch}
+  .lobby-main .play-hub .slot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lobby-main .play-hub .slot-tile{min-width:0}
+  .lobby-main .play-hub .play-lobby{margin:0;min-width:0}
+  .lobby-main .play-support>.saved-duel-panel{margin:0;flex:none}
+  .lobby-main .play-support>.lobby-tabs{flex:none;margin:0}
+}
+@media (orientation:landscape) and (max-width:1350px){
+  .lobby-main .play-hub>.play-lobby{display:flex;flex-direction:column;gap:10px}
+  .lobby-main .play-hub>.play-lobby>.lobby-heading,
+  .lobby-main .play-hub>.play-lobby>.hero-gallery,
+  .lobby-main .play-hub>.play-lobby>.selected-deck-banner,
+  .lobby-main .play-hub>.play-lobby>.mode-grid{width:100%;grid-row:auto;grid-column:auto}
+  .lobby-main .play-hub .hero-gallery{grid-template-columns:repeat(5,minmax(0,1fr));padding:4px}
+  .lobby-main .play-hub .mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .lobby-main .play-hub{grid-template-columns:minmax(0,39%) minmax(0,1fr)}
+  .lobby-main .play-hub .slot-panel{gap:4px;padding:7px}
+  .lobby-main .play-hub .slot-tile{padding:3px}
+  .lobby-main .play-hub .slot-tile small{font-size:10px}
+  .lobby-main .play-hub .slot-tile button{padding:4px;min-height:36px}
+  .lobby-main .play-hub .hero-gallery{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
+  .lobby-main .play-hub .class-choice{min-height:54px;gap:2px;padding:3px}
+  .lobby-main .play-hub .class-emblem{width:30px;height:30px}
+  .lobby-main .play-hub .class-choice b{font-size:10px}
+  .lobby-main .play-hub .mode-grid{grid-template-columns:1fr}
+  .lobby-main .play-hub .mode-card{min-height:0}
+}
+/* At CSS widths >=941px the original classic-table skin uses absolutely
+ * positioned central field and right-side resources. Re-establish the mobile
+ * grid rather than letting those absolute elements overlap the new columns. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .battle.phase-playing .battle-arena.classic-table>.arena-field,
+  .game-main .battle.phase-finished .battle-arena.classic-table>.arena-field{
+    position:relative;inset:auto;grid-column:1;grid-row:1;
+    width:100%;height:100%;min-height:0;min-width:0;overflow:visible;
+  }
+  .game-main .battle.phase-playing .battle-arena.classic-table>.arena-right,
+  .game-main .battle.phase-finished .battle-arena.classic-table>.arena-right{
+    position:relative;inset:auto;grid-column:2;grid-row:1;
+    display:flex;flex-direction:column;justify-content:space-between;
+    min-height:0;min-width:0;max-width:100%;gap:3px;overflow:hidden;
+  }
+  .game-main .battle .arena-right>.resource-block{
+    display:flex;flex:1 1 0%;flex-direction:column;justify-content:center;
+    align-items:center;gap:2px;min-height:0;width:100%;overflow:hidden;
+  }
+  .game-main .battle .arena-right .resource-block>.rail-heading{display:none}
+  .game-main .battle .arena-right .mana-display,
+  .game-main .battle .arena-right .opponent-resources .mana-display{
+    position:relative;top:auto;bottom:auto;left:auto;right:auto;transform:none;
+    display:flex;flex-direction:column;gap:1px;width:100%;min-width:0;
+    padding:3px;box-sizing:border-box;margin:0;
+  }
+  .game-main .battle .arena-right .mana-number{font-size:15px}
+  .game-main .battle .arena-right .mana-crystals{width:100%;max-width:100%;gap:1px}
+  .game-main .battle .arena-right .mana-crystal{min-height:6px;max-height:11px}
+  .game-main .battle .arena-right .deck-pile{
+    position:relative;top:auto;bottom:auto;left:auto;right:auto;
+    display:flex;flex-direction:row;align-items:center;justify-content:center;
+    min-height:16px;height:auto;width:100%;gap:2px;font-size:11px;
+  }
+  .game-main .battle .arena-right .deck-stack{display:none}
+  .game-main .battle .arena-right .deck-number{position:relative;top:auto;bottom:auto;left:auto;right:auto;font-size:13px}
+  .game-main .battle .arena-right .deck-pile small{font-size:9px}
+  .game-main .battle .arena-right>.turn-control{
+    position:relative;top:auto;bottom:auto;left:auto;right:auto;transform:none;
+    flex:0 0 auto;min-height:0;min-width:0;width:100%;margin:0;padding:3px 2px;
+    border-width:1px;border-radius:7px;box-sizing:border-box;
+  }
+  .game-main .battle .arena-right>.turn-control .turn-countdown{font-size:10px}
+  .game-main .battle .arena-right>.concede-button{
+    position:relative;top:auto;bottom:auto;left:auto;right:auto;
+    flex:none;min-width:0;width:100%;margin:0;padding:2px;font-size:10px;
+  }
+}
+
+/* More usable controls for very narrow landscape phones, without changing the
+ * game canvas or allowing document scrolling.  The breakpoint switches menu
+ * organization only; game-piece dimensions remain driven by dvw/dvh. */
+@media (pointer:coarse) and (orientation:landscape) and (max-width:650px){
+  .lobby-main .play-hub .slot-grid{grid-template-columns:1fr}
+  .lobby-main .play-hub .hero-gallery{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lobby-main .play-hub .mode-grid{grid-template-columns:1fr}
+  .lobby-main .play-hub .slot-panel{gap:3px}
+  .lobby-main .play-hub .slot-tile button{min-height:44px}
+  .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+  .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"] button{min-width:0;padding:5px 2px;font-size:clamp(10px,2.1dvw,13px)}
+  .lobby-main .play-hub>.play-support,.lobby-main .play-hub>.play-lobby{scrollbar-gutter:auto}
+}
+/* Match display cutouts on installed/immersive mobile apps. */
+@media (orientation:landscape){
+  .game-main .screen-content,.lobby-main .screen-content{min-width:0}
+  .game-main .battle.phase-playing .battle-arena.classic-table,
+  .game-main .battle.phase-finished .battle-arena.classic-table{max-width:100%}
+}
+/* Very narrow landscape windows (<661 CSS px) previously lost the touch
+ * target guarantees because the classic touch rule started at 661px. Keep
+ * controls finger-sized and scroll only the tiny action strip if necessary;
+ * do not grow the whole document or force a 540px arena. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px) and (max-width:660px){
+  .game-main .duel-screen .duel-toolbar button,
+  .game-main .duel-screen .arena-message button,
+  .game-main .battle .arena-right .turn-control .end-turn,
+  .game-main .battle .arena-right .concede-button,
+  .game-main .battle-utilities .landscape-card-detail summary{min-height:44px}
+  .game-main .duel-screen .arena-message{
+    min-height:44px;max-height:min(22dvh,84px);flex-wrap:wrap;
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  }
+  .game-main .duel-screen .duel-toolbar{max-height:min(18dvh,68px);overflow-y:auto;overscroll-behavior:contain}
+  .game-main .battle .arena-right .concede-button{font-size:10px;white-space:normal}
+}
+/* Active drags use the dedicated translucent pointer ghost. An enlarged
+ * selected hand card behind that ghost can cover the destination row and
+ * swallow the release hit-test. Collapse its visual back to the dock while
+ * retaining the original button and pointer capture until drag-end. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .battle.is-dragging .arena-field .hand-card-slot:has(>.battle-card.is-selected),
+  .game-main .battle.is-dragging .arena-field .hand-card-slot:has(>.battle-card:focus-visible){z-index:1}
+  .game-main .battle.is-dragging .arena-field .hand-card-slot:has(>.battle-card.is-selected)>.battle-card,
+  .game-main .battle.is-dragging .arena-field .hand-card-slot:has(>.battle-card:focus-visible)>.battle-card{
+    width:var(--landscape-card-w);height:var(--landscape-card-h);
+    transform:translateY(calc(var(--landscape-card-h) - var(--landscape-hand-h)));
+    box-shadow:none;
+  }
+  .game-main .battle.is-dragging .arena-field .hand-card-slot>.battle-card .card-copy,
+  .game-main .battle.is-dragging .arena-field .hand-card-slot>.battle-card .card-type{visibility:hidden}
+}
+/* Ultra-short landscape windows must keep the most important action visible.
+   If opponent resources/concede cannot fit beside the battlefield, they may
+   scroll in their own narrow rail; never crop the end-turn button. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:360px){
+  .game-main .battle.phase-playing .battle-arena.classic-table>.arena-right,
+  .game-main .battle.phase-finished .battle-arena.classic-table>.arena-right{
+    justify-content:flex-start;overflow-y:auto;overflow-x:hidden;
+    overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  .game-main .battle .arena-right>.turn-control{
+    order:-4;position:sticky;top:0;z-index:7;flex-shrink:0;
+    background:linear-gradient(135deg,#694326,#392518);
+  }
+  .game-main .battle .arena-right>.own-resources{order:-3;flex:0 0 auto;min-height:46px;overflow:visible}
+  .game-main .battle .arena-right>.opponent-resources{order:-2;flex:0 0 auto;min-height:46px;overflow:visible}
+  .game-main .battle .arena-right>.concede-button{order:-1;flex-shrink:0}
+  .game-main .battle .arena-right>.turn-control .end-turn{min-height:44px}
+}
+
+/* Tapping an inactive public minion opens a readable independent inspection
+   sheet. It stays inside the safe-area viewport, scrolls internally, and has
+   a persistent 44px close control. Valid attack/target clicks are unchanged. */
+.board-inspect-backdrop{
+  position:fixed;inset:0;z-index:1200;display:grid;place-items:center;
+  padding:max(8px,env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px))
+    max(8px,env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));
+  background:#0b111ad9;
+}
+.board-inspect-dialog{
+  width:min(440px,100%);max-width:100%;max-height:100%;min-height:0;
+  display:flex;flex-direction:column;gap:6px;overflow-y:auto;
+  overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;
+  padding:8px;border:2px solid #d2bb7d;border-radius:10px;background:#262c32;
+  color:#faf1dd;box-shadow:0 12px 30px #000d;
+}
+.board-inspect-close{position:sticky;top:0;z-index:2;flex:none;min-height:44px;font-size:14px}
+.board-inspect-dialog .card-inspector{min-height:0;width:100%;max-width:100%;overflow:visible}
+@media(prefers-reduced-motion:reduce){.board-inspect-dialog{scroll-behavior:auto}}
+/* Do not crop a 44px target/confirm button inside the old 35px message bar.
+   Even on >660px wide phones, selected-card, target-picker and cancel
+   controls may wrap; their strip scrolls independently of the battleground. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen .arena-message{
+    min-height:44px;max-height:min(22dvh,88px);
+    flex-wrap:wrap;align-content:flex-start;overflow-y:auto;overflow-x:hidden;
+    overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  .game-main .duel-screen .arena-message button,
+  .game-main .duel-screen .arena-message .target-picker summary{min-height:44px}
+}
+/* Opening-hand selection is part of the game, not a 460px scrolling form.
+   Opponent and self heroes remain vertically centered; cards occupy the
+   middle row, with their own horizontal scroll when the screen is narrow. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen.phase-mulligan{flex:1 1 0%;min-height:0;gap:3px;overflow:hidden}
+  .game-main .duel-screen.phase-mulligan>.mulligan-arena.classic-mulligan{
+    flex:1 1 0%;min-height:0;max-height:none;height:auto;width:100%;
+    display:grid;grid-template-columns:minmax(0,1fr) clamp(112px,24dvw,166px);
+    grid-template-rows:clamp(34px,15dvh,60px) minmax(0,1fr) clamp(44px,15dvh,60px);
+    gap:3px;padding:3px 5px;overflow:hidden;align-items:stretch;justify-items:stretch;
+  }
+  .game-main .classic-mulligan .mulligan-opponent{grid-column:1;grid-row:1;flex-direction:row;gap:8px;min-height:0;overflow:hidden}
+  .game-main .classic-mulligan .mulligan-self{grid-column:1;grid-row:3;flex-direction:row;min-height:0;overflow:hidden}
+  .game-main .classic-mulligan .mulligan-opponent .hero-portrait,
+  .game-main .classic-mulligan .mulligan-self .hero-portrait{height:100%;max-height:53px;width:65px;min-height:0}
+  .game-main .classic-mulligan .mulligan-opponent .hidden-hand{height:auto;min-height:0}
+  .game-main .classic-mulligan .mulligan-heading{
+    grid-column:2;grid-row:1/3;min-height:0;margin:0;padding:4px;
+    overflow-y:auto;overscroll-behavior:contain;gap:2px;align-items:center;
+  }
+  .game-main .classic-mulligan .mulligan-heading h3{font-size:clamp(13px,3.7dvh,18px);line-height:1.15}
+  .game-main .classic-mulligan .mulligan-heading p{font-size:clamp(10px,2.9dvh,13px);line-height:1.25}
+  .game-main .classic-mulligan .mulligan-cards{
+    grid-column:1;grid-row:2;min-width:0;min-height:0;height:100%;max-width:none;
+    display:flex;justify-content:safe center;gap:clamp(3px,.5dvw,8px);
+    align-items:center;padding:2px;overflow-x:auto;overflow-y:hidden;
+    overscroll-behavior-x:contain;touch-action:pan-x;scrollbar-width:thin;
+  }
+  .game-main .classic-mulligan .mulligan-cards .battle-card{
+    flex:0 0 clamp(64px,13dvw,112px);min-width:64px;max-width:112px;
+    width:clamp(64px,13dvw,112px);height:min(100%,clamp(86px,32dvh,172px));min-height:0;
+    padding:2px;
+  }
+  .game-main .classic-mulligan .mulligan-cards .card-art{flex-basis:42%;min-height:0}
+  .game-main .classic-mulligan .mulligan-cards .card-name{font-size:clamp(10px,2.8dvh,12px);padding:2px}
+  .game-main .classic-mulligan .mulligan-cards .card-copy{font-size:clamp(9px,2.5dvh,11px);padding:2px}
+  .game-main .classic-mulligan .mulligan-confirm{
+    grid-column:2;grid-row:3;min-width:0;width:100%;height:100%;min-height:44px;
+    font-size:clamp(12px,3.2dvh,16px);padding:5px;
+  }
+}
+/* Card collection and deck-making are complete game screens, not document
+ * pages. Their small filter/toolbar rows scroll locally; card pages and the
+ * live deck each have their own scroll pane. The viewport never scrolls. */
+@media (orientation:landscape){
+  html,body{overscroll-behavior:none}
+  #root{height:100dvh;min-height:0;overflow:hidden}
+  .lobby-main>.screen-content:has(>.deck-workspace),
+  .lobby-main>.screen-content:has(>.card-browser){overflow:hidden}
+  .lobby-main>.screen-content>.deck-topbar{flex:none;min-height:0;margin:2px 0 5px}
+  .lobby-main .deck-workspace{
+    display:flex;flex-direction:column;flex:1 1 0%;min-height:0;min-width:0;overflow:hidden;
+  }
+  .lobby-main .deck-workspace-nav{flex:none;min-height:0;margin:0 0 5px;gap:clamp(3px,.6dvw,8px)}
+  .lobby-main .deck-workspace-nav button{min-height:44px;padding:4px;min-width:0;font-size:clamp(11px,1.5dvw,14px)}
+  .lobby-main .deck-workspace>[data-deck-screen="classes"],
+  .lobby-main .deck-workspace>[data-deck-screen="saved"]{
+    flex:1 1 0%;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  .lobby-main .deck-workspace>[data-deck-screen="build"]{
+    display:flex;flex-direction:column;flex:1 1 0%;min-height:0;overflow:hidden;
+  }
+  .lobby-main .deck-panel.deck-builder,.lobby-main .deck-panel.card-browser{
+    display:flex;flex-direction:column;flex:1 1 0%;min-height:0;min-width:0;
+    padding:clamp(4px,.7dvw,12px);overflow:hidden;
+  }
+  .lobby-main .deck-editor-controls,.lobby-main .card-browser-controls{
+    flex:0 1 auto;min-height:46px;max-height:clamp(67px,26dvh,155px);
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+    scrollbar-width:thin;padding:2px 4px;
+  }
+  .lobby-main .deck-panel .deck-layout{
+    flex:1 1 0%;min-height:0;min-width:0;overflow:hidden;
+    display:grid;grid-template-columns:minmax(0,1fr) clamp(156px,29dvw,310px);
+    gap:clamp(4px,1dvw,15px);align-items:stretch;
+  }
+  .lobby-main .deck-panel .deck-layout>div{
+    min-height:0;min-width:0;overflow-x:hidden;overflow-y:auto;
+    overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  .lobby-main .deck-panel .deck-sidebar{
+    height:100%;min-height:0;max-height:100%;overflow-y:auto;
+    position:relative;top:auto;overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  .lobby-main .deck-panel .deck-sidebar .deck-list{max-height:none;min-height:0;overflow:visible}
+  .lobby-main .deck-panel .collection.classic-collection.collection-book{
+    max-height:none;overflow:visible;
+  }
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .lobby-main .deck-workspace-nav button{min-height:44px}
+  .lobby-main .deck-editor-controls,.lobby-main .card-browser-controls{max-height:min(28dvh,111px)}
+  .lobby-main .deck-panel .deck-layout{grid-template-columns:minmax(0,1fr) clamp(144px,30dvw,240px)}
+  .lobby-main .deck-panel .deck-layout .collection-pages{margin-top:5px}
+  .lobby-main .deck-panel .deck-editor-controls button,
+  .lobby-main .deck-panel .card-browser-controls button{min-height:44px}
+}
+/* Mobile tap targets must not shrink just because the phone is in landscape.
+ * The lobby's scroll containers absorb the extra control height, never the
+ * page. This wins over the old short-screen 28/36px overrides above. */
+@media (pointer:coarse) and (orientation:landscape){
+  .lobby-main .app-header button,
+  .game-main .app-header button,
+  .landscape-fullscreen-control,
+  .lobby-main .play-hub .slot-tile button,
+  .lobby-main .play-hub .mode-primary,
+  .lobby-main .saved-duel-panel button{
+    min-height:44px;
+  }
+}
+/* Rotation guidance is the only scrollable surface in portrait mode. The
+ * gameplay behind the blocking dialog never scrolls or reacts to touches. */
+@media (pointer:coarse) and (orientation:portrait){
+  html,body,#root{height:100dvh;max-height:100dvh;overflow:hidden}
+  .rotate-device-message{overscroll-behavior:contain;touch-action:pan-y}
+}
+/* Mid-height tablets and compact laptop windows should also keep the entire
+ * battle within the game canvas. The desktop classic skin previously forced a
+ * 540px arena even when the header and controls left less than that. Preserve
+ * the original desktop tabletop art; flex the arena's height instead. */
+@media (orientation:landscape) and (min-width:941px) and (max-height:760px){
+  .game-main>.screen-content>.duel-screen.phase-playing,
+  .game-main>.screen-content>.duel-screen.phase-finished{
+    display:flex;flex-direction:column;flex:1 1 0%;min-height:0;overflow:hidden;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title,
+  .game-main .duel-screen.phase-finished>.duel-title,
+  .game-main .duel-screen.phase-playing>.arena-message,
+  .game-main .duel-screen.phase-finished>.arena-message{
+    flex:none;min-height:0;
+  }
+  .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+  .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+    --hero-h:clamp(52px,12dvh,92px);
+    --board-h:clamp(64px,16dvh,130px);
+    --hand-h:clamp(70px,17dvh,130px);
+    flex:1 1 0%;height:auto;min-height:0;max-height:100%;overflow:hidden;
+  }
+}
+/* Match-end and card-choice overlays must fit inside the same short phone
+ * arena. Horizontal card browsing is intentional; the whole page never
+ * scrolls, and dismiss/choice buttons keep full touch targets. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .battle-overlay.choice-overlay,
+  .game-main .battle-overlay.result-overlay{
+    padding:clamp(2px,1dvh,8px);overflow:hidden;
+  }
+  .game-main .battle-overlay .choice-window,
+  .game-main .battle-overlay .result-window{
+    width:min(100%,720px);max-width:100%;max-height:100%;min-height:0;
+    padding:clamp(4px,1dvh,12px);gap:clamp(3px,1dvh,9px);
+    overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;
+  }
+  .game-main .battle-overlay .choice-window>h3,
+  .game-main .battle-overlay .result-window>h3{
+    flex:none;font-size:clamp(14px,4dvh,20px);line-height:1.2;
+  }
+  .game-main .battle-overlay .choice-window>.choice-cards{
+    display:flex;flex:1 1 auto;min-height:clamp(80px,24dvh,136px);
+    max-height:min(38dvh,164px);min-width:0;max-width:100%;
+    justify-content:safe center;align-items:stretch;gap:clamp(3px,.8dvw,8px);
+    overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
+    touch-action:pan-x;scrollbar-width:thin;padding:3px;
+  }
+  .game-main .battle-overlay .choice-window>.choice-cards .battle-card{
+    flex:0 0 clamp(75px,14dvw,132px);width:clamp(75px,14dvw,132px);
+    min-width:75px;height:100%;min-height:0;max-height:100%;
+  }
+  .game-main .battle-overlay .choice-window>button,
+  .game-main .battle-overlay .result-window>button,
+  .game-main .battle-overlay .effect-choices button{
+    min-height:44px;flex-shrink:0;
+  }
+  .game-main .battle-overlay .effect-choices{
+    max-height:min(38dvh,150px);overflow-y:auto;overscroll-behavior:contain;
+  }
+}
+/* The 661–940px wide, 541–760px high landscape viewport was missed by both
+ * the <=540px phone grid and >=941px compact-desktop rules. Its fixed hero,
+ * board and hand minimums pushed the game into a vertical internal scroller.
+ * Fit one playable battlefield into the viewport and let the secondary log /
+ * right resource rail scroll independently rather than losing the board. */
+@media (orientation:landscape) and (min-width:661px) and (max-width:940px) and (min-height:541px) and (max-height:760px){
+  .game-main>.screen-content>.duel-screen.phase-playing,
+  .game-main>.screen-content>.duel-screen.phase-finished{
+    display:flex;flex-direction:column;flex:1 1 0%;min-height:0;overflow:hidden;
+    gap:clamp(2px,.6dvh,5px);
+  }
+  .game-main .duel-screen.phase-playing>.duel-title,
+  .game-main .duel-screen.phase-finished>.duel-title,
+  .game-main .duel-screen.phase-playing>.arena-message,
+  .game-main .duel-screen.phase-finished>.arena-message{flex:none;min-height:0}
+  .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+  .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+    --hero-h:clamp(44px,10dvh,76px);
+    --board-h:clamp(46px,12dvh,86px);
+    --hand-h:clamp(64px,13dvh,100px);
+    display:grid;grid-template-columns:minmax(0,1fr) clamp(90px,14dvw,136px);
+    grid-template-rows:minmax(0,1fr);gap:5px;
+    flex:1 1 0%;height:auto;min-height:0;max-height:100%;overflow:hidden;padding:4px;
+  }
+  .game-main .battle-arena.classic-table>.arena-left{display:none}
+  .game-main .battle-arena.classic-table>.arena-field{
+    display:grid;grid-column:1;grid-row:1;height:100%;min-height:0;min-width:0;
+    grid-template-rows:clamp(19px,3dvh,26px) var(--hero-h) minmax(0,1fr) 8px minmax(0,1fr) var(--hero-h) var(--hand-h);
+    gap:1px;overflow:hidden;padding:1px 3px;
+  }
+  .game-main .battle-arena.classic-table>.arena-field>.hidden-hand,
+  .game-main .battle-arena.classic-table>.arena-field>.hero-zone{
+    height:100%;min-height:0;max-height:100%;padding:0;
+  }
+  .game-main .battle-arena.classic-table>.arena-field>.arena-board{
+    min-height:0;height:100%;padding:5px 3px 1px;overflow:hidden;
+  }
+  .game-main .battle-arena.classic-table .minion-row{
+    max-height:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
+  }
+  .game-main .battle-arena.classic-table>.arena-field>.own-hand{
+    min-height:0;height:100%;overflow:hidden;padding:0;
+  }
+  .game-main .battle-arena.classic-table>.arena-field .battle-hand{
+    height:calc(100% - 16px);min-height:0;overflow-x:auto;overflow-y:hidden;
+    overscroll-behavior-x:contain;
+  }
+  .game-main .battle-arena.classic-table>.arena-right{
+    grid-column:2;grid-row:1;display:flex;flex-direction:column;min-height:0;
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+    scrollbar-width:thin;
+  }
+  .game-main .battle-arena.classic-table>.arena-right .turn-control{
+    order:-2;position:sticky;top:0;z-index:5;flex:none;
+  }
+  .game-main .battle-arena.classic-table>.arena-right .end-turn{min-height:44px}
+  .game-main .duel-screen.phase-playing>.battle-utilities,
+  .game-main .duel-screen.phase-finished>.battle-utilities{
+    flex:0 0 auto;max-height:min(13dvh,80px);overflow-y:auto;overflow-x:hidden;
+    overscroll-behavior:contain;
+  }
+}
+
+/* Mid-size landscape screens must not sacrifice click-to-expand readability:
+ * keep ten cards docked small and lift ONLY the selected/keyboard-focused card
+ * above the dock. The visual shift is measured from the actual arena field,
+ * so edge cards do not disappear beyond the safe-area board. */
+@media (orientation:landscape) and (min-width:661px) and (max-width:940px) and (min-height:541px) and (max-height:760px){
+  .game-main .battle-arena.classic-table>.arena-field{overflow:visible}
+  .game-main .battle-arena.classic-table>.arena-field>.own-hand{overflow:visible;z-index:15}
+  .game-main .battle-arena.classic-table>.arena-field .battle-hand{
+    height:100%;overflow:visible;gap:clamp(1px,.35dvw,3px);
+    justify-content:safe center;align-items:flex-end;padding:0 2px;
+  }
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot{
+    --landscape-card-w:clamp(28px,calc((100dvw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 220px) / 10),76px);
+    --landscape-card-h:clamp(85px,18dvh,128px);
+    --landscape-card-open-w:clamp(114px,19dvw,166px);
+    --landscape-card-open-h:clamp(148px,36dvh,220px);
+    flex:0 0 var(--landscape-card-w);width:var(--landscape-card-w);
+    min-width:var(--landscape-card-w);height:var(--hand-h);position:relative;z-index:1;
+  }
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot>.battle-card{
+    position:absolute;bottom:0;left:0;width:100%;height:var(--landscape-card-h);min-height:0;
+    transform:translateY(calc(var(--landscape-card-h) - var(--hand-h)));
+    transform-origin:bottom center;transition:transform .14s ease;
+  }
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot>.battle-card .card-copy,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot>.battle-card .card-type{visibility:hidden}
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-selected),
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card:focus-visible),
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded){z-index:30}
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-selected)>.battle-card,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card:focus-visible)>.battle-card,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card{
+    width:var(--landscape-card-open-w);height:var(--landscape-card-open-h);
+    transform:translate(calc((var(--landscape-card-w) - var(--landscape-card-open-w)) / 2 + var(--landscape-preview-shift, 0px)),calc(-1 * var(--hand-h)));
+    box-shadow:0 8px 24px #08090ddd,0 0 0 2px #f4d38f;
+  }
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-selected)>.battle-card .card-copy,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card .card-copy,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card:focus-visible)>.battle-card .card-copy,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-selected)>.battle-card .card-type,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card.is-preview-expanded)>.battle-card .card-type,
+  .game-main .battle-arena.classic-table>.arena-field .hand-card-slot:has(>.battle-card:focus-visible)>.battle-card .card-type{
+    visibility:visible;font-size:12px;line-height:1.2;max-height:none;
+  }
+  .game-main .battle.is-dragging .arena-field .hand-card-slot{z-index:1}
+  .game-main .battle.is-dragging .arena-field .hand-card-slot>.battle-card,
+  .game-main .battle.is-dragging .arena-field .hand-card-slot:has(>.battle-card.is-selected)>.battle-card{
+    width:var(--landscape-card-w);height:var(--landscape-card-h);
+    transform:translateY(calc(var(--landscape-card-h) - var(--hand-h)));
+    box-shadow:none;
+  }
+}
+
+/* v0.277: in the immersive arena, let a tapped/selected hand card open the
+   same safe-area, vertically scrolling full-text inspector as board minions.
+   Only the explicit button opens it; drag and target taps are untouched. */
+.arena-message .selected-card-inspect{min-height:44px;min-width:112px;white-space:nowrap}
+
+/* v0.278: the four small mulligan cards are selection targets, not readable
+   paragraphs. Independently choose which card to read in a full-text dialog;
+   never change replace[] through this control. The controls scroll inside the
+   right heading rail rather than growing the page or shrinking Confirm. */
+.mulligan-inspection-controls{display:flex;flex-direction:column;gap:5px;max-width:100%;min-width:0}
+.mulligan-inspection-controls label{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:11px}
+.mulligan-inspection-controls select,.mulligan-inspection-open{width:100%;min-width:0;min-height:44px;font-size:12px;line-height:1.25}
+.mulligan-inspection-controls select{padding:5px;font-size:16px;color:#f7e4b8;background:#332a27;border:1px solid #be9662;border-radius:6px}
+
+/* v0.279: the active duel is a single scene, not a scrollable document.
+   Previously the screen-content itself was clipped, but its nested duel
+   still had overflow-y:auto; moving between target pickers could pan the
+   entire battlefield on small phones. Fix only active/completed battles;
+   card collection and setup keep their intentionally independent scroll. */
+@media (orientation:landscape){
+  .game-main>.screen-content>.duel-screen.phase-playing,
+  .game-main>.screen-content>.duel-screen.phase-finished{
+    flex:1 1 0%;min-height:0;min-width:0;overflow-y:hidden;overflow-x:hidden;
+    overscroll-behavior:none;
+  }
+}
+/* Keep the combat history/help rail independently reachable without letting
+   it push the arena past the viewport. A short landscape device has a 44px
+   history strip and a flexing board, not a taller-than-screen duel. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen.phase-playing>.battle-utilities,
+  .game-main .duel-screen.phase-finished>.battle-utilities{
+    flex:0 0 44px;min-height:0;max-height:44px;overflow-y:auto;
+    overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+  .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+    flex:1 1 0%;min-height:0;max-height:100%;
+  }
+}
+
+/* v0.280: on phone/tablet landscapes, fight HUDs must not reserve a log row.
+   Keep the battlefield as large as possible and make secondary battle history,
+   full card details and report controls a dedicated accessible, scrollable
+   full-screen sheet. The drawer never changes game actions or records. */
+.battle-tools-toggle,.battle-tools-close{display:none}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:760px){
+  .game-main .duel-toolbar .battle-tools-toggle{display:inline-flex;align-items:center;min-height:44px;white-space:nowrap}
+  .game-main .duel-screen.phase-playing>.battle-utilities:not([data-tools-open="true"]),
+  .game-main .duel-screen.phase-finished>.battle-utilities:not([data-tools-open="true"]){display:none}
+  .game-main .duel-screen.phase-playing>.battle-utilities[data-tools-open="true"],
+  .game-main .duel-screen.phase-finished>.battle-utilities[data-tools-open="true"]{
+    position:fixed;inset:0;z-index:2200;box-sizing:border-box;
+    display:flex;flex-direction:column;gap:8px;flex:none;
+    width:100dvw;height:100dvh;max-width:100dvw;max-height:100dvh;
+    padding:max(9px,env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px))
+      max(9px,env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));
+    background:#1b232deb;border:2px solid #c6a16a;color:#f6e9ce;
+    overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;
+  }
+  .game-main .duel-screen .battle-utilities[data-tools-open="true"] .battle-tools-close{
+    display:block;flex:none;position:sticky;top:0;z-index:5;min-height:44px;
+    width:100%;padding:8px 12px;font-size:14px;text-align:center;
+    background:#57422f;border:1px solid #d6b987;color:#fff3d7;
+  }
+  .game-main .battle-utilities[data-tools-open="true"] .battle-log,
+  .game-main .battle-utilities[data-tools-open="true"] .battle-report{overflow:visible;max-height:none}
+}
+
+/* v0.281: the 44px primary end-turn action must remain visible even on the
+   shortest landscape phones. Surrender is deliberate and infrequent: move its
+   duplicate control into the full-screen history drawer instead of squeezing
+   the resource/turn column. Resource meters may shrink, turn control may not. */
+.compact-concede{display:none}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:760px){
+  .game-main .battle-arena.classic-table>.arena-right>.concede-button{display:none}
+  .game-main .battle-arena.classic-table>.arena-right>.turn-control{
+    flex:0 0 auto;min-height:44px;order:0;z-index:7;
+  }
+  .game-main .battle-arena.classic-table>.arena-right>.turn-control>.end-turn{
+    display:block;width:100%;min-height:44px;flex-shrink:0;
+  }
+  .game-main .duel-screen .battle-utilities[data-tools-open="true"]>.compact-concede{
+    display:block;flex:none;min-height:44px;width:100%;font-weight:800;
+  }
+}
+
+/* v0.282: compact, optional audio/voice/FX controls. Two permanent toolbar
+   controls previously consumed the width of a small landscape phone, making
+   Save/Leave wrap below the header. Keep one 44px '소리·연출' disclosure and
+   scroll only its controls, not the board. The underlying audio state, TTS
+   fallback and event handlers remain exactly the same. */
+.battle-sound-menu{position:relative;flex:none;min-width:0;z-index:100}
+.battle-sound-menu>summary{display:flex;justify-content:center;align-items:center;cursor:pointer;min-height:36px;padding:5px 8px;white-space:nowrap;border:1px solid #a98c5c;border-radius:7px;background:#3b3027;color:#f7dfba;font-size:12px;font-weight:750;list-style:none}
+.battle-sound-menu>summary::-webkit-details-marker{display:none}
+.battle-sound-menu>summary::after{content:' ▾';margin-left:4px}
+.battle-sound-menu[open]>.sound-settings{position:absolute;top:calc(100% + 4px);right:0;display:flex;flex-direction:column;align-items:stretch;gap:6px;width:min(280px,88dvw);max-height:min(60dvh,420px);overflow-y:auto;overscroll-behavior:contain;padding:10px;background:#2c2a27;border:2px solid #ba9461;border-radius:10px;box-shadow:0 8px 24px #000c}
+.battle-sound-menu[open] .dialogue-settings{position:relative;flex:none;width:100%;z-index:auto}
+.battle-sound-menu[open] .dialogue-settings-panel{position:static;top:auto;right:auto;width:100%;max-width:100%;max-height:none;overflow:visible;margin-top:6px;box-sizing:border-box}
+@media (pointer:coarse) and (orientation:landscape){
+  .game-main .battle-sound-menu>summary{min-height:44px;max-width:100%}
+  .game-main .battle-sound-menu[open]>.sound-settings{
+    position:fixed;top:max(54px,env(safe-area-inset-top,0px));
+    right:max(8px,env(safe-area-inset-right,0px));
+    width:min(310px,78dvw);max-height:calc(100dvh - 66px - env(safe-area-inset-bottom,0px));
+    z-index:2400;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;
+  }
+  .game-main .battle-sound-menu .sound-toggle{min-height:44px}
+}
+
+/* Opening audio options cannot accidentally play a card or end a turn: the
+   invisible click-catcher closes the menu on the first tap outside it. */
+.battle-sound-dismiss{display:none}
+@media (pointer:coarse) and (orientation:landscape){
+  .game-main .battle-sound-menu[open]>.battle-sound-dismiss{
+    display:block;position:fixed;inset:0;z-index:2399;border:0;
+    background:#080d1499;cursor:default;touch-action:manipulation;
+  }
+  .game-main .battle-sound-menu[open]>summary{position:relative;z-index:2401}
+}
+
+/* v0.283: never bury Save/Resume underneath less urgent landscape actions.
+   Compact only the visual labels; accessible names keep the exact action and
+   warning semantics. Use a single clipped status line and preserve 44px taps. */
+.battle-action-short{display:none}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen .duel-title{min-width:0;gap:5px}
+  .game-main .duel-screen .duel-toolbar{min-width:0;gap:4px}
+  .game-main .duel-screen .duel-indicators{min-width:0;max-width:100%;overflow:hidden;gap:3px}
+  .game-main .duel-screen .duel-indicators>span:first-child{
+    min-width:0;max-width:clamp(60px,15dvw,112px);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal;
+  }
+  .game-main .duel-screen .duel-indicators>.save-indicator{
+    min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .game-main .duel-screen .duel-indicators>.last-saved-at{display:none}
+  .game-main .duel-screen .duel-actions{min-width:0;flex-wrap:wrap;gap:3px;justify-content:flex-end}
+  .game-main .duel-actions .battle-action-full{display:none}
+  .game-main .duel-actions .battle-action-short{display:inline;white-space:nowrap}
+  .game-main .duel-actions .retry-save,
+  .game-main .duel-actions .pause-save{min-height:44px;flex:0 0 auto;padding-inline:5px;white-space:nowrap}
+  .game-main .duel-actions>.battle-tools-toggle,
+  .game-main .duel-actions>.battle-sound-menu>summary{min-height:44px}
+}
+
+/* v0.284: persistent save/worker errors and update warnings must not push
+   the battle below the viewport. A notch-safe notification floats above the
+   game; the warning scrolls internally and keeps its real dismiss button. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:760px){
+  .game-main>.screen-content>.error,
+  .game-main>.screen-content>.account-maintenance{
+    position:fixed;z-index:2450;box-sizing:border-box;
+    top:max(7px,env(safe-area-inset-top,0px));
+    left:max(8px,env(safe-area-inset-left,0px));
+    width:min(430px,calc(100dvw - 16px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)));
+    max-height:min(45dvh,180px);min-width:0;margin:0;
+    padding:8px 10px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+    box-shadow:0 5px 20px #000d;touch-action:pan-y;
+  }
+  .game-main>.screen-content>.error button,
+  .game-main>.screen-content>.account-maintenance button{min-height:44px}
+}
+
+/* A denied fullscreen request on mobile Safari must give visible feedback.
+ * This small dismissible overlay does not change the game canvas height or
+ * cause document scrolling. Portrait mode uses its own rotation dialog. */
+.landscape-fullscreen-feedback{display:none}
+@media (orientation:landscape){
+  .landscape-fullscreen-feedback{
+    position:fixed;z-index:55000;display:flex;align-items:center;gap:8px;
+    top:max(6px,env(safe-area-inset-top,0px));
+    right:max(6px,env(safe-area-inset-right,0px));
+    width:min(380px,calc(100dvw - 20px));max-height:min(42dvh,200px);
+    overflow-y:auto;overscroll-behavior:contain;
+    border:1px solid #bda069;border-radius:10px;padding:6px 9px;
+    background:#242930ee;color:#f8efda;box-shadow:0 6px 24px #0009;
+    font-size:clamp(11px,2dvh,14px);
+  }
+  .landscape-fullscreen-feedback span{flex:1 1 0%;min-width:0}
+  .landscape-fullscreen-feedback button{flex:none;min-width:44px;min-height:44px}
+  /* A noncritical fullscreen hint must not cover a target during combat.
+     Keep the message mounted so it can be dismissed in the lobby. */
+  body:has(.game-main .duel-screen) .landscape-fullscreen-feedback{visibility:hidden;pointer-events:none}
+}

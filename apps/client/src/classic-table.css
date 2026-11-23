@@ -197,7 +197,8 @@
 }
 @media(prefers-reduced-motion:reduce){
   .hand-card-slot,.battle-card,.battle-minion,.hero-portrait,.motion-delta,.turn-flash,.card-drawn>.battle-card{animation:none!important;transition:none!important}
-  .classic-table .hand-card-slot:hover,.classic-table .hand-card-slot:focus-within{transform:translateY(-34px) rotate(0)}
+  .classic-table .hand-card-slot:hover,.classic-table .hand-card-slot:focus-within{transform:none}
+  .classic-table .hand-card-slot:focus-within{outline:3px solid #ffe4a0;outline-offset:3px;z-index:6}
 }
 
 /* An open collection book and carved tavern-style front menu. */
@@ -221,7 +222,7 @@
 .classic-collection .collection-item>small{color:#5c3c1b;font-weight:950;background:#f2dba5;border:1px solid #a78043;border-radius:10px;padding:1px 9px}
 .classic-collection .empty-collection{color:#5d4226;text-align:center;min-height:160px;display:grid;place-items:center;grid-column:1/-1}
 .collection-pages{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:12px;color:#e9d2a7;font-size:13px}
-.collection-pages button{min-width:80px;border:2px solid #aa864d;background:linear-gradient(#6c4d2f,#3d2a1c);color:#e8c791;font-weight:800;padding:7px 12px}
+.collection-pages button{min-width:80px;min-height:44px;border:2px solid #aa864d;background:linear-gradient(#6c4d2f,#3d2a1c);color:#e8c791;font-weight:800;padding:7px 12px}
 .collection-pages button:disabled{opacity:.5}
 .deck-sidebar .deck-list{background:linear-gradient(#4f3726,#2c211a);border:3px double #b4915b;box-shadow:inset 0 0 9px #21150c}
 .deck-sidebar .deck-list>button{color:#f3d9ae;background:linear-gradient(90deg,#705031,#473022);border-color:#997341}

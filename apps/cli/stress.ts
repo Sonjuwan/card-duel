@@ -29,12 +29,14 @@ function epicDeck(heroClass:HeroClass,seed:number):Deck {
   const list=deckCards(catalog,heroClass);
   const classEpics=list.filter(c=>c.rarity==='epic'&&c.class===heroClass);
   const neutral=list.filter(c=>c.rarity==='epic'&&c.class==='neutral');
-  const cheap=list.filter(c=>c.rarity!=='epic'&&c.kind==='minion'&&c.cost<=3);
+  // Non-epic filler cannot include legendary single-copy cards. Include enough
+  // candidates for every class before trimming to exactly 30 legal cards.
+  const cheap=list.filter(c=>c.rarity!=='epic'&&c.rarity!=='legendary'&&c.kind==='minion'&&c.cost<=3);
   function shuffle<T>(cards:T[]):T[]{
     for(let i=cards.length-1;i>0;i--){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const j=Math.floor(seed/4294967296*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}
     return cards;
   }
-  return {heroClass,cards:[...classEpics,...shuffle(neutral).slice(0,6),...shuffle(cheap).slice(0,6)].flatMap(c=>[c.id,c.id])};
+  return {heroClass,cards:[...classEpics,...shuffle(neutral).slice(0,6),...shuffle(cheap).slice(0,12)].flatMap(c=>Array<string>(maxCardCopies(c)).fill(c.id)).slice(0,30)};
 }
 let moves=0,epicPlays=0,legendaryPlays=0;const played=new Set<string>(),finishes={health:0,fatigue:0,concede:0,turnLimit:0,draw:0};
 console.log(`Card Duel stress: ${version}, ${count} matches, ${eligible.length} deck cards, ${mode} mode`);

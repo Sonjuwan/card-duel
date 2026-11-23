@@ -3,9 +3,16 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {applyAction,createCatalog,createGame,getPlayerView,practiceDeck,DECK_STYLES,HERO_CLASSES} from '../../../packages/engine/src/index.ts';
 import type {RoomView} from '../../../packages/protocol.ts';
-import {DEFAULT_SOLO_SETTINGS,parseSoloSettings,readSoloSettings,saveSoloSettings,resolveSolo,resultFromRoom,recordSoloResult,readSoloHistory,soloStats} from '../src/solo-settings.ts';
+import {DEFAULT_SOLO_SETTINGS,parseSoloSettings,readSoloSettings,saveSoloSettings,resolveSolo,resultFromRoom,recordSoloResult,readSoloHistory,soloStats,soloHistoryPage} from '../src/solo-settings.ts';
+import type {SoloResult} from '../src/solo-settings.ts';
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8')));
 const storage=()=>{const m=new Map<string,string>();return{getItem:(k:string)=>m.get(k)??null,setItem:(k:string,v:string)=>{m.set(k,v);}};};
+test('history pages expose all stored results with balance and outcome filters without mutating history',()=>{
+  const results:SoloResult[]=Array.from({length:100},(_,i)=>({code:`LOCAL-${i}`,date:'2026-11-22T00:00:00Z',heroClass:'mage',opponent:'warrior',difficulty:3,result:i%2?'win':'loss',turns:7,generation:0,catalogHash:i<50?'current':'previous'}));
+  const codes=results.map(r=>r.code);const all=Array.from({length:10},(_,i)=>soloHistoryPage(results,'current','all','all',i).items).flat();assert.deepEqual(all.map(r=>r.code),codes);
+  const filtered=soloHistoryPage(results,'current','previous','win',123);assert.equal(filtered.pages,3);assert.equal(filtered.page,2);assert.equal(filtered.items.length,5);assert.equal(filtered.stats.games,25);assert.equal(filtered.stats.wins,25);assert.ok(filtered.items.every(r=>r.catalogHash==='previous'));
+  assert.equal(soloHistoryPage(results,'current','current','draw',-1).items.length,0);assert.equal(soloHistoryPage(results,'current','current','draw',9).page,0);assert.deepEqual(results.map(r=>r.code),codes);
+});
 test('settings roundtrip and corrupted individual preference recovery',()=>{
   const s=storage(),chosen={...DEFAULT_SOLO_SETTINGS,heroClass:'random' as const,difficulty:25 as const,style:'control' as const,first:'second' as const,deviceMode:'fast' as const};
   assert.equal(saveSoloSettings(chosen,s),true);assert.deepEqual(readSoloSettings(s),chosen);

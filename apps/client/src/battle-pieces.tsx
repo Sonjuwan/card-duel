@@ -1,12 +1,48 @@
-import { useContext } from 'react';
-import type { DragEvent, ReactNode } from 'react';
+import { useContext, useRef } from 'react';
+import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { canAttackMinion, getHeroPower } from '../../../packages/engine/src/index.ts';
-import type { Card, Catalog, HeroClass, Minion, PublicPlayer } from '../../../packages/engine/src/index.ts';
+import type { Card, Catalog, HeroClass, Minion, PlayerId, PlayerView, PublicPlayer, Rarity, Target } from '../../../packages/engine/src/index.ts';
 import { className, heroPowerDescription, keywords, tribes } from './data.ts';
 import { LocalCardArt, LocalHeroArt, LocalPowerArt, LocalCardBack } from './local-art.tsx';
 import { useCardName, ClassicNamesContext, displayCardName } from './card-names.ts';
 import { fanSlot } from './table-visuals.ts';
 import { useCardHover } from './hover-context.ts';
+import {targetPickerRows,placementOptions,keyboardTargetIndex} from './battle-actions.ts';
+import type {TargetPickerRow,Selection} from './battle-actions.ts';
+
+export function targetRowText(row:TargetPickerRow,catalog:Catalog,classic:boolean){
+  const owner=row.side==='self'?'내':'상대',name=row.kind==='hero'?(row.heroForm==='jaraxxus'?'군주 자락서스':className[row.heroClass]):catalog[row.cardId]?displayCardName(catalog[row.cardId],classic):row.cardId;
+  const baseDetail=row.kind==='hero'?`영웅 · 생명력 ${row.health}${row.armor?` · 방어도 ${row.armor}`:''}`:`전장 ${row.position+1}번 · ${row.attack}/${row.health}`;
+  const detail=baseDetail+(row.publicStatuses?.length?` · ${row.publicStatuses.join(' · ')}`:'');
+  return {name:`${owner} ${name}`,detail,baseDetail,compact:`${owner} ${name}${row.kind==='hero'?' 영웅':` (${row.position+1}번)`}`};
+}
+
+/** Explicit, large touch alternatives for selected targets on crowded boards. */
+export function TargetPicker({view,seat,targets,catalog,sourceLabel,onChoose}:{view:PlayerView;seat:PlayerId;targets:readonly Target[];catalog:Catalog;sourceLabel?:string;onChoose:(target:Target,keyboard:boolean)=>void}){
+  const classic=useContext(ClassicNamesContext),detailsRef=useRef<HTMLDetailsElement>(null),rows=targetPickerRows(view,seat,targets);if(!rows.length)return null;
+  const closeList=()=>{const details=detailsRef.current;if(!details)return;details.open=false;details.querySelector<HTMLElement>('summary')?.focus();};
+  const navigateTargets=(event:KeyboardEvent<HTMLDetailsElement>)=>{
+    const details=detailsRef.current;
+    if(!details?.open||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+    const buttons=[...details.querySelectorAll<HTMLButtonElement>('.target-picker-row')];
+    const next=keyboardTargetIndex(event.key,buttons.indexOf(event.target as HTMLButtonElement),buttons.length);
+    if(next===null)return;
+    event.preventDefault();event.stopPropagation();buttons[next].focus();
+  };
+  return <details ref={detailsRef} className="target-picker" onKeyDown={navigateTargets}><summary aria-label={sourceLabel?`${sourceLabel} · 선택 가능한 대상 ${rows.length}개`:`선택 가능한 대상 ${rows.length}개`} title="방향키로 이동, PageUp/PageDown으로 5개씩 이동, Enter로 선택">대상 목록 {rows.length}</summary><div className="target-picker-panel" role="group" aria-label={sourceLabel?`${sourceLabel} · 합법 대상 목록`:"합법 대상 목록"}><button type="button" className="target-picker-close" onClick={closeList} aria-label="대상 목록 닫기">{sourceLabel&&<span className="target-picker-source" aria-hidden="true">{sourceLabel}</span>}<span>대상 목록 닫기</span></button>{rows.map(row=>{
+    const {name,detail,baseDetail}=targetRowText(row,catalog,classic);
+    return <button type="button" key={row.target.kind==='hero'?`hero:${row.target.player}`:`minion:${row.target.instanceId}`} className={`target-picker-row ${row.side}`} aria-label={`${name}, ${detail}`} onClick={e=>onChoose(row.target,e.detail===0)}><strong>{name}</strong><small>{baseDetail}</small>{!!row.publicStatuses?.length&&<span className="target-picker-flags" aria-hidden="true">{row.publicStatuses.map(tag=><span key={tag} className={`target-flag-${tag==='천상의 보호막'?'shield':tag==='빙결'?'freeze':tag==='면역'?'immune':'taunt'}`}>{tag}</span>)}</span>}</button>;
+  })}</div></details>;
+}
+
+/** A native select gives touch and keyboard users access to every gap even
+ * if the actual battlefield slot is only a few pixels wide or off-screen. */
+export function PlacementPicker({view,seat,catalog,selection,position,onChoose}:{view:PlayerView;seat:PlayerId;catalog:Catalog;selection:Selection|null;position:number;onChoose:(position:number)=>void}){
+  const classic=useContext(ClassicNamesContext),options=placementOptions(view,seat,catalog,selection);
+  if(options.length<=1)return null;
+  const name=(id:string)=>catalog[id]?displayCardName(catalog[id],classic):id;
+  return <label className="placement-picker"><span>배치 {position+1}/{options.length}</span><select aria-label="하수인 배치 위치 선택" value={position} onChange={e=>{const next=Number(e.currentTarget.value);if(options.some(o=>o.position===next))onChoose(next);}}>{options.map(o=><option key={o.position} value={o.position}>{o.position+1}번 · {o.leftCardId&&o.rightCardId?`${name(o.leftCardId)} / ${name(o.rightCardId)} 사이`:o.leftCardId?'오른쪽 끝':'왼쪽 끝'}</option>)}</select></label>;
+}
 
 type Glyph = HeroClass|'neutral'|'minion'|'spell'|'weapon'|'secret'|'coin'|'deck'|'life'|'shield'|'mana'|'beast'|'demon'|'dragon'|'murloc'|'pirate'|'totem';
 const glyphs:Record<Glyph,ReactNode>={
@@ -41,6 +77,19 @@ export function Sigil({kind,className:extra=''}:{kind:Glyph;className?:string}){
 }
 export function cardDescription(card:Card){return card.kind==='coin'?'이번 턴에 마나 1을 얻습니다.':card.description||'효과 없음';}
 export const cardKindLabel:Record<Card['kind'],string>={coin:'동전',minion:'하수인',spell:'주문',weapon:'무기',secret:'비밀'};
+const rarityLabel:Record<Rarity,string>={basic:'기본',common:'일반',rare:'희귀',epic:'영웅',legendary:'전설'};
+function printedCardTags(card:Card):string[]{
+  const tags:string[]=[];
+  if(card.kind==='minion'){
+    tags.push(...(card.keywords??[]).map(k=>keywords[k]));
+    if(card.battlecry?.length)tags.push('전투의 함성');
+    if(card.deathrattle?.length)tags.push('죽음의 메아리');
+    if(card.spellDamage)tags.push(`주문 공격력 +${card.spellDamage}`);
+  }
+  if(card.kind==='weapon'&&card.battlecry?.length)tags.push('전투의 함성');
+  if((card.kind==='minion'||card.kind==='spell')&&card.choices?.length)tags.push('선택 효과');
+  return [...new Set(tags)];
+}
 function cardFaction(card:Card):Glyph{return card.kind==='coin'?'coin':card.class;}
 export function factionLabel(card:Card){return card.kind==='coin'?'시스템':card.class==='neutral'?'중립':className[card.class];}
 export function minionTags(m:Minion):string[]{return [
@@ -57,11 +106,11 @@ export function minionTags(m:Minion):string[]{return [
   ...(m.returnController!==undefined?['임시 조종']:[]),
   ...((m.destroyAtStartOf?.length||m.destroyAtEndOf?.length)?['파멸 예정']:[])];}
 export type Inspectable={card:Card;minion?:Minion;weapon?:{attack:number;durability:number};cost?:number;reason?:string;title?:string};
-type Interactive={enabled?:boolean;ready?:boolean;selected?:boolean;targeted?:boolean;sourceId?:string;onClick?:()=>void;onInspect?:(item:Inspectable)=>void;onDragStart?:(event:DragEvent<HTMLButtonElement>)=>void;onDragEnd?:()=>void;onDragOver?:(event:DragEvent<HTMLButtonElement>)=>void;onDrop?:(event:DragEvent<HTMLButtonElement>)=>void;};
+type Interactive={enabled?:boolean;ready?:boolean;selected?:boolean;targeted?:boolean;dropTarget?:boolean;sourceId?:string;onClick?:(keyboard:boolean)=>void;onInspect?:(item:Inspectable)=>void;onDragStart?:(event:DragEvent<HTMLButtonElement>)=>void;onDragEnd?:()=>void;onDragOver?:(event:DragEvent<HTMLButtonElement>)=>void;onDrop?:(event:DragEvent<HTMLButtonElement>)=>void;};
 
-export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false,selected=false,onClick,onInspect,onDragStart,onDragEnd,mulligan=false,sourceId}:Interactive&{card:Card;cost?:number;reason?:string;mulligan?:boolean}){
+export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false,selected=false,previewOpen=false,onClick,onInspect,onDragStart,onDragEnd,mulligan=false,sourceId,onBlocked,actionLabel}:Interactive&{card:Card;cost?:number;reason?:string;mulligan?:boolean;onBlocked?:()=>void;previewOpen?:boolean;actionLabel?:string}){
   const displayName=useCardName(card);const info={card,cost,reason};const rarity=card.kind==='coin'?'basic':card.rarity;const hover=useCardHover(info);
-  return <button type="button" className={`battle-card faction-${cardFaction(card)} kind-${card.kind} rarity-${rarity}${ready?' is-ready':''}${selected?' is-selected':''}${!enabled?' is-disabled':''}${mulligan&&selected?' is-replacing':''}`} data-preview-card={card.id} data-preview-cost={cost} data-action-source={sourceId} aria-disabled={!enabled} aria-description={cardDescription(card)} aria-pressed={mulligan||sourceId?.startsWith('card:')?selected:undefined} aria-label={`${displayName}, 마나 ${cost}, ${cardKindLabel[card.kind]}${card.kind==='minion'?`, 공격력 ${card.attack}, 생명력 ${card.health}`:card.kind==='weapon'?`, 공격력 ${card.attack}, 내구도 ${card.durability}`:''}${reason?`, ${reason}`:''}${mulligan&&selected?', 교체 선택':''}`} onClick={()=>{hover.clear();if(enabled&&!hover.consumeTouchClick())onClick?.();}} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.clear} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd}>
+  return <button type="button" className={`battle-card faction-${cardFaction(card)} kind-${card.kind} rarity-${rarity}${ready?' is-ready':''}${selected?' is-selected':''}${previewOpen?' is-preview-expanded':''}${!enabled?' is-disabled':''}${mulligan&&selected?' is-replacing':''}`} data-preview-card={card.id} data-preview-cost={cost} data-action-source={sourceId} aria-disabled={!enabled} aria-expanded={previewOpen||Boolean(sourceId?.startsWith('card:')&&selected)||undefined} aria-description={cardDescription(card)} aria-pressed={mulligan||sourceId?.startsWith('card:')?selected:undefined} aria-label={`${displayName}, 마나 ${cost}, ${cardKindLabel[card.kind]}${card.kind==='minion'?`, 공격력 ${card.attack}, 생명력 ${card.health}`:card.kind==='weapon'?`, 공격력 ${card.attack}, 내구도 ${card.durability}`:''}${reason?`, ${reason}`:''}${mulligan&&selected?', 교체 선택':''}${actionLabel?', '+actionLabel:''}`} onClick={e=>{hover.clear();if(hover.consumeTouchClick(e.nativeEvent))return;if(enabled)onClick?.(e.detail===0);else onBlocked?.();}} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.clear} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd}>
     <span className={`card-mana${cost<card.cost?' discounted':cost>card.cost?' increased':''}`}>{cost}</span>
     <span className="card-art"><LocalCardArt card={card}/></span>
     <span className="card-name">{displayName}</span>
@@ -71,18 +120,18 @@ export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false
     {mulligan&&selected&&<span className="replace-banner">교체</span>}
   </button>;
 }
-export function BattleMinion({card,minion,catalog,ownTurn,enabled=false,ready=false,selected=false,targeted=false,onClick,onInspect,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,entering=false,delta=0}:Interactive&{card:Card;minion:Minion;catalog:Catalog;ownTurn:boolean;entering?:boolean;delta?:number}){
+export function BattleMinion({card,minion,catalog,ownTurn,enabled=false,ready=false,selected=false,targeted=false,dropTarget=false,onClick,onInspect,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,onInspectTap,entering=false,delta=0}:Interactive&{card:Card;minion:Minion;catalog:Catalog;ownTurn:boolean;entering?:boolean;delta?:number;onInspectTap?:()=>void}){
   const displayName=useCardName(card);const tags=minionTags(minion),status=minion.frozenThroughTurn!==undefined?'빙결':card.kind==='minion'&&card.noAttack&&!minion.silenced?'공격 불가':ownTurn&&canAttackMinion(minion,catalog)?`공격 가능 ${minion.attacksRemaining}회`:'대기';
   const info={card,minion};const hover=useCardHover(info);const taunt=minion.keywords?.includes('taunt'),shield=minion.keywords?.includes('divineShield'),stealth=minion.keywords?.includes('stealth')||minion.stealthUntilStartOf!==undefined;
-  return <button type="button" className={`battle-minion faction-${cardFaction(card)}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${taunt?' has-taunt':''}${shield?' has-shield':''}${stealth?' has-stealth':''}${minion.frozenThroughTurn!==undefined?' is-frozen':''}${minion.silenced?' is-silenced':''}${minion.immuneThisTurn?' is-immune':''}${entering?' is-entering':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-preview-card={card.id} data-preview-minion={minion.instanceId} data-action-source={sourceId} aria-disabled={!enabled} aria-description={minion.silenced?'침묵 (효과 제거)':cardDescription(card)} aria-label={`${displayName}, 공격력 ${minion.attack}, 생명력 ${minion.health}, ${[...tags,status].join(', ')}`} onClick={()=>{hover.clear();if(enabled&&!hover.consumeTouchClick())onClick?.();}} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.clear} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
+  return <button type="button" className={`battle-minion faction-${cardFaction(card)}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${dropTarget?' is-drop-target':''}${taunt?' has-taunt':''}${shield?' has-shield':''}${stealth?' has-stealth':''}${minion.frozenThroughTurn!==undefined?' is-frozen':''}${minion.silenced?' is-silenced':''}${minion.immuneThisTurn?' is-immune':''}${entering?' is-entering':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-preview-card={card.id} data-preview-minion={minion.instanceId} data-action-source={sourceId} aria-disabled={!enabled&&!onInspectTap} aria-pressed={sourceId&&!targeted?selected:undefined} aria-description={[minion.silenced?'침묵 (효과 제거)':cardDescription(card),targeted?'선택 가능한 대상':selected?'공격 선택 중, 다시 누르면 취소':ready?'공격 가능':'',!enabled&&onInspectTap?'누르면 카드 상세 보기':''].filter(Boolean).join(' · ')} aria-label={`${displayName}, 공격력 ${minion.attack}, 생명력 ${minion.health}, ${[...tags,status].join(', ')}${!enabled&&onInspectTap?', 카드 상세 보기 가능':''}`} onClick={e=>{hover.clear();if(hover.consumeTouchClick(e.nativeEvent))return;if(enabled)onClick?.(e.detail===0);else onInspectTap?.();}} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.clear} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
     <span className="minion-medallion"><LocalCardArt card={card}/>{shield&&<span className="shield-ring"/>}{stealth&&<span className="stealth-veil"/>}</span>
     <span className="minion-title">{displayName}</span>
     <span className="minion-statline"><span className="stat stat-attack">{minion.attack}</span><span className="minion-status" title={[...tags,status].join(' · ')}>{tags.length?tags.slice(0,2).join(' · '):status}</span><span className={`stat stat-health${minion.health<minion.maxHealth?' damaged':''}`}>{minion.health}</span></span>{delta!==0&&<span className={`motion-delta ${delta<0?'damage':'heal'}`} aria-hidden="true">{delta>0?'+':''}{delta}</span>}
   </button>;
 }
-export function HeroPortrait({player,label,enabled=false,ready=false,selected=false,targeted=false,onClick,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,delta=0}:Interactive&{player:PublicPlayer;label:string;delta?:number}){
+export function HeroPortrait({player,label,enabled=false,ready=false,selected=false,targeted=false,dropTarget=false,onClick,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,delta=0}:Interactive&{player:PublicPlayer;label:string;delta?:number}){
   const attack=player.heroAttack+(player.weapon?.attack??0);
-  return <button type="button" className={`hero-portrait faction-${player.heroClass}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${player.heroFrozenThroughTurn!==undefined?' is-frozen':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-action-source={sourceId} aria-disabled={!enabled} aria-label={`${label} · ${(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])}, 생명력 ${player.health}, 방어도 ${player.armor}, 공격력 ${attack}${player.heroFrozenThroughTurn!==undefined?', 빙결':''}`} title={`${label} · ${(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])} · 생명력 ${player.health}${player.armor?` · 방어도 ${player.armor}`:''} · 공격력 ${attack}${player.heroFrozenThroughTurn!==undefined?' · 빙결':''}${player.heroImmuneThisTurn?' · 면역':''}`} onClick={()=>{if(enabled)onClick?.();}} draggable={enabled&&!!onDragStart} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
+  return <button type="button" className={`hero-portrait faction-${player.heroClass}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${dropTarget?' is-drop-target':''}${player.heroFrozenThroughTurn!==undefined?' is-frozen':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-action-source={sourceId} aria-disabled={!enabled} aria-pressed={sourceId&&!targeted?selected:undefined} aria-description={targeted?'선택 가능한 대상':selected?'공격 선택 중, 다시 누르면 취소':ready?'공격 가능':undefined} aria-label={`${label} · ${(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])}, 생명력 ${player.health}, 방어도 ${player.armor}, 공격력 ${attack}${player.heroFrozenThroughTurn!==undefined?', 빙결':''}`} title={`${label} · ${(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])} · 생명력 ${player.health}${player.armor?` · 방어도 ${player.armor}`:''} · 공격력 ${attack}${player.heroFrozenThroughTurn!==undefined?' · 빙결':''}${player.heroImmuneThisTurn?' · 면역':''}`} onClick={e=>{if(enabled)onClick?.(e.detail===0);}} draggable={enabled&&!!onDragStart} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
     <span className="hero-emblem"><LocalHeroArt heroClass={player.heroClass} heroForm={player.heroForm}/></span>
     <span className="hero-label">{label} · {(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])}</span>
     {attack>0&&<span className="stat stat-attack hero-attack">{attack}</span>}
@@ -91,23 +140,25 @@ export function HeroPortrait({player,label,enabled=false,ready=false,selected=fa
     {player.heroFrozenThroughTurn!==undefined&&<span className="hero-freeze">빙결</span>}{player.heroImmuneThisTurn&&<span className="hero-freeze hero-immune">면역</span>}{delta!==0&&<span className={`motion-delta ${delta<0?'damage':'heal'}`} aria-hidden="true">{delta>0?'+':''}{delta}</span>}
   </button>;
 }
-export function HeroPower({player,onClick,enabled=false,ready=false,selected=false,reason,sourceId}:{player:PublicPlayer;onClick?:()=>void;enabled?:boolean;ready?:boolean;selected?:boolean;reason?:string;sourceId?:string}){
+export function HeroPower({player,onClick,enabled=false,ready=false,selected=false,reason,sourceId}:{player:PublicPlayer;onClick?:(keyboard:boolean)=>void;enabled?:boolean;ready?:boolean;selected?:boolean;reason?:string;sourceId?:string}){
   const power=getHeroPower(player);
-  return <button type="button" className={`hero-power faction-${player.heroClass}${ready?' is-ready':''}${selected?' is-selected':''}${player.heroPowerUsed?' spent':''}`} data-action-source={sourceId} aria-disabled={!enabled} aria-label={`${power.name} (${power.cost}마나)${reason?', '+reason:''}`} title={`${power.name} (${power.cost}마나) · ${(player.heroForm==='jaraxxus'?'6/6 지옥불정령을 소환합니다.':player.shadowformLevel?'캐릭터 하나에게 피해 '+(player.shadowformLevel+1)+'를 줍니다.':heroPowerDescription[player.heroClass])}${reason?' · '+reason:''}`} onClick={()=>{if(enabled)onClick?.();}}>
+  return <button type="button" className={`hero-power faction-${player.heroClass}${ready?' is-ready':''}${selected?' is-selected':''}${player.heroPowerUsed?' spent':''}`} data-action-source={sourceId} aria-disabled={!enabled} aria-pressed={sourceId&&power.targetRule?selected:undefined} aria-description={selected?'능력 선택 중, 다시 누르면 취소':ready?'사용 가능':undefined} aria-label={`${power.name} (${power.cost}마나)${reason?', '+reason:''}`} title={`${power.name} (${power.cost}마나) · ${(player.heroForm==='jaraxxus'?'6/6 지옥불정령을 소환합니다.':player.shadowformLevel?'캐릭터 하나에게 피해 '+(player.shadowformLevel+1)+'를 줍니다.':heroPowerDescription[player.heroClass])}${reason?' · '+reason:''}`} onClick={e=>{if(enabled)onClick?.(e.detail===0);}}>
     <span className="power-medallion"><LocalPowerArt heroClass={player.heroClass} shadowformLevel={player.shadowformLevel} heroForm={player.heroForm}/><span className="power-mana">{power.cost}</span></span><span className="power-label">{player.heroPowerUsed?'사용 완료':power.name}</span>
   </button>;
 }
-export function WeaponSlot({player,catalog}:{player:PublicPlayer;catalog:Catalog}){
+export function WeaponSlot({player,catalog,onInspect}:{player:PublicPlayer;catalog:Catalog;onInspect?:(item:Inspectable)=>void}){
   const classicNames=useContext(ClassicNamesContext);
   const weapon=player.weapon,card=weapon?.cardId?catalog[weapon.cardId]:undefined,name=card?displayCardName(card,classicNames):'장착 무기';
-  const hover=useCardHover(weapon&&card?{card,weapon}:null);
-  return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onPointerCancel={hover.clear} onFocus={e=>{if(card)hover.start(e.currentTarget);}} onBlur={hover.clear} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack">{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
+  const info=weapon&&card?{card,weapon}:null,hover=useCardHover(info),inspect=()=>{if(info)onInspect?.(info);};
+  return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{inspect();if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} {...hover.touchProps} onPointerDown={e=>{inspect();hover.touchProps.onPointerDown(e);}} onFocus={e=>{inspect();if(card)hover.start(e.currentTarget);}} onBlur={hover.clear} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack">{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
 }
 export function ManaDisplay({player,compact=false}:{player:PublicPlayer;compact?:boolean}){
   const unlocked=Math.max(0,player.maxMana-player.lockedMana),extra=Math.max(0,player.mana-unlocked);
   const slots=Math.min(10,Math.max(0,player.maxMana+extra));
   const gem=(i:number)=>i>=slots?'future':i>=unlocked&&i<player.maxMana?'locked':i<Math.min(player.mana,unlocked)||i>=player.maxMana&&i<player.maxMana+extra?'filled':'spent';
-  return <div className={`mana-display${compact?' compact':''}`} aria-label={`마나 ${player.mana}/${player.maxMana}${player.lockedMana?`, 잠긴 마나 ${player.lockedMana}`:''}${player.pendingOverload?`, 다음 턴 과부하 ${player.pendingOverload}`:''}`} title={`마나 ${player.mana}/${player.maxMana}${player.lockedMana?` · 잠김 ${player.lockedMana}`:''}${player.pendingOverload?` · 다음 과부하 ${player.pendingOverload}`:''}`}>
+  const spent=Math.max(0,unlocked-Math.min(player.mana,unlocked));
+  const resourceLabel=`마나 ${player.mana}/${player.maxMana}, 사용한 마나 ${spent}${player.lockedMana?`, 잠긴 마나 ${player.lockedMana}`:''}${extra?`, 추가 마나 ${extra}`:''}${player.pendingOverload?`, 다음 턴 과부하 ${player.pendingOverload}`:''}`;
+  return <div className={`mana-display${compact?' compact':''}`} role="group" aria-label={resourceLabel} title={resourceLabel}>
     <span className="mana-number"><Sigil kind="mana"/>{player.mana}<small>/{player.maxMana}</small></span>
     <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=><span key={i} className={`mana-crystal ${gem(i)}`}>{gem(i)==='locked'?'×':''}</span>)}</span>
     {(player.pendingOverload>0||player.lockedMana>0)&&<span className="mana-warning">{player.lockedMana>0?`잠김 ${player.lockedMana}`:''}{player.lockedMana>0&&player.pendingOverload>0?' · ':''}{player.pendingOverload>0?`다음 과부하 ${player.pendingOverload}`:''}</span>}
@@ -127,10 +178,10 @@ export function Secrets({count,names,cards}:{count:number;names?:string[];cards?
   return <div className="secret-row" aria-label={`${names?'내 비밀':'상대 비밀'} ${count}개${names?.length?', '+names.join(', '):''}`} title={names?`내 비밀: ${names.join(', ')||'없음'}`:`상대 비밀 ${count}개 (이름 비공개)`}>{Array.from({length:count},(_,i)=><SecretGem key={i} card={cards?.[i]} name={names?.[i]}/>)}{count===0&&<small>비밀 없음</small>}</div>;
 }
 export function CardInspector({item,catalog}:{item:Inspectable|null;catalog:Catalog}){
-  if(!item)return <div className="card-inspector empty"><Sigil kind="deck"/><b>카드 확인</b><p>카드에 마우스를 올리면 능력과 상태가 표시됩니다.</p></div>;
+  if(!item)return <div className="card-inspector empty"><Sigil kind="deck"/><b>카드 확인</b><p>카드를 가리키거나 터치하면 능력과 상태가 표시됩니다.</p></div>;
   return <InspectedCard item={item} catalog={catalog}/>;
 }
 function InspectedCard({item,catalog}:{item:Inspectable;catalog:Catalog}){
-  const {card,minion,cost,reason}=item;const displayName=useCardName(card);
-  return <div className={`card-inspector faction-${cardFaction(card)}`} aria-label="카드 상세"><div className="inspect-heading"><span className="inspect-sigil"><LocalCardArt card={card}/></span><div><strong>{displayName}</strong><small>{factionLabel(card)} · {cardKindLabel[card.kind]}</small></div></div><div className="inspect-stats"><span>마나 <b>{cost??card.cost}</b></span>{card.kind==='minion'&&<><span>공격 <b>{minion?.attack??card.attack}</b></span><span>체력 <b>{minion?.health??card.health}</b></span></>}{card.kind==='weapon'&&<><span>공격 <b>{card.attack}</b></span><span>내구 <b>{card.durability}</b></span></>}</div><p>{minion?.silenced?'침묵 (효과 제거)':cardDescription(card)}</p>{minion&&<small className="inspect-status">{minionTags(minion).join(' · ')||'추가 상태 없음'}</small>}{reason&&<small className="inspect-reason">{reason}</small>}{card.kind==='minion'&&card.tribe!=='none'&&<small>{tribes[card.tribe]}</small>}{minion&&canAttackMinion(minion,catalog)&&<small>남은 공격 {minion.attacksRemaining}회</small>}</div>;
+  const {card,minion,weapon,cost,reason}=item;const displayName=useCardName(card),printedTags=minion?[]:printedCardTags(card);
+  return <div className={`card-inspector faction-${cardFaction(card)}`} role="group" aria-label="카드 상세"><div className="inspect-heading"><span className="inspect-sigil"><LocalCardArt card={card}/></span><div><strong>{displayName}</strong><small>{factionLabel(card)} · {cardKindLabel[card.kind]}{card.kind!=='coin'?` · ${rarityLabel[card.rarity]}`:''}</small></div></div><div className="inspect-stats"><span>마나 <b>{cost??card.cost}</b></span>{card.kind==='minion'&&<><span>공격 <b>{minion?.attack??card.attack}</b></span><span>체력 <b>{minion?.health??card.health}</b>{minion&&<small> / {minion.maxHealth}</small>}</span></>}{card.kind==='weapon'&&<><span>공격 <b>{weapon?.attack??card.attack}</b></span><span>내구 <b>{weapon?.durability??card.durability}</b></span></>}</div><p>{minion?.silenced?'침묵 (효과 제거)':cardDescription(card)}</p>{printedTags.length>0&&<ul className="inspect-ability-tags" aria-label="기본 능력">{printedTags.map(tag=><li key={tag}>{tag}</li>)}</ul>}{minion&&card.kind==='minion'&&(minion.attack!==card.attack||minion.maxHealth!==card.health)&&<small className="inspect-status">기본 공격/체력 {card.attack}/{card.health}</small>}{minion&&<small className="inspect-status">{minionTags(minion).join(' · ')||'추가 상태 없음'}</small>}{weapon&&<small className="inspect-status">현재 장착 중 · 기본 {card.kind==='weapon'?`${card.attack}/${card.durability}`:'—'}</small>}{reason&&<small className="inspect-reason">{reason}</small>}{card.kind==='minion'&&card.tribe!=='none'&&<small>{tribes[card.tribe]}</small>}{minion&&canAttackMinion(minion,catalog)&&<small>남은 공격 {minion.attacksRemaining}회</small>}</div>;
 }

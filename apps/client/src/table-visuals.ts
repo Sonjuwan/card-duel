@@ -13,6 +13,29 @@ export function collectionPage<T>(items:readonly T[],requested:number,size=COLLE
   const page=Math.max(0,Math.min(pages-1,Number.isFinite(requested)?Math.trunc(requested):0));
   return {page,pages,items:items.slice(page*size,(page+1)*size)};
 }
+export type CollectionRect={left:number;top:number;width:number;height:number};
+/** Navigate the real card geometry; book leaves may be adjacent, stacked,
+ * or narrowed from three to one column. Never activate a card here. */
+export function collectionNavigation(key:string,current:number,rects:readonly CollectionRect[]):number|null{
+  if(!rects.length||current<0||current>=rects.length)return null;
+  if(key==='Home')return 0;if(key==='End')return rects.length-1;
+  const horizontal=key==='ArrowLeft'||key==='ArrowRight';
+  if(!horizontal&&key!=='ArrowUp'&&key!=='ArrowDown')return null;
+  const origin=rects[current];if(origin.width<=0||origin.height<=0)return null;
+  const sign=key==='ArrowLeft'||key==='ArrowUp'?-1:1;
+  const candidates=rects.flatMap((rect,index)=>{
+    if(index===current||rect.width<=0||rect.height<=0)return [];
+    const dx=rect.left+rect.width/2-origin.left-origin.width/2,dy=rect.top+rect.height/2-origin.top-origin.height/2;
+    const primary=(horizontal?dx:dy)*sign,secondary=Math.abs(horizontal?dy:dx);
+    if(primary<=1)return [];
+    const a=horizontal?origin.top:origin.left,b=horizontal?rect.top:rect.left,as=horizontal?origin.height:origin.width,bs=horizontal?rect.height:rect.width;
+    const aligned=Math.min(a+as,b+bs)-Math.max(a,b)>Math.min(as,bs)*.25;
+    if(horizontal&&!aligned)return [];
+    return [{index,primary,secondary,aligned}];
+  });
+  candidates.sort((a,b)=>Number(b.aligned)-Number(a.aligned)||a.primary-b.primary||a.secondary-b.secondary||a.index-b.index);
+  return candidates[0]?.index??null;
+}
 export interface TableMotion {
   revision:number;
   drawn:ReadonlySet<string>;

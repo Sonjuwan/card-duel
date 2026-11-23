@@ -1,0 +1,71 @@
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import { strict as assert } from 'node:assert';
+
+const load=(s)=>readFileSync(new URL(`../apps/client/src/${s}`,import.meta.url),'utf8');
+const app=load('App.tsx'),shell=load('landscape-shell.css'),component=load('LandscapeExperience.tsx');
+test('online and offline both import the complete landscape shell last',()=>{
+  for(const entry of ['main.tsx','offline-main.tsx']){
+    const source=load(entry);
+    assert.ok(source.indexOf("import './landscape-shell.css'")>source.indexOf("import './landscape-combat.css'"));
+  }
+});
+test('game and deck modes share a clipped viewport and independently scrolling active panel',()=>{
+  assert.match(app,/data-game-viewport="landscape"/);
+  assert.match(app,/<div className="screen-content" id="card-duel-screen" ref=\{screenScrollRef\}>/);
+  assert.match(shell,/\.lobby-main,\.game-main\{[^}]*display:flex;flex-direction:column/);
+  assert.match(shell,/height:100vh;height:100dvh/);
+  assert.match(shell,/\.game-main>\.screen-content\{overflow:hidden\}/);
+  assert.match(shell,/overscroll-behavior:contain/);
+});
+test('game menu is before save slots and in-page deck workspace, not behind them',()=>{
+  const menu=app.indexOf('aria-label="게임 메뉴"');
+  assert.ok(menu>0&&menu<app.indexOf('aria-label="로컬 저장 슬롯"'));
+  assert.ok(menu<app.indexOf('lobbyView===\'play\'?<div className=\"play-hub\"'));
+  assert.match(shell,/\.lobby-tabs\[aria-label="게임 메뉴"\]\{[^}]*position:sticky/);
+});
+test('short mobile landscape overrides the 540px theme minimum with fluid playable height',()=>{
+  assert.match(shell,/\.game-main \.battle\.phase-playing \.battle-arena\.classic-table/);
+  assert.match(shell,/flex:1 1 0%;height:auto;min-height:0;max-height:none/);
+  assert.match(shell,/grid-template-rows:clamp\(6px,2dvh,12px\) var\(--landscape-hero-h\)/);
+  assert.match(shell,/\.arena-right \.turn-control \.end-turn\{min-height:44px\}/);
+});
+test('portrait guide offers manual rotation and fullscreen only through direct input',()=>{
+  assert.match(component,/className="rotate-device-message" role="dialog"/);
+  assert.match(shell,/@media \(pointer:coarse\) and \(orientation:portrait\)/);
+  assert.match(component,/onClick=\{\(\)=>void requestLandscape\(\)\}/);
+  assert.match(component,/requestFullscreen\(\)/);
+  assert.match(component,/orientation\.lock\('landscape'\)/);
+  assert.match(component,/자동 화면 회전이 제한되어 있어요/);
+});
+test('battle, deck maker and card catalog are actual switched game screens',()=>{
+  assert.match(app,/useState<'play'\|'decks'\|'catalog'>\('play'\)/);
+  assert.match(app,/aria-label="게임 메뉴"[^\n]*>.*카드 도감<\/button><\/nav>/);
+  assert.match(app,/lobbyView==='catalog'\?<CardBrowser\/>/);
+  assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks'\)\}/);
+  assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
+});
+test('tapping an unplayable hand card expands its text without committing a card action',()=>{
+  const battle=load('Battle.tsx'),pieces=load('battle-pieces.tsx');
+  assert.match(battle,/const \[peekCardId,setPeekCardId\]=useState<string\|null>\(null\)/);
+  assert.match(battle,/onBlocked=\{\(\)=>setPeekCardId\(previous=>previous===c\.instanceId\?null:c\.instanceId\)\}/);
+  assert.match(battle,/onClick=\{keyboard=>\{setPeekCardId\(null\);const next=selectHandCard/);
+  assert.match(battle,/useEffect\(\(\)=>setPeekCardId\(null\),\[room\.code,s\?\.revision\]\)/);
+  assert.match(pieces,/previewOpen\?' is-preview-expanded'/);
+  assert.match(pieces,/aria-expanded=\{previewOpen\|\|Boolean\(sourceId\?\.startsWith\('card:'\)&&selected\)\|\|undefined\}/);
+  assert.match(shell,/\.hand-card-slot:has\(>\.battle-card\.is-preview-expanded\)>\.battle-card \.card-copy/);
+});
+test('lobby is a two-column hub with isolated safe scrolling and deck/catalog as alternate screens',()=>{
+  assert.match(app,/lobbyView==='play'\?<div className="play-hub"><div className="play-support">/);
+  assert.match(app,/<\/div><\/div><PlayLobby deck=/);
+  assert.match(app,/showPractice=\{!standalone\|\|offlineMode==='developer'\}\/><\/div>:lobbyView==='catalog'/);
+  assert.match(shell,/\.lobby-main \.play-hub\{[^}]*grid-template-columns:minmax\(0,35%\) minmax\(0,1fr\)/);
+  assert.match(shell,/\.lobby-main \.play-hub>\.play-support,[\s\S]*overflow-y:auto/);
+});
+test('landscape rail wins over the classic desktop absolute layout at wider mobile viewports',()=>{
+  assert.match(shell,/\.battle\.phase-playing \.battle-arena\.classic-table>\.arena-field,[\s\S]*position:relative;inset:auto;grid-column:1;grid-row:1/);
+  assert.match(shell,/\.battle\.phase-playing \.battle-arena\.classic-table>\.arena-right,[\s\S]*position:relative;inset:auto;grid-column:2;grid-row:1/);
+  assert.match(shell,/\.arena-right>\.resource-block\{[^}]*display:flex/);
+  assert.match(shell,/\.arena-right \.mana-display,[\s\S]*position:relative;top:auto;bottom:auto/);
+  assert.match(shell,/\.arena-right>\.turn-control\{[^}]*position:relative;top:auto;bottom:auto/);
+});

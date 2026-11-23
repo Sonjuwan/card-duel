@@ -1,4 +1,5 @@
 import type { Card } from '../../../packages/engine/src/index.ts';
+import { maxCardCopies } from '../../../packages/engine/src/index.ts';
 import { HISTORICAL_BASIC, HISTORICAL_ORIGINAL } from './card-set-data.ts';
 import { displayCardName } from './card-names.ts';
 export type CardSet='basic'|'original'|'token';
@@ -16,4 +17,9 @@ export function cardSetLabel(card:Card){return cardSet(card)==='basic'?'기본 �
 const cardNameCollator=new Intl.Collator('ko',{numeric:true,sensitivity:'base'});
 export function sortCardsForDisplay<T extends Card>(cards:readonly T[],classicNames=true):T[]{
   return [...cards].sort((a,b)=>a.cost-b.cost||cardNameCollator.compare(displayCardName(a,classicNames),displayCardName(b,classicNames))||a.id.localeCompare(b.id));
+}
+export function deckAddReason(card:Card,deckSize:number,copies:number):string|undefined{
+  const limit=maxCardCopies(card);
+  if(copies>=limit)return `동일 카드 최대 ${limit}장`;
+  if(deckSize>=30)return '덱이 30장으로 찼습니다.';
 }

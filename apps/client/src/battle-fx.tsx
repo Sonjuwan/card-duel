@@ -4,9 +4,13 @@ import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/ind
 import { BattleCard } from './battle-pieces.tsx';
 import { LocalCardBack } from './local-art.tsx';
 import type { PlaybackCue } from './battle-playback.ts';
-import { animationTheme, FX_COLORS, impactChanges } from './battle-fx-model.ts';
-import type { FxTheme, FxImpact } from './battle-fx-model.ts';
-import { playBattleSound } from './battle-sound.ts';
+import { animationTheme, FX_COLORS, impactChanges, impactFeedback, defenseImpactLabel, fxRenderBudget,fxFramePressure,fxAutoAdaptation,fxCanvasGeometryChanged,fxNeedsCanvasAnimation,departureVisual,departureSoundKind,summonVisuals,projectedSummonX,clipBoardFxAnchor,offscreenFxMarkers,fxEdgeMarkerBounds,fxEdgeMarkerLabel,createImpactLabelCache,createParticleCache,fxRandom } from './battle-fx-model.ts';
+import type { FxTheme,FxLabel,FxAnchor,FxEdgeMarker } from './battle-fx-model.ts';
+import { playBattleSound,playBattleDepartureSound } from './battle-sound.ts';
+import {playBattleHaptic} from './battle-haptics.ts';
+import {battleFxQuality} from './battle-fx-quality.ts';
+import {prepareFxGhost} from './battle-fx-ghost.ts';
+import {paintBurstParticles} from './battle-fx-particles.ts';
 
 type Point={x:number;y:number};
 const clamp=(n:number)=>Math.max(0,Math.min(1,n));
@@ -25,26 +29,14 @@ function radial(ctx:CanvasRenderingContext2D,p:Point,r:number,colors:readonly st
 function ring(ctx:CanvasRenderingContext2D,p:Point,r:number,color:string,opacity:number,width=3,flatten=1){
   ctx.save();ctx.globalAlpha=opacity;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.ellipse(p.x,p.y,Math.max(1,r),Math.max(1,r*flatten),0,0,Math.PI*2);ctx.stroke();ctx.restore();
 }
-function random(seed:number){const n=Math.sin(seed*127.1+311.7)*43758.5453;return n-Math.floor(n);}
 /** Original canvas particles: deterministic radii keep frames smooth and the
  * same cue evokes the same impact for both players, mirrored by their seats. */
-function burst(ctx:CanvasRenderingContext2D,p:Point,t:number,theme:FxTheme,scale=1,seed=0){
+function burst(ctx:CanvasRenderingContext2D,p:Point,t:number,theme:FxTheme,scale:number,seed:number,density:number,particlesFor:ReturnType<typeof createParticleCache>){
   const colors=FX_COLORS[theme],u=clamp(t),alpha=1-u;
   radial(ctx,p,(34+90*u)*scale,colors,alpha*(u<.15?1:.65));
   ring(ctx,p,(15+105*u)*scale,colors[1],alpha*.85,Math.max(1,6-5*u),theme==='dust' ? .45 : 1);
   if(theme==='steel'||theme==='lightning'||theme==='ice')ring(ctx,p,(7+80*u)*scale,colors[0],alpha*.8,2);
-  for(let i=0;i<(scale>1.3?28:19);i++){
-    const angle=random(seed+i*3)*Math.PI*2,velocity=(.45+random(seed+i*3+1))*scale;
-    const r=(12+125*u)*velocity,x=p.x+Math.cos(angle)*r,y=p.y+Math.sin(angle)*r+(theme==='dust'?u*u*25:theme==='fire'?-u*u*35:0);
-    const size=(2+5*random(seed+i*3+2))*scale*(1-u*.72);
-    ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=colors[i%3];ctx.strokeStyle=colors[i%3];ctx.lineWidth=Math.max(1,size*.5);
-    if(theme==='steel'||theme==='ice'||theme==='lightning'){
-      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-Math.cos(angle)*size*3,y-Math.sin(angle)*size*3);ctx.stroke();
-    }else if(theme==='nature'){
-      ctx.translate(x,y);ctx.rotate(angle+u*2);ctx.beginPath();ctx.ellipse(0,0,size*1.6,size*.65,0,0,Math.PI*2);ctx.fill();
-    }else {ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);ctx.fill();}
-    ctx.restore();
-  }
+  paintBurstParticles(ctx,p,u,theme,scale,seed,density,particlesFor);
   if(theme==='steel'&&u<.48){
     ctx.save();ctx.globalAlpha=(1-u/.48)*.85;ctx.strokeStyle='#fff5d2';ctx.lineWidth=6*(1-u)+1;
     ctx.beginPath();ctx.moveTo(p.x-48*scale,p.y+38*scale);ctx.quadraticCurveTo(p.x+3*scale,p.y-8*scale,p.x+52*scale,p.y-38*scale);ctx.stroke();ctx.restore();
@@ -72,33 +64,44 @@ function burst(ctx:CanvasRenderingContext2D,p:Point,t:number,theme:FxTheme,scale
     ring(ctx,p,(17+78*u)*scale,colors[0],alpha*.65,4,.65);
   }
 }
-function bolt(ctx:CanvasRenderingContext2D,from:Point,to:Point,t:number,theme:FxTheme,heavy:boolean){
+function bolt(ctx:CanvasRenderingContext2D,from:Point,to:Point,t:number,theme:FxTheme,heavy:boolean,density=1){
   const colors=FX_COLORS[theme],p=point(from,to,t),radius=heavy?28:17;
   if(theme==='lightning'){
     ctx.save();ctx.strokeStyle=colors[1];ctx.lineWidth=heavy?9:5;ctx.shadowBlur=17;ctx.shadowColor=colors[0];ctx.beginPath();ctx.moveTo(from.x,from.y);
-    for(let i=1;i<8;i++){const q=point(from,p,i/8);ctx.lineTo(q.x+(random(i+Math.floor(t*12))*2-1)*15,q.y+(random(i+20)-.5)*18);}
+    for(let i=1;i<8;i++){const q=point(from,p,i/8);ctx.lineTo(q.x+(fxRandom(i+Math.floor(t*12))*2-1)*15,q.y+(fxRandom(i+20)-.5)*18);}
     ctx.lineTo(p.x,p.y);ctx.stroke();ctx.lineWidth=2;ctx.strokeStyle=colors[0];ctx.stroke();ctx.restore();
   }else{
-    for(let i=1;i<=10;i++){const q=point(from,to,Math.max(0,t-i*.024));radial(ctx,q,radius*(1-i/14),colors,(11-i)/18);}
+    for(let i=1;i<=Math.round(10*density);i++){const q=point(from,to,Math.max(0,t-i*.024));radial(ctx,q,radius*(1-i/14),colors,(11-i)/18);}
     radial(ctx,p,radius*1.5,colors,.9);radial(ctx,p,radius*.43,colors,1);
     if(theme==='ice'){
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(t*4);ctx.strokeStyle=colors[0];ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*radius,Math.sin(a)*radius);}ctx.stroke();ctx.restore();
     }
   }
 }
-function damageNumber(ctx:CanvasRenderingContext2D,p:Point,value:number,kind:'damage'|'heal',t:number){
-  const u=clamp(t),scale=Math.min(1.15,.7+u*2);ctx.save();ctx.globalAlpha=u>.65?(1-u)/.35:1;ctx.translate(p.x,p.y-15-u*30);ctx.scale(scale,scale);
-  ctx.font='1000 39px Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='#2b160e';ctx.lineWidth=7;ctx.lineJoin='round';
-  const v=(kind==='damage'?'−':'+')+value;ctx.strokeText(v,0,0);ctx.fillStyle=kind==='damage'?'#fff0aa':'#aaffac';ctx.fillText(v,0,0);ctx.restore();
+function drawImpactLabel(ctx:CanvasRenderingContext2D,label:FxLabel,t:number,reduced=false){
+  const u=clamp(t),numeric=label.kind==='damage'||label.kind==='heal',scale=reduced||!numeric?1:Math.min(1,.8+u*1.2);ctx.save();ctx.globalAlpha=u>.65?(1-u)/.35:1;ctx.translate(label.x,label.y-(reduced?0:label.floatUp*u));ctx.scale(scale,scale);
+  ctx.font=`${numeric?1000:800} ${label.fontSize}px system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='#241a0f';ctx.lineWidth=Math.min(6,Math.max(2,label.fontSize*.15));ctx.lineJoin='round';ctx.fillStyle=label.kind==='heal'?'#aaffac':label.kind==='damage'?'#fff0aa':label.kind==='repeat'?'#f9db8c':'#ffe6a0';
+  ctx.strokeText(label.text,0,0,label.maxWidth);ctx.fillText(label.text,0,0,label.maxWidth);ctx.restore();
+}
+function drawEdgeMarker(ctx:CanvasRenderingContext2D,marker:FxEdgeMarker,t:number,width:number,height:number,seat:PlayerId){
+  const {w,h,x,y}=fxEdgeMarkerBounds(marker,width,height);
+  ctx.save();ctx.globalAlpha=t>.65?(1-t)/.35:1;ctx.fillStyle='#241a0f';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#f9df97';ctx.lineWidth=1.5;ctx.strokeRect(x+.75,y+.75,Math.max(0,w-1.5),Math.max(0,h-1.5));ctx.fillStyle='#fff0b6';ctx.font='800 12px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(fxEdgeMarkerLabel(marker,seat),x+w/2,y+h/2,Math.max(1,w-8));ctx.restore();
 }
 export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arenaRef:RefObject<HTMLDivElement|null>;catalog:Catalog}){
   const canvas=useRef<HTMLCanvasElement>(null),cardReveal=useRef<HTMLDivElement>(null);
+  const adaptiveUntil=useRef(0);
   const card=cue?.animation.cardId?catalog[cue.animation.cardId]:undefined;
   useEffect(()=>{
     const arena=arenaRef.current,layer=canvas.current;
-    if(!cue||!arena||!layer||!cue.before.state||!cue.after.state)return;
+    if(!cue||!arena||!layer||!cue.before.state||!cue.after.state||document.hidden)return;
     const a=cue.animation,seat=cue.before.seat,side=a.actor===seat?'self':'enemy',rect=arena.getBoundingClientRect();
-    const center=(el?:Element|null):Point|undefined=>{if(!el)return;const b=el.getBoundingClientRect();return{x:b.left+b.width/2-rect.left,y:b.top+b.height/2-rect.top};};
+    const local=(p:FxAnchor|undefined):FxAnchor|undefined=>p?{...p,x:p.x-rect.left,y:p.y-rect.top}:undefined;
+    const scrollClips=(row:HTMLElement)=>row.scrollWidth>row.clientWidth+1&&['auto','scroll','hidden','clip'].includes(getComputedStyle(row).overflowX);
+    const center=(el?:Element|null):FxAnchor|undefined=>{
+      if(!el)return;const b=el.getBoundingClientRect(),clip=el.closest<HTMLElement>('.minion-row');
+      if(clip&&el!==clip&&scrollClips(clip))return local(clipBoardFxAnchor(b,clip.getBoundingClientRect()));
+      return {x:b.left+b.width/2-rect.left,y:b.top+b.height/2-rect.top,fullyVisible:true};
+    };
     const row=arena.querySelector(side==='self'?'.friendly-minions':'.enemy-board .minion-row');
     const boardCenter=center(row)??{x:rect.width*.5,y:rect.height*.5};
     const heroTarget:Target={kind:'hero',player:a.actor};
@@ -109,34 +112,59 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const from=center(caster)??boardCenter;
     const intended=a.target?center(elementFor(arena,a.target,seat)):undefined;
     const impacts=impactChanges(cue.before.state,cue.after.state,seat,a.events);
-    const positions=new Map<string,Point>();
-    for(const impact of impacts){const p=center(elementFor(arena,impact.target,seat));if(p)positions.set(targetKey(impact.target),p);}
+    const summons=summonVisuals(cue.before.state,cue.after.state,seat,catalog);
+    const summonPosition=(id:string):FxAnchor|undefined=>{
+      const visual=summons.get(id);if(!visual)return undefined;
+      const target:Target={kind:'minion',instanceId:id},visible=center(elementFor(arena,target,seat));if(visible)return visible;
+      const boardRow=arena.querySelector<HTMLElement>(visual.side===seat?'.friendly-minions':'.enemy-board .minion-row'),middle=center(boardRow);
+      if(!boardRow||!middle)return;const b=boardRow.getBoundingClientRect();
+      if(scrollClips(boardRow)){const width=Math.max(b.width,boardRow.scrollWidth),x=projectedSummonX(b.left-boardRow.scrollLeft+width/2,width,visual.index,visual.count);return local(clipBoardFxAnchor({left:x-.5,right:x+.5,top:b.top,bottom:b.bottom},b));}
+      return {x:projectedSummonX(middle.x,b.width,visual.index,visual.count),y:middle.y,fullyVisible:true};
+    };
+    const positions=new Map<string,FxAnchor>(),fallbacks=new Map<string,FxAnchor>(),unresolved=new Map<string,Target>();
+    for(const impact of impacts){
+      const id=targetKey(impact.target);if(positions.has(id)||unresolved.has(id))continue;
+      const p=center(elementFor(arena,impact.target,seat));if(p)positions.set(id,p);
+      else{unresolved.set(id,impact.target);const projected=impact.target.kind==='minion'?summonPosition(impact.target.instanceId):undefined;if(projected)fallbacks.set(id,projected);}
+    }
+    const impactPosition=(target:Target)=>positions.get(targetKey(target))??fallbacks.get(targetKey(target));
+    // Newly summoned elements appear only after the accepted snapshot reaches
+    // React. Bound retries so transient/dead-in-one-action targets never cause
+    // repeated DOM queries during the full animation.
+    let positionRetries=0,markersDirty=true,cachedMarkers:FxEdgeMarker[]=[];
+    const resolveNewPositions=()=>{
+      if(!unresolved.size||positionRetries>=6)return;positionRetries++;
+      const minions=new Map([...arena.querySelectorAll<HTMLElement>('[data-preview-minion]')].map(el=>[el.dataset.previewMinion,el]));
+      for(const [id,target] of unresolved){const p=center(target.kind==='minion'?minions.get(target.instanceId):elementFor(arena,target,seat));if(p){positions.set(id,p);unresolved.delete(id);markersDirty=true;}}
+    };
+    const labelForFrame=createImpactLabelCache(impacts,rect.width,rect.height),particlesFor=createParticleCache();
     const afterBoard=a.actor===seat?cue.after.state.self.board:cue.after.state.opponent.board;
     const beforeBoard=a.actor===seat?cue.before.state.self.board:cue.before.state.opponent.board;
     const summoned=afterBoard.find(m=>!beforeBoard.some(n=>n.instanceId===m.instanceId)&&m.cardId===a.cardId);
     let destination=boardCenter;
     if(summoned&&row){
       const index=afterBoard.indexOf(summoned),gap=side==='self'?row.querySelectorAll('.position-slot')[index]:undefined;
-      destination=center(gap)??{x:boardCenter.x+(index-(afterBoard.length-1)/2)*Math.min(125,row.getBoundingClientRect().width/Math.max(1,afterBoard.length)),y:boardCenter.y};
+      destination=center(gap)??summonPosition(summoned.instanceId)??boardCenter;
     }
-    const hit=impacts.find(i=>i.side!==a.actor&&(i.kind==='damage'||i.kind==='leave'||i.kind==='shield'));
+    const hit=impacts.find(i=>i.side!==a.actor&&(i.kind==='damage'||i.kind==='armorHit'||i.kind==='leave'||i.kind==='shield'));
     const hitPoint=hit?positions.get(targetKey(hit.target)):undefined;
-    const to=attack?(intended??hitPoint??boardCenter):a.kind==='summon'?destination:intended??hitPoint??(a.kind==='weapon'||a.kind==='coin'||a.kind==='secret'?from:boardCenter);
-    const affected=[...new Map(impacts.filter(i=>i.kind==='damage'||i.kind==='heal'||i.kind==='freeze'||i.kind==='leave').flatMap(i=>{
-      const p=positions.get(targetKey(i.target));return p?[[targetKey(i.target),p] as const]:[];
+    const protection=impacts.find(i=>i.kind==='armorGain'||i.kind==='shieldGain'),protectionPoint=protection?positions.get(targetKey(protection.target)):undefined;
+    const to=attack?(intended??hitPoint??boardCenter):a.kind==='summon'?destination:intended??hitPoint??protectionPoint??(a.kind==='weapon'||a.kind==='coin'||a.kind==='secret'?from:boardCenter);
+    const affected=[...new Map(impacts.filter(i=>i.kind==='damage'||i.kind==='heal'||i.kind==='freeze'||i.kind==='leave'||!!defenseImpactLabel(i)).flatMap(i=>{
+      const p=positions.get(targetKey(i.target));return p&&!p.edge?[[targetKey(i.target),p] as const]:[];
     })).values()];
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animations:Animation[]=[],timeouts:ReturnType<typeof setTimeout>[]=[],ghosts:HTMLElement[]=[];
-    const departures=impacts.filter(i=>i.kind==='leave').flatMap(i=>{
+    const departures=reduced?[]:impacts.filter(i=>i.kind==='leave').flatMap(i=>{
       const el=elementFor(arena,i.target,seat);
-      return el?[{ghost:el.cloneNode(true) as HTMLElement,box:el.getBoundingClientRect(),death:i.death!==false,isAttacker:i.target.kind==='minion'&&i.target.instanceId===a.attackerId}]:[];
+      return el&&typeof el.animate==='function'&&center(el)?.fullyVisible?[{ghost:el.cloneNode(true) as HTMLElement,box:el.getBoundingClientRect(),death:departureVisual(i)==='death',isAttacker:i.target.kind==='minion'&&i.target.instanceId===a.attackerId}]:[];
     });
-    if(attack&&caster&&!reduced&&typeof caster.animate==='function'){
+    if(attack&&caster&&center(caster)?.fullyVisible&&!reduced&&typeof caster.animate==='function'){
       const dx=to.x-from.x,dy=to.y-from.y,at=cue.impact/cue.duration,reach=a.blocked ? .60 : .91;
       const box=caster.getBoundingClientRect(),ghost=caster.cloneNode(true) as HTMLElement;
       ghost.removeAttribute('data-preview-minion');ghost.removeAttribute('data-preview-card');ghost.removeAttribute('data-action-source');
       ghost.classList.add('fx-actor');ghost.classList.remove('is-ready','is-targeted','is-selected','is-hit','is-entering');
-      ghost.tabIndex=-1;ghost.setAttribute('aria-hidden','true');layer.parentElement?.append(ghost);ghosts.push(ghost);
+      prepareFxGhost(ghost);layer.parentElement?.append(ghost);ghosts.push(ghost);
       const geometry={left:`${box.left-rect.left}px`,top:`${box.top-rect.top}px`,width:`${box.width}px`,height:`${box.height}px`};
       const dies=a.attackerId&&impacts.some(i=>i.kind==='leave'&&i.target.kind==='minion'&&i.target.instanceId===a.attackerId);
       animations.push(caster.animate([{opacity:0},{opacity:0}],{duration:cue.duration,fill:'none'}));
@@ -161,23 +189,53 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
         {opacity:0,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.2)`,offset:1},
       ],{duration:cue.duration,fill:'both'}));
     }
-    const dpr=Math.min(devicePixelRatio||1,2);layer.width=Math.max(1,Math.round(rect.width*dpr));layer.height=Math.max(1,Math.round(rect.height*dpr));
-    const ctx=layer.getContext('2d');if(ctx)ctx.scale(dpr,dpr);
-    let frame=0,impacted=false,leftSound=false;
-    const start=performance.now();
+    const quality=battleFxQuality(),held=fxAutoAdaptation(adaptiveUntil.current,performance.now(),0,quality,reduced);adaptiveUntil.current=held.until;
+    const budget=fxRenderBudget(rect.width,rect.height,globalThis.devicePixelRatio||1,globalThis.navigator?.hardwareConcurrency,reduced,held.active?'economy':quality),dpr=budget.dpr;
+    // Ordinary turn/choice transitions have no canvas visuals. Do not allocate
+    // a high-resolution backing buffer or repaint for the whole cue; the
+    // accepted impact audio still fires through the independent timer below.
+    let ctx:CanvasRenderingContext2D|null=null;
+    if(fxNeedsCanvasAnimation(a,impacts)){
+      layer.width=Math.max(1,Math.floor(rect.width*dpr));layer.height=Math.max(1,Math.floor(rect.height*dpr));
+      try{ctx=layer.getContext('2d');ctx?.scale(dpr,dpr);}catch{ctx=null;}
+    }
+    let frame=0,impacted=false,lastPaint=-Infinity,lastFrame=0,slowFrames=0,adapted=held.active,spatialInvalid=false,canvasInvalid=false,geometryDirty=false;
+    const cancelSpatialMotion=()=>{
+      if(spatialInvalid)return;spatialInvalid=true;
+      for(const animation of animations)animation.cancel();animations.length=0;
+      for(const ghost of ghosts)ghost.remove();ghosts.length=0;
+      if(reveal)reveal.style.visibility='hidden';
+    };
+    const rows=[...arena.querySelectorAll<HTMLElement>('.minion-row')];
+    const onBoardScroll=()=>{cancelSpatialMotion();geometryDirty=true;};
+    const onResize=()=>{const now=arena.getBoundingClientRect();if(fxCanvasGeometryChanged(rect.width,rect.height,now.width,now.height)){canvasInvalid=true;cancelSpatialMotion();ctx?.clearRect(0,0,rect.width,rect.height);}};
+    const refreshScrolledAnchors=()=>{
+      if(!geometryDirty)return;geometryDirty=false;markersDirty=true;
+      // Never re-use a departed unit's stale screen position after panning.
+      // Live units and newly summoned projections are re-measured at most once
+      // per painted frame; exact departed-unit results stay in history.
+      const checked=new Set<string>();
+      for(const event of impacts){const id=targetKey(event.target);if(checked.has(id))continue;checked.add(id);const p=center(elementFor(arena,event.target,seat));
+        if(p){positions.set(id,p);fallbacks.delete(id);unresolved.delete(id);}
+        else{positions.delete(id);const projected=event.target.kind==='minion'?summonPosition(event.target.instanceId):undefined;if(projected)fallbacks.set(id,projected);else fallbacks.delete(id);}
+      }
+    };
+    for(const boardRow of rows)boardRow.addEventListener('scroll',onBoardScroll,{passive:true});
+    window.addEventListener('resize',onResize);
+    const resizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(onResize):undefined;resizeObserver?.observe(arena);
+    const start=performance.now(),feedback=impactFeedback(a,impacts);
     playBattleSound(a,theme,'start');
     const impact=()=>{
-      if(impacted)return;impacted=true;playBattleSound(a,theme,'impact');
-      const violent=attack||impacts.some(i=>i.kind==='damage'||i.kind==='leave');
-      if(violent&&!reduced&&typeof arena.animate==='function'){
-        const strength=a.heavy||a.kind==='heroAttack'?9:5;
+      if(impacted||document.hidden)return;impacted=true;playBattleSound(a,theme,'impact',feedback);playBattleHaptic(a,feedback,seat);
+      if(feedback.shake>0&&!reduced&&!spatialInvalid&&typeof arena.animate==='function'){
+        const strength=feedback.shake;
         animations.push(arena.animate([{transform:'translate(0,0)'},{transform:`translate(${-strength}px,${strength*.55}px)`},{transform:`translate(${strength}px,${-strength*.4}px)`},{transform:`translate(${-strength*.5}px,0)`},{transform:'translate(0,0)'}],{duration:310,easing:'ease-out'}));
       }
-      if(departures.some(d=>d.death))timeouts.push(setTimeout(()=>{if(!leftSound){leftSound=true;playBattleSound(a,theme,'leave');}},120));
-      if(!reduced&&layer.parentElement)for(const {ghost,box,death,isAttacker} of departures){
+      playBattleDepartureSound(departureSoundKind(impacts));
+      if(!reduced&&!spatialInvalid&&layer.parentElement)for(const {ghost,box,death,isAttacker} of departures){
         if(isAttacker)continue;
         ghost.removeAttribute('data-preview-minion');ghost.removeAttribute('data-preview-card');ghost.removeAttribute('data-action-source');
-        ghost.tabIndex=-1;ghost.setAttribute('aria-hidden','true');ghost.classList.add('fx-departure');ghost.classList.remove('is-ready','is-targeted','is-selected');
+        prepareFxGhost(ghost);ghost.classList.add('fx-departure');ghost.classList.remove('is-ready','is-targeted','is-selected');
         layer.parentElement.append(ghost);ghosts.push(ghost);
         if(typeof ghost.animate==='function'){
           const geometry={left:`${box.left-rect.left}px`,top:`${box.top-rect.top}px`,width:`${box.width}px`,height:`${box.height}px`};
@@ -190,11 +248,15 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
       }
     };
     const paint=(now:number)=>{
+      if(document.hidden||canvasInvalid)return;
+      if(quality==='auto'&&!reduced&&lastFrame>0){slowFrames=fxFramePressure(slowFrames,now-lastFrame);if(slowFrames>=3){adaptiveUntil.current=fxAutoAdaptation(adaptiveUntil.current,now,slowFrames,quality,reduced).until;if(!adapted){adapted=true;budget.particleDensity*=.6;budget.frameInterval=Math.max(budget.frameInterval,1000/30);}}}
+      lastFrame=now;
       const elapsed=now-start,p=clamp(elapsed/cue.impact),u=clamp((elapsed-cue.impact)/Math.max(1,cue.duration-cue.impact));
       if(elapsed>=cue.impact)impact();
-      if(ctx){
+      if(ctx&&(now-lastPaint>=budget.frameInterval-1||elapsed>=cue.duration)){lastPaint=now;
+        refreshScrolledAnchors();
         ctx.clearRect(0,0,rect.width,rect.height);
-        if(!reduced&&elapsed<cue.impact){
+        if(!reduced&&!spatialInvalid&&elapsed<cue.impact){
           if(a.kind==='spell'||a.kind==='power'){
             radial(ctx,from,28+20*p,FX_COLORS[theme],.5*(1-p));
             const travel=clamp((p-.24)/.76);
@@ -203,35 +265,41 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
               ring(ctx,middle,35+120*travel,FX_COLORS[theme][1],travel*.8,4,.58);
               for(const q of affected)radial(ctx,q,12+35*travel,FX_COLORS[theme],travel*.7);
             }else if(travel>0){
-              if(affected.length>1)for(const q of affected)bolt(ctx,from,q,travel,theme,!!a.heavy);
-              else bolt(ctx,from,to,travel,theme,!!a.heavy);
+              if(affected.length>1)for(const q of affected)bolt(ctx,from,q,travel,theme,!!a.heavy,budget.particleDensity);
+              else bolt(ctx,from,to,travel,theme,!!a.heavy,budget.particleDensity);
             }
-          }else if(attack&&p>.65)bolt(ctx,point(from,to,p-.16),to,clamp((p-.65)/.35),'steel',false);
-          else if(a.kind==='summon')ring(ctx,destination,20+45*p,FX_COLORS.dust[1],p*.65,2,.38);
+          }else if(attack&&p>.65)bolt(ctx,point(from,to,p-.16),to,clamp((p-.65)/.35),'steel',false,budget.particleDensity);
+          else if(a.kind==='summon'){ring(ctx,destination,20+45*p,FX_COLORS[theme][1],p*.65,2,.38);radial(ctx,destination,12+25*p,FX_COLORS[theme],p*.32);}
         }
         if(elapsed>=cue.impact){
-          if(!reduced&&a.kind!=='turn'&&a.kind!=='choice')burst(ctx,to,u,a.blocked?'gold':theme,a.heavy?1.65:1.0,a.revision);
+          resolveNewPositions();
+          if(!reduced&&!spatialInvalid&&a.kind!=='turn'&&a.kind!=='choice')burst(ctx,to,u,a.blocked||feedback.kind==='armor'?'gold':theme,a.heavy&&feedback.kind!=='armor'?1.65:1.0,a.revision,budget.particleDensity,particlesFor);
           for(const [i,event] of impacts.entries()){
-            const pt=positions.get(targetKey(event.target))??center(elementFor(arena,event.target,seat))??(event.kind==='summon'?destination:undefined);
-            if(!pt)continue;
-            const col:FxTheme=event.kind==='heal'?'nature':event.kind==='freeze'?'ice':event.kind==='shield'?'gold':event.kind==='leave'?'dust':theme;
-            if(!reduced&&Math.hypot(pt.x-to.x,pt.y-to.y)>20)burst(ctx,pt,u,col,event.kind==='leave'?1.15:.72,a.revision+i*11);
-            if(!reduced&&event.kind==='leave')radial(ctx,pt,40+45*u,FX_COLORS.dust,(1-u)*.6);
-            if(event.kind==='damage'||event.kind==='heal')damageNumber(ctx,{...pt,y:pt.y+(event.kind==='heal'&&impacts.some(i=>i.kind==='damage'&&targetKey(i.target)===targetKey(event.target))?42:0)},event.amount??0,event.kind,u);
+            const summon=event.kind==='summon'&&event.target.kind==='minion'?summons.get(event.target.instanceId):undefined;
+            const pt=impactPosition(event.target);
+            if(!pt||pt.edge)continue;
+            const label=defenseImpactLabel(event),col:FxTheme=summon?.theme??(event.kind==='heal'?'nature':event.kind==='freeze'?'ice':label?'gold':event.kind==='leave'?(departureVisual(event)==='death'?'dust':'arcane'):theme);
+            if(!reduced&&(spatialInvalid||Math.hypot(pt.x-to.x,pt.y-to.y)>20))burst(ctx,pt,u,col,event.kind==='leave'?1.15:.72,a.revision+i*11,budget.particleDensity,particlesFor);
+            if(!reduced&&summon)ring(ctx,pt,20+38*u,FX_COLORS[col][1],(1-u)*.75,2,.42);
+            if(!reduced&&event.kind==='leave'){const colors=FX_COLORS[departureVisual(event)==='death'?'dust':'arcane'];radial(ctx,pt,40+45*u,colors,(1-u)*.6);}
+            if(label&&!reduced)ring(ctx,pt,25+35*u,FX_COLORS.gold[1],(1-u)*.9,3);
           }
+          for(const label of labelForFrame(target=>{const p=impactPosition(target);return p?.edge?undefined:p;}))drawImpactLabel(ctx,label,u,reduced);
+          if(markersDirty){cachedMarkers=offscreenFxMarkers(impacts,impactPosition);markersDirty=false;}
+          for(const marker of cachedMarkers)drawEdgeMarker(ctx,marker,u,rect.width,rect.height,seat);
           if(a.blocked||a.events?.some(e=>e.kind==='secretTriggered')){
             ctx.save();ctx.globalAlpha=1-u;ctx.font='900 25px system-ui,sans-serif';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#25112c';ctx.fillStyle='#f4c2ff';
-            const label=a.events?.some(e=>e.kind==='secretTriggered')?'비밀 발동!':'공격 차단';ctx.strokeText(label,to.x,to.y-70);ctx.fillText(label,to.x,to.y-70);ctx.restore();
+            const label=a.events?.some(e=>e.kind==='secretTriggered')?'비밀 발동!':'공격 차단',p=spatialInvalid?boardCenter:to;ctx.strokeText(label,p.x,p.y-70);ctx.fillText(label,p.x,p.y-70);ctx.restore();
           }
         }
       }
       if(elapsed<cue.duration)frame=requestAnimationFrame(paint);
       else {if(!impacted)impact();ctx?.clearRect(0,0,rect.width,rect.height);}
     };
-    frame=requestAnimationFrame(paint);
+    if(ctx)frame=requestAnimationFrame(paint);
     timeouts.push(setTimeout(impact,cue.impact));
-    return()=>{cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();ctx?.clearRect(0,0,rect.width,rect.height);};
-  },[cue,arenaRef,card]);
+    return()=>{cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
+  },[cue,arenaRef,card,catalog]);
   if(!cue)return null;
   const a=cue.animation,own=a.actor===cue.before.seat,showCard=!!card||a.kind==='secret';
   return <div className="battle-fx-layer" aria-hidden="true" data-fx-kind={a.kind} data-fx-side={own?'own':'enemy'} key={a.revision}>

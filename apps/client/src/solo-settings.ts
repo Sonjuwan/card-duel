@@ -44,3 +44,10 @@ export function recordSoloResult(result:SoloResult,storage=store(),inMemory:Solo
   const updated=[result,...current].slice(0,100);try{storage?.setItem(historyKey,JSON.stringify(updated));}catch{}return updated;
 }
 export function soloStats(results:SoloResult[],hash?:string){const list=hash?results.filter(r=>r.catalogHash===hash):results;const wins=list.filter(r=>r.result==='win').length,losses=list.filter(r=>r.result==='loss').length,draws=list.length-wins-losses;return {games:list.length,wins,losses,draws,winRate:list.length?Math.round((wins+.5*draws)/list.length*100):0};}
+export type SoloHistoryVersion='all'|'current'|'previous';
+export type SoloHistoryOutcome='all'|SoloResult['result'];
+export function soloHistoryPage(history:readonly SoloResult[],hash:string,version:SoloHistoryVersion,outcome:SoloHistoryOutcome,page:number){
+  const filtered=history.filter(r=>(version==='all'||(version==='current'?r.catalogHash===hash:r.catalogHash!==hash))&&(outcome==='all'||r.result===outcome));
+  const pages=Math.max(1,Math.ceil(filtered.length/10)),current=Math.max(0,Math.min(pages-1,Number.isFinite(page)?Math.floor(page):0));
+  return {items:filtered.slice(current*10,(current+1)*10),page:current,pages,stats:soloStats(filtered)};
+}

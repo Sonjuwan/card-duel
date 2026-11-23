@@ -1,13 +1,13 @@
-import { useContext, useEffect, useRef, useState } from 'react';
-import type { DragEvent,PointerEvent,MouseEvent } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { DragEvent,PointerEvent,MouseEvent,KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { BOT_DIFFICULTY_NAMES, cardChoiceReason, heroPowerReason, publicCardCost, publicCardReason, sameTarget } from '../../../packages/engine/src/index.ts';
 import type { Action, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import type { RoomView } from '../../../packages/protocol.ts';
 import { catalog, catalogHash, className } from './data.ts';
 import { formatBattleReport } from './battle-report.ts';
-import { planAttack, planCard, planDrag, planPower, resolveDrop, selectHandCard, selectionCard, targetAction, targetsFor } from './battle-actions.ts';
+import { planAttack, planCard, planDrag, planPower, selectHandCard, selectionCard, repositionSelection, toggleActionSelection, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from './battle-actions.ts';
 import type { DragIntent, DragState, Intent, Selection } from './battle-actions.ts';
-import { BattleCard, BattleMinion, CardInspector, DeckPile, HeroPortrait, HeroPower, HiddenHand, ManaDisplay, Secrets, Sigil, WeaponSlot } from './battle-pieces.tsx';
+import { BattleCard, BattleMinion, CardInspector, DeckPile, HeroPortrait, HeroPower, HiddenHand, ManaDisplay, Secrets, Sigil, TargetPicker, PlacementPicker, targetRowText, WeaponSlot } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
 import { ClassicNamesContext, displayCardName } from './card-names.ts';
 import { fanSlot, deriveTableMotion } from './table-visuals.ts';
@@ -15,59 +15,266 @@ import type { TableMotion } from './table-visuals.ts';
 import { TableDecor } from './table-decor.tsx';
 import type { PlayerView } from '../../../packages/engine/src/index.ts';
 import { HoverPreviewProvider } from './hover-preview.tsx';
-import { useBattlePlayback } from './battle-playback.ts';
+import { useBattlePlayback,freshAcceptedAnimation } from './battle-playback.ts';
 import type { PlaybackCue } from './battle-playback.ts';
 import { BattleEffects } from './battle-fx.tsx';
-import { battleSoundEnabled, setBattleSound } from './battle-sound.ts';
+import { battleSoundEnabled, setBattleSound, resultSoundTransition,playBattleResultSound,playBattleSound,playBattleDepartureSound,stopBattleSound } from './battle-sound.ts';
+import type {ResultSoundState} from './battle-sound.ts';
+import {animationTheme,impactChanges,impactFeedback,departureSoundKind} from './battle-fx-model.ts';
 import {DECK_STYLE_LABELS} from './solo-settings.ts';
 import {rankInfo} from '../../../packages/progression.ts';
-import {intentFromSource,advanceGesture,touchDropLocations} from './touch-gesture.ts';
-import type {TouchGesture,TouchHit} from './touch-gesture.ts';
+import {intentFromSource,advanceGesture,finishGesture,interruptTouch,isCaptureHandoff,canPanBoard,boardEdgePanDelta,nearestVisibleBoardSlot,nearestTouchTarget,pointerDrop,dropFeedbackText} from './touch-gesture.ts';
+import type {TouchGesture,TouchHit,DropFeedback} from './touch-gesture.ts';
+import {useBattleDialogue,DialogueCaptions,EmoteMenu,DialogueSettings,readCaptionMode,writeCaptionMode} from './battle-dialogue-ui.tsx';
+import type {CaptionMode} from './battle-dialogue-ui.tsx';
+import {stopDialogueVoice} from './dialogue-voice.ts';
+import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
+import {ImpactHistory,useImpactHistory} from './battle-impact-history.tsx';
+import {independentActivation} from './hover-timing.ts';
+import {secondsUntilDeadline,watchDeadlineSeconds} from './battle-clock.ts';
+import {landscapeHandPreviewShift,dismissPeekOnHandFocus} from './landscape-hand-preview.ts';
 
-type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;onRematch?:()=>void;onPause?:()=>void;autoSaved?:boolean};
+type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;lastSavedAt?:string};
 export function Battle(props:BattleProps){
   const playback=useBattlePlayback(props.room,props.connected);
   return <HoverPreviewProvider resetKey={`${props.room.code}:${props.room.state?.phase}:${props.connected}:${playback.playing}`} refreshKey={playback.room.state?.revision}><BattleView {...props} room={playback.room} busy={props.busy||playback.playing} cue={playback.cue} playing={playback.playing}/></HoverPreviewProvider>;
 }
-function BattleView({room,send,leave,onRematch,onPause,autoSaved,connected,busy,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean}){
+function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,lastSavedAt,connected,busy,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean}){
   const classicNames=useContext(ClassicNamesContext);
   const [selected,setSelected]=useState<Selection|null>(null);
   const [sound,setSound]=useState(battleSoundEnabled);
-  const toggleSound=()=>{setBattleSound(!sound);setSound(!sound);};
+  const [captionMode,setCaptionMode]=useState(readCaptionMode);
+  const changeCaptionMode=(mode:CaptionMode)=>{writeCaptionMode(mode);setCaptionMode(mode);};
+  const toggleSound=()=>{setBattleSound(!sound);setSound(!sound);if(sound)stopDialogueVoice();};
   const [replace,setReplace]=useState<string[]>([]);
+  const [mulliganInspectId,setMulliganInspectId]=useState<string|null>(null);
+  const [battleToolsOpen,setBattleToolsOpen]=useState(false);
+  const toolsCloseRef=useRef<HTMLButtonElement>(null),toolsReturnRef=useRef<HTMLElement|null>(null);
+  const openBattleTools=()=>{toolsReturnRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setBattleToolsOpen(true);};
+  const closeBattleTools=()=>setBattleToolsOpen(false);
   const [position,setPosition]=useState<number|null>(null);
   const [inspected,setInspected]=useState<Inspectable|null>(null);
+  // A non-actionable board minion still needs a tap-to-read path on a tiny
+  // landscape field. Never convert an available attack/target tap to inspect.
+  const [inspectedOverlay,setInspectedOverlay]=useState<Inspectable|null>(null);
+  const inspectCloseRef=useRef<HTMLButtonElement>(null),inspectReturn=useRef<HTMLElement|null>(null);
+  const inspectBoardMinion=(item:Inspectable)=>{
+    // Inspection is read-only on any layout. Valid attack and target actions always take priority.
+    inspectReturn.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    setInspectedOverlay(item);
+  };
+  const closeBoardInspector=()=>{
+    const returnTo=inspectReturn.current;
+    inspectReturn.current=null;
+    setInspectedOverlay(null);
+    // React clears inert on the underlying field after the overlay unmounts.
+    // Returning focus synchronously would target an inert card on mobile.
+    requestAnimationFrame(()=>{if(returnTo?.isConnected)returnTo.focus();});
+  };
+
+  const [peekCardId,setPeekCardId]=useState<string|null>(null);
   const [drag,setDrag]=useState<DragState|null>(null),dragRef=useRef<DragState|null>(null);
-  const touchRef=useRef<TouchGesture|null>(null),suppressClick=useRef(0);
+  const touchRef=useRef<TouchGesture|null>(null),cancelledPointer=useRef<number|null>(null),suppressClick=useRef(0);
   const [touchGhost,setTouchGhost]=useState<string|null>(null);
+  const [touchSlot,setTouchSlot]=useState<number|undefined>(undefined);
+  const [dropTarget,setDropTarget]=useState<Target|undefined>(undefined);
+  const edgePanRef=useRef<{frame:number;row:HTMLElement;drag:DragState;x:number;y:number;direction:number;started:number;last:number;refresh:()=>void}|null>(null);
+  const [dropFeedback,setDropFeedback]=useState<DropFeedback|null>(null),[dropNotice,setDropNotice]=useState('');
+  useEffect(()=>{if(!dropNotice)return;const timer=setTimeout(()=>setDropNotice(''),2200);return()=>clearTimeout(timer);},[dropNotice]);
   const [reportMessage,setReportMessage]=useState(''),[roomCopied,setRoomCopied]=useState(false);
   const reportRef=useRef<HTMLTextAreaElement>(null);
-  const arenaRef=useRef<HTMLDivElement>(null),aimRef=useRef<SVGLineElement>(null);
+  const arenaRef=useRef<HTMLDivElement>(null),messageRef=useRef<HTMLDivElement>(null),aimRef=useRef<SVGLineElement>(null);
+  const focusRequest=useRef<'held'|'card'|'cardChoice'|null>(null);
+  const choiceRef=useRef<HTMLDivElement>(null),choiceReturn=useRef<string|null>(null);
+  const resultRef=useRef<HTMLDivElement>(null);
+  const actionFocus=useRef<{source:string|undefined;trigger:Element|null;code:string;revision:number}|null>(null);
   const s=room.state,seat=room.seat,enemy:PlayerId=seat===0?1:0;
-  const [secondsLeft,setSecondsLeft]=useState<number|null>(()=>room.turnDeadlineMs===undefined?null:Math.max(0,Math.ceil((room.turnDeadlineMs-Date.now())/1000)));
-  useEffect(()=>{const deadline=room.turnDeadlineMs;if(deadline===undefined){setSecondsLeft(null);return;}const update=()=>setSecondsLeft(Math.max(0,Math.ceil((deadline-Date.now())/1000)));update();const tick=setInterval(update,250);return()=>clearInterval(tick);},[room.turnDeadlineMs]);
-  const [reconnectLeft,setReconnectLeft]=useState<number|null>(null);
-  useEffect(()=>{const deadline=room.opponentReconnectDeadlineMs;if(deadline===undefined){setReconnectLeft(null);return;}const update=()=>setReconnectLeft(Math.max(0,Math.ceil((deadline-Date.now())/1000)));update();const timer=setInterval(update,1000);return()=>clearInterval(timer);},[room.opponentReconnectDeadlineMs]);
+  // Recompute only when the selected/inspected card or the viewport changes.
+  // This fixes first/last-card previews under short and notch-cut landscapes
+  // without moving the real click/drag target or changing the board layout.
+  useLayoutEffect(()=>{
+    const arena=arenaRef.current;if(!arena)return;
+    let frame=0;
+    const align=()=>{
+      const slots=[...arena.querySelectorAll<HTMLElement>('.own-hand .hand-card-slot')];
+      for(const slot of slots)slot.style.removeProperty('--landscape-preview-shift');
+      const shortPhone=window.matchMedia('(pointer:coarse) and (orientation:landscape) and (max-height:540px)').matches;
+      const mediumLandscape=window.matchMedia('(orientation:landscape) and (min-width:661px) and (max-width:940px) and (min-height:541px) and (max-height:760px)').matches;
+      if(!shortPhone&&!mediumLandscape)return;
+      const slot=slots.find(el=>el.querySelector(':scope > .battle-card.is-selected,:scope > .battle-card.is-preview-expanded,:scope > .battle-card:focus-visible'));
+      const field=slot?.closest<HTMLElement>('.arena-field');
+      const card=slot?.querySelector<HTMLElement>(':scope > .battle-card');
+      if(!slot||!field||!card)return;
+      const box=slot.getBoundingClientRect(),size=card.getBoundingClientRect(),area=field.getBoundingClientRect();
+      const delta=landscapeHandPreviewShift(box.left,box.width,size.width,area.left,area.right);
+      slot.style.setProperty('--landscape-preview-shift',`${delta}px`);
+    };
+    const queue=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(align);};
+    align();
+    arena.addEventListener('focusin',queue);arena.addEventListener('focusout',queue);
+    window.addEventListener('resize',queue);
+    const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(queue):null;
+    if(observer)observer.observe(arena);
+    return()=>{cancelAnimationFrame(frame);observer?.disconnect();window.removeEventListener('resize',queue);
+      arena.removeEventListener('focusin',queue);arena.removeEventListener('focusout',queue);
+      for(const slot of arena.querySelectorAll<HTMLElement>('.own-hand .hand-card-slot'))slot.style.removeProperty('--landscape-preview-shift');};
+  },[selected,peekCardId,s?.revision,s?.self.hand.length]);
+  useEffect(()=>setPeekCardId(null),[room.code,s?.revision]);
+  useEffect(()=>setInspectedOverlay(null),[room.code,s?.revision]);
+  useEffect(()=>{if(inspectedOverlay)inspectCloseRef.current?.focus();},[inspectedOverlay]);
+  useEffect(()=>{
+    if(battleToolsOpen){toolsCloseRef.current?.focus();return;}
+    // React must first clear `inert` on the opening toolbar before it can
+    // receive focus again, including iOS standalone PWA activation.
+    const returnTo=toolsReturnRef.current;toolsReturnRef.current=null;
+    if(returnTo?.isConnected){const frame=requestAnimationFrame(()=>{if(returnTo.isConnected)returnTo.focus();});return()=>cancelAnimationFrame(frame);}
+  },[battleToolsOpen]);
+  useEffect(()=>setBattleToolsOpen(false),[room.code,s?.phase]);
+  const dialogue=useBattleDialogue(room,cue,connected,catalog,card=>displayCardName(card,classicNames));
+  const impactHistory=useImpactHistory(room,connected,catalog,card=>displayCardName(card,classicNames));
+  const previousResult=useRef<ResultSoundState|null>(null);
+  useEffect(()=>{if(!connected||!s){previousResult.current=null;return;}if(playing&&s.phase==='finished')return;const current={code:room.code,seat,phase:s.phase,winner:s.winner},result=resultSoundTransition(previousResult.current,current);previousResult.current=current;if(result)playBattleResultSound(result);},[room.code,seat,s?.phase,s?.winner,playing,connected]);
+  const previousSoundRoom=useRef<RoomView|null>(null),lastInstantSound=useRef(-Infinity);
+  useEffect(()=>{if(!connected||!s){previousSoundRoom.current=null;lastInstantSound.current=-Infinity;return;}const before=previousSoundRoom.current;previousSoundRoom.current=room;if(!before||before.code!==room.code){lastInstantSound.current=-Infinity;return;}if(room.animationSpeed!=='instant'||!before.state)return;const a=freshAcceptedAnimation(before,room),now=performance.now();if(!a)return;const impacts=impactChanges(before.state,s,seat,a.events),feedback=impactFeedback(a,impacts);playBattleHaptic(a,feedback,seat);if(s.phase==='finished'||now-lastInstantSound.current<300)return;lastInstantSound.current=now;const theme=animationTheme(a,a.cardId?catalog[a.cardId]:undefined,a.actor===seat?before.state.self.heroClass:before.state.opponent.heroClass);playBattleSound(a,theme,'impact',feedback);playBattleDepartureSound(departureSoundKind(impacts));},[room.code,seat,s?.revision,room.animationSpeed,connected]);
+  useEffect(()=>()=>{stopBattleHaptics();stopBattleSound();stopDialogueVoice();},[room.code]);
+  const [secondsLeft,setSecondsLeft]=useState<number|null>(()=>room.turnDeadlineMs===undefined?null:secondsUntilDeadline(room.turnDeadlineMs,Date.now()));
+  useEffect(()=>watchDeadlineSeconds(room.turnDeadlineMs,setSecondsLeft,250),[room.turnDeadlineMs]);
+  const [reconnectLeft,setReconnectLeft]=useState<number|null>(()=>room.opponentReconnectDeadlineMs===undefined?null:secondsUntilDeadline(room.opponentReconnectDeadlineMs,Date.now()));
+  useEffect(()=>watchDeadlineSeconds(room.opponentReconnectDeadlineMs,setReconnectLeft,1000),[room.opponentReconnectDeadlineMs]);
   const opponentReady=room.mode==='bot'||room.opponentConnected;
   const previousView=useRef<PlayerView|undefined>(undefined);
   const [motion,setMotion]=useState<TableMotion|null>(null);
-  useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;setMotion(next);const timer=setTimeout(()=>setMotion(null),1000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
+  useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),1000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
   const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision?motion:null;
   const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!busy;
-  const clearDrag=()=>{dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);};
-  useEffect(()=>{setSelected(null);setInspected(null);clearDrag();},[s?.revision,connected,opponentReady]);
-  useEffect(()=>{const listener=(e:KeyboardEvent)=>{if(e.key==='Escape'){setSelected(null);clearDrag();}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener);},[]);
-  const perform=(action:Action)=>{setSelected(null);clearDrag();send(action);};
+  const ownChoiceOpen=!!s&&s.phase==='playing'&&!playing&&((!!s.choicePending&&!!s.self.pendingChoice?.length&&connected&&opponentReady)||(active&&selected?.kind==='cardChoice'));
+  // End-of-match results are a genuine modal. The next/new game controls
+  // receive focus when playback ends; Tab must not navigate the hidden arena.
+  useEffect(()=>{
+    if(s?.phase!=='finished'||playing)return;
+    const dialog=resultRef.current;
+    if(!dialog)return;
+    (dialog.querySelector<HTMLElement>('button:not(:disabled)')??dialog).focus();
+  },[s?.phase,playing]);
+  const resultKeys=(e:ReactKeyboardEvent<HTMLDivElement>)=>{
+    if(e.key!=='Tab'||e.altKey||e.ctrlKey||e.metaKey)return;
+    const buttons=[...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled):not([aria-disabled="true"])')];
+    const next=modalTabIndex(buttons.indexOf(document.activeElement as HTMLButtonElement),buttons.length,e.shiftKey);
+    e.preventDefault();e.stopPropagation();(buttons[next]??e.currentTarget).focus();
+  };
+  const choiceControls=()=>[...choiceRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled):not([aria-disabled="true"])')??[]];
+  useEffect(()=>{
+    if(ownChoiceOpen){const dialog=choiceRef.current;if(!dialog)return;const controls=choiceControls();if(!controls.includes(document.activeElement as HTMLElement))(controls[0]??dialog).focus();return;}
+    const returnId=choiceReturn.current;choiceReturn.current=null;if(returnId)[...arenaRef.current?.querySelectorAll<HTMLElement>('[data-action-source]')??[]].find(el=>el.dataset.actionSource===`card:${returnId}`)?.focus();
+  },[ownChoiceOpen,busy]);
+  const choiceKeys=(e:ReactKeyboardEvent<HTMLDivElement>)=>{
+    // The effect-choice dialog is outside the arena's keyboard capture zone.
+    // Escape must use the normal cancellation path so its original hand card
+    // regains focus; the window-level emergency reset cannot do that.
+    if(e.key==='Escape'&&selected?.kind==='cardChoice'){e.preventDefault();e.stopPropagation();cancelCardChoice();return;}
+    if(e.key!=='Tab'||e.altKey||e.ctrlKey||e.metaKey)return;
+    const controls=choiceControls(),next=modalTabIndex(controls.indexOf(document.activeElement as HTMLElement),controls.length,e.shiftKey);
+    e.preventDefault();e.stopPropagation();(controls[next]??choiceRef.current)?.focus();
+  };
+  // Mark a genuinely scrollable row before pointerdown. The browser can
+  // then perform native horizontal panning while vertical attack drags work.
+  useEffect(()=>{
+    const rows=[...arenaRef.current?.querySelectorAll<HTMLElement>('.minion-row')??[]];if(!rows.length)return;
+    const measure=()=>{for(const row of rows)row.dataset.scrollable=String(canPanBoard(getComputedStyle(row).overflowX,row.clientWidth,row.scrollWidth));};measure();
+    const observer=typeof ResizeObserver==='function'?new ResizeObserver(measure):null;for(const row of rows){observer?.observe(row);for(const segment of row.children)observer?.observe(segment);}
+    window.addEventListener('resize',measure);return()=>{observer?.disconnect();window.removeEventListener('resize',measure);};
+  },[room.code,s?.revision,s?.phase]);
+  useEffect(()=>{
+    const request=focusRequest.current;if(!request)return;focusRequest.current=null;
+    if(!active||selected?.kind!==request)return;
+    if(request==='held'){messageRef.current?.querySelector<HTMLElement>('.selected-card-use')?.focus();return;}
+    const selector=request==='card'?'.is-targeted[aria-disabled="false"]':'.effect-choices button:not(:disabled)';
+    arenaRef.current?.querySelector<HTMLElement>(selector)?.focus();
+  },[active,selected]);
+  useEffect(()=>{
+    const pending=actionFocus.current;if(!pending)return;
+    if(!s||s.phase==='finished'||pending.code!==room.code){actionFocus.current=null;return;}
+    if(!active||s.revision<pending.revision)return;
+    actionFocus.current=null;const focused=document.activeElement;
+    // Do not steal focus from a user who navigated elsewhere during playback.
+    if(focused&&focused!==document.body&&focused!==pending.trigger&&focused.isConnected)return;
+    const available=[...arenaRef.current?.querySelectorAll<HTMLElement>('[data-action-source][aria-disabled="false"]')??[]],index=keyboardReturnIndex(pending.source,available.map(el=>el.dataset.actionSource??''));
+    (available[index]??arenaRef.current?.querySelector<HTMLElement>('.end-turn:not(:disabled)'))?.focus();
+  },[active,s?.revision,s?.phase,room.code]);
+  useEffect(()=>{const cancel=()=>{actionFocus.current=null;};const tab=(e:KeyboardEvent)=>{if(e.key==='Tab')cancel();};window.addEventListener('pointerdown',cancel,true);window.addEventListener('keydown',tab,true);return()=>{window.removeEventListener('pointerdown',cancel,true);window.removeEventListener('keydown',tab,true);};},[]);
+  const stopEdgePan=()=>{if(edgePanRef.current)cancelAnimationFrame(edgePanRef.current.frame);edgePanRef.current=null;};
+  useEffect(()=>()=>stopEdgePan(),[]);
+  const clearDrag=()=>{stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');};
+  const cancelActiveTouch=()=>{const interrupted=touchRef.current,guard=interruptTouch(interrupted,cancelledPointer.current,suppressClick.current,Date.now());cancelledPointer.current=guard.cancelledPointer;suppressClick.current=guard.suppressUntil;clearDrag();if(interrupted&&arenaRef.current?.hasPointerCapture(interrupted.pointerId)){try{arenaRef.current.releasePointerCapture(interrupted.pointerId);}catch{}}};
+  const cancelCardChoice=()=>{if(selected?.kind==='cardChoice')choiceReturn.current=selected.id;setSelected(null);cancelActiveTouch();};
+  useEffect(()=>{
+    const interrupt=()=>{actionFocus.current=null;cancelActiveTouch();setSelected(null);setInspected(null);setDropNotice('');};
+    const hide=()=>{interrupt();stopBattleSound();stopDialogueVoice();stopBattleHaptics();setMotion(null);};
+    const changed=()=>{if(document.hidden)hide();};
+    document.addEventListener('visibilitychange',changed);window.addEventListener('blur',interrupt);window.addEventListener('pagehide',hide);
+    return()=>{document.removeEventListener('visibilitychange',changed);window.removeEventListener('blur',interrupt);window.removeEventListener('pagehide',hide);};
+  },[]);
+  useEffect(()=>{setSelected(null);setInspected(null);setPosition(null);cancelActiveTouch();setDropNotice('');},[s?.revision,connected,opponentReady]);
+  // Busy/playback may change without a new revision. Do not leave a ghost,
+  // pointer capture or queued board edge-pan alive across input locking.
+  useEffect(()=>{if(!active){setSelected(null);cancelActiveTouch();}},[active]);
+  useEffect(()=>{const listener=(e:KeyboardEvent)=>{if(e.key==='Escape'){setSelected(null);cancelActiveTouch();}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener);},[]);
+  const perform=(action:Action,keyboard=false)=>{actionFocus.current=keyboard&&s?{source:keyboardActionSource(action),trigger:document.activeElement,code:room.code,revision:s.revision}:null;setSelected(null);clearDrag();send(action);};
   const copyRoom=async()=>{try{await navigator.clipboard.writeText(room.code);setRoomCopied(true);}catch{window.prompt('방 코드 복사',room.code);}};
   if(!s)return <section className="panel waiting waiting-arena"><span className="waiting-sigil"><Sigil kind="deck"/></span><p className="eyebrow">{room.ownedPvp?'ACCOUNT PVP':'PRIVATE MATCH'}</p><h2>{room.ownedPvp?'다른 유저를 기다리는 중':'친구를 기다리는 중'}</h2><strong className="room-code">{room.code}</strong><p>{room.ownedPvp?'상대가 참가하면 보유 카드 대전이 시작됩니다. 친구에게 계정 대전 코드를 공유할 수도 있습니다.':'친구에게 방 코드를 알려주세요. 참가하면 자동으로 대전이 시작됩니다.'}</p><div className="waiting-actions"><button onClick={copyRoom}>{roomCopied?'코드 복사됨':'방 코드 복사'}</button><button className="secondary" onClick={leave}>방 나가기</button></div></section>;
   const report=formatBattleReport(room,catalog,catalogHash);
   const copyReport=async()=>{try{await navigator.clipboard.writeText(report);setReportMessage('기록 복사 완료');}catch{reportRef.current?.focus();reportRef.current?.select();setReportMessage('기록을 선택했습니다. Ctrl+C를 누르세요.');}};
-  const applyIntent=(intent:Intent|null)=>{if(!active||!intent)return;if(intent.action)perform(intent.action);else setSelected(intent.selection);};
-  const boardPosition=Math.min(position??s.self.board.length,s.self.board.length);
+  const applyIntent=(intent:Intent|null,keyboard=false)=>{if(!active||!intent)return;if(intent.action)perform(intent.action,keyboard);else{if(keyboard&&(intent.selection.kind==='card'||intent.selection.kind==='cardChoice'))focusRequest.current=intent.selection.kind;setSelected(old=>toggleActionSelection(old,intent.selection));}};
+  const pendingPosition=selected?.kind==='card'||selected?.kind==='cardChoice'?selected.position:undefined;
+  const boardPosition=Math.min(pendingPosition??position??s.self.board.length,s.self.board.length);
+  const choosePosition=(i:number)=>{
+    if(!active||!Number.isInteger(i)||i<0||i>s.self.board.length||s.self.board.length>=7)return;
+    setPosition(i);setSelected(old=>repositionSelection(s,catalog,old,i));
+    const row=arenaRef.current?.querySelector<HTMLElement>('.friendly-minions'),slot=row?.querySelector<HTMLElement>(`[data-drop-position="${i}"]`);
+    if(row&&slot&&row.dataset.scrollable==='true'){
+      const visible=row.getBoundingClientRect(),gap=slot.getBoundingClientRect();
+      if(gap.left<visible.left+6)row.scrollLeft-=visible.left+6-gap.left;
+      else if(gap.right>visible.right-6)row.scrollLeft+=gap.right-visible.right+6;
+    }
+  };
   const currentDrag=active&&drag?.revision===s.revision?drag.intent:null;
+  const draggedMinion=currentDrag?.kind==='card'&&catalog[s.self.hand.find(c=>c.instanceId===currentDrag.id)?.cardId??'']?.kind==='minion';
   const dragPlan=currentDrag?planDrag(s,seat,catalog,currentDrag,boardPosition):null;
   const highlight=currentDrag?dragPlan?.selection??null:selected;
   const legalTargets=active?targetsFor(s,seat,catalog,highlight):[];
+  const targetKeys=(e:ReactKeyboardEvent<HTMLElement>)=>{
+    // Inspection must remain dismissible even on the opponent's turn when
+    // actions are disabled. Preserve nested menu Escape behavior.
+    if(e.key==='Escape'&&peekCardId&&!selected&&!currentDrag&&e.target instanceof HTMLElement&&
+      !e.target.closest('.battle-emote-menu[open],.dialogue-settings[open]')&&
+      e.target.closest('.battle-hand')){
+      e.preventDefault();e.stopPropagation();setPeekCardId(null);return;
+    }
+    if(!active||currentDrag||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||!(e.target instanceof HTMLElement)||e.target.matches('input,select,textarea,[contenteditable="true"]'))return;
+    // Nested emote/settings disclosures handle their own Escape. The arena's
+    // capture handler runs before their bubble handlers: do not silently
+    // cancel an unrelated selected card underneath an open settings panel.
+    if(e.key==='Escape'&&e.target.closest('.battle-emote-menu[open],.dialogue-settings[open]'))return;
+    if(selected&&e.key==='Escape'){
+      // First Escape closes an expanded target list while keeping the source
+      // selected; a second Escape cancels the actual action as usual.
+      const openPicker=e.target.closest<HTMLDetailsElement>('.target-picker[open]');
+      if(openPicker){e.preventDefault();e.stopPropagation();openPicker.open=false;openPicker.querySelector<HTMLElement>('summary')?.focus();return;}
+      if(selected.kind==='cardChoice'){e.preventDefault();e.stopPropagation();cancelCardChoice();return;}
+      const key=selected.kind==='attack'?`minion:${selected.id}`:selected.kind==='heroAttack'?'hero':selected.kind==='power'?'power':`card:${selected.id}`;
+      const source=[...arenaRef.current?.querySelectorAll<HTMLElement>('[data-action-source]')??[]].find(el=>el.dataset.actionSource===key);
+      e.preventDefault();e.stopPropagation();setSelected(null);cancelActiveTouch();source?.focus();return;
+    }
+    let controls:HTMLElement[]=[];
+    if(selected&&legalTargets.length&&e.target.closest('.battle-card,.battle-minion,.hero-portrait,.hero-power,.selected-card-use,.selection-cancel'))controls=[...arenaRef.current?.querySelectorAll<HTMLElement>('.is-targeted[aria-disabled="false"]')??[]];
+    else if((!selected||selected.kind==='held')&&e.target.matches('.battle-card,.battle-minion')){
+      const row=e.target.closest('.battle-hand,.minion-row');if(!row)return;
+      // Include disabled cards for inspection; navigation never activates them.
+      controls=[...row.querySelectorAll<HTMLElement>('.battle-card,.battle-minion')];
+    }
+    const next=keyboardTargetIndex(e.key,controls.indexOf(e.target),controls.length);if(next===null)return;
+    e.preventDefault();e.stopPropagation();controls[next].focus();
+  };
   const aimSource=highlight?.kind==='attack'?`minion:${highlight.id}`:highlight?.kind==='card'?`card:${highlight.id}`:highlight?.kind==='heroAttack'?'hero':highlight?.kind==='power'?'power':null;
   const aimVisible=!!aimSource&&legalTargets.length>0;
   const hideAim=()=>aimRef.current?.setAttribute('visibility','hidden');
@@ -84,33 +291,85 @@ function BattleView({room,send,leave,onRematch,onPause,autoSaved,connected,busy,
   const powerReason=heroPowerReason(s.self)??(active&&!power?'선택할 수 있는 대상이 없습니다.':undefined);
   const choiceCard=selected?.kind==='cardChoice'?selectionCard(s,catalog,selected):undefined;
   const selectedCard=selectionCard(s,catalog,highlight);
+  const selectedAttacker=selected?.kind==='attack'?s.self.board.find(m=>m.instanceId===selected.id):undefined;
+  const targetSourceCard=selectedAttacker?catalog[selectedAttacker.cardId]:selectedCard;
+  const targetSourceLabel=selected?.kind==='heroAttack'?'내 영웅 공격':selected?.kind==='power'?'내 영웅 능력':targetSourceCard?displayCardName(targetSourceCard,classicNames):'선택한 행동';
   const enemyLabel=room.mode==='bot'?'AI':'상대';
   const handReady=(id:string)=>active&&!!planCard(s,seat,catalog,id,boardPosition);
-  const choose=(target:Target)=>{if(!active)return;const action=targetAction(s,seat,catalog,selected,target);if(action)perform(action);};
+  const choose=(target:Target,keyboard=false)=>{if(!active)return;const action=targetAction(s,seat,catalog,selected,target);if(action)perform(action,keyboard);};
   const beginDrag=(event:DragEvent<HTMLButtonElement>,intent:DragIntent)=>{
     if(!active||!planDrag(s,seat,catalog,intent,boardPosition)){event.preventDefault();return;}
     event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain','card-duel-action');
-    const next={intent,revision:s.revision};dragRef.current=next;setDrag(next);setSelected(null);
+    const next={intent,revision:s.revision};dragRef.current=next;setDrag(next);setSelected(null);setDropNotice('');
   };
-  const liveDrag=()=>active&&dragRef.current?.revision===s.revision?dragRef.current.intent:null;
-  const dragTargetAction=(target:Target)=>active?resolveDrop(s,seat,catalog,dragRef.current,{kind:'target',target,position:boardPosition})?.action??null:null;
-  const targetDropProps=(target:Target)=>({
-    onDragOver:(e:DragEvent<HTMLButtonElement>)=>{if(dragTargetAction(target)){e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect='move';}},
-    onDrop:(e:DragEvent<HTMLButtonElement>)=>{const action=dragTargetAction(target);if(action){e.preventDefault();e.stopPropagation();perform(action);}},
-  });
-  const dropIntoBoard=(e:DragEvent<HTMLElement>,pos:number)=>{if(!active)return;const planned=resolveDrop(s,seat,catalog,dragRef.current,{kind:'board',position:pos});if(!planned)return;e.preventDefault();e.stopPropagation();clearDrag();applyIntent(planned);};
-  const allowBoardDrop=(e:DragEvent<HTMLElement>)=>{const d=liveDrag();if(d?.kind==='card'&&planCard(s,seat,catalog,d.id,boardPosition)){e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect='move';}};
-  const spellFieldDrop=(e:DragEvent<HTMLElement>)=>{const d=liveDrag();if(d?.kind!=='card'||!(e.target instanceof Element)||e.target.closest('.own-hand,.hidden-hand'))return false;return catalog[s.self.hand.find(c=>c.instanceId===d.id)?.cardId??'']?.kind!=='minion';};
   const touchDown=(e:PointerEvent<HTMLDivElement>)=>{
+    // A physical new press is independent from the previous drag/scroll's
+    // synthetic click. Do not make the user wait 250 ms to tap again.
+    if(e.isPrimary){suppressClick.current=0;cancelledPointer.current=null;setDropNotice('');}
     if(!active||e.pointerType==='mouse'||!e.isPrimary||!(e.target instanceof Element))return;
     const source=e.target.closest<HTMLElement>('[data-action-source]'),intent=intentFromSource(source?.dataset.actionSource);
     if(!intent||!planDrag(s,seat,catalog,intent,boardPosition))return;
-    touchRef.current={pointerId:e.pointerId,originX:e.clientX,originY:e.clientY,drag:{intent,revision:s.revision},phase:'pending'};
+    touchRef.current={pointerId:e.pointerId,originX:e.clientX,originY:e.clientY,drag:{intent,revision:s.revision},phase:'pending',canPanBoard:intent.kind==='attack'&&source?.closest<HTMLElement>('.friendly-minions')?.dataset.scrollable==='true'};
   };
+  const pointerSlotAt=(hit:Element|null,x:number,intent:DragIntent):number|undefined=>{
+    if(intent.kind!=='card'||catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']?.kind!=='minion')return undefined;
+    const board=hit?.closest('.friendly-board');if(!board)return undefined;
+    const row=board.querySelector('.friendly-minions');if(!row)return undefined;
+    const bounds=row.getBoundingClientRect(),outer=board.getBoundingClientRect();
+    const visible={left:Math.max(0,bounds.left,outer.left),right:Math.min(document.documentElement.clientWidth,bounds.right,outer.right)};
+    return nearestVisibleBoardSlot(x,visible,[...row.querySelectorAll<HTMLElement>('[data-drop-position]:not(:disabled)')].map(el=>{
+      const rect=el.getBoundingClientRect();return {position:Number(el.dataset.dropPosition),left:rect.left,right:rect.right};
+    }));
+  };
+  const pointerDescription=(hit:Element|null,x:number,intent:DragIntent,touchY?:number):TouchHit=>{
+    const minionId=hit?.closest<HTMLElement>('[data-preview-minion]')?.dataset.previewMinion,hero=hit?.closest('.hero-portrait')?(hit.closest('.enemy-hero-zone')?'enemy':'self'):undefined,slot=pointerSlotAt(hit,x,intent);
+    const description:TouchHit={minionId,hero,slot,ownBoard:!!hit?.closest('.friendly-board'),field:!!hit?.closest('.arena-field'),hand:!!hit?.closest('.own-hand,.hidden-hand'),control:!!hit?.closest('button,input,select,textarea,summary,[role="button"]')&&!minionId&&!hero&&slot===undefined};
+    // Only physical touch drags of attacks/targeted spells get a small
+    // tolerance. Native mouse drops, exact targets, controls and minion
+    // insertion retain their original semantics.
+    const card=intent.kind==='card'?catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']:undefined;
+    if(touchY===undefined||!description.field||description.hand||description.control||minionId||hero||slot!==undefined||intent.kind==='card'&&card?.kind!=='spell')return description;
+    const plan=planDrag(s,seat,catalog,intent,boardPosition),legal=targetsFor(s,seat,catalog,plan?.selection??null),field=hit?.closest('.arena-field');
+    if(!legal.length||!field)return description;
+    const fieldRect=field.getBoundingClientRect(),target=nearestTouchTarget(x,touchY,[...field.querySelectorAll<HTMLElement>('.battle-minion,.hero-portrait')].flatMap(el=>{
+      const id=el.dataset.previewMinion,zone=el.closest('.minion-row,.hero-zone');if(!zone)return [];
+      const target:Target=id?{kind:'minion',instanceId:id}:{kind:'hero',player:el.closest('.enemy-hero-zone')?enemy:seat};
+      const rect=el.getBoundingClientRect(),clip=zone.getBoundingClientRect();
+      return [{target,legal:legal.some(t=>sameTarget(t,target)),left:Math.max(0,rect.left,clip.left,fieldRect.left),right:Math.min(document.documentElement.clientWidth,rect.right,clip.right,fieldRect.right),top:Math.max(0,rect.top,clip.top,fieldRect.top),bottom:Math.min(document.documentElement.clientHeight,rect.bottom,clip.bottom,fieldRect.bottom)}];
+    }));
+    return target?.kind==='minion'?{...description,minionId:target.instanceId}:target?.kind==='hero'?{...description,hero:target.player===seat?'self':'enemy'}:description;
+  };
+  const pointerPlan=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{const description=pointerDescription(hit,x,d.intent,touchY),result=pointerDrop(s,seat,catalog,d,description,boardPosition),action=result.intent?.action,target=action&&'target' in action?action.target:undefined;return {...result,target,slot:result.intent?description.slot:undefined};};
+  const updatePointerFeedback=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{const plan=pointerPlan(hit,x,d,touchY);setTouchSlot(plan.slot);setDropTarget(old=>old&&plan.target&&sameTarget(old,plan.target)?old:plan.target);setDropFeedback(plan.feedback);return plan;};
+  const edgeDelta=(row:HTMLElement,x:number,y:number,elapsed=16)=>{
+    const rect=row.getBoundingClientRect();if(row.dataset.scrollable!=='true'||y<Math.max(0,rect.top)||y>Math.min(document.documentElement.clientHeight,rect.bottom))return 0;
+    return boardEdgePanDelta(x,Math.max(0,rect.left),Math.min(document.documentElement.clientWidth,rect.right),row.scrollLeft,row.scrollWidth-row.clientWidth,elapsed);
+  };
+  const queueEdgePan=(x:number,y:number,d:DragState)=>{
+    const intent=d.intent,card=intent.kind==='card'?catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']:undefined;
+    const row=card?.kind==='minion'?document.elementFromPoint(x,y)?.closest<HTMLElement>('.friendly-minions'):undefined;
+    const direction=row?Math.sign(edgeDelta(row,x,y)):0;if(!row||!direction){stopEdgePan();return;}
+    const live=edgePanRef.current;
+    if(live&&live.row===row&&live.drag===d&&live.direction===direction){live.x=x;live.y=y;live.refresh=()=>updatePointerFeedback(document.elementFromPoint(live.x,live.y),live.x,d,live.y);return;}
+    stopEdgePan();const now=performance.now(),session={frame:0,row,drag:d,x,y,direction,started:now,last:now,refresh:()=>{}};
+    session.refresh=()=>updatePointerFeedback(document.elementFromPoint(session.x,session.y),session.x,d,session.y);
+    const tick=(time:number)=>{
+      if(edgePanRef.current!==session)return;
+      if(dragRef.current!==d||document.hidden||!row.isConnected){stopEdgePan();return;}
+      const step=edgeDelta(row,session.x,session.y,Math.max(1,time-session.last));session.last=time;
+      if(!step||Math.sign(step)!==session.direction){stopEdgePan();return;}
+      if(time-session.started>=140){const before=row.scrollLeft;row.scrollLeft+=step;if(row.scrollLeft===before){stopEdgePan();return;}session.refresh();}
+      session.frame=requestAnimationFrame(tick);
+    };
+    edgePanRef.current=session;session.frame=requestAnimationFrame(tick);
+  };
+  const nativeDragOver=(e:DragEvent<HTMLDivElement>)=>{pointAim(e.clientX,e.clientY);const d=dragRef.current;if(!d||!active)return;const plan=updatePointerFeedback(document.elementFromPoint(e.clientX,e.clientY),e.clientX,d);if(plan.intent){e.preventDefault();e.dataTransfer.dropEffect='move';}else e.dataTransfer.dropEffect='none';};
+  const nativeDrop=(e:DragEvent<HTMLDivElement>)=>{const d=dragRef.current;if(!d||!active)return;e.preventDefault();e.stopPropagation();const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,d);clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));};
+  const nativeDragEnd=()=>{const unfinished=!!dragRef.current;clearDrag();if(unfinished&&active)setDropNotice('드래그 취소 · 카드와 마나는 그대로 유지됩니다.');};
   const touchMove=(e:PointerEvent<HTMLDivElement>)=>{
     pointAim(e.clientX,e.clientY);
     const g=touchRef.current;if(!g||g.pointerId!==e.pointerId)return;
-    const next=advanceGesture(g,e.clientX,e.clientY,s.revision);if(!next||!active){clearDrag();return;}touchRef.current=next;
+    const next=advanceGesture(g,e.clientX,e.clientY,s.revision);if(!next||!active){cancelActiveTouch();return;}touchRef.current=next;
     if(next.phase!=='dragging')return;
     if(g.phase!=='dragging'){
       try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}
@@ -118,71 +377,109 @@ function BattleView({room,send,leave,onRematch,onPause,autoSaved,connected,busy,
       if(next.drag.intent.kind==='card')setTouchGhost(next.drag.intent.id);
     }
     e.currentTarget.style.setProperty('--touch-x',`${e.clientX}px`);e.currentTarget.style.setProperty('--touch-y',`${e.clientY}px`);
+    updatePointerFeedback(document.elementFromPoint(e.clientX,e.clientY),e.clientX,next.drag,e.clientY);
+    queueEdgePan(e.clientX,e.clientY,next.drag);
     e.preventDefault();
   };
   const touchUp=(e:PointerEvent<HTMLDivElement>)=>{
+    if(cancelledPointer.current===e.pointerId){cancelledPointer.current=null;suppressClick.current=Date.now()+250;return;}
     const g=touchRef.current;if(!g||g.pointerId!==e.pointerId)return;
-    touchRef.current=null;
-    if(g.phase!=='dragging')return;
+    const outcome=finishGesture(g,s.revision,active);touchRef.current=null;
+    if(outcome==='tap')return;
     suppressClick.current=Date.now()+250;
+    if(outcome==='cancel'){clearDrag();return;}
     try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}
-    const hit=document.elementFromPoint(e.clientX,e.clientY),slot=hit?.closest<HTMLElement>('[data-drop-position]');
-    const description:TouchHit={minionId:hit?.closest<HTMLElement>('[data-preview-minion]')?.dataset.previewMinion,hero:hit?.closest('.hero-portrait')?(hit.closest('.enemy-hero-zone')?'enemy':'self'):undefined,slot:slot?Number(slot.dataset.dropPosition):undefined,ownBoard:!!hit?.closest('.friendly-board'),field:!!hit?.closest('.arena-field'),hand:!!hit?.closest('.own-hand,.hidden-hand')};
-    const d=g.drag.intent,cardId=d.kind==='card'?s.self.hand.find(h=>h.instanceId===d.id)?.cardId:undefined;
-    const fieldDrop=!!cardId&&catalog[cardId]?.kind!=='minion';
-    let intent:Intent|null=null;
-    if(active)for(const location of touchDropLocations(description,seat,boardPosition,fieldDrop)){intent=resolveDrop(s,seat,catalog,g.drag,location);if(intent)break;}
-    clearDrag();if(intent)applyIntent(intent);e.preventDefault();
+    const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,g.drag,e.clientY);
+    clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));e.preventDefault();
   };
-  const stopTouch=(e:PointerEvent<HTMLDivElement>)=>{if(touchRef.current?.pointerId===e.pointerId){if(touchRef.current.phase==='dragging')suppressClick.current=Date.now()+250;clearDrag();}};
-  const guardClick=(e:MouseEvent<HTMLDivElement>)=>{if(Date.now()<suppressClick.current){e.preventDefault();e.stopPropagation();}};
+  const stopTouch=(e:PointerEvent<HTMLDivElement>)=>{if(isCaptureHandoff(e.type,e.target!==e.currentTarget,e.currentTarget.hasPointerCapture(e.pointerId)))return;if(cancelledPointer.current===e.pointerId||touchRef.current?.pointerId===e.pointerId){cancelledPointer.current=e.type==='lostpointercapture'?e.pointerId:null;suppressClick.current=Date.now()+250;clearDrag();}};
+  const guardClick=(e:MouseEvent<HTMLDivElement>)=>{if(Date.now()<suppressClick.current&&!independentActivation(e.nativeEvent)){e.preventDefault();e.stopPropagation();return;}if(peekCardId&&e.target instanceof Element&&!e.target.closest('.own-hand .hand-card-slot'))setPeekCardId(null);};
   const label=s.phase==='finished'?(s.winner===null?'무승부':s.winner===seat?'승리!':'패배'):s.phase==='mulligan'?'시작 카드 선택':s.activePlayer===seat?'내 턴':room.mode==='bot'?'AI 턴':'상대 턴';
+  const dropRow=currentDrag&&dropTarget?targetPickerRows(s,seat,[dropTarget])[0]:undefined;
+  const dropLabel=dropRow?targetRowText(dropRow,catalog,classicNames).compact:undefined;
+  const turnLabel=s.phase==='finished'?'대전 종료':label;
+  const handHint=active?'선택 후 내기 또는 드래그':s.phase==='finished'?'대전 종료':!connected||!opponentReady?'연결 대기':playing?'연출 재생 중':busy?'행동 처리 중':s.choicePending?(s.self.pendingChoice?'카드 선택 중':`${turnLabel} · 카드 선택 중`):turnLabel;
   const result=s.winner===null?'무승부':s.winner===seat?'대전 승리':'대전 패배';
   const resultReason=s.reason==='fatigue'?'탈진':s.reason==='turnLimit'?'최대 턴 도달':s.reason==='concede'?'항복':'영웅 체력 소진';
   const pauseMessage=`상대 재접속 대기${reconnectLeft===null?'':` · ${Math.floor(reconnectLeft/60)}분 ${reconnectLeft%60}초`}`;
-  const status=s.phase==='finished'?'대전 종료':!connected?'서버 재연결 대기':!opponentReady?pauseMessage:playing?'전투 연출 재생 중':busy?'행동 처리 중':s.choicePending?'덱 카드 선택 중':choiceCard?'카드 효과를 선택하세요.':highlight?.kind==='held'?'선택한 카드를 전장으로 끌어 놓으세요.':highlight?.kind==='attack'||highlight?.kind==='heroAttack'?'공격할 대상을 선택하세요.':highlight?'강조된 대상을 선택하세요.':currentDrag?.kind==='card'?'내 전장 또는 유효한 대상에 카드를 놓으세요.':active?'초록색으로 빛나는 카드와 하수인을 사용할 수 있습니다.':'상대방의 행동을 기다리는 중';
+  const status=s.phase==='finished'?'대전 종료':!connected?'서버 재연결 대기':!opponentReady?'상대 재접속 대기 중':playing?'전투 연출 재생 중':busy?'행동 처리 중':s.choicePending?(s.self.pendingChoice?'덱 카드 선택 중':`${turnLabel} · 덱 카드 선택 중`):currentDrag&&dropFeedback?dropFeedbackText(dropFeedback,touchSlot,dropLabel):dropNotice?dropNotice:choiceCard?'카드 효과를 선택하세요.'+(pendingPosition===undefined?'':` · 배치 ${boardPosition+1}번`):currentDrag?.kind==='card'&&highlight?.kind==='cardChoice'?'전장에 놓은 뒤 카드 효과를 선택하세요.':highlight?.kind==='held'?`${selectedCard?displayCardName(selectedCard,classicNames):'카드'} 선택${selectedCard?.kind==='minion'?` · 배치 ${boardPosition+1}번`:''} · 내기 또는 드래그`:highlight?.kind==='attack'||highlight?.kind==='heroAttack'?`공격 대상 ${legalTargets.length}개 · 강조된 대상 선택`:highlight?`선택할 대상 ${legalTargets.length}개${pendingPosition===undefined?'':` · 배치 ${boardPosition+1}번`} · 강조된 대상 선택`:currentDrag?.kind==='card'?'내 전장 또는 유효한 대상에 카드를 놓으세요.':active?'초록색으로 빛나는 카드와 하수인을 사용할 수 있습니다.':'상대방의 행동을 기다리는 중';
+  const confirmConcede=()=>{if(window.confirm('항복하시겠습니까?'))perform({type:'concede'});};
   const cardInspect=(item:Inspectable)=>setInspected(item);
   const ownHeroTarget:Target={kind:'hero',player:seat},enemyHeroTarget:Target={kind:'hero',player:enemy};
-  const currentInspector=selectedCard?{card:selectedCard,cost:publicCardCost(s,seat,selectedCard,catalog,s.self.hand.find(c=>c.instanceId===(highlight?.kind==='held'||highlight?.kind==='card'||highlight?.kind==='cardChoice'?highlight.id:''))?.costDiscount)}:inspected;
+  // In an immersive landscape arena the side inspector is hidden. A hand
+  // card that cannot currently be played must still be fully readable after
+  // the first tap, without changing mana, attack, target or drag selection.
+  const peekedHand=s.self.hand.find(c=>c.instanceId===peekCardId);
+  const peekedCard=peekedHand?catalog[peekedHand.cardId]:undefined;
+  const currentInspector=selectedCard?{card:selectedCard,cost:publicCardCost(s,seat,selectedCard,catalog,s.self.hand.find(c=>c.instanceId===(highlight?.kind==='held'||highlight?.kind==='card'||highlight?.kind==='cardChoice'?highlight.id:''))?.costDiscount)}:peekedCard?{card:peekedCard,cost:publicCardCost(s,seat,peekedCard,catalog,peekedHand?.costDiscount)}:inspected;
+  const selectedHandInspectable=!!selectedCard||!!peekedCard;
+  const mulliganInspectable=s.self.hand.find(c=>c.instanceId===mulliganInspectId)??s.self.hand[0];
   const tier=room.ranked??room.developerTest;
-  const title=<div className="duel-title"><div><p className="eyebrow">{tier?`${room.developerTest?'개발자 시험 · ':''}${rankInfo(tier.rank).name} · 랭크 AI ${tier.intelligence}단계`:room.mode==='bot'?`AI 대전 · ${room.botDifficulty??3}단계 ${BOT_DIFFICULTY_NAMES[room.botDifficulty??3]}`:room.ownedPvp?'계정 PvP':`ROOM ${room.code}`} · TURN {s.turn}</p><h2>{label}</h2></div><div className="duel-toolbar"><span className={room.opponentConnected?'good':'warn'}>{room.mode==='bot'?(room.botEngine==='device'?'기기 AI':'서버 AI')+(tier?` · 덱 전력 ${tier.deckPower}`:room.botDeckStyle?' · '+DECK_STYLE_LABELS[room.botDeckStyle]:'')+(room.botTrainingGeneration?' · 학습 '+room.botTrainingGeneration+'세대':''):room.opponentConnected?'상대 연결됨':'상대 연결 끊김'}</span>{autoSaved!==undefined&&<small className={autoSaved?'good':'warn'}>{autoSaved?'자동 저장됨':'자동 저장 사용 불가'}</small>}{onPause&&s.phase!=='finished'&&<button className="secondary" disabled={busy} onClick={onPause}>저장 후 나가기</button>}<button className="secondary sound-toggle" aria-pressed={sound} onClick={toggleSound}>효과음 {sound?'켜짐':'꺼짐'}</button><button className="secondary" onClick={leave}>나가기</button></div></div>;
-  if(s.phase==='mulligan')return <section className="battle duel-screen phase-mulligan">{title}<div className="mulligan-arena classic-mulligan"><TableDecor/><div className="mulligan-opponent"><HiddenHand count={s.opponent.handCount}/><HeroPortrait player={s.opponent} label={enemyLabel}/></div><div className="mulligan-heading"><span className="mulligan-order">{s.firstPlayer===seat?'선공':'후공'}</span><h3>첫 손패를 선택하세요</h3><p>{!opponentReady?pauseMessage:s.self.mulliganDone?'상대의 선택을 기다리는 중입니다.':'바꾸고 싶은 카드를 클릭한 후 확정하세요.'}</p></div><div className="mulligan-cards">{s.self.hand.map(c=><BattleCard key={c.instanceId} card={catalog[c.cardId]} mulligan selected={replace.includes(c.instanceId)} enabled={!s.self.mulliganDone&&connected&&opponentReady&&!busy} onClick={()=>setReplace(old=>old.includes(c.instanceId)?old.filter(x=>x!==c.instanceId):[...old,c.instanceId])}/>)}</div><button className="mulligan-confirm" disabled={s.self.mulliganDone||busy||!connected||!opponentReady} onClick={()=>perform({type:'mulligan',replace})}>확정 ({replace.length}장 교체)</button><div className="mulligan-self"><HeroPortrait player={s.self} label="나"/></div></div></section>;
+  const title=<div className="duel-title" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay}>
+    <div className="duel-summary"><p className="eyebrow">{tier?`${room.developerTest?.experiment?'실험 AI · ':room.developerTest?'개발자 시험 · ':''}${rankInfo(tier.rank).name} · 랭크 AI ${tier.intelligence}단계`:room.mode==='bot'?`AI 대전 · ${room.botDifficulty??3}단계 ${BOT_DIFFICULTY_NAMES[room.botDifficulty??3]}`:room.ownedPvp?'계정 PvP':`ROOM ${room.code}`} · TURN {s.turn}</p><h2>{label}</h2></div>
+    <div className="duel-toolbar" role="group" aria-label="대전 설정 및 저장">
+      <div className="duel-indicators"><span className={room.opponentConnected?'good':'warn'}>{room.mode==='bot'?(room.botEngine==='device'?'기기 AI':'서버 AI')+(tier?` · 덱 전력 ${tier.deckPower}`:room.botDeckStyle?' · '+DECK_STYLE_LABELS[room.botDeckStyle]:'')+(room.botTrainingGeneration?' · 학습 '+room.botTrainingGeneration+'세대':''):room.opponentConnected?'상대 연결됨':'상대 연결 끊김'}</span>
+        {autoSaved!==undefined&&<small role="status" aria-atomic="true" className={`save-indicator ${savePending?'warn':autoSaved?'good':'warn'}`}>{savePending?'저장 확인 중…':autoSaved?'자동 저장됨':saveRetryable?'저장 오류 · 재시도 가능':'자동 저장 사용 불가'}</small>}{lastSavedAt&&Number.isFinite(Date.parse(lastSavedAt))&&<small className="last-saved-at">최근 저장 <time dateTime={lastSavedAt}>{new Date(lastSavedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</time></small>}</div>
+      <div className="duel-actions">{onRetrySave&&saveRetryable&&<button type="button" className="secondary retry-save" aria-label="저장 다시 시도" disabled={busy} onClick={onRetrySave}><span className="battle-action-full">저장 다시 시도</span><span className="battle-action-short" aria-hidden="true">저장 재시도</span></button>}{onPause&&(s.phase!=='finished'||saveRetryable)&&<button type="button" className="secondary pause-save" aria-label={saveRetryable?'저장 재시도 후 나가기':'저장 후 나가기'} disabled={busy} onClick={onPause}><span className="battle-action-full">{saveRetryable?'저장 재시도 후 나가기':'저장 후 나가기'}</span><span className="battle-action-short" aria-hidden="true">저장·나가기</span></button>}{s.phase!=='mulligan'&&<button type="button" className="secondary battle-tools-toggle" aria-label="전투 기록과 도움말 열기" onClick={openBattleTools}>기록</button>}
+        <details className="battle-sound-menu" onKeyDown={e=>{
+          if(!e.currentTarget.open)return;
+          if(e.key==='Escape'){e.preventDefault();e.stopPropagation();e.currentTarget.open=false;e.currentTarget.querySelector<HTMLElement>('summary')?.focus();return;}
+          if(e.key!=='Tab')return;
+          const controls=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('summary,button:not([disabled]):not([tabindex="-1"]),input:not([disabled]),select:not([disabled])')).filter(el=>el.getClientRects().length>0);
+          const first=controls[0],last=controls[controls.length-1];
+          if(first&&last&&e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+          else if(first&&last&&!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+        }}><summary>소리·연출</summary><button type="button" className="battle-sound-dismiss" tabIndex={-1} aria-hidden="true" onClick={e=>{const details=e.currentTarget.closest<HTMLDetailsElement>('.battle-sound-menu');if(details){details.open=false;details.querySelector<HTMLElement>('summary')?.focus();}}}/><div className="sound-settings"><button type="button" className="secondary sound-toggle" aria-pressed={sound} onClick={toggleSound}>효과음 {sound?'켜짐':'꺼짐'}</button><DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing}/></div></details><button className="secondary" disabled={busy} onClick={leave}>나가기</button></div>
+    </div></div>;
+  const inspectDialog=inspectedOverlay&&!ownChoiceOpen&&<div className="board-inspect-backdrop" role="presentation" onClick={e=>{if(e.target===e.currentTarget)closeBoardInspector();}}>
+      <section className="board-inspect-dialog" role="dialog" aria-modal="true" aria-label="카드 상세" onKeyDownCapture={e=>{
+        if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeBoardInspector();}
+        else if(e.key==='Tab'){e.preventDefault();inspectCloseRef.current?.focus();}
+      }}>
+        <button type="button" className="board-inspect-close secondary" ref={inspectCloseRef} onClick={closeBoardInspector}>카드 설명 닫기 <kbd>Esc</kbd></button>
+        <CardInspector item={inspectedOverlay} catalog={catalog}/>
+      </section>
+    </div>;
+  if(s.phase==='mulligan')return <section className="battle duel-screen phase-mulligan">{title}<div className="mulligan-arena classic-mulligan" inert={!!inspectedOverlay}><TableDecor/><div className="mulligan-opponent"><HiddenHand count={s.opponent.handCount}/><HeroPortrait player={s.opponent} label={enemyLabel}/></div><div className="mulligan-heading"><span className="mulligan-order">{s.firstPlayer===seat?'선공':'후공'}</span><h3>첫 손패를 선택하세요</h3><p>{!opponentReady?pauseMessage:s.self.mulliganDone?'상대의 선택을 기다리는 중입니다.':'바꾸고 싶은 카드를 클릭한 후 확정하세요.'}</p>{mulliganInspectable&&<div className="mulligan-inspection-controls"><label>설명할 카드<select aria-label="설명을 확인할 첫 손패 카드" value={mulliganInspectable.instanceId} onChange={e=>setMulliganInspectId(e.target.value)}>{s.self.hand.map(c=><option key={c.instanceId} value={c.instanceId}>{displayCardName(catalog[c.cardId],classicNames)}</option>)}</select></label><button type="button" className="secondary mulligan-inspection-open" onClick={()=>inspectBoardMinion({card:catalog[mulliganInspectable.cardId],cost:publicCardCost(s,seat,catalog[mulliganInspectable.cardId],catalog,mulliganInspectable.costDiscount)})}>카드 설명 확대</button></div>}</div><div className="mulligan-cards">{s.self.hand.map(c=><BattleCard key={c.instanceId} card={catalog[c.cardId]} mulligan selected={replace.includes(c.instanceId)} enabled={!s.self.mulliganDone&&connected&&opponentReady&&!busy} onClick={()=>{setMulliganInspectId(c.instanceId);setReplace(old=>old.includes(c.instanceId)?old.filter(x=>x!==c.instanceId):[...old,c.instanceId]);}}/>)}</div><button className="mulligan-confirm" disabled={s.self.mulliganDone||busy||!connected||!opponentReady} onClick={e=>perform({type:'mulligan',replace},e.detail===0)}>확정 ({replace.length}장 교체)</button><div className="mulligan-self"><HeroPortrait player={s.self} label="나"/></div></div>{inspectDialog}</section>;
   return <section data-animation-speed={room.animationSpeed??"normal"} className={`battle duel-screen phase-${s.phase}${active?' my-turn':''}${currentDrag?' is-dragging':''}${highlight?' has-selection':''}${playing?' is-playing-fx':''}${room.animation?.revision===s.revision?' has-fx-revision':''}`}>
     {title}
-    <div className="arena-message" role="status"><span className={`turn-lamp${active?' live':''}`}/><span>{status}</span>{selected?.kind==='held'&&active&&<button type="button" className="mobile-card-use" onClick={()=>applyIntent(planCard(s,seat,catalog,selected.id,boardPosition))}>선택 카드 내기</button>}{selected&&<button className="secondary" onClick={()=>setSelected(null)}>선택 취소 <kbd>Esc</kbd></button>}</div>
-    <div className="battle-arena classic-table" ref={arenaRef} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={e=>pointAim(e.clientX,e.clientY)} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();setSelected(null);clearDrag();}}}>
+    <div className="arena-message" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={messageRef} onKeyDownCapture={targetKeys} data-drop-feedback={currentDrag?dropFeedback??undefined:dropNotice?'notice':undefined}><span className={`turn-lamp${active?' live':''}`}/><span role="status" aria-live={currentDrag?"off":"polite"}>{status}{selected&&!currentDrag&&legalTargets.length>0&&<small className="target-key-hint"> · 방향키/Enter</small>}</span>{connected&&!opponentReady&&reconnectLeft!==null&&<small className="reconnect-countdown" aria-live="off"> · 남은 재접속 시간 {Math.floor(reconnectLeft/60)}분 {reconnectLeft%60}초</small>}{selectedHandInspectable&&!currentDrag&&currentInspector&&<button type="button" className="secondary selected-card-inspect" aria-label={`${displayCardName(currentInspector.card,classicNames)} 카드 설명 전체 보기`} onClick={()=>inspectBoardMinion(currentInspector)}>카드 설명 확대</button>}{active&&!currentDrag&&<PlacementPicker view={s} seat={seat} catalog={catalog} selection={selected} position={boardPosition} onChoose={choosePosition}/>}{selected?.kind==='held'&&active&&<button type="button" className="selected-card-use" onClick={e=>applyIntent(planCard(s,seat,catalog,selected.id,boardPosition),e.detail===0)}>선택 카드 내기</button>}{selected&&!currentDrag&&legalTargets.length>0&&<TargetPicker key={`${s.revision}:${aimSource}:${selected.kind==='card'?selected.choice??'':''}`} view={s} seat={seat} targets={legalTargets} catalog={catalog} sourceLabel={targetSourceLabel} onChoose={choose}/>}{selected&&<button className="secondary selection-cancel" onClick={()=>setSelected(null)}>선택 취소 <kbd>Esc</kbd></button>}{room.mode==='bot'&&s.phase==='playing'&&<EmoteMenu hero={s.self.heroClass} onEmote={dialogue.emote} cooldown={dialogue.emoteCooldown}/>}</div>
+    <div className="battle-arena classic-table" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={arenaRef} onKeyDownCapture={targetKeys} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={nativeDragOver} onDropCapture={nativeDrop} onDragLeave={e=>{if(!e.relatedTarget||!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget)){setDropFeedback(null);setTouchSlot(undefined);setDropTarget(undefined);hideAim();}}} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();if(selected?.kind==='cardChoice')cancelCardChoice();else{setSelected(null);clearDrag();}}}}>
       {touchGhost&&<div className="touch-drag-ghost" aria-hidden="true"><BattleCard card={catalog[s.self.hand.find(h=>h.instanceId===touchGhost)?.cardId??'']??catalog.__coin}/></div>}
       <TableDecor/><BattleEffects cue={cue} arenaRef={arenaRef} catalog={catalog}/>{visual?.turn&&<div className={`turn-flash ${visual.turn}`} role="status">{visual.turn==='own'?'내 턴':'상대 턴'}</div>}
       {aimVisible&&<svg className={`aim-overlay${highlight?.kind==='attack'||highlight?.kind==='heroAttack'?' attack-aim':''}`} key={aimSource} aria-hidden="true"><defs><marker id="duel-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="currentColor"/></marker></defs><line ref={aimRef} visibility="hidden" markerEnd="url(#duel-arrow)" stroke="currentColor" strokeWidth="7" strokeLinecap="round"/></svg>}
-      <aside className="arena-left" aria-label="카드 상세와 전투 기록">
-        <div className="rail-heading"><span>카드 상세</span><small>마우스 올리기</small></div><CardInspector item={currentInspector} catalog={catalog}/>
+      <aside className="arena-left" inert={ownChoiceOpen} aria-label="카드 상세와 전투 기록">
+        <div className="rail-heading"><span>카드 상세</span><small>가리키기 · 터치</small></div><CardInspector item={currentInspector} catalog={catalog}/>
         <div className="rail-heading"><span>최근 행동</span><small>{s.history.length}/60</small></div>
         <div className="event-timeline">{s.history.slice(-7).reverse().map((entry,i)=><div className={`timeline-entry${entry.player===seat?' own':''}`} key={`${entry.turn}-${i}`}><span className="event-dot"/><div><small>{entry.player===seat?'나':enemyLabel} · 턴 {entry.turn}</small><p>{entry.message}</p></div></div>)}{!s.history.length&&<p>아직 행동이 없습니다.</p>}</div>
         <details className="arena-help"><summary>조작 방법</summary><p>카드는 클릭하면 선택되고 전장이나 유효한 대상에 끌어 놓으면 사용됩니다. 준비된 하수인과 영웅을 클릭하거나 적에게 끌어 공격합니다. 금색 슬롯은 하수인 배치 위치입니다.</p></details>
       </aside>
-      <div className="arena-field" onDragOver={e=>{if(spellFieldDrop(e))allowBoardDrop(e);}} onDrop={e=>{if(spellFieldDrop(e))dropIntoBoard(e,boardPosition);}}>
+      <div className="arena-field" inert={ownChoiceOpen}>
         <HiddenHand count={s.opponent.handCount}/>
-        <div className="hero-zone enemy-hero-zone">
-          <WeaponSlot player={s.opponent} catalog={catalog}/><div className="hero-center"><Secrets count={s.opponent.secretCount}/><HeroPortrait delta={visual?.enemyHeroDelta} player={s.opponent} label={enemyLabel} targeted={canTarget(enemyHeroTarget)} enabled={canTarget(enemyHeroTarget)} onClick={()=>choose(enemyHeroTarget)} {...targetDropProps(enemyHeroTarget)}/></div><HeroPower player={s.opponent}/>
+        <div className="hero-zone enemy-hero-zone"><DialogueCaptions captions={dialogue.captions} side={enemy} mode={captionMode} catalog={catalog} hero={s.opponent.heroClass} heroForm={s.opponent.heroForm}/>
+          <WeaponSlot player={s.opponent} catalog={catalog} onInspect={cardInspect}/><div className="hero-center"><Secrets count={s.opponent.secretCount}/><HeroPortrait delta={visual?.enemyHeroDelta} player={s.opponent} label={enemyLabel} targeted={canTarget(enemyHeroTarget)} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,enemyHeroTarget)} enabled={canTarget(enemyHeroTarget)} onClick={keyboard=>choose(enemyHeroTarget,keyboard)}/></div><HeroPower player={s.opponent}/>
         </div>
-        <div className="arena-board enemy-board" aria-label={`상대 전장 ${s.opponent.board.length}/7`}><span className="zone-caption">상대 전장 <b>{s.opponent.board.length}/7</b></span><div className="minion-row" data-board-count={s.opponent.board.length}>{s.opponent.board.map(m=>{const target:Target={kind:'minion',instanceId:m.instanceId};return <BattleMinion entering={visual?.summoned.has(m.instanceId)} delta={visual?.minionDelta.get(m.instanceId)} key={m.instanceId} card={catalog[m.cardId]} minion={m} catalog={catalog} ownTurn={s.activePlayer===enemy} enabled={canTarget(target)} targeted={canTarget(target)} onInspect={cardInspect} onClick={()=>choose(target)} {...targetDropProps(target)}/>;})}{!s.opponent.board.length&&<div className="empty-board">상대 하수인 없음</div>}</div></div>
+        <div className="arena-board enemy-board" aria-label={`상대 전장 ${s.opponent.board.length}/7`}><span className="zone-caption">상대 전장 <b>{s.opponent.board.length}/7</b></span><div className="minion-row" data-board-count={s.opponent.board.length}>{s.opponent.board.map(m=>{const target:Target={kind:'minion',instanceId:m.instanceId};return <BattleMinion entering={visual?.summoned.has(m.instanceId)} delta={visual?.minionDelta.get(m.instanceId)} key={m.instanceId} card={catalog[m.cardId]} minion={m} catalog={catalog} ownTurn={s.activePlayer===enemy} enabled={canTarget(target)} targeted={canTarget(target)} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,target)} onInspect={cardInspect} onInspectTap={()=>inspectBoardMinion({card:catalog[m.cardId],minion:m})} onClick={keyboard=>choose(target,keyboard)}/>;})}{!s.opponent.board.length&&<div className="empty-board">상대 하수인 없음</div>}</div></div>
         <div className="battle-divider"><span/><span className="divider-emblem"><Sigil kind="neutral"/></span><span/></div>
-        <div className={`arena-board friendly-board${currentDrag?.kind==='card'?' drop-ready':''}`} aria-label={`내 전장 ${s.self.board.length}/7`} onDragOver={allowBoardDrop} onDrop={e=>dropIntoBoard(e,boardPosition)}><span className="zone-caption">내 전장 <b>{s.self.board.length}/7</b></span><div className="minion-row friendly-minions" data-board-count={s.self.board.length}>
-          {Array.from({length:s.self.board.length+1},(_,i)=>{const m=s.self.board[i];const target:Target|undefined=m?{kind:'minion',instanceId:m.instanceId}:undefined;const attackReady=!!m&&canAttack(m.instanceId);const targetReady=!!target&&canTarget(target);const isSource=!!m&&highlight?.kind==='attack'&&highlight.id===m.instanceId;return <div className="board-segment" key={m?.instanceId??'last-gap'}><button type="button" className={`position-slot${boardPosition===i?' chosen':''}${currentDrag?.kind==='card'?' dropping':''}`} disabled={!active||s.self.board.length>=7} aria-label={`하수인 배치 위치 ${i+1}`} aria-pressed={boardPosition===i} title={`하수인을 ${i+1}번 위치에 배치`} onClick={()=>setPosition(i)} onDragOver={allowBoardDrop} onDrop={e=>dropIntoBoard(e,i)}><span>+</span></button>{m&&target&&<BattleMinion entering={visual?.summoned.has(m.instanceId)} delta={visual?.minionDelta.get(m.instanceId)} sourceId={`minion:${m.instanceId}`} card={catalog[m.cardId]} minion={m} catalog={catalog} ownTurn={s.activePlayer===seat} enabled={targetReady||attackReady&&(!highlight||highlight.kind==='attack'||highlight.kind==='heroAttack')} ready={attackReady&&!highlight&&!currentDrag} selected={isSource} targeted={targetReady} onInspect={cardInspect} onClick={()=>{if(targetReady)choose(target);else if(attackReady)setSelected(planAttack(s,seat,catalog,m.instanceId));}} onDragStart={attackReady?e=>beginDrag(e,{kind:'attack',id:m.instanceId}):undefined} onDragEnd={clearDrag} {...targetDropProps(target)}/>}</div>;})}{!s.self.board.length&&<div className="empty-board own-empty">{currentDrag?.kind==='card'?'여기에 카드를 놓으세요':'손패에서 하수인을 내보세요'}</div>}</div>
+        <div className={`arena-board friendly-board${currentDrag?.kind==='card'?' drop-ready':''}`} aria-label={`내 전장 ${s.self.board.length}/7`}><span className="zone-caption">내 전장 <b>{s.self.board.length}/7</b></span><div className="minion-row friendly-minions" data-board-count={s.self.board.length}>
+          {Array.from({length:s.self.board.length+1},(_,i)=>{const m=s.self.board[i];const target:Target|undefined=m?{kind:'minion',instanceId:m.instanceId}:undefined;const attackReady=!!m&&canAttack(m.instanceId);const targetReady=!!target&&canTarget(target);const isSource=!!m&&highlight?.kind==='attack'&&highlight.id===m.instanceId;return <div className="board-segment" key={m?.instanceId??'last-gap'}><button type="button" className={`position-slot${boardPosition===i?' chosen':''}${draggedMinion?' dropping':''}${draggedMinion&&touchSlot===i?' touch-drop-hover':''}`} data-drop-position={i} disabled={!active||s.self.board.length>=7} aria-label={`하수인 배치 위치 ${i+1}`} aria-pressed={boardPosition===i} title={`하수인을 ${i+1}번 위치에 배치`} onClick={()=>choosePosition(i)}><span>+</span></button>{m&&target&&<BattleMinion entering={visual?.summoned.has(m.instanceId)} delta={visual?.minionDelta.get(m.instanceId)} sourceId={`minion:${m.instanceId}`} card={catalog[m.cardId]} minion={m} catalog={catalog} ownTurn={s.activePlayer===seat} enabled={targetReady||attackReady&&(!highlight||highlight.kind==='attack'||highlight.kind==='heroAttack')} ready={attackReady&&!highlight&&!currentDrag} selected={isSource} targeted={targetReady} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,target)} onInspect={cardInspect} onInspectTap={()=>inspectBoardMinion({card:catalog[m.cardId],minion:m})} onClick={keyboard=>{if(targetReady)choose(target,keyboard);else if(attackReady)setSelected(old=>toggleActionSelection(old,planAttack(s,seat,catalog,m.instanceId)));}} onDragStart={attackReady?e=>beginDrag(e,{kind:'attack',id:m.instanceId}):undefined} onDragEnd={nativeDragEnd}/>}</div>;})}{!s.self.board.length&&<div className="empty-board own-empty">{currentDrag?.kind==='card'?'여기에 카드를 놓으세요':'손패에서 하수인을 내보세요'}</div>}</div>
         </div>
-        <div className="hero-zone self-hero-zone"><WeaponSlot player={s.self} catalog={catalog}/><div className="hero-center"><Secrets count={s.self.secretCount} names={s.self.secrets.map(c=>displayCardName(catalog[c.cardId],classicNames))} cards={s.self.secrets.map(c=>catalog[c.cardId])}/><HeroPortrait delta={visual?.ownHeroDelta} sourceId="hero" player={s.self} label="나" enabled={canTarget(ownHeroTarget)||canAttack()&&(!highlight||highlight.kind==='heroAttack')} ready={canAttack()&&!highlight&&!currentDrag} selected={highlight?.kind==='heroAttack'} targeted={canTarget(ownHeroTarget)} onClick={()=>{if(canTarget(ownHeroTarget))choose(ownHeroTarget);else if(canAttack())setSelected(planAttack(s,seat,catalog));}} onDragStart={canAttack()?e=>beginDrag(e,{kind:'heroAttack'}):undefined} onDragEnd={clearDrag} {...targetDropProps(ownHeroTarget)}/></div><HeroPower sourceId="power" player={s.self} enabled={!!power} ready={!!power&&!highlight&&!currentDrag} selected={highlight?.kind==='power'} reason={powerReason} onClick={()=>applyIntent(power)}/></div>
-        <div className="own-hand"><div className="hand-heading"><span>내 손패 <b>{s.self.handCount}/10</b></span><span>{active?'선택 후 드래그':'상대 턴'}</span></div><div className="battle-hand" data-count={s.self.hand.length}>{s.self.hand.map((c,i)=>{const reason=active?publicCardReason(s,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,s.self.hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId}><BattleCard sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(s,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} selected={(highlight?.kind==='held'||highlight?.kind==='card'||highlight?.kind==='cardChoice')&&highlight.id===c.instanceId||currentDrag?.kind==='card'&&currentDrag.id===c.instanceId} onClick={()=>setSelected(selectHandCard(s,seat,catalog,c.instanceId,selected))} onInspect={cardInspect} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={clearDrag}/></div>;})}{!s.self.hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
+        <div className="hero-zone self-hero-zone"><DialogueCaptions captions={dialogue.captions} side={seat} mode={captionMode} catalog={catalog} hero={s.self.heroClass} heroForm={s.self.heroForm}/><WeaponSlot player={s.self} catalog={catalog} onInspect={cardInspect}/><div className="hero-center"><Secrets count={s.self.secretCount} names={s.self.secrets.map(c=>displayCardName(catalog[c.cardId],classicNames))} cards={s.self.secrets.map(c=>catalog[c.cardId])}/><HeroPortrait delta={visual?.ownHeroDelta} sourceId="hero" player={s.self} label="나" enabled={canTarget(ownHeroTarget)||canAttack()&&(!highlight||highlight.kind==='heroAttack')} ready={canAttack()&&!highlight&&!currentDrag} selected={highlight?.kind==='heroAttack'} targeted={canTarget(ownHeroTarget)} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,ownHeroTarget)} onClick={keyboard=>{if(canTarget(ownHeroTarget))choose(ownHeroTarget,keyboard);else if(canAttack())setSelected(old=>toggleActionSelection(old,planAttack(s,seat,catalog)));}} onDragStart={canAttack()?e=>beginDrag(e,{kind:'heroAttack'}):undefined} onDragEnd={nativeDragEnd}/></div><HeroPower sourceId="power" player={s.self} enabled={!!power} ready={!!power&&!highlight&&!currentDrag} selected={highlight?.kind==='power'} reason={powerReason} onClick={keyboard=>applyIntent(power,keyboard)}/></div>
+        <div className="own-hand"><div className="hand-heading"><span>내 손패 <b>{s.self.handCount}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={s.self.hand.length}
+          onFocusCapture={e=>{if(dismissPeekOnHandFocus(peekCardId,(e.target as HTMLElement).dataset.actionSource))setPeekCardId(null);}}
+          onBlurCapture={e=>{if(!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget))setPeekCardId(null);}}>{s.self.hand.map((c,i)=>{const reason=active?publicCardReason(s,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,s.self.hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId}><BattleCard sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(s,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} previewOpen={peekCardId===c.instanceId} onBlocked={()=>setPeekCardId(previous=>previous===c.instanceId?null:c.instanceId)} selected={(highlight?.kind==='held'||highlight?.kind==='card'||highlight?.kind==='cardChoice')&&highlight.id===c.instanceId||currentDrag?.kind==='card'&&currentDrag.id===c.instanceId} onClick={keyboard=>{setPeekCardId(null);const next=selectHandCard(s,seat,catalog,c.instanceId,selected);if(keyboard&&next?.kind==='held')focusRequest.current='held';setSelected(next);}} onInspect={cardInspect} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/></div>;})}{!s.self.hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
       </div>
-      <aside className="arena-right" aria-label="마나, 덱, 턴 종료">
+      <aside className="arena-right" inert={ownChoiceOpen||!!inspectedOverlay} aria-label="마나, 덱, 턴 종료">
         <div className="resource-block opponent-resources"><span className="rail-heading">상대 자원</span><ManaDisplay player={s.opponent} compact/><DeckPile player={s.opponent} label="상대"/></div>
-        <div className="turn-control"><small>TURN {s.turn}</small>{room.turnDeadlineMs!==undefined&&<b className="turn-countdown" data-urgent={secondsLeft!==null&&secondsLeft<=5}>남은 시간 {secondsLeft??0}초</b>}<button type="button" className={`end-turn${active?' your-turn':''}`} disabled={!active} onClick={()=>perform({type:'endTurn'})}>턴 종료</button><span>{active?'내 턴':s.phase==='finished'?'대전 종료':room.mode==='bot'?'AI 턴':'상대 턴'}</span></div>
+        <div className="turn-control"><small>TURN {s.turn}</small>{room.turnDeadlineMs!==undefined&&<b className="turn-countdown" data-urgent={secondsLeft!==null&&secondsLeft<=5}>남은 시간 {secondsLeft??0}초</b>}<button type="button" className={`end-turn${active?' your-turn':''}`} disabled={!active} onClick={e=>perform({type:'endTurn'},e.detail===0)}>턴 종료</button><span className="turn-owner">{turnLabel}</span></div>
         <div className="resource-block own-resources"><DeckPile player={s.self} label="내"/><span className="rail-heading">내 자원</span><ManaDisplay player={s.self}/>{s.self.nextSecretFree&&<small className="resource-buff">다음 비밀 무료</small>}{s.self.protectMinionsThisTurn&&<small className="resource-buff">하수인 피해 보호</small>}</div>
-        {s.phase==='playing'&&<button type="button" className="secondary danger concede-button" disabled={!connected||busy} onClick={()=>{if(window.confirm('항복하시겠습니까?'))perform({type:'concede'});}}>항복</button>}
+        {s.phase==='playing'&&<button type="button" className="secondary danger concede-button" disabled={!connected||busy} onClick={confirmConcede}>항복</button>}
       </aside>
-      {s.choicePending&&!playing&&<div className="battle-overlay choice-overlay"><div className="choice-window" role="group" aria-label="덱 카드 선택"><h3>{!opponentReady?pauseMessage:s.self.pendingChoice?'덱 위의 카드 중 한 장을 선택하세요':'상대가 카드를 선택하는 중입니다'}</h3>{s.self.pendingChoice&&<><p>한 장을 손패에 넣고 나머지는 버립니다.</p><div className="choice-cards">{s.self.pendingChoice.map(c=><BattleCard key={c.instanceId} card={catalog[c.cardId]} enabled={connected&&opponentReady&&!busy} onClick={()=>perform({type:'chooseDeckCard',instanceId:c.instanceId})}/>)}</div></>}</div></div>}
-      {choiceCard&&(choiceCard.kind==='spell'||choiceCard.kind==='minion')&&selected?.kind==='cardChoice'&&<div className="battle-overlay choice-overlay"><div className="choice-window" role="group" aria-label="카드 효과 선택"><h3>{displayCardName(choiceCard,classicNames)} · 효과 선택</h3><div className="effect-choices">{choiceCard.choices?.map((option,i)=>{const reason=cardChoiceReason(s,seat,choiceCard,catalog,i);return <button type="button" key={i} disabled={!active||!!reason} title={reason} onClick={()=>applyIntent(planCard(s,seat,catalog,selected.id,selected.position,i))}>{option.label}{reason&&<small>{reason}</small>}</button>;})}</div><button className="secondary" onClick={()=>setSelected(null)}>취소</button></div></div>}
-      {s.phase==='finished'&&!playing&&<div className="battle-overlay result-overlay"><div className={`result-window ${s.winner===seat?'victory':s.winner===null?'draw':'defeat'}`}><Sigil kind={s.winner===seat?'paladin':s.winner===null?'neutral':'shield'}/><h3>{result}</h3><p>{resultReason} · {s.turn}턴</p>{room.developerTest&&<p>개발자 시험 완료 · 계정 성장 및 전적 변경 없음</p>}{room.ranked&&<p>{room.ranked.reward==='saved'?'계정 XP·퀘스트 기록 저장 완료':room.ranked.reward==='notEligible'?'조기 항복은 XP 보상에 포함되지 않습니다.':'서버에서 랭크 대전 결과 저장 중…'}</p>}{room.ranked?.reward==='saved'&&room.ranked.rewardDetails&&<section className="ranked-reward" aria-label="대전 보상"><strong>+{room.ranked.rewardDetails.xp.toLocaleString('ko-KR')} XP</strong>{room.ranked.rewardDetails.questAdvanced&&<p>{room.ranked.rewardDetails.questCompleted?`직업 퀘스트 완료 · 보너스 +${room.ranked.rewardDetails.questBonusXp??0} XP 포함`:'직업 퀘스트 +1판'}</p>}{(room.ranked.rewardDetails.rankAfter??0)>room.ranked.rank&&<p>승급! {rankInfo(room.ranked.rewardDetails.rankAfter!).name}</p>}{!!room.ranked.rewardDetails.unlockedCards?.length&&<p>새 카드 {room.ranked.rewardDetails.unlockedCards.length}종 해금: {room.ranked.rewardDetails.unlockedCards.slice(0,4).map(id=>catalog[id]?.name??id).join(', ')}{room.ranked.rewardDetails.unlockedCards.length>4&&' 외'}</p>}</section>}{room.pvpReward&&<p>{room.pvpReward==='saved'?'계정 PvP 전적 저장 완료':'서버에서 유저 대전 결과 저장 중…'}</p>}{onRematch&&<button onClick={onRematch}>같은 상대와 재대전</button>}<button className="secondary" onClick={leave}>{room.mode==='bot'?'대전 준비로 돌아가기':'덱 편집으로 돌아가기'}</button></div></div>}
+      {s.choicePending&&!playing&&<div className="battle-overlay choice-overlay"><div className="choice-window" role={ownChoiceOpen?'dialog':'status'} aria-modal={ownChoiceOpen||undefined} tabIndex={ownChoiceOpen?-1:undefined} ref={ownChoiceOpen?choiceRef:undefined} onKeyDownCapture={ownChoiceOpen?choiceKeys:undefined} aria-label="덱 카드 선택"><h3>{!opponentReady?pauseMessage:s.self.pendingChoice?'덱 위의 카드 중 한 장을 선택하세요':'상대가 카드를 선택하는 중입니다'}</h3>{s.self.pendingChoice&&<><p>한 장을 손패에 넣고 나머지는 버립니다.</p><div className="choice-cards">{s.self.pendingChoice.map(c=><BattleCard key={c.instanceId} card={catalog[c.cardId]} enabled={connected&&opponentReady&&!busy} onClick={keyboard=>perform({type:'chooseDeckCard',instanceId:c.instanceId},keyboard)}/>)}</div>{ownChoiceOpen&&onPause&&<button type="button" className="secondary" disabled={busy} onClick={onPause}>{saveRetryable?'저장 재시도 후 나가기':'저장 후 나가기'}</button>}{ownChoiceOpen&&<button type="button" className="secondary" disabled={busy} onClick={leave}>나가기</button>}</>}</div></div>}
+      {active&&choiceCard&&(choiceCard.kind==='spell'||choiceCard.kind==='minion')&&selected?.kind==='cardChoice'&&<div className="battle-overlay choice-overlay"><div className="choice-window" role="dialog" aria-modal="true" tabIndex={-1} ref={choiceRef} onKeyDownCapture={choiceKeys} aria-label="카드 효과 선택"><h3>{displayCardName(choiceCard,classicNames)} · 효과 선택</h3><div className="effect-choices">{choiceCard.choices?.map((option,i)=>{const reason=cardChoiceReason(s,seat,choiceCard,catalog,i);return <button type="button" key={i} disabled={!active||!!reason} title={reason} onClick={e=>applyIntent(planCard(s,seat,catalog,selected.id,selected.position,i),e.detail===0)}>{option.label}{reason&&<small>{reason}</small>}</button>;})}</div><button className="secondary" onClick={cancelCardChoice}>취소</button></div></div>}
+      {s.phase==='finished'&&!playing&&<div className="battle-overlay result-overlay"><div className={`result-window ${s.winner===seat?'victory':s.winner===null?'draw':'defeat'}`} role="dialog" aria-modal="true" aria-label="대전 결과" tabIndex={-1} ref={resultRef} onKeyDownCapture={resultKeys}><Sigil kind={s.winner===seat?'paladin':s.winner===null?'neutral':'shield'}/><h3>{result}</h3><p>{resultReason} · {s.turn}턴</p>{room.developerTest&&<p>개발자 시험 완료 · {room.botEngine==='device'?'로컬':'계정'} 성장 및 전적 변경 없음</p>}{room.ranked&&<p>{room.ranked.reward==='saved'?room.botEngine==='device'?'기기 XP·퀘스트 기록 저장 완료':'계정 XP·퀘스트 기록 저장 완료':room.ranked.reward==='notEligible'?'조기 항복은 XP 보상에 포함되지 않습니다.':room.botEngine==='device'?(autoSaved?'기기에서 랭크 대전 결과 저장 중…':'성장 기록 저장에 실패했습니다. 저장 경기를 다시 열어 확인하세요.'):'서버에서 랭크 대전 결과 저장 중…'}</p>}{room.ranked?.reward==='saved'&&room.ranked.rewardDetails&&<section className="ranked-reward" aria-label="대전 보상"><strong>+{room.ranked.rewardDetails.xp.toLocaleString('ko-KR')} XP</strong>{room.ranked.rewardDetails.questAdvanced&&<p>{room.ranked.rewardDetails.questCompleted?`직업 퀘스트 완료 · 보너스 +${room.ranked.rewardDetails.questBonusXp??0} XP 포함`:'직업 퀘스트 +1판'}</p>}{(room.ranked.rewardDetails.rankAfter??0)>room.ranked.rank&&<p>승급! {rankInfo(room.ranked.rewardDetails.rankAfter!).name}</p>}{!!room.ranked.rewardDetails.unlockedCards?.length&&<p>새 카드 {room.ranked.rewardDetails.unlockedCards.length}종 해금: {room.ranked.rewardDetails.unlockedCards.slice(0,4).map(id=>catalog[id]?.name??id).join(', ')}{room.ranked.rewardDetails.unlockedCards.length>4&&' 외'}</p>}</section>}{room.pvpReward&&<p>{room.pvpReward==='saved'?'계정 PvP 전적 저장 완료':'서버에서 유저 대전 결과 저장 중…'}</p>}{onRematch&&<button onClick={onRematch}>같은 상대와 재대전</button>}<button className="secondary" onClick={leave}>{room.mode==='bot'?'대전 준비로 돌아가기':'덱 편집으로 돌아가기'}</button></div></div>}
     </div>
-    <div className="battle-utilities"><details className="battle-log"><summary>최근 전투 기록 ({s.history.length}/60)</summary>{s.history.slice().reverse().map((entry,i)=><div className="log-entry" key={`${entry.turn}-${i}`}><small>턴 {entry.turn} · {entry.player===seat?'나':'상대'}</small>　{entry.message}</div>)}</details><details className="battle-report"><summary>오류 신고용 전투 기록</summary><p>공개 정보만 기록합니다. 방 코드, 양쪽 손패의 카드 이름 및 미발동 비밀은 포함하지 않습니다.</p><textarea readOnly aria-label="오류 신고용 전투 기록" ref={reportRef} value={report}/><div className="controls"><button className="secondary" onClick={copyReport}>전투 기록 복사</button>{reportMessage&&<small role="status">{reportMessage}</small>}</div></details></div>
+    {inspectDialog}
+    <div className="battle-utilities" data-tools-open={battleToolsOpen} inert={ownChoiceOpen||!!inspectedOverlay} role={battleToolsOpen?'dialog':undefined} aria-modal={battleToolsOpen||undefined} aria-label={battleToolsOpen?'전투 기록과 도움말':undefined} onKeyDownCapture={e=>{if(!battleToolsOpen)return;if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeBattleTools();return;}if(e.key!=='Tab')return;const focusable=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),summary,select,textarea,input,[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length>0);if(!focusable.length){e.preventDefault();return;}const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}}><button type="button" className="battle-tools-close secondary" ref={toolsCloseRef} onClick={closeBattleTools}>전투 기록 닫기 <kbd>Esc</kbd></button><ImpactHistory entries={impactHistory}/><details className="landscape-card-detail"><summary title="선택된 카드의 설명과 효과 확인">카드 상세 보기{selectedCard?` · ${displayCardName(selectedCard,classicNames)}`:''}</summary><CardInspector item={currentInspector} catalog={catalog}/></details><details className="battle-log"><summary>최근 전투 기록 ({s.history.length}/60)</summary>{s.history.slice().reverse().map((entry,i)=><div className="log-entry" key={`${entry.turn}-${i}`}><small>턴 {entry.turn} · {entry.player===seat?'나':'상대'}</small>　{entry.message}</div>)}</details><details className="battle-report"><summary>오류 신고용 전투 기록</summary><p>공개 정보만 기록합니다. 방 코드, 양쪽 손패의 카드 이름 및 미발동 비밀은 포함하지 않습니다.</p><textarea readOnly aria-label="오류 신고용 전투 기록" ref={reportRef} value={report}/><div className="controls"><button className="secondary" onClick={copyReport}>전투 기록 복사</button>{reportMessage&&<small role="status">{reportMessage}</small>}</div></details>{s.phase==='playing'&&<button type="button" className="secondary danger compact-concede" disabled={!connected||busy} onClick={confirmConcede}>항복</button>}</div>
   </section>;
 }

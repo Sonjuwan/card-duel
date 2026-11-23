@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "reason": "Intentional freeze of existing card balance/progression and published AI champions during PWA UI-only work; any future change requires explicit approval and baseline revision.",
+  "files": {
+    "data/cards/active.json": "37a046b416aeb55c2b4afd1a85662c069bfa30f442c8c411895ba4646eb9b94e",
+    "data/cards/v0.23.0.json": "c5908c42bbf2efb197cae400f21505461bddd09aef9a2a13bdf0fae87f50096e",
+    "data/progression/online.json": "893d96feb64c840732b5a2c88622a21d6d3b457f00bce6b1c4b0a29f82ea2b56",
+    "data/ai-release/03e0c2dcec376377edec9d007a7557646397af2a03fc1b843330fc076b6f5d8f/champion.json": "bd16e7c1dd4d08d94c4d267c4492b7c9474f39f5d039b487307c07a0aab22f7a",
+    "data/ai-release/4fda1c70ee9d13b2bafdc894021b7d550081b92c524d5b9aa100904d48307afb/champion.json": "5fcfe984aee202c0cd23fa3bd37f8a0294b39240a092d947adada7ec666e5237"
+  },
+  "expectedActiveCards": 437,
+  "activeCardFile": "v0.23.0.json"
+}
