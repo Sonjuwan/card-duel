@@ -156,8 +156,8 @@
 .game-main .duel-screen.preview-compact>.duel-title .duel-actions>.compact-concede,
 .game-main .duel-screen.preview-compact>.duel-title .duel-actions>.compact-settings-close{order:-1}
 .lobby-settings-entry:has(~.lobby-page-nav){right:max(64px,calc(env(safe-area-inset-right) + 54px))}
-body:has(.game-main) #solo-app-banner{pointer-events:none}
-body:has(.game-main) #solo-app-banner button{pointer-events:auto}
+body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner{pointer-events:none}
+body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner button{pointer-events:auto}
 .game-toast[data-kind="error"]{border-color:#e59a8f;color:#ffd4cb}
 .game-toast[data-kind="error"]>span{color:#ff9c93}
 .game-toast{animation:toast-lifetime 2.6s ease both}
