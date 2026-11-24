@@ -23,12 +23,9 @@ test('real solo ranked concede -> result -> leave -> new ranked mulligan without
     await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
     await page.getByRole('button',{name:/^확정 \(\d+장 교체\)$/}).click();
     await page.locator('.battle.phase-playing .battle-arena').waitFor();
-    if(name==='phone'){
-      await page.locator('.battle-tools-toggle').click();
-      await page.locator('.compact-concede').click();
-    }else{
-      await page.locator('.concede-button').click();
-    }
+    // Player-mode battle surrender now lives in the centered gear settings.
+    await page.locator('.compact-settings-trigger').click();
+    await page.getByRole('button',{name:'항복하기'}).click();
     await page.getByRole('dialog',{name:'대전 결과'}).waitFor({timeout:20000});
     await page.getByRole('button',{name:'대전 준비로 돌아가기'}).click();
     await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).waitFor({timeout:20000});
