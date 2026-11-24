@@ -103,11 +103,11 @@ test('selected attack and targeted power expose a cancelable pressed state; actu
   const power=renderToStaticMarkup(<HeroPower player={player} sourceId="power" enabled selected/>);assert.match(power,/aria-pressed="true"/);assert.match(power,/다시 누르면 취소/);
   const immediate=renderToStaticMarkup(<HeroPower player={{...player,heroClass:'warrior'}} sourceId="power" enabled/>);assert.doesNotMatch(immediate,/aria-pressed/);
 });
-test('solo battle shows six class emotes, voice controls and separate non-interactive caption slots',()=>{
+test('solo battle hides emote menu but preserves voice and independent caption slots',()=>{
   const view:RoomView={...room(ready()),mode:'bot',botEngine:'device'};
   const html=renderToStaticMarkup(<Battle room={view} send={noOp} leave={noOp} connected busy={false}/>);
-  assert.match(html,/대사 음성 켜짐/);assert.match(html,/aria-label="직업 고유 감정표현"/);
-  for(const label of ['인사','감사','칭찬','사과','놀람','도발'])assert.match(html,new RegExp('<b>'+label+'</b>'));
+  assert.match(html,/대사 음성 켜짐/);assert.doesNotMatch(html,/aria-label="직업 고유 감정표현"/);
+  for(const label of ['인사','감사','칭찬','사과','놀람','도발'])assert.doesNotMatch(html,new RegExp('<b>'+label+'</b>'));
   assert.equal((html.match(/class="battle-dialogue-captions"/g)??[]).length,2);
   assert.match(html,/전투 진동 꺼짐/);assert.match(html,/이 기기는 진동 API 미지원/);assert.match(html,/진동 미리 체험/);
   assert.match(html,/aria-label="전투 연출 품질"/);assert.match(html,/절전 · 가벼운 효과/);assert.match(html,/풍부 · 화려한 효과/);
