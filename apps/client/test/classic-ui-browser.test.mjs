@@ -62,6 +62,9 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     });
     assert.ok(bounds.bottom<=bounds.availableBottom+2,label+' all eight deck cards must be visible without vertical scroll: '+JSON.stringify(bounds));
     await page.screenshot({path:'ui-evidence/'+label+'-deck-builder.png',fullPage:false});
+    await page.locator('.deck-builder .collection-book .battle-card').first().click();
+    await page.locator('.deck-builder .game-toast[role=status]').getByText(/1장 추가/).waitFor();
+    assert.equal(await page.locator('.deck-builder .deck-live-count').textContent(),'1/30');
     assert.deepEqual(errors,[],label+' no unexpected JS errors');
     await context.close();
   }

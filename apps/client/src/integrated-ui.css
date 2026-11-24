@@ -177,3 +177,11 @@ body:has(.game-main) #solo-app-banner button{pointer-events:auto}
 .lobby-main.preview-lobby .preview-hero-choice{
   width:min(100%,1060px);margin:auto;
 }
+body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urgent="true"]){display:none}
+.game-main .duel-screen .battle-utilities[data-tools-open="true"]>.compact-concede{display:block;min-height:44px}
+@media(orientation:landscape) and (max-height:540px){
+  .lobby-main .deck-panel .book-with-tabs .collection.classic-collection.collection-book{
+    max-height:calc(100dvh - 78px);
+  }
+  .lobby-main .integrated-browser .card-browser-controls .deck-inspector{display:none}
+}
