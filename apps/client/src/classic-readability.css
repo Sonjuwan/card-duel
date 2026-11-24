@@ -15,7 +15,7 @@
   overflow:visible;
   padding:5px 6px 3px;
 }
-.lobby-main .collection-book .battle-card .card-art{
+.lobby-main .collection.classic-collection.collection-book .battle-card .card-art{
   box-sizing:border-box;
   flex:0 0 42%;
   width:100%;
