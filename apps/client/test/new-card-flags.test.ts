@@ -11,7 +11,7 @@ function store():SlotStorage{
 function profile(matches:AccountProfile['recentMatches']):AccountProfile{
   return {revision:matches?.length??0,decks:[],xp:70,rank:1,rankWins:0,questGames:0,ownedCards:['c-a','c-b','c-old'],recentMatches:matches};
 }
-const match=(matchId:string,unlockedCards:string[])=>({matchId,mode:'ranked' as const,rank:1,heroClass:'mage' as const,outcome:'win' as const,completedAt:1,xp:30,eligible:true,unlockedCards});
+const match=(matchId:string,unlockedCards:string[])=>({matchId,mode:'ranked' as const,rank:1,heroClass:'mage' as const,outcome:'win' as const,completedAt:1,xp:30,questAdvanced:false,eligible:true,unlockedCards});
 test('initial baseline preserves old owned cards without red NEW outlines',()=>{
   const slot=store();
   const old=match('before-patch',['c-old']);
