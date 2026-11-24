@@ -16,6 +16,7 @@ import './battle-fx.css';
 import './landscape-combat.css';
 import './landscape-shell.css';
 import './classic-readability.css';
+import './slot-flow.css';
 declare const __OFFLINE_CARDS__:unknown;
 declare const __OFFLINE_PROFILE__:PublicAiProfile;
 window.addEventListener('pointerdown',unlockBattleSound,{passive:true});
