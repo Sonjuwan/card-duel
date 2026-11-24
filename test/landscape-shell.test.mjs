@@ -18,10 +18,11 @@ test('game and deck modes share a clipped viewport and independently scrolling a
   assert.match(shell,/\.game-main>\.screen-content\{overflow:hidden\}/);
   assert.match(shell,/overscroll-behavior:contain/);
 });
-test('game menu is before save slots and in-page deck workspace, not behind them',()=>{
+test('game menu exposes a dedicated slot/progression page outside the play setup',()=>{
   const menu=app.indexOf('aria-label="게임 메뉴"');
-  assert.ok(menu>0&&menu<app.indexOf('aria-label="로컬 저장 슬롯"'));
-  assert.ok(menu<app.indexOf('lobbyView===\'play\'?<div className=\"play-hub\"'));
+  assert.ok(menu>0&&menu<app.indexOf("lobbyView==='play'?<div className=\"play-hub\""));
+  assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
+  assert.match(app,/lobbyView==='slots'&&lossOnExit\?<section className="slot-management-screen"/);
   assert.match(shell,/\.lobby-tabs\[aria-label="게임 메뉴"\]\{[^}]*position:sticky/);
 });
 test('short mobile landscape overrides the 540px theme minimum with fluid playable height',()=>{
@@ -40,7 +41,7 @@ test('portrait guide offers manual rotation and fullscreen only through direct i
 });
 test('battle, deck maker and card catalog are actual switched game screens',()=>{
   assert.match(app,/initialLobbyView='home'/);
-  assert.match(app,/aria-label="게임 메뉴"[^\n]*>.*카드 도감<\/button><\/nav>/);
+  assert.match(app,/aria-label="게임 메뉴"[^\n]*>.*카드 도감<\/button>.*슬롯 · 성장 · 기록<\/button>.*<\/nav>/);
   assert.match(app,/lobbyView==='catalog'\?<CardBrowser\/>/);
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
