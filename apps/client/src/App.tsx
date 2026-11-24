@@ -329,7 +329,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
           acknowledgeWorker();
           setError(data.error);changeBusy(false);return;
         }
-        if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView('play');setSavedMatch(data.save);setSaveAvailable(data.type==='paused'||data.type==='forfeited'||data.available);setError(data.type==='paused'?'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.':data.type==='forfeited'?'대전 나가기가 패배로 기록되었습니다. 새 경기를 시작할 수 있습니다.':'');changeBusy(false);return;}
+        if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView('play');setSavedMatch(data.save);setSaveAvailable(data.type==='paused'||data.type==='forfeited'||(data.type==='discarded'&&data.available));setError(data.type==='paused'?'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.':data.type==='forfeited'?'대전 나가기가 패배로 기록되었습니다. 새 경기를 시작할 수 있습니다.':'');changeBusy(false);return;}
         if(data.type!=='view')return;
         const firstView=!hasView;hasView=true;
         if(data.save!==undefined)setSavedMatch(data.save);if(data.saveAvailable!==undefined)setSaveAvailable(data.saveAvailable);
