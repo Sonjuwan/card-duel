@@ -54,6 +54,13 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     await page.locator('.deck-builder .collection-book .battle-card').first().waitFor();
     assert.equal(await page.locator('.deck-builder .collection-book .battle-card').count(),8,label+' deck builder count');
     assert.equal(await page.locator('.deck-builder .deck-sidebar').count(),1,label+' deck list visible');
+    const bounds=await page.evaluate(()=>{
+      const items=[...document.querySelectorAll('.deck-builder .collection-book .collection-item')];
+      const last=items.at(-1)?.getBoundingClientRect();
+      const viewport=document.querySelector('.lobby-main>.screen-content')?.getBoundingClientRect();
+      return {bottom:last?.bottom??Infinity,availableBottom:viewport?.bottom??innerHeight};
+    });
+    assert.ok(bounds.bottom<=bounds.availableBottom+2,label+' all eight deck cards must be visible without vertical scroll: '+JSON.stringify(bounds));
     await page.screenshot({path:'ui-evidence/'+label+'-deck-builder.png',fullPage:false});
     assert.deepEqual(errors,[],label+' no unexpected JS errors');
     await context.close();
