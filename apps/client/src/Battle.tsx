@@ -528,7 +528,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const selectedHandInspectable=!!selectedCard||!!peekedCard;
   const mulliganInspectable=s.self.hand.find(c=>c.instanceId===mulliganInspectId)??s.self.hand[0];
   const tier=room.ranked??room.developerTest;
-  const homeControl=compactUi&&(onPause||presentingResult)&&!compactSettingsOpen&&!battleToolsOpen&&!ownChoiceOpen&&!inspectedOverlay
+  const homeControl=compactUi&&presentingResult&&!compactSettingsOpen&&!battleToolsOpen&&!ownChoiceOpen&&!inspectedOverlay
     ? <button className="compact-home-trigger secondary" type="button" aria-label="저장하고 대전 준비로" disabled={busy||shattering} onClick={presentingResult?leave:onPause}>⌂</button>
     : null;
   const title=<div className={`duel-title${compactUi?' compact-title':''}`} data-settings-open={compactSettingsOpen} inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay}>

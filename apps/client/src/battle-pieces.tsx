@@ -117,7 +117,7 @@ export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false
     <span className="card-rarity-anchor" aria-label={rarity==='legendary'?'전설 등급':rarity==='epic'?'영웅 등급':rarity==='rare'?'희귀 등급':rarity==='common'?'일반 등급':'기본 카드'}><span className="rarity-gem" aria-hidden="true"/></span>
     <span className="card-copy">{cardDescription(card)}</span>
     {(card.kind==='minion'||card.kind==='weapon')&&<span className="card-statline"><span className="stat stat-attack">{card.attack}</span>{card.kind==='minion'&&card.tribe!=='none'&&tribes[card.tribe]&&<span className="card-tribe">{tribes[card.tribe]}</span>}<span className={card.kind==='weapon'?'stat stat-health stat-durability':'stat stat-health'}>{card.kind==='minion'?card.health:card.durability}</span></span>}
-    {mulligan&&selected&&<span className="replace-banner">교체</span>}
+    {mulligan&&selected&&<span className="replace-banner mulligan-replace-cross" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M12 12 L88 88 M88 12 L12 88" /></svg></span>}
   </button>;
 }
 export function statTone(current:number,base:number){return current>base?'increased':current<base?'reduced':'normal';}

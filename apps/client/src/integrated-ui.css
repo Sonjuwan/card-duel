@@ -392,3 +392,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     width:var(--hand-preview-hit-width);height:var(--hand-preview-hit-height);
   }
 }
+
+/* Follow-up: selected bookmarks, full tile portraits and clear mulligan marks. */
+.lobby-main .integrated-browser .book-class-tabs button[aria-pressed=true]{transform:scale(1.4);transform-origin:right center;position:relative;z-index:5;border-color:#fff1b4;box-shadow:0 0 7px #ffe3a777,0 0 0 1px #2a1b11}
+.preview-lobby .preview-hero-choice .preview-hero-tile{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;min-height:0;padding:3px}
+.preview-lobby .preview-hero-choice .preview-hero-tile .preview-hero-art{width:95%;height:auto;flex:1 1 0;min-height:0;aspect-ratio:auto;border-radius:10px;overflow:hidden}
+.preview-lobby .preview-hero-choice .preview-hero-art .painted-art{width:100%;height:100%;border-radius:inherit;background-size:cover;background-position:center 24%}
+.preview-lobby .preview-hero-choice .preview-hero-tile strong{flex:0 0 auto;line-height:1.1;margin:0}
+.game-main .mulligan-cards .battle-card.is-replacing .mulligan-replace-cross{position:absolute;inset:0;width:100%;height:100%;display:grid;place-items:center;background:#0003;border:0;border-radius:inherit;transform:none;pointer-events:none;z-index:20}
+.mulligan-replace-cross svg{width:82%;height:auto;overflow:visible;filter:drop-shadow(0 2px 2px #47100e)}
+.mulligan-replace-cross path{stroke:#f04438;stroke-width:13;stroke-linecap:round;fill:none}

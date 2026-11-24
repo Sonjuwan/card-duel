@@ -1,10 +1,9 @@
 import {useState,useSyncExternalStore} from 'react';
-import {backgroundMusicVolume,battleSoundEnabled,battleSoundVolume,overallSoundVolume,setBackgroundMusicVolume,setBattleSound,setBattleSoundVolume,setOverallSoundVolume,subscribeBattleSound} from './battle-sound.ts';
+import {battleSoundEnabled,battleSoundVolume,overallSoundVolume,setBattleSound,setBattleSoundVolume,setOverallSoundVolume,subscribeBattleSound} from './battle-sound.ts';
 import {dialogueVoiceVolume,setDialogueVoiceVolume,stopDialogueVoice} from './dialogue-voice.ts';
 
 const channels=[
   {label:'전체 음량',get:overallSoundVolume,set:setOverallSoundVolume,initial:100},
-  {label:'배경음악 음량',get:backgroundMusicVolume,set:setBackgroundMusicVolume,initial:40},
   {label:'캐릭터 대사 음량',ariaLabel:'대사 볼륨',get:dialogueVoiceVolume,set:setDialogueVoiceVolume,initial:90},
   {label:'전투 효과음 음량',ariaLabel:'효과음 볼륨',get:battleSoundVolume,set:setBattleSoundVolume,initial:75},
 ];
