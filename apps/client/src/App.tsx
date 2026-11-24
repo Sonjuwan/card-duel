@@ -137,7 +137,7 @@ function PageControls({page,pages,onPage}:{page:number;pages:number;onPage:(page
   </div>;
 }
 
-function CardBrowser({initialClass='all',unreadIds=[],onViewed,compactControls=false}:{initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;compactControls?:boolean}){
+function CardBrowser({initialClass='all',unreadIds=[],onViewed,compactControls=false,ownedCards}:{initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;compactControls?:boolean;ownedCards?:readonly string[]}){
   const classic=useContext(ClassicNamesContext),[scope,setScope]=useState(initialClass),[set,setSet]=useState<CardSetFilter>('all'),[query,setQuery]=useState(''),[rarity,setRarity]=useState('all'),[kind,setKind]=useState('all'),[cost,setCost]=useState('all'),[newOnly,setNewOnly]=useState(false),[page,setPage]=useState(0),[inspected,setInspected]=useState<Inspectable|null>(null);
   const detailDialog=useRef<HTMLDialogElement>(null),detailSidebar=useRef<HTMLElement>(null);
   const openDetail=(card:Card)=>{
@@ -145,7 +145,7 @@ function CardBrowser({initialClass='all',unreadIds=[],onViewed,compactControls=f
     onViewed?.(card.id);
     showCollectionDetail(detailDialog.current,detailSidebar.current);
   };
-  const all=useMemo(()=>sortCardsForDisplay(Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false),classic),[classic]);
+  const all=useMemo(()=>{const owned=ownedCards?new Set(ownedCards):null;return sortCardsForDisplay(Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false&&(!owned||owned.has(c.id))),classic).sort((a,b)=>Number(unreadIds.includes(b.id))-Number(unreadIds.includes(a.id)));},[classic,ownedCards,unreadIds]);
   const scoped=useMemo(()=>all.filter(c=>c.kind!=='coin'&&(scope==='all'||c.class===scope||scope!=='neutral'&&c.class==='neutral')),[all,scope]);
   const shown=useMemo(()=>{const terms=cardSearchTerms(query);return scoped.filter(c=>c.kind!=='coin'&&matchesCardSet(c,set)&&(rarity==='all'||c.rarity===rarity)&&(kind==='all'||c.kind===kind)&&(cost==='all'||(cost==='7plus'?c.cost>=7:c.cost===Number(cost)))&&(!newOnly||unreadIds.includes(c.id))&&matchesCardSearch(c,terms));},[scoped,set,rarity,kind,cost,query,newOnly,unreadIds]);
   const bookSize=useBookSize();
@@ -442,7 +442,6 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(saveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} lastSavedAt={onDevice&&saveAvailable===true&&savedMatch?.code===room.code?savedMatch.savedAt:undefined} autoSaved={onDevice?!!saveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav className="lobby-tabs lobby-home" aria-label="게임 메뉴">
     <button type="button" data-lobby-tab="play" onClick={()=>openLobbyView('play',true)}><Sigil kind="warrior"/>대전</button>
-    <button type="button" data-lobby-tab="decks" onClick={()=>{setPreviewEditHero(null);openLobbyView('decks',true);}}><Sigil kind="deck"/>덱 만들기</button>
     <button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>
     <button type="button" data-lobby-tab="slots" onClick={()=>openLobbyView('slots',true)}><Sigil kind="neutral"/>슬롯 선택</button>
     <button type="button" data-lobby-tab="rank" onClick={()=>openLobbyView('rank',true)}>🏆 등급</button>
@@ -459,7 +458,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
     :lobbyView==='rewards'&&lossOnExit?<><PreviewRewards profile={offlineProfile} growth={localGrowth}/><div className="preview-reward-backups"><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup()}>성장 기록 백업</button><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup(undefined,true)}>성장+덱 통합 백업</button><BackupFilePicker label="미진행 슬롯에 성장 백업 복원" disabled={busy||!growthReady||offlineProfile?.revision!==0} onFile={file=>void growthBackup(file)} onError={setError}/></div></>
     :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
-    :lobbyView==='catalog'?<CardBrowser unreadIds={lossOnExit?unreadCards:[]} onViewed={lossOnExit?onViewNewCard:undefined} compactControls={lossOnExit}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={storage} onPlay={()=>openLobbyView('play',true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?offlineProfile?.ownedCards:undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
+    :lobbyView==='catalog'?<CardBrowser unreadIds={lossOnExit?unreadCards:[]} onViewed={lossOnExit?onViewNewCard:undefined} compactControls={lossOnExit} ownedCards={lossOnExit&&offlineMode==='player'?offlineProfile?.ownedCards:undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={storage} onPlay={()=>openLobbyView('play',true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?offlineProfile?.ownedCards:undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
     </>}
     </div>
     <footer>독자 카드 {Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false).length}종 · 9개 직업 · 개발 중인 테스트 버전<small className="reference-notice">자체 제작 일러스트 · 인터넷 이미지 요청 없음</small></footer>
