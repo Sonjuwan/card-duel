@@ -17,7 +17,7 @@ export function useBookSize(){
 }
 
 type BookNavigation={page:number;pages:number;label:string;onPage:(page:number)=>void};
-export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation}){
+export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,gridMode=false}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation;gridMode?:boolean}){
   const perLeaf=size/2;
   const navigate=(event:KeyboardEvent<HTMLDivElement>)=>{
     if(event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||!(event.target instanceof HTMLElement)||!event.target.matches('button.battle-card'))return;
@@ -31,7 +31,7 @@ export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging}:
     if(paging&&event.target instanceof HTMLElement&&event.target.matches('.book-edge')&&['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();turn(event.key==='ArrowLeft'?-1:1);}
   }}>
   {paging&&<button type="button" className="book-edge secondary" disabled={paging.page===0} onClick={()=>turn(-1)} aria-label="이전 페이지">◀</button>}
-  <div className="collection classic-collection collection-book" data-book-size={size} role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동, Home과 End로 첫 카드와 마지막 카드 이동" onKeyDown={navigate}>
+  <div className={`collection classic-collection collection-book${gridMode?' preview-grid-book':''}`} data-book-size={size} role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동, Home과 End로 첫 카드와 마지막 카드 이동" onKeyDown={navigate}>
     {cards.length===0?<p className="empty-collection">검색 결과가 없습니다. 검색어나 필터를 바꿔 보세요.</p>:
       [0,1].map(leaf=><div key={leaf} className="collection-leaf" data-book-page={leaf===0?'left':'right'} aria-label={leaf===0?'왼쪽 페이지':'오른쪽 페이지'}>{cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).map(c=>renderCard(c))}{Array.from({length:Math.max(0,perLeaf-cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).length)},(_,i)=><span key={`empty-${i}`} className="collection-blank" aria-hidden="true"/>)}</div>)}
   </div>
