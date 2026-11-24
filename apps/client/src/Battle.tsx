@@ -207,7 +207,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
         const delta=landscapeHandPreviewShift(box.left,box.width,width,Math.max(0,viewport.left),Math.min(window.innerWidth,viewport.right),3);
         slot.style.setProperty('--hand-preview-width',`${width}px`);
         slot.style.setProperty('--hand-preview-x',`${(box.width-width)/2+delta}px`);
-        slot.style.setProperty('--hand-preview-y',`${Math.max(line,box.top+box.height-height)-box.top}px`);
+        slot.style.setProperty('--hand-preview-y',`${line-box.top}px`);
       }
     };
     const queue=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(align);};

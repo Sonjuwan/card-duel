@@ -118,7 +118,7 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       top:card.getBoundingClientRect().top,
       bottom:document.querySelector('.friendly-board').getBoundingClientRect().bottom,
     }));
-    assert.ok(top>=bottom-1,label+' hand preview should clear the friendly lane');
+    assert.ok(top>=bottom-1&&top<=bottom+12,label+' hand preview clearance '+(top-bottom));
     t.diagnostic(label+' reward='+reward.width+'×'+reward.height+' hand clearance='+(top-bottom).toFixed(1)+'px');
     assert.deepEqual(errors,[]);
     await context.close();
