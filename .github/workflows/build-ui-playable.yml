@@ -87,6 +87,8 @@ jobs:
         run: node --test apps/client/test/concede-restart-browser.test.mjs
       - name: Verify preview and live website saves remain isolated after concede
         run: node --test apps/client/test/preview-isolation-browser.test.mjs
+      - name: Verify slot-first navigation and slot-owned deck isolation
+        run: node --test apps/client/test/slot-first-browser.test.mjs
       - name: Upload visual PC and tablet screenshots
         if: always()
         uses: actions/upload-artifact@v4
