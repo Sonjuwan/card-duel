@@ -119,3 +119,14 @@ test('desktop battlefield uses adjacent minion lanes and a zero-height separator
     assert.match(readFileSync('apps/client/src/'+entry,'utf8'),/import '\.\/classic-readability\.css';/);
   }
 });
+
+
+test('collection detail uses a complete Card Duel card and mulligan keeps its readable size',()=>{
+  const css=readFileSync('apps/client/src/classic-readability.css','utf8');
+  const book=readFileSync('apps/client/src/collection-book.tsx','utf8');
+  assert.match(book,/<div className="collection-detail-card"><BattleCard card=\{item\.card\}\/><\/div>/);
+  assert.match(book,/<CardInspector item=\{item\} catalog=\{catalog\}\/>/);
+  assert.match(css,/\.collection-detail-body\{[\s\S]*grid-template-columns:minmax\(0,260px\)/);
+  assert.match(css,/\.game-main \.mulligan-cards \.battle-card\{/);
+  assert.match(css,/aspect-ratio:0\.68\/1/);
+});
