@@ -35,7 +35,7 @@ import {OfflineGrowthPanel,OfflineDeveloperPanel} from './OfflineGrowthPanel.tsx
 import {backupDeckLibrary,restoreDeckLibrary,readDecks,saveNamedDeck,deleteNamedDeck,withDeckLibraryLock,deckLibraryAfterWriteFailure,checkedDeckLibrary} from './named-decks.ts';
 import {watchDeckLibraryChanges} from './deck-library-sync.ts';
 import type {NamedDeck} from './named-decks.ts';
-import {SOLO_SLOTS,readSelectedSlot,rememberSlot,soloSlotStorage,hasSlotLocalData,slotPreviewRefreshAction} from './solo-slots.ts';
+import {SOLO_SLOTS,readSelectedSlot,rememberSlot,soloSlotStorage,hasSlotLocalData,slotPreviewRefreshAction,currentSoloNamespace} from './solo-slots.ts';
 import {rankInfo} from '../../../packages/progression.ts';
 import type {SoloSlot,SlotStorage} from './solo-slots.ts';
 import {downloadBackup,androidBackupAvailable,MAX_BACKUP_BYTES} from './backup-io.ts';
@@ -187,7 +187,7 @@ export function App(props:AppProps={}){
 }
 function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiProfile,initialOfflineMode='player',initialLobbyView='home',slot,onSlotChange}:AppProps&{slot:SoloSlot;onSlotChange:(slot:SoloSlot)=>void}){
   const storage=useMemo(()=>soloSlotStorage(slot),[slot]);
-  const makeWorker=(target:SoloSlot)=>{if(!baseWorkerFactory)throw Error('저장 슬롯 작업 스레드가 없습니다.');const worker=baseWorkerFactory();if(standalone&&target!==1)worker.postMessage({type:'selectSlot',slot:target});return worker;};
+  const makeWorker=(target:SoloSlot)=>{if(!baseWorkerFactory)throw Error('저장 슬롯 작업 스레드가 없습니다.');const worker=baseWorkerFactory();if(standalone&&(target!==1||currentSoloNamespace()==='ui-preview'))worker.postMessage({type:'selectSlot',slot:target,...(currentSoloNamespace()==='ui-preview'?{namespace:'ui-preview'}:{})});return worker;};
   const workerFactory=baseWorkerFactory?()=>makeWorker(slot):undefined;
   const socketRef=useRef<Socket<ServerEvents,ClientEvents>|null>(null);const sessionRef=useRef<Session|null>(standalone?null:readSession());
   const ticketRef=useRef<string|null>(standalone?null:readRoomTicket(sessionStore())),connectionEpoch=useRef(0);
