@@ -205,13 +205,14 @@
     margin:0;
     overflow:hidden;
   }
-  /* On large viewports the classic table uses absolute children; preserve
-     the same original display mode and re-use its increased height. */
-  @media (min-width:941px){
-    .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
-    .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
-      display:block;
-    }
+}
+
+/* On large viewports the classic table uses absolute children; preserve
+   its original display mode while reusing the increased arena height. */
+@media (orientation:landscape) and (min-width:941px){
+  .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+  .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+    display:block;
   }
 }
 
