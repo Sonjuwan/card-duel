@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - ui/readability-classic-20261124
+      - ui/followup-20261125
   workflow_dispatch:
 permissions:
   contents: read
@@ -103,8 +104,8 @@ jobs:
 
   deploy-phone-preview:
     name: Publish isolated-path mobile web preview
-    needs: [build-playable]
-    if: ${{ needs.build-playable.result == 'success' }}
+    needs: [build-playable, browser-regression]
+    if: ${{ needs.build-playable.result == 'success' && needs.browser-regression.result == 'success' && github.ref == 'refs/heads/ui/followup-20261125' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -129,7 +130,7 @@ jobs:
         id: freshness
         shell: bash
         run: |
-          current="$(git -C pages ls-remote origin refs/heads/ui/readability-classic-20261124 | cut -f1)"
+          current="$(git -C pages ls-remote origin refs/heads/ui/followup-20261125 | cut -f1)"
           if [ "$current" = "$GITHUB_SHA" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
@@ -146,6 +147,7 @@ jobs:
           test -f pages/index.html
           grep -q 'v0.298.0' pages/index.html
           mkdir -p pages/ui-preview
+          rm -f pages/ui-preview/music-*.mp3
           rm -f pages/ui-preview/index.html pages/ui-preview/game.js pages/ui-preview/game.css pages/ui-preview/register.js pages/ui-preview/sw.js pages/ui-preview/manifest.webmanifest pages/ui-preview/icon-192.png pages/ui-preview/icon-512.png
           cp candidate/solo-app/{index.html,game.js,game.css,register.js,sw.js,manifest.webmanifest,icon-192.png,icon-512.png} pages/ui-preview/
           cat > pages/ui-preview/SAFETY.txt <<'TXT'
