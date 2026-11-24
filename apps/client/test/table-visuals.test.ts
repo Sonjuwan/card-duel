@@ -98,7 +98,7 @@ test('classic desktop collection displays eight cards in a readable two-leaf spr
   const book=readFileSync('apps/client/src/collection-book.tsx','utf8');
   assert.equal(collectionPage(Array.from({length:17},(_,i)=>i),0).items.length,8);
   assert.equal(collectionPage(Array.from({length:17},(_,i)=>i),2).items.length,1);
-  assert.match(book,/matches\?4:window\.matchMedia\(compactBook\)\.matches\?4:8/);
+  assert.match(book,/useBookSize\(\)\{return 8;\}/);
   assert.match(css,/collection-book\[data-book-size="8"\] \.collection-leaf\{/);
   assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(css,/aspect-ratio:0\.68 \/ 1/);
@@ -106,7 +106,7 @@ test('classic desktop collection displays eight cards in a readable two-leaf spr
   assert.match(css,/overflow-y:auto/);
   assert.match(css,/collection-inspector-sidebar/);
   const app=readFileSync('apps/client/src/App.tsx','utf8');
-  assert.match(app,/className="deck-sidebar collection-inspector-sidebar"/);
+  assert.match(app,/className="deck-sidebar card-browser-controls collection-inspector-sidebar"/);
 });
 test('desktop battlefield uses adjacent minion lanes and a zero-height separator',()=>{
   const css=readFileSync('apps/client/src/classic-readability.css','utf8');

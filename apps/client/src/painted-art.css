@@ -5,9 +5,9 @@
 .hero-emblem .painted-art,.class-emblem .painted-art{background-position:center 30%}
 .minion-medallion .painted-art{background-size:contain;background-position:center}
 .local-deck-tile .painted-art{background-position:center}
-/* Square source paintings stay intact in every full-size card. Compact
-   battlefield portrait medallions retain their intentionally clipped shape. */
-.battle-card .card-art .painted-art{background-size:contain;background-position:center}
+/* Cover the full card art frame while preserving the painting aspect ratio. */
+.battle-card .card-art .painted-art{background-size:cover;background-position:center 43%}
+.resume-hero .original-art{display:block;width:100%;height:100%}
 .painted-art.art-knight{background-image:url("./assets/illustrations/knight.webp")}
 .painted-art.art-mage{background-image:url("./assets/illustrations/mage.webp")}
 .painted-art.art-rogue{background-image:url("./assets/illustrations/rogue.webp")}

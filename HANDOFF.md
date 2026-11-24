@@ -1,3 +1,10 @@
+## 2026-11-24 — v0.300.0 통합 UI·오디오
+- 원격 main의 6411041(v0.91.0)에서 시작해 이를 조상으로 포함하는 최신 UI 커밋 4b7710a까지 fast-forward했다. 공개 Pages 미리보기의 이전 패키지는 v0.297.0이다.
+- 전체 카드 프레임, 멀리건과 전장 경계에 맞춘 손패 확대, 능력치 색상, 도감과 덱 편집의 8장 책 펼침, 저장 경기 화면, 알림과 설정을 갱신했다.
+- 직업 초상화 9장을 새로 제작했다. 오리지널 합성 악기 녹음 11곡을 오프라인 빌드에도 포함했고, 대전 셔플과 곡 전환, 대사 더킹, 음량 설정을 연결했다.
+- 엔진, 카드 카탈로그, AI, 저장 슬롯·키·스키마 변경 없음. 설치 패키지의 캐시 버전은 빌드 산출물 해시로 갱신된다.
+- 릴리스 검증: `npm run verify:release-baseline`, `npm run typecheck`, `npm test`, `npm run test:render`, `npm run build:solo-app`. 이전 Pages 산출물에 대해 `CARD_DUEL_PREVIOUS_RELEASE_DIR=<이전 ui-preview 폴더> node --test apps/client/test/solo-app.test.mjs`. 실제 배포 경로와 같은 슬롯 기반 브라우저 시험은 `node --test apps/client/test/integrated-ui-browser.test.mjs`.
+
 ## 2026-11-23 — v0.285.0 isolated card-inspector dialog candidate
 - Opening the public card inspector previously trapped keyboard Tab inside the dialog but left the original battle and mulligan UI accessible to other input/assistive-technology navigation. While inspection is active, the title, controls, battle arena, options history and mulligan arena are now `inert`; the inspector itself remains an independent accessible modal. Previously focused trigger receives focus **after React removes inert**, via requestAnimationFrame; Escape/close still does not play a card or change selection.
 - Updated existing inspector/history focus regressions and added two modal-isolation tests. Playable-core **631/631**, TS/TSX syntax-only **65/65**, catalog/AI hashes unchanged; no Node24 full React production build or live mobile verification.

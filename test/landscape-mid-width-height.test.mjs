@@ -27,6 +27,6 @@ test('middle-width landscape cards are compact until tap/focus, with field-bound
   assert.match(preview,/var\(--landscape-preview-shift, 0px\)/);
   assert.match(preview,/\.battle\.is-dragging[\s\S]+?transform:translateY/);
   const code=readFileSync(new URL('../apps/client/src/Battle.tsx',import.meta.url),'utf8');
-  assert.match(code,/const mediumLandscape=window\.matchMedia\('\(orientation:landscape\) and \(min-width:661px\) and \(max-width:940px\)/);
-  assert.match(code,/!shortPhone&&!mediumLandscape/);
+  assert.match(code,/\.friendly-minions/);
+  assert.match(code,/Math.max\(line,box.top\+box.height-height\)/);
 });

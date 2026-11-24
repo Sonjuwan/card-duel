@@ -54,8 +54,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('button',{name:/^확정 \(\d+장 교체\)$/}).click();
   await page.locator('.battle.phase-playing .battle-arena').waitFor();
   await page.getByRole('button',{name:'전투 설정'}).click();
-  await page.locator('.battle-tools-toggle').click();
-  await page.locator('.compact-concede').click();
+  await page.getByRole('button',{name:'항복하기',exact:true}).click();
   await page.getByRole('dialog',{name:'대전 결과'}).waitFor({timeout:20000});
   await page.getByRole('button',{name:'대전 준비로 돌아가기'}).click();
   await page.getByRole('button',{name:'마법사',exact:true}).click();

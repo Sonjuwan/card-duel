@@ -1,3 +1,4 @@
+import {drawMusicTrack} from '../src/music.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -108,13 +109,13 @@ test('battle sound volume preserves mute preference, clamps input and recreates 
   const storage=Object.getOwnPropertyDescriptor(globalThis,'localStorage'),audio=Object.getOwnPropertyDescriptor(globalThis,'AudioContext'),doc=Object.getOwnPropertyDescriptor(globalThis,'document');
   const values=new Map<string,string>(),contexts:FakeContext[]=[],gains:number[]=[],oscillators:FakeOscillator[]=[],gainNodes:{disconnects:number}[]=[];const page={hidden:false};
   class FakeOscillator{type='';frequency={setValueAtTime(){},exponentialRampToValueAtTime(){}};stops:number[]=[];disconnects=0;onended:(()=>void)|null=null;connect(){}start(){}stop(at=0){this.stops.push(at);}disconnect(){this.disconnects++;}constructor(){oscillators.push(this);}}
-  class FakeContext{state='running';currentTime=0;destination={};resumeCalls=0;pending=false;gain={value:0,setTargetAtTime(value:number){gains.push(value);},setValueAtTime(){},exponentialRampToValueAtTime(){}};constructor(){contexts.push(this);}createGain(){const node={gain:this.gain,connect(){},disconnects:0,disconnect(){this.disconnects++;}};gainNodes.push(node);return node;}createOscillator(){return new FakeOscillator();}createDynamicsCompressor(){return {threshold:{value:0},ratio:{value:0},connect(){}};}resume(){this.resumeCalls++;if(this.pending)return new Promise<void>(()=>{});this.state='running';return Promise.resolve();}}
+  class FakeContext{state='running';currentTime=0;destination={};resumeCalls=0;pending=false;gain={value:0,setTargetAtTime(value:number){gains.push(value);},setValueAtTime(){},exponentialRampToValueAtTime(){}};constructor(){contexts.push(this);}created=0;createGain(){const node={gain:this.created++===0?this.gain:{...this.gain,setTargetAtTime(){}},connect(){},disconnects:0,disconnect(){this.disconnects++;}};gainNodes.push(node);return node;}createOscillator(){return new FakeOscillator();}createDynamicsCompressor(){return {threshold:{value:0},ratio:{value:0},connect(){}};}resume(){this.resumeCalls++;if(this.pending)return new Promise<void>(()=>{});this.state='running';return Promise.resolve();}}
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)}});Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:FakeContext});
   Object.defineProperty(globalThis,'document',{configurable:true,value:page});
   try{setBattleSound(false);setBattleSoundVolume(50);assert.equal(battleSoundEnabled(),false);assert.equal(battleSoundVolume(),50);assert.equal(values.get('card-duel-sound-volume'),'50');unlockBattleSound();assert.equal(contexts.length,0);
     setBattleSound(true);assert.equal(contexts.length,1);assert.equal(contexts[0].gain.value,.16);setBattleSoundVolume(25);assert.equal(gains.at(-1),.08);setBattleSound(false);assert.equal(gains.at(-1),0);assert.equal(battleSoundVolume(),25);setBattleSound(true);assert.equal(gains.at(-1),.08);
     contexts[0].state='closed';unlockBattleSound();assert.equal(contexts.length,2);assert.equal(contexts[1].gain.value,.08);setBattleSoundVolume(0);assert.equal(gains.at(-1),0);
-    contexts[1].state='suspended';contexts[1].pending=true;unlockBattleSound(new Event('pointerdown'));assert.equal(contexts[1].resumeCalls,0);setBattleSoundVolume(25);unlockBattleSound(new Event('pointerdown'));assert.equal(contexts[1].resumeCalls,1);unlockBattleSound(new Event('click'));assert.equal(contexts[1].resumeCalls,2);contexts[1].state='closed';unlockBattleSound();assert.equal(contexts.length,3);
+    contexts[1].state='suspended';contexts[1].pending=true;unlockBattleSound(new Event('pointerdown'));assert.equal(contexts[1].resumeCalls,1);setBattleSoundVolume(25);unlockBattleSound(new Event('pointerdown'));assert.equal(contexts[1].resumeCalls,1);unlockBattleSound(new Event('click'));assert.equal(contexts[1].resumeCalls,2);contexts[1].state='closed';unlockBattleSound();assert.equal(contexts.length,3);
     setBattleSoundVolume(100);const turn:BattleAnimation={kind:'turn',actor:0,revision:1};playBattleSound(turn,'gold','impact');assert.equal(oscillators.length,1);assert.equal(oscillators[0].stops.length,1);
     page.hidden=true;stopBattleSound();assert.equal(oscillators[0].stops.length,2);assert.equal(oscillators[0].disconnects,1);assert.equal(gainNodes.at(-1)?.disconnects,1);assert.equal(oscillators[0].onended,null);stopBattleSound();assert.equal(oscillators[0].stops.length,2);
     playBattleSound(turn,'gold','impact');playBattleResultSound('win');assert.equal(oscillators.length,1);assert.equal(battleSoundEnabled(),true);page.hidden=false;playBattleSound(turn,'gold','impact');assert.equal(oscillators.length,2);
@@ -246,7 +247,7 @@ test('only installed Korean voices are accepted and the speech queue respects mu
   try{
     setBattleSound(true);setBattleSoundVolume(50);setDialogueVoiceEnabled(true);
     const line=heroEmote('mage',0,'greet'),hit=heroEmote('warrior',1,'threat');
-    speakDialogue([line,hit]);assert.equal(spoken.length,1);assert.equal(spoken[0].voice,local);assert.equal(spoken[0].volume,.8);
+    speakDialogue([line,hit]);assert.equal(spoken.length,1);assert.equal(spoken[0].voice,local);assert.ok(Math.abs(spoken[0].volume-.72)<1e-10);
     spoken[0].onend?.();assert.equal(spoken.length,2);
     setDialogueVoiceEnabled(false);assert.equal(dialogueVoiceEnabled(),false);assert.equal(cancelled,1);
     speakDialogue([line]);assert.equal(spoken.length,2);
@@ -502,4 +503,18 @@ test('embedded voice requires approval and a matching checksum and maps by publi
   assert.deepEqual(Buffer.from((await approvedVoiceBytes(clip))!),fixture);
   assert.equal(await approvedVoiceBytes({...clip,sha256:'0'.repeat(64)}),undefined);
   assert.equal(await approvedVoiceBytes({...clip,license:''}),undefined);
+});
+
+
+test('battle music uses every track before reshuffling and avoids consecutive repeats',()=>{
+  const pool=['one','two','three','four','five'];
+  let remaining:string[]=[],last='';
+  const played:string[]=[];
+  for(let i=0;i<15;i++){
+    const pick=drawMusicTrack(pool,remaining,last,()=>.23);
+    assert.ok(pick.track);
+    assert.notEqual(pick.track,last);
+    remaining=pick.remaining;last=pick.track;played.push(last);
+  }
+  for(let i=0;i<15;i+=5)assert.deepEqual(played.slice(i,i+5).sort(),[...pool].sort());
 });

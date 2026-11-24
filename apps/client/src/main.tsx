@@ -1,3 +1,4 @@
+import {stopMusic} from './music.ts';
 
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
@@ -15,10 +16,12 @@ import './landscape-shell.css';
 import './classic-readability.css';
 import './slot-flow.css';
 import './battle-immersive.css';
+import './integrated-ui.css';
 import { unlockBattleSound } from './battle-sound.ts';
 window.addEventListener('pointerdown',unlockBattleSound,{passive:true});
 window.addEventListener('click',unlockBattleSound,{passive:true});
 window.addEventListener('keydown',unlockBattleSound);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopMusic();else unlockBattleSound();});
 const root=createRoot(document.getElementById('root')!);
 let loading=false;
 async function start(){

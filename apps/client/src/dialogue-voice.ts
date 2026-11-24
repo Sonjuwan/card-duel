@@ -1,13 +1,14 @@
+import {duckMusic} from './music.ts';
 import {approvedVoiceBytes,findVoiceClip} from './voice-clips.ts';
 import {playEmbeddedVoice} from './battle-sound.ts';
 import type {DialogueLine} from './battle-dialogue.ts';
-import {battleSoundEnabled,normalSoundVolume} from './battle-sound.ts';
+import {battleSoundEnabled,normalSoundVolume,dialogueOutput,setDialogueOutput} from './battle-sound.ts';
 
-let enabled=true,voiceVolume=100;
-try{enabled=globalThis.localStorage?.getItem('card-duel-dialogue-voice')!=='off';voiceVolume=normalSoundVolume(globalThis.localStorage?.getItem('card-duel-dialogue-volume'));}catch{}
+let enabled=true,voiceVolume=90;
+try{enabled=globalThis.localStorage?.getItem('card-duel-dialogue-voice')!=='off';voiceVolume=normalSoundVolume(globalThis.localStorage?.getItem('card-duel-dialogue-volume')??90);}catch{}
 export const dialogueVoiceEnabled=()=>enabled;
 export const dialogueVoiceVolume=()=>voiceVolume;
-export function setDialogueVoiceVolume(value:number){voiceVolume=normalSoundVolume(value);try{localStorage.setItem('card-duel-dialogue-volume',String(voiceVolume));}catch{}if(voiceVolume===0)stopDialogueVoice();}
+export function setDialogueVoiceVolume(value:number){voiceVolume=normalSoundVolume(value);setDialogueOutput(voiceVolume);try{localStorage.setItem('card-duel-dialogue-volume',String(voiceVolume));}catch{}if(voiceVolume===0)stopDialogueVoice();}
 export function setDialogueVoiceEnabled(value:boolean){
   enabled=value;try{localStorage.setItem('card-duel-dialogue-voice',value?'on':'off');}catch{}
   if(!value)stopDialogueVoice();
@@ -26,9 +27,11 @@ export function installedKoreanVoiceCount():number{
   try{return typeof SpeechSynthesisUtterance==='undefined'?0:(globalThis.speechSynthesis?.getVoices()??[]).filter(v=>v.localService&&/^ko(?:[-_]|$)/i.test(v.lang)).length;}catch{return 0;}
 }
 type Item={line:DialogueLine;expires:number};
+const priority=(line:DialogueLine)=>(line.cardId?0:4)+({emote:4,play:3,death:2,attack:1,hit:0}[line.kind]);
 let clipToken:object|null=null, stopClip:(()=>void)|undefined;
 let waiting:Item[]=[],current:SpeechSynthesisUtterance|null=null,watchdog:ReturnType<typeof setTimeout>|undefined;
 export function stopDialogueVoice(){
+  duckMusic(false);
   clipToken=null;stopClip?.();stopClip=undefined;
   waiting=[];if(watchdog)clearTimeout(watchdog);watchdog=undefined;
   if(current){current=null;try{globalThis.speechSynthesis?.cancel();}catch{}}
@@ -45,16 +48,17 @@ function drain():boolean{
   const active=()=>clipToken===token&&Date.now()<item.expires&&!globalThis.document?.hidden;
   const finish=(fallback:boolean)=>{
     if(clipToken!==token)return;
-    clipToken=null;stopClip=undefined;
+    duckMusic(false);
+  clipToken=null;stopClip=undefined;
     if(fallback&&item.expires>Date.now()&&speakItem(item))return;
     drain();
   };
   void approvedVoiceBytes(clip).then(async bytes=>{
     if(!active()){finish(false);return;}
-    const stop=bytes?await playEmbeddedVoice(bytes,voiceVolume,active,()=>finish(false)):undefined;
+    const stop=bytes?await playEmbeddedVoice(bytes,active,()=>finish(false)):undefined;
     if(clipToken!==token){stop?.();return;}
     if(!stop){finish(true);return;}
-    stopClip=stop;
+    stopClip=stop;duckMusic(true);
   }).catch(()=>finish(true));
   return true;
 }
@@ -64,12 +68,12 @@ function speakItem(item:Item):boolean{
     if(!voice||typeof SpeechSynthesisUtterance==='undefined'){waiting=[];return false;}
     const utterance=new SpeechSynthesisUtterance(item.line.text);
     utterance.voice=voice;utterance.lang=voice.lang;utterance.pitch=item.line.pitch;utterance.rate=item.line.rate;
-    utterance.volume=Math.min(1,.8*voiceVolume/100);
+    utterance.volume=dialogueOutput();
     current=utterance;
-    const done=()=>{if(current!==utterance)return;if(watchdog)clearTimeout(watchdog);watchdog=undefined;current=null;drain();};
+    const done=()=>{if(current!==utterance)return;if(watchdog)clearTimeout(watchdog);watchdog=undefined;current=null;duckMusic(false);drain();};
     utterance.onend=done;utterance.onerror=done;
-    watchdog=setTimeout(()=>{if(current===utterance){current=null;try{synth.cancel();}catch{}drain();}},4500);
-    synth.speak(utterance);return true;
+    watchdog=setTimeout(()=>{if(current===utterance){current=null;try{synth.cancel();}catch{}duckMusic(false);drain();}},4500);
+    synth.speak(utterance);duckMusic(true);return true;
   }catch{stopDialogueVoice();return false;}
 }
 /** Short, bounded queue. Area attacks show all captions but never queue a
@@ -78,7 +82,8 @@ export function speakDialogue(lines:readonly DialogueLine[]){
   if(globalThis.document?.hidden||!enabled||!battleSoundEnabled()||voiceVolume===0)return;
   const now=Date.now();waiting=waiting.filter(item=>item.expires>=now);
   for(const line of lines.slice(0,2))waiting.push({line,expires:now+3500});
-  if(waiting.length>3)waiting=waiting.slice(-3);
+  waiting.sort((a,b)=>priority(b.line)-priority(a.line));
+  if(waiting.length>4)waiting.length=4;
   drain();
 }
 /** A preview explicitly replaces only the dialogue queue, never game audio or

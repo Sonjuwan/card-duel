@@ -22,7 +22,7 @@ import { HoverPreviewProvider } from './hover-preview.tsx';
 import { useBattlePlayback,freshAcceptedAnimation } from './battle-playback.ts';
 import type { PlaybackCue } from './battle-playback.ts';
 import { BattleEffects } from './battle-fx.tsx';
-import { battleSoundEnabled, setBattleSound, resultSoundTransition,playBattleResultSound,playBattleSound,playBattleDepartureSound,stopBattleSound } from './battle-sound.ts';
+import { battleSoundEnabled, subscribeBattleSound, setBattleSound, resultSoundTransition,playBattleResultSound,playBattleSound,playBattleDepartureSound,stopBattleSound } from './battle-sound.ts';
 import type {ResultSoundState} from './battle-sound.ts';
 import {animationTheme,impactChanges,impactFeedback,departureSoundKind} from './battle-fx-model.ts';
 import {DECK_STYLE_LABELS} from './solo-settings.ts';
@@ -94,6 +94,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const classicNames=useContext(ClassicNamesContext);
   const [selected,setSelected]=useState<Selection|null>(null);
   const [sound,setSound]=useState(battleSoundEnabled);
+  useEffect(()=>subscribeBattleSound(()=>setSound(battleSoundEnabled())),[]);
   const [captionMode,setCaptionMode]=useState(readCaptionMode);
   const changeCaptionMode=(mode:CaptionMode)=>{writeCaptionMode(mode);setCaptionMode(mode);};
   const toggleSound=()=>{setBattleSound(!sound);setSound(!sound);if(sound)stopDialogueVoice();};
@@ -147,29 +148,32 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   useLayoutEffect(()=>{
     const arena=arenaRef.current;if(!arena)return;
     let frame=0;
+    const slots=()=>arena.querySelectorAll<HTMLElement>('.own-hand .hand-card-slot');
     const align=()=>{
-      const slots=[...arena.querySelectorAll<HTMLElement>('.own-hand .hand-card-slot')];
-      for(const slot of slots)slot.style.removeProperty('--landscape-preview-shift');
-      const shortPhone=window.matchMedia('(pointer:coarse) and (orientation:landscape) and (max-height:540px)').matches;
-      const mediumLandscape=window.matchMedia('(orientation:landscape) and (min-width:661px) and (max-width:940px) and (min-height:541px) and (max-height:760px)').matches;
-      if(!shortPhone&&!mediumLandscape)return;
-      const slot=slots.find(el=>el.querySelector(':scope > .battle-card.is-selected,:scope > .battle-card.is-preview-expanded,:scope > .battle-card:focus-visible'));
-      const field=slot?.closest<HTMLElement>('.arena-field');
-      const card=slot?.querySelector<HTMLElement>(':scope > .battle-card');
-      if(!slot||!field||!card)return;
-      const box=slot.getBoundingClientRect(),size=card.getBoundingClientRect(),area=field.getBoundingClientRect();
-      const delta=landscapeHandPreviewShift(box.left,box.width,size.width,area.left,area.right);
-      slot.style.setProperty('--landscape-preview-shift',`${delta}px`);
+      const board=arena.querySelector<HTMLElement>('.friendly-minions');
+      const field=arena.querySelector<HTMLElement>('.arena-field');
+      if(!board||!field)return;
+      const line=board.getBoundingClientRect().bottom+4;
+      const viewport=field.getBoundingClientRect();
+      for(const slot of slots()){
+        const box=slot.getBoundingClientRect();
+        const card=slot.querySelector<HTMLElement>(':scope > .battle-card');
+        if(!card||box.width<=0)continue;
+        const height=Math.min(Math.max(105,box.height*1.7),Math.max(72,window.innerHeight-line-3),290);
+        const width=height/1.55;
+        const delta=landscapeHandPreviewShift(box.left,box.width,width,Math.max(0,viewport.left),Math.min(window.innerWidth,viewport.right),3);
+        slot.style.setProperty('--hand-preview-width',`${width}px`);
+        slot.style.setProperty('--hand-preview-x',`${(box.width-width)/2+delta}px`);
+        slot.style.setProperty('--hand-preview-y',`${Math.max(line,box.top+box.height-height)-box.top}px`);
+      }
     };
     const queue=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(align);};
     align();
-    arena.addEventListener('focusin',queue);arena.addEventListener('focusout',queue);
     window.addEventListener('resize',queue);
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(queue):null;
     if(observer)observer.observe(arena);
     return()=>{cancelAnimationFrame(frame);observer?.disconnect();window.removeEventListener('resize',queue);
-      arena.removeEventListener('focusin',queue);arena.removeEventListener('focusout',queue);
-      for(const slot of arena.querySelectorAll<HTMLElement>('.own-hand .hand-card-slot'))slot.style.removeProperty('--landscape-preview-shift');};
+      for(const slot of slots())for(const prop of ['width','x','y'])slot.style.removeProperty(`--hand-preview-${prop}`);};
   },[selected,peekCardId,s?.revision,s?.self.hand.length]);
   useEffect(()=>setPeekCardId(null),[room.code,s?.revision]);
   useEffect(()=>setInspectedOverlay(null),[room.code,s?.revision]);
@@ -459,7 +463,12 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const resultReason=s.reason==='fatigue'?'탈진':s.reason==='turnLimit'?'최대 턴 도달':s.reason==='concede'?'항복':'영웅 체력 소진';
   const pauseMessage=`상대 재접속 대기${reconnectLeft===null?'':` · ${Math.floor(reconnectLeft/60)}분 ${reconnectLeft%60}초`}`;
   const status=s.phase==='finished'?'대전 종료':!connected?'서버 재연결 대기':!opponentReady?'상대 재접속 대기 중':playing?'전투 연출 재생 중':busy?'행동 처리 중':s.choicePending?(s.self.pendingChoice?'덱 카드 선택 중':`${turnLabel} · 덱 카드 선택 중`):currentDrag&&dropFeedback?dropFeedbackText(dropFeedback,touchSlot,dropLabel):dropNotice?dropNotice:choiceCard?'카드 효과를 선택하세요.'+(pendingPosition===undefined?'':` · 배치 ${boardPosition+1}번`):currentDrag?.kind==='card'&&highlight?.kind==='cardChoice'?'전장에 놓은 뒤 카드 효과를 선택하세요.':highlight?.kind==='held'?`${selectedCard?displayCardName(selectedCard,classicNames):'카드'} 선택${selectedCard?.kind==='minion'?` · 배치 ${boardPosition+1}번`:''} · 내기 또는 드래그`:highlight?.kind==='attack'||highlight?.kind==='heroAttack'?`공격 대상 ${legalTargets.length}개 · 강조된 대상 선택`:highlight?`선택할 대상 ${legalTargets.length}개${pendingPosition===undefined?'':` · 배치 ${boardPosition+1}번`} · 강조된 대상 선택`:currentDrag?.kind==='card'?'내 전장 또는 유효한 대상에 카드를 놓으세요.':active?'초록색으로 빛나는 카드와 하수인을 사용할 수 있습니다.':'상대방의 행동을 기다리는 중';
-  const confirmConcede=()=>{if(window.confirm('항복하시겠습니까?'))perform({type:'concede'});};
+  const confirmConcede=()=>{
+    if(!window.confirm('항복하시겠습니까?'))return;
+    setCompactSettingsOpen(false);
+    setBattleToolsOpen(false);
+    perform({type:'concede'});
+  };
   const cardInspect=(item:Inspectable)=>setInspected(item);
   const ownHeroTarget:Target={kind:'hero',player:seat},enemyHeroTarget:Target={kind:'hero',player:enemy};
   // In an immersive landscape arena the side inspector is hidden. A hand
@@ -486,7 +495,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
           const first=controls[0],last=controls[controls.length-1];
           if(first&&last&&e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
           else if(first&&last&&!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
-        }}><summary>소리·연출</summary><button type="button" className="battle-sound-dismiss" tabIndex={-1} aria-hidden="true" onClick={e=>{const details=e.currentTarget.closest<HTMLDetailsElement>('.battle-sound-menu');if(details){details.open=false;details.querySelector<HTMLElement>('summary')?.focus();}}}/><div className="sound-settings"><button type="button" className="secondary sound-toggle" aria-pressed={sound} onClick={toggleSound}>효과음 {sound?'켜짐':'꺼짐'}</button><DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing}/></div></details>}{compactUi&&s.phase!=='finished'&&<button className="secondary danger" type="button" disabled={busy} onClick={confirmConcede}>항복하기</button>}{!compactUi&&<button className="secondary" disabled={busy} onClick={leave}>나가기</button>}</div>{compactUi&&<button type="button" className="secondary compact-settings-close" onClick={()=>setCompactSettingsOpen(false)}>설정 닫기 ✕</button>}
+        }}><summary>소리·연출</summary><button type="button" className="battle-sound-dismiss" tabIndex={-1} aria-hidden="true" onClick={e=>{const details=e.currentTarget.closest<HTMLDetailsElement>('.battle-sound-menu');if(details){details.open=false;details.querySelector<HTMLElement>('summary')?.focus();}}}/><div className="sound-settings"><button type="button" className="secondary sound-toggle" aria-pressed={sound} onClick={toggleSound}>효과음 {sound?'켜짐':'꺼짐'}</button><DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing}/></div></details>}{compactUi&&s.phase!=='finished'&&<button className="secondary danger" type="button" disabled={busy} onClick={confirmConcede}>항복하기</button>}{!compactUi&&s.phase==='playing'&&<button className="secondary danger desktop-concede" type="button" disabled={!connected||busy} onClick={confirmConcede}>항복</button>}{!compactUi&&<button className="secondary" disabled={busy} onClick={leave}>나가기</button>}</div>{compactUi&&<button type="button" className="secondary compact-settings-close" onClick={()=>setCompactSettingsOpen(false)}>설정 닫기 ✕</button>}
     </div></div>;
   const inspectDialog=inspectedOverlay&&!ownChoiceOpen&&<div className="board-inspect-backdrop" role="presentation" onClick={e=>{if(e.target===e.currentTarget)closeBoardInspector();}}>
       <section className="board-inspect-dialog" role="dialog" aria-modal="true" aria-label="카드 상세" onKeyDownCapture={e=>{

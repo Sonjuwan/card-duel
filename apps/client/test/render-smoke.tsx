@@ -250,7 +250,7 @@ test('hover panel displays a large card with current buffed attack, damaged heal
 });
 test('deck builder has explicit set tabs with counts and each visible card has a set label',()=>{
  const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp}/>);
- assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/오리지널 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,8);
+ assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/클래식 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,8);
 });
 test('deck builder basic and original initial views never display cards from the opposite set',()=>{
  const basic=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="basic"/>);

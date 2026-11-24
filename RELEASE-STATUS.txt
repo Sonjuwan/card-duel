@@ -1,2 +1,2 @@
-v0.297.0 fully built in Node24 and passed automated gates. Real-device testing and online deployment are still pending.
-Build baseline: PREVIOUS VERIFIED v0.197.0.
+v0.300.0 is a SOURCE-ONLY candidate; use the verified build command to package a playable release.
+Build baseline: PREVIOUS VERIFIED v0.297.0.

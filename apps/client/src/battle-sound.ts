@@ -1,4 +1,4 @@
-import {VOICE_CLIPS} from './voice-clips.ts';
+import {beginMusic,setMusicMix} from './music.ts';
 import type { BattleAnimation } from '../../../packages/protocol.ts';
 import type {GameState,PlayerId} from '../../../packages/engine/src/index.ts';
 import type { FxTheme,ImpactFeedback } from './battle-fx-model.ts';
@@ -23,8 +23,28 @@ export function normalSoundVolume(raw:unknown){
   if(typeof raw!=='number'&&(typeof raw!=='string'||raw.trim()===''))return 100;
   const value=Number(raw);return Number.isFinite(value)?Math.round(Math.max(0,Math.min(100,value))):100;
 }
-let volume=100;
-try{muted=globalThis.localStorage?.getItem('card-duel-sound')==='off';volume=normalSoundVolume(globalThis.localStorage?.getItem('card-duel-sound-volume'));}catch{}
+let volume=75,masterVolume=100,musicVolume=40,voiceBus:GainNode|undefined,voiceVolume=90;
+function storedVolume(key:string,fallback:number){
+  try{const value=globalThis.localStorage?.getItem(key);return value==null?fallback:normalSoundVolume(value);}catch{return fallback;}
+}
+try{muted=globalThis.localStorage?.getItem('card-duel-sound')==='off';}catch{}
+volume=storedVolume('card-duel-sound-volume',75);
+masterVolume=storedVolume('card-duel-master-volume',100);
+musicVolume=storedVolume('card-duel-music-volume',40);
+voiceVolume=storedVolume('card-duel-dialogue-volume',90);
+setMusicMix(musicVolume,masterVolume,muted);
+export const overallSoundVolume=()=>masterVolume;
+export const backgroundMusicVolume=()=>musicVolume;
+export const dialogueOutput=()=>muted?0:.8*masterVolume*voiceVolume/10000;
+export function setOverallSoundVolume(value:number){masterVolume=normalSoundVolume(value);storeVolume('card-duel-master-volume',masterVolume);updateGain();}
+export function setBackgroundMusicVolume(value:number){musicVolume=normalSoundVolume(value);storeVolume('card-duel-music-volume',musicVolume);updateGain();}
+export function setDialogueOutput(value:number){voiceVolume=normalSoundVolume(value);updateGain();}
+function storeVolume(key:string,value:number){try{localStorage.setItem(key,String(value));}catch{}}
+const muteListeners=new Set<()=>void>();
+export function subscribeBattleSound(listener:()=>void){
+  muteListeners.add(listener);
+  return ()=>{muteListeners.delete(listener);};
+}
 export function battleSoundEnabled(){return !muted;}
 export function battleSoundVolume(){return volume;}
 export type ResultSoundState={code:string;seat:PlayerId;phase:GameState['phase'];winner:GameState['winner']};
@@ -35,27 +55,34 @@ export function resultSoundTransition(previous:ResultSoundState|null,current:Res
   if(!previous||previous.code!==current.code||previous.seat!==current.seat||previous.phase==='finished'||current.phase!=='finished')return null;
   return current.winner===null?'draw':current.winner===current.seat?'win':'loss';
 }
-const gainForSettings=()=>muted?0:.32*volume/100;
-function updateGain(){if(master&&context&&context.state!=='closed')try{master.gain.setTargetAtTime(gainForSettings(),context.currentTime,.025);}catch{}}
+const gainForSettings=()=>muted?0:.32*volume*masterVolume/10000;
+function updateGain(){
+  setMusicMix(musicVolume,masterVolume,muted);
+  if(master&&context&&context.state!=='closed')try{
+    master.gain.setTargetAtTime(gainForSettings(),context.currentTime,.025);
+    voiceBus?.gain.setTargetAtTime(dialogueOutput(),context.currentTime,.025);
+  }catch{}
+}
 export function setBattleSoundVolume(value:number){
   const wasSilent=volume===0;volume=normalSoundVolume(value);try{localStorage.setItem('card-duel-sound-volume',String(volume));}catch{}updateGain();
   if(volume===0)stopBattleSound();else if(wasSilent&&!muted)unlockBattleSound();
 }
 export function setBattleSound(enabled:boolean){
-  muted=!enabled;try{localStorage.setItem('card-duel-sound',enabled?'on':'off');}catch{}
+  muted=!enabled;for(const listener of muteListeners)listener();try{localStorage.setItem('card-duel-sound',enabled?'on':'off');}catch{}
   updateGain();
   if(enabled)unlockBattleSound();else stopBattleSound();
 }
 /** A browser requires a real user gesture before starting audio. */
 export function unlockBattleSound(event?:Event){
   const Constructor=globalThis.AudioContext??(globalThis as typeof globalThis&{webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
-  if(muted||volume===0&&!VOICE_CLIPS.length||!Constructor||globalThis.document?.hidden)return;
+  if(muted||!Constructor||globalThis.document?.hidden)return;
   try{
     if(context?.state==='closed'){stopBattleSound();context=undefined;master=undefined;engineNoise=undefined;resuming=undefined;}
-    if(!context){context=new Constructor();master=context.createGain();const compressor=context.createDynamicsCompressor();compressor.threshold.value=-18;compressor.ratio.value=6;master.gain.value=gainForSettings();master.connect(compressor);compressor.connect(context.destination);}
+    if(!context){context=new Constructor();master=context.createGain();const compressor=context.createDynamicsCompressor();compressor.threshold.value=-18;compressor.ratio.value=6;master.gain.value=gainForSettings();master.connect(compressor);voiceBus=context.createGain();voiceBus.gain.value=dialogueOutput();voiceBus.connect(compressor);compressor.connect(context.destination);}
     // Some mobile browsers defer a pointerdown resume until click/touch release.
     // A promise left pending must not block a later genuine user activation.
-    if(context.state!=='running'&&(!resuming||event?.type==='click'||Date.now()-resumeStartedAt>=1000)){const pending=context.resume();resuming=pending;resumeStartedAt=Date.now();void pending.catch(()=>{}).finally(()=>{if(resuming===pending)resuming=undefined;});}
+    if(context.state!=='running'&&(!resuming||event?.type==='click'||Date.now()-resumeStartedAt>=1000)){const pending=context.resume();resuming=pending;resumeStartedAt=Date.now();void pending.then(()=>{if(context)beginMusic(context);}).catch(()=>{}).finally(()=>{if(resuming===pending)resuming=undefined;});}
+    if(context.state==='running')beginMusic(context);
   }catch{/* Sound is optional and must never interrupt gameplay. */}
 }
 function tone(from:number,to:number,time:number,volume:number,type:OscillatorType='sine',delay=0){
@@ -146,19 +173,17 @@ export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'im
 }
 
 /** Use the unlocked audio device and bound a clip independently of its file. */
-export async function playEmbeddedVoice(bytes:ArrayBuffer,level:number,active:()=>boolean,onEnd:()=>void){
+export async function playEmbeddedVoice(bytes:ArrayBuffer,active:()=>boolean,onEnd:()=>void){
   const audio=context;
-  if(!audio||audio.state!=='running'||muted)return;
+  if(!audio||!voiceBus||audio.state!=='running'||muted)return;
   try{
     const buffer=await audio.decodeAudioData(bytes);
     if(!active()||audio.state!=='running'||muted||buffer.duration>3.5)return;
-    const source=audio.createBufferSource(),gain=audio.createGain();
+    const source=audio.createBufferSource();
     source.buffer=buffer;
-    gain.gain.value=.8*level/100;
-    source.connect(gain);
-    gain.connect(audio.destination);
+    source.connect(voiceBus);
     source.onended=()=>{cleanup();onEnd();};
-    function cleanup(){source.onended=null;source.disconnect();gain.disconnect();}
+    function cleanup(){source.onended=null;source.disconnect();}
     source.start();
     return ()=>{try{source.stop();}catch{}cleanup();};
   }catch{/* Decode and playback errors are handled by the dialogue fallback. */}

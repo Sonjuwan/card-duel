@@ -23,13 +23,13 @@ test('oversize split-screen previews center safely instead of drifting offscreen
   assert.equal(landscapeHandPreviewShift(25,0,120,0,90),0);
   assert.equal(landscapeHandPreviewShift(NaN,20,120,0,90),0);
 });
-test('both style layers use live preview offset and battle owns focus/resize cleanup',()=>{
-  for(const path of ['../apps/client/src/landscape-combat.css','../apps/client/src/landscape-shell.css']){
-    assert.match(read(path),/var\(--landscape-preview-shift, 0px\)/);
-  }
+test('hand previews stay below the friendly row and resize with the arena',()=>{
+  const css=read('../apps/client/src/integrated-ui.css');
   const source=read('../apps/client/src/Battle.tsx');
-  assert.match(source,/landscapeHandPreviewShift\(box.left,box.width,size.width,area.left,area.right\)/);
-  assert.match(source,/arena.addEventListener\('focusin',queue\)/);
+  assert.match(css,/var\(--hand-preview-y,0px\)/);
+  assert.match(css,/var\(--hand-preview-width,100%\)/);
+  assert.match(source,/board.getBoundingClientRect\(\).bottom\+4/);
+  assert.match(source,/landscapeHandPreviewShift\(box.left,box.width,width/);
   assert.match(source,/window.addEventListener\('resize',queue\)/);
   assert.match(source,/observer\?\.disconnect\(\)/);
 });

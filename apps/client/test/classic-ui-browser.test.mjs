@@ -38,7 +38,7 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     assert.equal(book.size,'8',label+' spread mode');
     assert.equal(book.columns,2,label+' book leaves');
     assert.ok(book.width>=110,label+' card width '+JSON.stringify(book));
-    assert.ok(Math.abs(book.width/book.height-.68)<.08,label+' card ratio '+JSON.stringify(book));
+    assert.ok(Math.abs(book.width/book.height-1/1.55)<.04,label+' card ratio '+JSON.stringify(book));
     assert.notEqual(book.descriptionDisplay,'none',label+' should show card effect text');
     assert.ok(book.inspector>=150,label+' card details sidebar');
     assert.ok(book.documentWidth<=book.viewportWidth+2,label+' no document horizontal scrolling');
@@ -50,7 +50,7 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     await page.getByRole('button',{name:'닫기',exact:true}).click();
     await page.getByRole('button',{name:'메인으로'}).click();
     await page.getByRole('button',{name:'덱 만들기',exact:true}).click();
-    await page.getByRole('button',{name:'빈 덱 만들기'}).click();
+    await page.getByRole('button',{name:'빈 덱 만들기',exact:true}).click();
     await page.locator('.deck-builder .collection-book .battle-card').first().waitFor();
     assert.equal(await page.locator('.deck-builder .collection-book .battle-card').count(),8,label+' deck builder count');
     assert.equal(await page.locator('.deck-builder .deck-sidebar').count(),1,label+' deck list visible');
