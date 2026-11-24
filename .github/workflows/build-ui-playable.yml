@@ -87,3 +87,57 @@ jobs:
           path: ui-evidence/
           if-no-files-found: warn
           retention-days: 14
+
+
+  deploy-phone-preview:
+    name: Publish isolated-path mobile web preview
+    needs: [build-playable, browser-regression]
+    if: ${{ needs.build-playable.result == 'success' && needs.browser-regression.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    concurrency:
+      group: card-duel-preview-gh-pages
+      cancel-in-progress: false
+    steps:
+      - name: Download tested compiled PWA
+        uses: actions/download-artifact@v4
+        with:
+          name: card-duel-ui-readable-playable
+          path: candidate
+      - name: Checkout existing GitHub Pages without touching live root
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Publish only the ui-preview subdirectory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f candidate/solo-app/index.html
+          test -f candidate/solo-app/sw.js
+          test -f pages/index.html
+          grep -q 'v0.298.0' pages/index.html
+          mkdir -p pages/ui-preview
+          rm -f pages/ui-preview/index.html pages/ui-preview/game.js pages/ui-preview/game.css pages/ui-preview/register.js pages/ui-preview/sw.js pages/ui-preview/manifest.webmanifest pages/ui-preview/icon-192.png pages/ui-preview/icon-512.png
+          cp candidate/solo-app/{index.html,game.js,game.css,register.js,sw.js,manifest.webmanifest,icon-192.png,icon-512.png} pages/ui-preview/
+          cat > pages/ui-preview/SAFETY.txt <<'TXT'
+          Card Duel UI preview uses game code based on v0.297.
+          The original live root index.html is v0.298 and remains untouched.
+          NOTICE: Both addresses share the same sonjuwan.github.io origin.
+          Open this preview in a private/incognito browser window to avoid
+          accessing or altering the original site's saved games and decks.
+          TXT
+          cd pages
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- ui-preview
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish verified Card Duel UI preview in /ui-preview/"
+            git push origin HEAD:gh-pages
+          fi
+      - name: Confirm the stable phone preview address
+        run: echo "https://sonjuwan.github.io/card-duel/ui-preview/"
