@@ -22,7 +22,7 @@ test('game menu exposes a dedicated slot/progression page outside the play setup
   const menu=app.indexOf('aria-label="게임 메뉴"');
   assert.ok(menu>0&&menu<app.indexOf("lobbyView==='play'?<div className=\"play-hub\""));
   assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
-  assert.match(app,/lobbyView==='slots'&&lossOnExit\?<section className="slot-management-screen"/);
+  assert.match(app,/lobbyView==='slots'&&lossOnExit\?<section className="preview-slot-only"/);
   assert.match(shell,/\.lobby-tabs\[aria-label="게임 메뉴"\]\{[^}]*position:sticky/);
 });
 test('short mobile landscape overrides the 540px theme minimum with fluid playable height',()=>{
@@ -41,8 +41,9 @@ test('portrait guide offers manual rotation and fullscreen only through direct i
 });
 test('battle, deck maker and card catalog are actual switched game screens',()=>{
   assert.match(app,/initialLobbyView='home'/);
-  assert.match(app,/aria-label="게임 메뉴"[^\n]*>.*카드 도감<\/button>.*슬롯 · 성장 · 기록<\/button>.*<\/nav>/);
-  assert.match(app,/lobbyView==='catalog'\?<CardBrowser\/>/);
+  assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
+  for(const part of ['등급','퀘스트','경험치 · 카드 획득','개발자 모드'])assert.ok(app.includes(part));
+  assert.match(app,/lobbyView==='catalog'\?<CardBrowser unreadIds=/);
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
@@ -57,7 +58,7 @@ test('tapping an unplayable hand card expands its text without committing a card
   assert.match(shell,/\.hand-card-slot:has\(>\.battle-card\.is-preview-expanded\)>\.battle-card \.card-copy/);
 });
 test('battle setup uses a single canvas with secondary records in a dialog',()=>{
-  assert.match(app,/lobbyView==='play'\?<div className="play-hub"/);
+  assert.match(app,/lobbyView==='play'&&lossOnExit\?<PreviewPlay/);
   assert.match(app,/<LobbyDialog label="슬롯 · 성장 · 저장 경기">/);
   assert.match(shell,/\.lobby-main \.play-hub\{display:flex;flex-direction:column\}/);
   assert.match(shell,/\.lobby-main \.play-hub>\.play-lobby\{display:flex;flex-direction:column;gap:6px;overflow:visible\}/);
