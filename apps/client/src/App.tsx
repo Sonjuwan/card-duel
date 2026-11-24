@@ -217,8 +217,15 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [account,setAccount]=useState<AccountView|null>(null);
   const [offlineProfile,setOfflineProfile]=useState<AccountProfile>();
   const [unreadCards,setUnreadCards]=useState<string[]>(()=>syncNewCards(undefined,storage));
-  useEffect(()=>{setUnreadCards(syncNewCards(offlineProfile,storage));},[offlineProfile?.revision,storage]);
-  const onViewNewCard=(id:string)=>setUnreadCards(markCardViewed(id,storage));
+  const unreadRef=useRef(unreadCards);
+  const [rewardPopup,setRewardPopup]=useState<string[]>([]);
+  useEffect(()=>{
+    const next=syncNewCards(offlineProfile,storage);
+    const gained=next.filter(id=>!unreadRef.current.includes(id));
+    unreadRef.current=next;setUnreadCards(next);
+    if(gained.length)setRewardPopup(previous=>[...new Set([...previous,...gained])]);
+  },[offlineProfile?.revision,storage]);
+  const onViewNewCard=(id:string)=>{const next=markCardViewed(id,storage);unreadRef.current=next;setUnreadCards(next);};
   const [previewEditHero,setPreviewEditHero]=useState<HeroClass|null>(null);
   const [offlineMode,setOfflineMode]=useState<OfflineMode>(initialOfflineMode);
   const modeDecks=useRef<Partial<Record<OfflineMode,Deck>>>({});
@@ -424,6 +431,13 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {(error||workerStalled)&&<div className="error" role="alert">{error||'기기 AI 작업 응답을 기다리는 중입니다.'}{workerStalled?<><small>응답을 기다리거나 마지막으로 저장된 상태를 복구할 수 있습니다.</small><button type="button" className="secondary" onClick={recoverStalledWorker}>마지막 저장으로 복구</button></>:<button className="secondary" onClick={()=>setError('')}>닫기</button>}</div>}
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}
+    {!room&&rewardPopup.length>0&&<div className="preview-card-reward-overlay" role="dialog" aria-modal="true" aria-label="새 카드 획득">
+      <section className="preview-card-reward-popup"><h2>새로운 카드를 획득했습니다!</h2><p>획득한 카드는 카드 도감에서 빨간 테두리로 표시됩니다.</p>
+        <div className="preview-card-reward-cards">{rewardPopup.slice(0,3).filter(id=>!!catalog[id]).map(id=><div key={id} className="preview-reward-popup-card"><BattleCard card={catalog[id]}/><strong>×{maxCardCopies(catalog[id])}</strong></div>)}</div>
+        {rewardPopup.length>3&&<small>외 {rewardPopup.length-3}종의 카드도 획득했습니다.</small>}
+        <div className="preview-card-reward-actions"><button type="button" onClick={()=>{setRewardPopup([]);openLobbyView('catalog',true);}}>카드 도감에서 확인</button><button type="button" className="secondary" onClick={()=>setRewardPopup([])}>계속하기</button></div>
+      </section>
+    </div>}
     {room?<Battle key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={!lossOnExit&&onDevice&&(saveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} lastSavedAt={onDevice&&saveAvailable===true&&savedMatch?.code===room.code?savedMatch.savedAt:undefined} autoSaved={onDevice?!!saveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav className="lobby-tabs lobby-home" aria-label="게임 메뉴">
     <button type="button" data-lobby-tab="play" onClick={()=>openLobbyView('play',true)}><Sigil kind="warrior"/>대전</button>
