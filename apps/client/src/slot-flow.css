@@ -240,3 +240,16 @@
     font-size:12px;
   }
 }
+
+/* A routine PWA ready/install notice must not cover the top-right slot-switch
+   control or the new Home/Play navigation. Critical errors remain prominent. */
+body:has(.preview-lobby) #solo-app-banner:not([data-urgent="true"]),
+body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
+  top:auto !important;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 4px) !important;
+  right:calc(env(safe-area-inset-right,0px) + 4px) !important;
+  width:min(210px,34vw) !important;
+  max-height:56px !important;
+  font-size:10px !important;
+  overflow:auto;
+}
