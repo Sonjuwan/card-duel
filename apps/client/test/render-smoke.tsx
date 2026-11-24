@@ -176,7 +176,7 @@ test('only the connected chooser sees modal semantics, inert background and a re
   const s=ready();s.pendingChoice={owner:0,cards:[{cardId:'wolf',instanceId:'choice'}]};
   const markup=renderToStaticMarkup(<Battle room={room(s)} send={noOp} leave={noOp} onPause={noOp} connected busy={false}/>);
   assert.match(markup,/class="choice-window" role="dialog" aria-modal="true" tabindex="-1"/);
-  assert.match(markup,/class="arena-field" inert=""/);assert.match(markup,/class="duel-title" inert=""/);
+  assert.match(markup,/class="arena-field" inert=""/);assert.match(markup,/class="duel-title"[^>]* inert=""/);
   assert.match(markup,/class="battle-utilities"[^>]* inert=""/);
   assert.match(markup,/class="choice-window".*저장 후 나가기.*나가기/);
   for(const waiting of [render(s,1),render(s,0,false)]){assert.match(waiting,/class="choice-window" role="status"/);assert.doesNotMatch(waiting,/ inert=""/);}
