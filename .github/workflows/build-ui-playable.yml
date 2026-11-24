@@ -1,0 +1,75 @@
+name: Build Card Duel playable UI preview
+on:
+  push:
+    branches:
+      - ui/readability-classic-20261124
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-playable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout UI candidate
+        uses: actions/checkout@v4
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Protect original card rules and AI champion data
+        run: npm run verify:release-baseline
+      - name: Frontend syntax verification
+        run: npm run check:frontend-syntax
+      - name: Type-check entire game
+        run: npm run typecheck
+      - name: Game engine and interface regression tests
+        run: npm test
+      - name: Compile installable/offline game and verify integrity
+        run: npm run test:solo-app
+      - name: Check gameplay regression including saved solo matches
+        run: npm run test:playable-core
+      - name: Compile browser client
+        run: npm run build
+      - name: Verify server rendered interface
+        run: npm run test:render
+      - name: Package standalone HTML and installable PWA
+        run: |
+          mkdir -p artifact
+          cp solo-offline.html artifact/Card-Duel-UI-Readability-Preview.html
+          cp -a dist/solo-app artifact/solo-app
+          node scripts/package-playable-pwa.mjs artifact
+          cat > artifact/README.txt <<'README'
+          Card Duel UI Readability Preview (based on v0.297)
+          1. On desktop, open Card-Duel-UI-Readability-Preview.html to play offline.
+          2. For PWA installation, upload all files inside solo-app/ to one HTTPS directory.
+          3. The installer ZIP contains the compiled PWA. This is a preview, not the live deployment.
+          4. The main branch, live app, saved decks and AI training data were not changed.
+          5. Back up locally stored progress before switching origins or clearing site data.
+          README
+      - name: Upload verified playable preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-duel-ui-readable-playable
+          path: artifact/
+          retention-days: 14
+          if-no-files-found: error
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test real landscape browser flows
+        run: npm run test:landscape-browser
+      - name: Test installed/offline application in browser
+        run: npm run test:solo-app-browser
