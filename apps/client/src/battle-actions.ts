@@ -11,7 +11,7 @@ export type Selection =
   | {kind:'power'}
   | {kind:'heroAttack'};
 export type Intent = {selection:Selection;action?:never}|{action:Action;selection?:never};
-export type DragIntent = {kind:'card';id:string}|{kind:'attack';id:string}|{kind:'heroAttack'};
+export type DragIntent = {kind:'card';id:string}|{kind:'attack';id:string}|{kind:'heroAttack'}|{kind:'power'};
 export type DragState={intent:DragIntent;revision:number};
 export type DropLocation={kind:'board';position:number}|{kind:'target';target:Target;position?:number};
 
@@ -153,12 +153,16 @@ export function targetAction(view:PlayerView,seat:PlayerId,catalog:Catalog,selec
 }
 export function planDrag(view:PlayerView,seat:PlayerId,catalog:Catalog,drag:DragIntent,position?:number):Intent|null {
   if(drag.kind==='card')return planCard(view,seat,catalog,drag.id,position);
+  if(drag.kind==='power')return planPower(view,seat,catalog);
   const selection=planAttack(view,seat,catalog,drag.kind==='attack'?drag.id:undefined);
   return selection?{selection}:null;
 }
 export function resolveDrop(view:PlayerView,seat:PlayerId,catalog:Catalog,drag:DragState|null,drop:DropLocation):Intent|null {
   if(!drag||drag.revision!==view.revision||!ownTurn(view,seat))return null;
-  if(drop.kind==='board')return drag.intent.kind==='card'?planCard(view,seat,catalog,drag.intent.id,drop.position):null;
+  if(drop.kind==='board'){
+    if(drag.intent.kind==='power'){const plan=planPower(view,seat,catalog);return plan?.action?plan:null;}
+    return drag.intent.kind==='card'?planCard(view,seat,catalog,drag.intent.id,drop.position):null;
+  }
   const plan=planDrag(view,seat,catalog,drag.intent,drop.position);
   const action=targetAction(view,seat,catalog,plan?.selection??null,drop.target);
   return action?{action}:null;

@@ -402,3 +402,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .mulligan-cards .battle-card.is-replacing .mulligan-replace-cross{position:absolute;inset:0;width:100%;height:100%;display:grid;place-items:center;background:#0003;border:0;border-radius:inherit;transform:none;pointer-events:none;z-index:20}
 .mulligan-replace-cross svg{width:82%;height:auto;overflow:visible;filter:drop-shadow(0 2px 2px #47100e)}
 .mulligan-replace-cross path{stroke:#f04438;stroke-width:13;stroke-linecap:round;fill:none}
+
+/* Keep the native drag image/ touch ghost as the only visible moving card. */
+.game-main .own-hand .hand-card-slot[data-drag-origin=true]>.battle-card{opacity:0!important;pointer-events:none!important}
+.game-main .self-hero-zone .hero-power[data-action-source=power]{touch-action:none}
+/* Persistent status layers remain separate from numerical stats. */
+.game-main .battle-minion.has-taunt .minion-medallion{border:5px solid #aeb8c3!important;border-radius:20% 20% 42% 42%!important;box-shadow:0 0 0 2px #454b55,inset 0 0 0 2px #edf0f4}
+.game-main .battle-minion.has-stealth .minion-medallion>.painted-art{opacity:.48}
+.game-main .battle-minion .stealth-veil{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(155deg,#dce2ed66,transparent 35%,#aab6ca99 65%,transparent);pointer-events:none}
+.game-main .battle-minion .shield-ring{position:absolute;inset:-5px;border:3px solid #ffe28a;border-radius:50%;background:radial-gradient(ellipse,transparent 45%,#ffe17b44);box-shadow:0 0 8px #ffcf55,inset 0 0 7px #fff0b0;pointer-events:none;z-index:3}
+.game-main .battle-minion.is-frozen .minion-medallion{outline:3px solid #8ce1ff;outline-offset:1px;filter:drop-shadow(0 0 4px #6bcfff)}

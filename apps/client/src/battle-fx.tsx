@@ -150,7 +150,11 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const hit=impacts.find(i=>i.side!==a.actor&&(i.kind==='damage'||i.kind==='armorHit'||i.kind==='leave'||i.kind==='shield'));
     const hitPoint=hit?positions.get(targetKey(hit.target)):undefined;
     const protection=impacts.find(i=>i.kind==='armorGain'||i.kind==='shieldGain'),protectionPoint=protection?positions.get(targetKey(protection.target)):undefined;
-    const to=attack?(intended??hitPoint??boardCenter):a.kind==='summon'?destination:intended??hitPoint??protectionPoint??(a.kind==='weapon'||a.kind==='coin'||a.kind==='secret'?from:boardCenter);
+    const ownHeroPoint=center(elementFor(arena,heroTarget,seat))??from;
+    const powerSummon=a.kind==='power'?afterBoard.find(m=>!beforeBoard.some(n=>n.instanceId===m.instanceId)):undefined;
+    const powerTarget=a.kind==='power'?(intended??hitPoint??protectionPoint??(powerSummon?summonPosition(powerSummon.instanceId):undefined)??ownHeroPoint):undefined;
+    const powerProjectile=a.kind==='power'&&(actorClass==='mage'||actorClass==='hunter'||(actorClass==='priest'&&!!hitPoint));
+    const to=powerTarget??(attack?(intended??hitPoint??boardCenter):a.kind==='summon'?destination:intended??hitPoint??protectionPoint??(a.kind==='weapon'||a.kind==='coin'||a.kind==='secret'?from:boardCenter));
     const affected=[...new Map(impacts.filter(i=>i.kind==='damage'||i.kind==='heal'||i.kind==='freeze'||i.kind==='leave'||!!defenseImpactLabel(i)).flatMap(i=>{
       const p=positions.get(targetKey(i.target));return p&&!p.edge?[[targetKey(i.target),p] as const]:[];
     })).values()];
@@ -259,7 +263,10 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
         refreshScrolledAnchors();
         ctx.clearRect(0,0,rect.width,rect.height);
         if(!reduced&&!spatialInvalid&&elapsed<cue.impact){
-          if(a.kind==='spell'||a.kind==='power'){
+          if(a.kind==='power'&&!powerProjectile){
+            radial(ctx,to,18+30*p,FX_COLORS[theme],.55*(1-p));
+            ring(ctx,to,14+36*p,FX_COLORS[theme][1],p*.7,3);
+          }else if(a.kind==='spell'||a.kind==='power'){
             radial(ctx,from,28+20*p,FX_COLORS[theme],.5*(1-p));
             const travel=clamp((p-.24)/.76);
             if(affected.length>=3){
