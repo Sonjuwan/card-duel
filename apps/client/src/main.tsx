@@ -12,6 +12,7 @@ import './hover-preview.css';
 import './battle-fx.css';
 import './landscape-combat.css';
 import './landscape-shell.css';
+import './classic-readability.css';
 import { unlockBattleSound } from './battle-sound.ts';
 window.addEventListener('pointerdown',unlockBattleSound,{passive:true});
 window.addEventListener('click',unlockBattleSound,{passive:true});
