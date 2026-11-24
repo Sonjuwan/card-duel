@@ -152,7 +152,8 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const protection=impacts.find(i=>i.kind==='armorGain'||i.kind==='shieldGain'),protectionPoint=protection?positions.get(targetKey(protection.target)):undefined;
     const ownHeroPoint=center(elementFor(arena,heroTarget,seat))??from;
     const powerSummon=a.kind==='power'?afterBoard.find(m=>!beforeBoard.some(n=>n.instanceId===m.instanceId)):undefined;
-    const powerTarget=a.kind==='power'?(intended??hitPoint??protectionPoint??(powerSummon?summonPosition(powerSummon.instanceId):undefined)??ownHeroPoint):undefined;
+    const weaponPoint=actorClass==='rogue'?center(arena.querySelector(side==='self'?'.self-hero-zone .weapon-slot':'.enemy-hero-zone .weapon-slot')):undefined;
+    const powerTarget=a.kind==='power'?(intended??hitPoint??protectionPoint??weaponPoint??(powerSummon?summonPosition(powerSummon.instanceId):undefined)??ownHeroPoint):undefined;
     const powerProjectile=a.kind==='power'&&(actorClass==='mage'||actorClass==='hunter'||(actorClass==='priest'&&!!hitPoint));
     const to=powerTarget??(attack?(intended??hitPoint??boardCenter):a.kind==='summon'?destination:intended??hitPoint??protectionPoint??(a.kind==='weapon'||a.kind==='coin'||a.kind==='secret'?from:boardCenter));
     const affected=[...new Map(impacts.filter(i=>i.kind==='damage'||i.kind==='heal'||i.kind==='freeze'||i.kind==='leave'||!!defenseImpactLabel(i)).flatMap(i=>{
@@ -186,7 +187,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     if(reveal&&typeof reveal.animate==='function'&&!reduced){
       const r=center(reveal)??boardCenter,hand=arena.querySelector(side==='self'?'.own-hand':'.hidden-hand');
       const source=center(hand)??from;
-      const end=a.kind==='summon'?destination:a.kind==='weapon'||a.kind==='secret'||a.kind==='coin'?from:to;
+      const end=a.kind==='summon'?destination:a.kind==='weapon'?(center(arena.querySelector(side==='self'?'.self-hero-zone .weapon-slot':'.enemy-hero-zone .weapon-slot'))??from):a.kind==='secret'||a.kind==='coin'?from:to;
       animations.push(reveal.animate([
         {opacity:.1,transform:`translate(${source.x-r.x}px,${source.y-r.y}px) scale(.38) rotate(${side==='self'?9:-9}deg)`,offset:0},
         {opacity:1,transform:'translate(0,0) scale(1) rotate(0)',offset:summon?.15:.23,easing:'ease-in-out'},

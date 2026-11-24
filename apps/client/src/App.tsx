@@ -137,7 +137,7 @@ function PageControls({page,pages,onPage}:{page:number;pages:number;onPage:(page
   </div>;
 }
 
-function CardBrowser({initialClass='all',unreadIds=[],onViewed,ownedCards}:{initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;ownedCards?:readonly string[]}){
+function CardBrowser({initialClass='all',focusCardId,unreadIds=[],onViewed,ownedCards}:{focusCardId?:string;initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;ownedCards?:readonly string[]}){
   const classic=useContext(ClassicNamesContext),[scope,setScope]=useState(initialClass),[set,setSet]=useState<CardSetFilter>('all'),[query,setQuery]=useState(''),[rarity,setRarity]=useState('all'),[kind,setKind]=useState('all'),[cost,setCost]=useState('all'),[newOnly,setNewOnly]=useState(false),[page,setPage]=useState(0),[inspected,setInspected]=useState<Inspectable|null>(null);
   const detailDialog=useRef<HTMLDialogElement>(null);
   const openDetail=(card:Card)=>{
@@ -155,13 +155,16 @@ function CardBrowser({initialClass='all',unreadIds=[],onViewed,ownedCards}:{init
   const first=scope==='all'?0:spread.spreads.findIndex(item=>item.key===scope);
   const result=groupedCollection(groups,Math.max(0,first)+page,size);
   const active=scope==='all'?(result.current?.key??'warrior'):scope;
+  const focused=useRef<string|undefined>(undefined);
+  useEffect(()=>{if(!focusCardId||focused.current===focusCardId)return;const target=spread.spreads.findIndex(p=>p.items.some(c=>c.id===focusCardId));if(target<0)return;focused.current=focusCardId;setScope('all');setPage(target);},[focusCardId,spread]);
   const changeClass=(key:HeroClass|'neutral')=>{
     setScope(key);
     setPage(0);
   };
-  useEffect(()=>{setPage(0);setInspected(null);},[set,query,rarity,kind,tribe,cost,newOnly]);
+  const filtersMounted=useRef(false);
+  useEffect(()=>{if(!filtersMounted.current){filtersMounted.current=true;return;}setPage(0);setInspected(null);},[set,query,rarity,kind,tribe,cost,newOnly]);
   return <HoverPreviewProvider resetKey={`${scope}:${set}:${page}`}><section className="panel deck-panel card-browser integrated-browser" data-deck-screen="cards">
-    <div className="deck-layout"><div className="book-pane book-with-tabs"><BookTabs active={active} onClass={changeClass}/><CollectionBook cards={result.current?.key===active?result.current.items:[]} size={size} paging={{...result,label:result.current?.key===active?`${active==='neutral'?'공용':className[active as HeroClass]} ${result.current.index+1}/${result.current.pages}장`:'검색 결과 없음',onPage:next=>{setPage(next);setScope('all');}}} renderCard={c=><div className={`collection-item${unreadIds.includes(c.id)?' card-new-unread':''}`} key={c.id}><BattleCard card={c} enabled onInspect={setInspected} onClick={()=>openDetail(c)}/>{unreadIds.includes(c.id)&&<span className="new-card-badge">NEW</span>}<small className="collection-set-label">{cardSetLabel(c)} · ×{maxCardCopies(c)}</small></div>}/></div>
+    <div className="deck-layout"><div className="book-pane book-with-tabs"><BookTabs active={active} onClass={changeClass}/><CollectionBook cards={result.current?.key===active?result.current.items:[]} size={size} paging={{...result,label:result.current?.key===active?`${active==='neutral'?'공용':className[active as HeroClass]} ${result.current.index+1}/${result.current.pages}장`:'검색 결과 없음',onPage:next=>{setPage(next);setScope('all');}}} renderCard={c=><div className={`collection-item${unreadIds.includes(c.id)?' card-new-unread':''}${focusCardId===c.id?' reward-card-focus':''}`} key={c.id}><BattleCard card={c} enabled onInspect={setInspected} onClick={()=>openDetail(c)}/>{unreadIds.includes(c.id)&&<span className="new-card-badge">NEW</span>}<small className="collection-set-label">{cardSetLabel(c)} · ×{maxCardCopies(c)}</small></div>}/></div>
     <aside className="deck-sidebar card-browser-controls"><details className="catalog-filters" open><summary>카드 필터</summary>
     <div className="preview-card-filters">
     <div className="card-set-tabs" role="group" aria-label="카드 세트">{([['all','전체'],['basic','기본 카드'],['original','클래식 카드']] as const).map(([key,label])=><button type="button" key={key} aria-pressed={set===key} onClick={()=>{setSet(key);setRarity('all');}}>{label}<small>{all.filter(c=>matchesCardSet(c,key)).length}</small></button>)}</div>
@@ -227,6 +230,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [unreadCards,setUnreadCards]=useState<string[]>(()=>syncNewCards(undefined,storage));
   const unreadRef=useRef(unreadCards);
   const [rewardPopup,setRewardPopup]=useState<string[]>([]);
+  const [catalogFocus,setCatalogFocus]=useState<string>();
   const previousRank=useRef<number|undefined>(undefined);
   const [promotion,setPromotion]=useState<{before:number;after:number}>();
   useEffect(()=>{
@@ -470,7 +474,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {(error||workerStalled)&&<div className="error game-error-toast" role="alert">{error||'기기 AI 작업 응답을 기다리는 중입니다.'}{workerStalled?<><small>응답을 기다리거나 마지막으로 저장된 상태를 복구할 수 있습니다.</small><button type="button" className="secondary" onClick={recoverStalledWorker}>마지막 저장으로 복구</button></>:<button className="secondary" onClick={()=>setError('')}>닫기</button>}</div>}
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}
-    {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onCatalog={()=>{setRewardPopup([]);setPromotion(undefined);openLobbyView('catalog',true);}} onClose={()=>{setRewardPopup([]);setPromotion(undefined);}}/>}
+    {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onCatalog={id=>{setCatalogFocus(id);setRewardPopup([]);setPromotion(undefined);openLobbyView('catalog',true);}} onClose={()=>{setRewardPopup([]);setPromotion(undefined);}}/>}
     {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(saveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} lastSavedAt={onDevice&&saveAvailable===true&&savedMatch?.code===room.code?savedMatch.savedAt:undefined} autoSaved={onDevice?!!saveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav className="lobby-tabs lobby-home" aria-label="게임 메뉴">
     <button type="button" data-lobby-tab="play" onClick={()=>openLobbyView('play',true)}><Sigil kind="warrior"/>대전</button>
@@ -490,7 +494,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
     :lobbyView==='rewards'&&lossOnExit?<><PreviewRewards profile={offlineProfile} growth={localGrowth}/><div className="preview-reward-backups"><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup()}>성장 기록 백업</button><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup(undefined,true)}>성장+덱 통합 백업</button><BackupFilePicker label="미진행 슬롯에 성장 백업 복원" disabled={busy||!growthReady||offlineProfile?.revision!==0} onFile={file=>void growthBackup(file)} onError={setError}/></div></>
     :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
-    :lobbyView==='catalog'?<CardBrowser unreadIds={lossOnExit?unreadCards:[]} onViewed={lossOnExit?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={storage} onPlay={()=>openLobbyView('play',true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?offlineProfile?.ownedCards:undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
+    :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} unreadIds={lossOnExit?unreadCards:[]} onViewed={lossOnExit?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={storage} onPlay={()=>openLobbyView('play',true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?offlineProfile?.ownedCards:undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
     </>}
     </div>
     <footer>독자 카드 {Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false).length}종 · 9개 직업 · 개발 중인 테스트 버전<small className="reference-notice">자체 제작 일러스트 · 인터넷 이미지 요청 없음</small></footer>

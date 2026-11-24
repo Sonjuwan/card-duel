@@ -412,3 +412,18 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .battle-minion .stealth-veil{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(155deg,#dce2ed66,transparent 35%,#aab6ca99 65%,transparent);pointer-events:none}
 .game-main .battle-minion .shield-ring{position:absolute;inset:-5px;border:3px solid #ffe28a;border-radius:50%;background:radial-gradient(ellipse,transparent 45%,#ffe17b44);box-shadow:0 0 8px #ffcf55,inset 0 0 7px #fff0b0;pointer-events:none;z-index:3}
 .game-main .battle-minion.is-frozen .minion-medallion{outline:3px solid #8ce1ff;outline-offset:1px;filter:drop-shadow(0 0 4px #6bcfff)}
+
+.game-main .battle-minion .minion-status-icons{position:absolute;top:0;right:0;display:flex;gap:2px;z-index:5;pointer-events:none}
+.minion-status-icons i{font-style:normal;font-weight:900;line-height:1;background:#18212dcc;border:1px solid currentColor;border-radius:50%;padding:2px;font-size:clamp(9px,1.7dvh,15px)}
+.status-wind{color:#b9eeff}.status-death{color:#dedede}.status-magic{color:#c7a0ff}.status-charge{color:#ffbb65}.status-silence{color:#f6c6e0}
+.collection-item.reward-card-focus>.battle-card{outline:3px solid #ffda67;outline-offset:2px;box-shadow:0 0 16px #ffce65}
+.faction-warrior.battle-card,.book-class-tabs .faction-warrior,.preview-hero-tile.faction-warrior{--card-edge:#A34B32;--card-ribbon:#A34B32;border-color:#A34B32}
+.faction-shaman.battle-card,.book-class-tabs .faction-shaman,.preview-hero-tile.faction-shaman{--card-edge:#244DBA;--card-ribbon:#244DBA;border-color:#244DBA}
+.faction-rogue.battle-card,.book-class-tabs .faction-rogue,.preview-hero-tile.faction-rogue{--card-edge:#45454B;--card-ribbon:#45454B;border-color:#45454B}
+.faction-paladin.battle-card,.book-class-tabs .faction-paladin,.preview-hero-tile.faction-paladin{--card-edge:#D7AB39;--card-ribbon:#D7AB39;border-color:#D7AB39}
+.faction-hunter.battle-card,.book-class-tabs .faction-hunter,.preview-hero-tile.faction-hunter{--card-edge:#527D32;--card-ribbon:#527D32;border-color:#527D32}
+.faction-druid.battle-card,.book-class-tabs .faction-druid,.preview-hero-tile.faction-druid{--card-edge:#A66C36;--card-ribbon:#A66C36;border-color:#A66C36}
+.faction-warlock.battle-card,.book-class-tabs .faction-warlock,.preview-hero-tile.faction-warlock{--card-edge:#783CA8;--card-ribbon:#783CA8;border-color:#783CA8}
+.faction-mage.battle-card,.book-class-tabs .faction-mage,.preview-hero-tile.faction-mage{--card-edge:#60BCE9;--card-ribbon:#60BCE9;border-color:#60BCE9}
+.faction-priest.battle-card,.book-class-tabs .faction-priest,.preview-hero-tile.faction-priest{--card-edge:#E8E1CE;--card-ribbon:#E8E1CE;border-color:#E8E1CE}
+.faction-neutral.battle-card,.book-class-tabs .faction-neutral,.preview-hero-tile.faction-neutral{--card-edge:#9B8B78;--card-ribbon:#9B8B78;border-color:#9B8B78}

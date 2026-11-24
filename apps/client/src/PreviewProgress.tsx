@@ -63,7 +63,7 @@ function RewardRoad({profile,growth}:{profile:AccountProfile;growth:GrowthView})
     <button className="secondary road-edge next" type="button" aria-label="다음 보상 구간" disabled={start>=last} onClick={()=>turn(1)}>▶</button>
   </section>;
 }
-export function RewardReveal({cards,rank,onCatalog,onClose}:{cards:string[];rank?:{before:number;after:number};onCatalog:()=>void;onClose:()=>void}){
+export function RewardReveal({cards,rank,onCatalog,onClose}:{cards:string[];rank?:{before:number;after:number};onCatalog:(id?:string)=>void;onClose:()=>void}){
   const [index,setIndex]=useState(0);
   const card=catalog[cards[index]];
   const after=rank?rankInfo(rank.after):undefined;
@@ -80,10 +80,10 @@ export function RewardReveal({cards,rank,onCatalog,onClose}:{cards:string[];rank
   return <div className="preview-card-reward-overlay" role="dialog" aria-modal="true" aria-label={card?'새 카드 획득':after?'승급':'보상'}>
     <section className="preview-card-reward-popup reward-reveal" key={index}>
       <h2>{card?'새로운 카드':promote&&after?rankTitle(after)+' 승급!':'보상 획득 완료'}</h2>
-      {card&&<><div className="preview-reward-popup-card"><BattleCard card={card}/></div><p>{index+1} / {cards.length} · ×{maxCardCopies(card)}</p><progress aria-label="보상 공개 진행" max={cards.length} value={index+1}/></>}
+      {card&&<><div className="preview-reward-popup-card"><BattleCard card={card} enabled onClick={()=>onCatalog(card.id)}/></div><p>{index+1} / {cards.length} · ×{maxCardCopies(card)}</p><progress aria-label="보상 공개 진행" max={cards.length} value={index+1}/></>}
       {promote&&after&&before&&<div className="promotion-crest" data-tier-up={before.league!==after.league}><span className="promotion-previous" aria-hidden="true"><RankCrest rank={before}/></span><span className="promotion-current"><RankCrest rank={after}/></span></div>}
       <div className="preview-card-reward-actions">
-        {cards.length>0&&<button type="button" onClick={onCatalog}>카드 도감에서 확인</button>}
+        {cards.length>0&&<button type="button" onClick={()=>onCatalog(card?.id??cards[cards.length-1])}>카드 도감에서 확인</button>}
         <button type="button" className="secondary" onClick={onClose}>{card?'연출 건너뛰기':'계속하기'}</button>
       </div>
     </section>

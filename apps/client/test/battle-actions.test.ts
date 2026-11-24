@@ -114,3 +114,12 @@ test('all 382 cards: planned click/drag routes agree with the server in rich, co
     for(const choice of choices){let actions:Action[]=[];if(choice.action)actions=[choice.action];else {const selection:Selection=choice.selection;actions=targetsFor(view,0,catalog,selection).map(target=>targetAction(view,0,catalog,selection,target)!);assert.ok(actions.length,card.id);assert.ok(actions.every(Boolean));}for(const a of actions){if(a.type==='playCard'&&a.target&&plan.selection?.kind!=='cardChoice')assert.deepEqual(actionOf(resolveDrop(view,0,catalog,drag({kind:'card',id:'held'},s),{kind:'target',target:a.target,position:2})),a,`${card.id} direct target drop`);try{const next=applyAction(s,0,a);assert.equal(next.revision,s.revision+1);accepted++;}catch(e){assert.fail(`${card.id} ${variant} ${JSON.stringify(a)}: ${e}`);}}}
   }assert.ok(accepted>1000);t.diagnostic(`${accepted} public-interface click / target actions accepted by authoritative engine`);
 });
+
+test('hero power drag respects target requirements and stale revisions',()=>{
+ const mage=getPlayerView(ready('mage'),0), warrior=getPlayerView(ready('warrior'),0);
+ const drag=(v:typeof mage)=>({intent:{kind:'power' as const},revision:v.revision});
+ assert.deepEqual(resolveDrop(mage,0,catalog,drag(mage),{kind:'target',target:enemyHero}),{action:{type:'heroPower',target:enemyHero}});
+ assert.equal(resolveDrop(mage,0,catalog,drag(mage),{kind:'board',position:0}),null);
+ assert.deepEqual(resolveDrop(warrior,0,catalog,drag(warrior),{kind:'board',position:0}),{action:{type:'heroPower'}});
+ assert.equal(resolveDrop(warrior,0,catalog,{...drag(warrior),revision:warrior.revision-1},{kind:'board',position:0}),null);
+});

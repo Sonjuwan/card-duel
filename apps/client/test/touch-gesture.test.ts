@@ -35,7 +35,8 @@ test('held-minion edge pan is bounded, proportional and rejects hidden or center
 });
 test('only public card and attacker sources produce drag intents',()=>{
   assert.deepEqual(intentFromSource('card:abc'),{kind:'card',id:'abc'});assert.deepEqual(intentFromSource('minion:xyz'),{kind:'attack',id:'xyz'});assert.deepEqual(intentFromSource('hero'),{kind:'heroAttack'});
-  for(const source of [undefined,'power','card:','minion:','enemy'])assert.equal(intentFromSource(source),null);
+  assert.deepEqual(intentFromSource('power'),{kind:'power'});
+  for(const source of [undefined,'card:','minion:','enemy'])assert.equal(intentFromSource(source),null);
 });
 test('completed gesture distinguishes tap, drag, scrolling and stale or inactive pointer',()=>{
   const drag=advanceGesture(g,125,570,4)!,scroll=advanceGesture(g,160,597,4)!;
