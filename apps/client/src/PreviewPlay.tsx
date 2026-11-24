@@ -7,6 +7,7 @@ import {readDecks} from './named-decks.ts';
 import {catalog,className} from './data.ts';
 import {LocalHeroArt} from './local-art.tsx';
 import {offlineGrowth} from './offline-growth.ts';
+import type {LocalSaveSummary} from './local-duel.ts';
 import {ownedDeck,recommendedOwnedDeck} from '../../../packages/progression.ts';
 
 export function HeroChoice({onChoose}:{onChoose:(value:HeroClass)=>void}){
@@ -14,8 +15,8 @@ export function HeroChoice({onChoose}:{onChoose:(value:HeroClass)=>void}){
     {HERO_CLASSES.map(hero=><button type="button" key={hero} className={`preview-hero-tile faction-${hero}`} onClick={()=>onChoose(hero)}><span className="preview-hero-art"><LocalHeroArt heroClass={hero}/></span><strong>{className[hero]}</strong></button>)}
   </div></section>;
 }
-type Props={storage:SlotStorage;profile?:AccountProfile;deck:Deck;ready?:boolean;blocked?:boolean;busy:boolean;onDeck:(deck:Deck)=>void;onStart:()=>void;onBuild:(hero:HeroClass)=>void};
-export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onStart,onBuild}:Props){
+type Props={storage:SlotStorage;profile?:AccountProfile;deck:Deck;ready?:boolean;blocked?:boolean;busy:boolean;onDeck:(deck:Deck)=>void;onStart:()=>void;onBuild:(hero:HeroClass)=>void;savedMatch?:LocalSaveSummary|null;saveAvailable?:boolean;onResume:()=>void;onForfeitSaved:()=>void};
+export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onStart,onBuild,savedMatch,saveAvailable,onResume,onForfeitSaved}:Props){
   const [hero,setHero]=useState<HeroClass|null>(null);
   const [selectedName,setSelectedName]=useState<string|null>(null);
   const [message,setMessage]=useState('');
@@ -26,6 +27,15 @@ export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onSt
   let playable=false;
   try{if(active&&profile){ownedDeck(active,catalog,profile);playable=ready===true&&!blocked&&!busy;}}catch{}
   const choose=(value:HeroClass)=>{setHero(value);setSelectedName(null);setMessage('');const valid=saved.find(item=>item.deck.heroClass===value);if(!valid){const inClass=readDecks(storage).find(item=>item.deck.heroClass===value);if(inClass){onDeck(structuredClone(inClass.deck));setSelectedName(inClass.name);}else if(profile){try{onDeck(recommendedOwnedDeck(catalog,offlineGrowth(catalog),value,profile,Date.now()>>>0));}catch{onDeck(practiceDeck(catalog,value));}}else onDeck(practiceDeck(catalog,value));}};
+  if(savedMatch&&savedMatch.phase!=='finished')return <section className="preview-resume-gate" aria-label="진행 중인 저장 경기">
+    <h2>진행 중인 저장 경기가 있습니다</h2>
+    <p>{savedMatch.turn}턴 · {className[savedMatch.heroClass]} 대전</p>
+    <div className="preview-resume-actions">
+      <button type="button" disabled={busy||saveAvailable!==true} onClick={onResume}>이어서 플레이하기</button>
+      <button type="button" className="secondary" disabled={busy||saveAvailable!==true} onClick={onForfeitSaved}>새로운 게임 시작</button>
+    </div>
+    <small>새 게임을 시작하면 이전 경기는 패배로 기록됩니다. 저장 후 나가기와 재접속만으로는 패배 처리되지 않습니다.</small>
+  </section>;
   if(!hero)return <HeroChoice onChoose={choose}/>;
   const entries=readDecks(storage).filter(item=>item.deck.heroClass===hero);
   return <section className="preview-deck-select" aria-label={`${className[hero]} 덱 선택`}>
