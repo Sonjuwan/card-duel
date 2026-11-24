@@ -6,7 +6,7 @@
   box-sizing:border-box;
   container-type:inline-size;
   aspect-ratio:0.68 / 1;
-  width:min(100%,205px);
+  width:min(100%,205px,calc(34dvh - 76.5px));
   height:auto;
   min-height:0;
   max-width:none;
@@ -156,6 +156,7 @@
     gap:5px;
   }
   .lobby-main .collection-book .battle-card .card-copy{font-size:clamp(10px,6.2cqi,13px)}
+  .lobby-main .collection.classic-collection.collection-book .battle-card{width:min(100%,205px,calc(55dvh - 24px))}
 }
 @media (orientation:landscape) and (max-width:1020px){
   .lobby-main .deck-panel .deck-layout,
