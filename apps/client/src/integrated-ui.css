@@ -384,3 +384,11 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 
 .game-main .duel-screen.preview-compact>.duel-title.compact-title{right:auto!important;left:max(5px,env(safe-area-inset-left))!important}
 .game-main .duel-screen>.compact-home-trigger{top:3px;right:max(5px,env(safe-area-inset-right));z-index:309}
+/* Keep the mouse's original grip on the same draggable card during hover. */
+@media(hover:hover) and (pointer:fine){
+  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:hover>.battle-card::after{
+    content:"";position:absolute;pointer-events:auto;
+    left:var(--hand-preview-hit-x);top:var(--hand-preview-hit-y);
+    width:var(--hand-preview-hit-width);height:var(--hand-preview-hit-height);
+  }
+}

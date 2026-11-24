@@ -206,8 +206,13 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
         const width=height/1.55;
         const delta=landscapeHandPreviewShift(box.left,box.width,width,Math.max(0,viewport.left),Math.min(window.innerWidth,viewport.right),3);
         slot.style.setProperty('--hand-preview-width',`${width}px`);
-        slot.style.setProperty('--hand-preview-x',`${(box.width-width)/2+delta}px`);
-        slot.style.setProperty('--hand-preview-y',`${line-box.top}px`);
+        const x=(box.width-width)/2+delta,y=line-box.top;
+        slot.style.setProperty('--hand-preview-x',`${x}px`);
+        slot.style.setProperty('--hand-preview-y',`${y}px`);
+        slot.style.setProperty('--hand-preview-hit-x',`${-x}px`);
+        slot.style.setProperty('--hand-preview-hit-y',`${-y}px`);
+        slot.style.setProperty('--hand-preview-hit-width',`${box.width}px`);
+        slot.style.setProperty('--hand-preview-hit-height',`${box.height}px`);
       }
     };
     const queue=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(align);};
@@ -216,7 +221,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(queue):null;
     if(observer)observer.observe(arena);
     return()=>{cancelAnimationFrame(frame);observer?.disconnect();window.removeEventListener('resize',queue);
-      for(const slot of slots())for(const prop of ['width','x','y'])slot.style.removeProperty(`--hand-preview-${prop}`);};
+      for(const slot of slots())for(const prop of ['width','x','y','hit-x','hit-y','hit-width','hit-height'])slot.style.removeProperty(`--hand-preview-${prop}`);};
   },[exchange,selected,peekCardId,s?.revision,s?.self.hand.length]);
   useEffect(()=>setPeekCardId(null),[room.code,s?.revision]);
   useEffect(()=>setInspectedOverlay(null),[room.code,s?.revision]);
