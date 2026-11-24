@@ -48,7 +48,8 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   });
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
-  await page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'}).click();
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.getByRole('button',{name:/^확정 \(\d+장 교체\)$/}).click();
   await page.locator('.battle.phase-playing .battle-arena').waitFor();
@@ -56,7 +57,8 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.locator('.compact-concede').click();
   await page.getByRole('dialog',{name:'대전 결과'}).waitFor({timeout:20000});
   await page.getByRole('button',{name:'대전 준비로 돌아가기'}).click();
-  const start=page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'});
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
+  const start=page.getByRole('button',{name:'선택한 덱으로 대전 시작'});
   await start.waitFor();
   const diag=await page.evaluate(()=>({error:document.querySelector('.error')?.textContent??'',hashes:localStorage.getItem('card-duel-saved-decks'),databases:[]})); 
   assert.equal(await start.isEnabled(),true,'preview must allow a new ranked match: '+JSON.stringify(diag));
@@ -64,6 +66,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor({timeout:20000});
   // A deliberate in-game exit also records a loss, rather than parking a resumable match.
   await page.getByRole('button',{name:'나가기',exact:true}).click();
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
   const pending=await page.evaluate(async()=>{
     const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
     const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
@@ -71,7 +74,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
     db.close();return saves;
   });
   assert.ok(pending.some(x=>x.phase==='finished'&&x.reason==='concede'&&x.winner===1),'intentional exit must be recorded as a defeat');
-  await page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'}).click();
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.getByText('자동 저장됨',{exact:true}).waitFor();
   // Closing the tab without invoking an explicit in-game action cannot flush
@@ -79,9 +82,10 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.reload();
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
-  await page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'}).waitFor();
-  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent?.trim()==='이 덱으로 랭크 대전 시작');return !!b&&!b.disabled;},{timeout:15000});
-  assert.equal(await page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'}).isEnabled(),true,'reopen must enable fresh game rather than resume');
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).waitFor();
+  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent?.trim()==='선택한 덱으로 대전 시작');return !!b&&!b.disabled;},{timeout:15000});
+  assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true,'reopen must enable fresh game rather than resume');
   assert.equal(await page.getByRole('button',{name:'이어하기',exact:true}).count(),0,'preview exposes no resume action');
   const verify=await page.evaluate(async()=>{
     const names=(await indexedDB.databases()).map(db=>db.name);
