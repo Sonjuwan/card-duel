@@ -26,7 +26,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   page.on('dialog',dialog=>dialog.accept());
   const base='http://127.0.0.1:'+address.port;
   await page.goto(base+'/ui-preview/');
-  await page.getByRole('button',{name:'대전',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'저장 슬롯을 선택하세요'}).waitFor();
   await page.evaluate(async()=>{
     // This existing root save is purposely left invalid: the preview must
     // NEVER consult or mutate a different release's original game data.
@@ -46,7 +46,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
       };
     });
   });
-  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
   await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
@@ -81,7 +81,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   // Closing the tab without invoking an explicit in-game action cannot flush
   // reliably on mobile, so the next boot settles the last durable snapshot.
   await page.reload();
-  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
   await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).isEnabled(),true,'reopen must enable fresh game rather than resume');
