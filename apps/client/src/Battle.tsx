@@ -29,7 +29,7 @@ import {DECK_STYLE_LABELS} from './solo-settings.ts';
 import {rankInfo} from '../../../packages/progression.ts';
 import {intentFromSource,advanceGesture,finishGesture,interruptTouch,isCaptureHandoff,canPanBoard,boardEdgePanDelta,nearestVisibleBoardSlot,nearestTouchTarget,pointerDrop,dropFeedbackText} from './touch-gesture.ts';
 import type {TouchGesture,TouchHit,DropFeedback} from './touch-gesture.ts';
-import {useBattleDialogue,DialogueCaptions,EmoteMenu,DialogueSettings,readCaptionMode,writeCaptionMode} from './battle-dialogue-ui.tsx';
+import {useBattleDialogue,DialogueCaptions,DialogueSettings,readCaptionMode,writeCaptionMode} from './battle-dialogue-ui.tsx';
 import type {CaptionMode} from './battle-dialogue-ui.tsx';
 import {stopDialogueVoice} from './dialogue-voice.ts';
 import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
