@@ -81,3 +81,144 @@
   .slot-entry-title{align-items:flex-start}
   .slot-entry-title button{font-size:11px;padding:4px 8px}
 }
+
+
+/* Preview lobby: the big Card Duel banner is not navigation.
+   Removing it gives the match/deck screens back the entire first row. */
+.lobby-main.preview-lobby>.app-header,
+.lobby-main.preview-lobby>footer,
+.lobby-main.slot-entry>.app-header{
+  display:none !important;
+}
+.lobby-main.preview-lobby>.screen-content{
+  flex:1 1 0%;
+  min-height:0;
+  padding-top:0;
+}
+.lobby-main.preview-lobby .lobby-page-nav{
+  min-height:0;
+  margin:0 0 clamp(2px,.6vh,7px);
+  padding:0;
+  display:flex;
+  align-items:center;
+  gap:clamp(6px,1vw,12px);
+}
+.lobby-main.preview-lobby .lobby-page-nav button{
+  min-height:40px;
+  padding:6px 10px;
+}
+.lobby-main.preview-lobby .lobby-page-nav strong{
+  font-size:clamp(13px,1.4vw,17px);
+}
+.lobby-main.preview-lobby .lobby-home{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(5px,1.2vw,16px);
+  align-content:start;
+  padding:clamp(5px,1vw,13px);
+  overflow-y:auto;
+}
+.lobby-main.preview-lobby .lobby-home>button{
+  min-width:0;
+  min-height:clamp(78px,24vh,165px);
+  font-size:clamp(14px,1.8vw,22px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:clamp(4px,.6vw,8px);
+  overflow-wrap:anywhere;
+}
+.lobby-main.preview-lobby .lobby-home>button svg{
+  max-height:clamp(30px,8vh,56px);
+}
+/* The play page is deliberately free of the old slot dialog,
+   rank-progression panel and full save status form. */
+.lobby-main.preview-lobby .play-hub{
+  grid-template-columns:minmax(260px,40%) minmax(0,1fr);
+  gap:clamp(6px,.9vw,14px);
+}
+.lobby-main.preview-lobby .play-hub>.play-support{
+  padding:0 2px 0 0;
+  overflow-y:auto;
+}
+.lobby-main.preview-lobby .play-hub>.play-support>.slot-deck-launch{
+  width:100%;
+  min-height:0;
+}
+.lobby-main.preview-lobby .play-hub>.play-lobby{
+  overflow:auto;
+}
+/* Slot management is a separate destination reached only from Home.
+   All rank, slot, backup and finished-result controls stay here. */
+.lobby-main.preview-lobby>.screen-content:has(>.slot-management-screen){
+  overflow:hidden;
+}
+.lobby-main.preview-lobby .slot-management-screen{
+  min-height:0;
+  flex:1 1 0%;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  display:flex;
+  flex-direction:column;
+  gap:clamp(6px,1.2vh,13px);
+  padding:clamp(4px,.8vw,10px);
+}
+.lobby-main.preview-lobby .slot-management-heading h2{
+  margin:0;
+  font-size:clamp(17px,2vw,26px);
+  color:#f6d792;
+}
+.lobby-main.preview-lobby .slot-management-heading p{
+  margin:2px 0 0;
+  font-size:clamp(11px,1.2vw,14px);
+  color:#c4bbad;
+}
+.lobby-main.preview-lobby .slot-management-screen>.slot-panel{
+  flex:none;
+  margin:0;
+}
+.lobby-main.preview-lobby .slot-management-screen>.lobby-tabs{
+  margin:0;
+  flex:none;
+}
+.lobby-main.preview-lobby .slot-management-screen>.account-growth{
+  flex:none;
+}
+.lobby-main.preview-lobby .slot-management-screen>.saved-duel-panel{
+  flex:none;
+}
+@media (orientation:landscape) and (max-height:540px){
+  .lobby-main.preview-lobby .lobby-page-nav{margin-bottom:3px}
+  .lobby-main.preview-lobby .lobby-page-nav button{
+    min-height:34px;
+    padding:3px 9px;
+    font-size:12px;
+  }
+  .lobby-main.preview-lobby .lobby-home>button{
+    min-height:clamp(60px,24vh,99px);
+    padding:6px 4px;
+    font-size:clamp(12px,1.4vw,16px);
+  }
+  .lobby-main.preview-lobby .play-hub{
+    grid-template-columns:minmax(250px,44%) minmax(0,1fr);
+    gap:6px;
+  }
+  .lobby-main.preview-lobby .slot-management-screen{
+    gap:6px;
+  }
+  .lobby-main.preview-lobby .slot-management-heading p{
+    display:none;
+  }
+  .lobby-main.preview-lobby .slot-management-heading h2{
+    font-size:16px;
+  }
+}
+@media (orientation:portrait) and (max-width:640px){
+  .lobby-main.preview-lobby .lobby-home{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lobby-main.preview-lobby .play-hub{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
