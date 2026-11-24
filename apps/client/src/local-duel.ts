@@ -77,6 +77,12 @@ export class LocalDuel{
     if(duel.deadline!==undefined){if(!integer(saved.remainingMs,0,duel.limit!*1000))throw new RuleError('저장 경기의 남은 시간이 손상되었습니다.');duel.deadline=now+saved.remainingMs!;}else if(saved.remainingMs!==undefined)throw new RuleError('저장 경기의 시간 제한이 일치하지 않습니다.');
     return duel;
   }
+  /** An abandoned game is an immediate concession, including during mulligan.
+   * Unlike a normal move, it must work even when a restored turn timer expired. */
+  forfeit():RoomView{
+    if(this.state.phase!=='finished')this.apply(0,{type:'concede'});
+    return this.view();
+  }
   rematch(code:string,seed:number){if(this.input.ranked)throw new RuleError('랭크 대전은 현재 성장 기록에서 새로 시작하세요.');if(this.state.phase!=='finished')throw new RuleError('경기가 끝난 후 다시 대전할 수 있습니다.');return new LocalDuel({...this.input,code,seed,style:this.style});}
   rankedAward():MatchAward|undefined{
     if(!this.input.ranked||this.state.phase!=='finished')return;
@@ -133,5 +139,5 @@ export class LocalDuel{
     throw Error('AI could not make a valid move.');
   }
 }
-export type LocalRequest={type:'start';input:LocalDuelInput;replaceSave?:LocalSaveSummary|null;ranked?:boolean;developerRank?:number;developerExperiment?:boolean}|{type:'act';requestId:number;revision:number;action:Action}|{type:'inspectSlot';catalogHash:string;catalog:Catalog}|{type:'inspectSave';catalogHash:string;catalog?:Catalog}|{type:'resume';catalog:Catalog;catalogHash:string;device?:DeviceInfo;expectedCode?:string}|{type:'pause'|'retrySave';requestId:number}|{type:'discard';catalogHash:string;requestId:number;expected?:LocalSaveSummary}|{type:'rematch';code:string;seed:number;requestId:number}|{type:'exportGrowth';catalog:Catalog}|{type:'restoreGrowth';catalog:Catalog;backup:unknown};
-export type LocalResponse=({type:'view';view:RoomView;requestId?:number;save?:LocalSaveSummary|null;saveAvailable?:boolean;resumed?:boolean}|{type:'slotInfo';overview:LocalSlotOverview}|{type:'saveInfo';save:LocalSaveSummary|null;available:boolean;otherActiveRanked?:boolean}|{type:'paused';requestId:number;save:LocalSaveSummary}|{type:'discarded';requestId:number;save:LocalSaveSummary|null;available:boolean}|{type:'error';error:string;requestId?:number;save?:LocalSaveSummary|null;saveAvailable?:boolean}|{type:'growthBackup';backup:import('./offline-growth.ts').OfflineGrowthBackup}|{type:'growthRestored'})&{profile?:AccountProfile;saveRetryable?:boolean};
+export type LocalRequest={type:'start';input:LocalDuelInput;replaceSave?:LocalSaveSummary|null;ranked?:boolean;developerRank?:number;developerExperiment?:boolean}|{type:'act';requestId:number;revision:number;action:Action}|{type:'inspectSlot';catalogHash:string;catalog:Catalog}|{type:'inspectSave';catalogHash:string;catalog?:Catalog;settleAbandoned?:boolean}|{type:'resume';catalog:Catalog;catalogHash:string;device?:DeviceInfo;expectedCode?:string}|{type:'pause'|'retrySave'|'forfeit';requestId:number}|{type:'discard';catalogHash:string;requestId:number;expected?:LocalSaveSummary}|{type:'rematch';code:string;seed:number;requestId:number}|{type:'exportGrowth';catalog:Catalog}|{type:'restoreGrowth';catalog:Catalog;backup:unknown};
+export type LocalResponse=({type:'view';view:RoomView;requestId?:number;save?:LocalSaveSummary|null;saveAvailable?:boolean;resumed?:boolean}|{type:'slotInfo';overview:LocalSlotOverview}|{type:'saveInfo';save:LocalSaveSummary|null;available:boolean;otherActiveRanked?:boolean}|{type:'paused'|'forfeited';requestId:number;save:LocalSaveSummary}|{type:'discarded';requestId:number;save:LocalSaveSummary|null;available:boolean}|{type:'error';error:string;requestId?:number;save?:LocalSaveSummary|null;saveAvailable?:boolean}|{type:'growthBackup';backup:import('./offline-growth.ts').OfflineGrowthBackup}|{type:'growthRestored'})&{profile?:AccountProfile;saveRetryable?:boolean};
