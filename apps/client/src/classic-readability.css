@@ -375,6 +375,12 @@
   .lobby-main .deck-panel.deck-builder{padding:8px 10px}
   .lobby-main .deck-builder .deck-editor-controls{gap:2px}
   .lobby-main .deck-builder .book-pane{gap:2px}
+  .lobby-main .deck-builder .collection.classic-collection.collection-book .battle-card{
+    width:min(calc(100% - 8px),230px,calc(25dvh - 12px));
+  }
+  .lobby-main .deck-builder .collection-book .collection-item>small{
+    padding:0 3px;line-height:1.1;
+  }
   .lobby-main .deck-builder .collection.classic-collection.collection-book{
     padding:4px 6px;
     gap:5px;
