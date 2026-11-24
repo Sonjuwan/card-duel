@@ -67,7 +67,8 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
     return [await count('card-duel-solo-saves-v1-ui-preview'),await count('card-duel-solo-saves-v1-slot-2-ui-preview')];
   });
   assert.deepEqual(matchCounts,[0,1],'a slot 2 match cannot be written into slot 1');
-  await page.getByRole('button',{name:'나가기',exact:true}).click();
+  await page.getByRole('button',{name:'전투 설정'}).click();
+  await page.getByRole('button',{name:'저장 후 나가기'}).click();
   await page.getByRole('button',{name:'메인으로'}).click();
   await page.getByRole('button',{name:'슬롯 선택',exact:true}).click();
   assert.equal(await page.locator('.preview-slot-grid>button').count(),3,'slot management shows just 3 choices');
