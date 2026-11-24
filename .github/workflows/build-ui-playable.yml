@@ -69,6 +69,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Build the actual PWA before launching landscape tests
+        run: npm run build:solo-app
       - name: Test real landscape browser flows
         run: npm run test:landscape-browser
       - name: Test installed/offline application in browser
