@@ -537,3 +537,21 @@
     transform-origin:bottom center!important;z-index:70!important;
   }
 }
+
+/* A pressed touch card must enlarge immediately, not only after selection. */
+@media (orientation:landscape){
+  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot>.battle-card:active{
+    transform:translateY(calc(-1 * min(23dvh,110px))) scale(2.2)!important;
+    transform-origin:bottom center!important;z-index:70!important;
+  }
+}
+@media (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot{
+    --duel-hand-open-scale:1.65;
+  }
+  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card,
+  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot>.battle-card:active,
+  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
+    transform:translateY(-9dvh) scale(1.65)!important;
+  }
+}
