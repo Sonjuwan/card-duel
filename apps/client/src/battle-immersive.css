@@ -1,0 +1,234 @@
+/* Immersive battle: the three redundant top rows (brand, duel title,
+   always-on guidance) MUST NOT reserve vertical space. Core controls remain
+   accessible as compact overlaid touch targets. Scope to active/finished
+   landscape battles: mulligan, slot selection and deck screens are unchanged.
+   This stylesheet loads after the older responsive rules. */
+
+@media (orientation:landscape) {
+  .game-main:has(>.screen-content>.duel-screen.phase-playing),
+  .game-main:has(>.screen-content>.duel-screen.phase-finished){
+    box-sizing:border-box;
+    padding:max(env(safe-area-inset-top,0px),2px)
+      max(env(safe-area-inset-right,0px),3px)
+      max(env(safe-area-inset-bottom,0px),2px)
+      max(env(safe-area-inset-left,0px),3px);
+    min-height:0;
+    overflow:hidden;
+  }
+
+  /* App title/status row: 0 px in battle, fully restored on leaving. */
+  .game-main:has(>.screen-content>.duel-screen.phase-playing)>.app-header,
+  .game-main:has(>.screen-content>.duel-screen.phase-finished)>.app-header,
+  .game-main:has(>.screen-content>.duel-screen.phase-playing)>footer,
+  .game-main:has(>.screen-content>.duel-screen.phase-finished)>footer{
+    display:none !important;
+  }
+  .game-main>.screen-content>.duel-screen.phase-playing,
+  .game-main>.screen-content>.duel-screen.phase-finished{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    flex:1 1 0%;
+    min-width:0;
+    min-height:0;
+    height:100%;
+    width:100%;
+    gap:0 !important;
+    overflow:hidden !important;
+    isolation:isolate;
+  }
+
+  /* Duel title/turn/status row becomes a tiny in-board toolbar. It
+     cannot shrink the arena, and has no permanent hero/title text. */
+  .game-main .duel-screen.phase-playing>.duel-title,
+  .game-main .duel-screen.phase-finished>.duel-title{
+    position:absolute;
+    z-index:30;
+    top:clamp(4px,.8dvh,9px);
+    left:clamp(7px,.85dvw,14px);
+    right:auto;
+    display:flex;
+    align-items:center;
+    flex:none;
+    width:max-content;
+    max-width:calc(100% - 12px);
+    height:auto;
+    min-height:0;
+    margin:0;
+    padding:0;
+    border:0;
+    background:none;
+    pointer-events:none;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title .duel-summary,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-summary,
+  .game-main .duel-screen.phase-playing>.duel-title .duel-indicators,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-indicators{
+    display:none;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title .duel-toolbar,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-toolbar,
+  .game-main .duel-screen.phase-playing>.duel-title .duel-actions,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-actions{
+    display:flex;
+    align-items:center;
+    flex-wrap:nowrap;
+    justify-content:flex-start;
+    min-width:0;
+    width:auto;
+    gap:clamp(2px,.35vw,5px);
+    margin:0;
+    padding:0;
+    pointer-events:auto;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title .duel-actions>button,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-actions>button,
+  .game-main .duel-screen.phase-playing>.duel-title .battle-sound-menu>summary,
+  .game-main .duel-screen.phase-finished>.duel-title .battle-sound-menu>summary{
+    box-sizing:border-box;
+    min-height:44px;
+    max-height:44px;
+    font-size:clamp(11px,1.3dvw,13px);
+    line-height:1.1;
+    padding:5px clamp(5px,.7vw,9px);
+    border-radius:8px;
+    box-shadow:0 2px 10px #000b;
+    white-space:nowrap;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title .battle-sound-menu>summary,
+  .game-main .duel-screen.phase-finished>.duel-title .battle-sound-menu>summary{
+    min-height:44px;
+    background:#332823ed;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title .duel-actions>button,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-actions>button{
+    background:#283448ed;
+  }
+  .game-main .duel-screen.phase-playing>.duel-title .duel-actions>button:last-child,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-actions>button:last-child{
+    background:#574030ed;
+  }
+  /* Always offer history/help when it has moved into its own overlay. */
+  .game-main .duel-screen.phase-playing>.duel-title .battle-tools-toggle,
+  .game-main .duel-screen.phase-finished>.duel-title .battle-tools-toggle{
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
+  }
+
+  /* Guidance row: keep announcements for screen readers and show real
+     target/placement/queue controls on the board as a compact overlay.
+     A passive "green cards are ready" message takes zero screen height. */
+  .game-main .duel-screen.phase-playing>.arena-message,
+  .game-main .duel-screen.phase-finished>.arena-message{
+    position:absolute;
+    z-index:25;
+    top:clamp(51px,8dvh,65px);
+    left:clamp(7px,.85dvw,14px);
+    right:auto;
+    box-sizing:border-box;
+    display:flex;
+    flex:none;
+    flex-wrap:wrap;
+    align-items:flex-start;
+    align-content:flex-start;
+    gap:3px;
+    width:max-content;
+    max-width:min(66%,520px);
+    height:auto;
+    min-height:0;
+    max-height:min(28dvh,108px);
+    margin:0;
+    padding:0;
+    border:0;
+    box-shadow:none;
+    border-radius:6px;
+    background:transparent;
+    pointer-events:none;
+    overflow-x:hidden;
+    overflow-y:auto;
+    scrollbar-width:thin;
+  }
+  .game-main .duel-screen.phase-playing>.arena-message>.turn-lamp,
+  .game-main .duel-screen.phase-finished>.arena-message>.turn-lamp{
+    display:none;
+  }
+  .game-main .duel-screen.phase-playing>.arena-message>span:nth-child(2),
+  .game-main .duel-screen.phase-finished>.arena-message>span:nth-child(2){
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip-path:inset(50%);
+    white-space:nowrap;
+  }
+  .game-main .duel-screen.phase-playing.has-selection>.arena-message>span:nth-child(2),
+  .game-main .duel-screen.phase-playing.is-dragging>.arena-message>span:nth-child(2),
+  .game-main .duel-screen.phase-playing>.arena-message[data-drop-feedback="notice"]>span:nth-child(2){
+    position:relative;
+    width:auto;
+    height:auto;
+    margin:0;
+    padding:4px 7px;
+    border:1px solid #a8915c;
+    border-radius:5px;
+    background:#192735ee;
+    font-size:clamp(10px,1.2dvw,13px);
+    line-height:1.15;
+    color:#f7e8c8;
+    clip-path:none;
+    overflow:visible;
+    white-space:normal;
+    max-width:100%;
+  }
+  .game-main .duel-screen.phase-playing>.arena-message :is(button,summary,select,input),
+  .game-main .duel-screen.phase-finished>.arena-message :is(button,summary,select,input){
+    pointer-events:auto;
+    min-height:44px;
+    background:#243447f2;
+    color:#fff0cb;
+  }
+
+  /* All reclaimed pixels belong to the game, not to a new panel. */
+  .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+  .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+    box-sizing:border-box;
+    display:grid;
+    flex:1 1 0%;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    max-height:100%;
+    margin:0;
+    overflow:hidden;
+  }
+  /* On large viewports the classic table uses absolute children; preserve
+     the same original display mode and re-use its increased height. */
+  @media (min-width:941px){
+    .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+    .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+      display:block;
+    }
+  }
+}
+
+/* Large touch targets without a 200px vertical stack of menu UI. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen.phase-playing>.duel-title .duel-actions,
+  .game-main .duel-screen.phase-finished>.duel-title .duel-actions{
+    flex-wrap:nowrap;
+  }
+  .game-main .duel-screen.phase-playing>.arena-message,
+  .game-main .duel-screen.phase-finished>.arena-message{
+    max-height:28dvh;
+    max-width:min(64%,480px);
+  }
+  .game-main .duel-screen.phase-playing>.battle-arena.classic-table,
+  .game-main .duel-screen.phase-finished>.battle-arena.classic-table{
+    grid-template-rows:minmax(0,1fr);
+    padding:3px;
+  }
+}
