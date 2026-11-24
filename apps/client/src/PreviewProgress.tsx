@@ -1,6 +1,7 @@
 import type {AccountProfile,GrowthView} from '../../../packages/account-protocol.ts';
 import {rankInfo,questStatus,rankedXpReward,rankedQuestBonus} from '../../../packages/progression.ts';
 import {catalog,className} from './data.ts';
+import {maxCardCopies} from '../../../packages/engine/src/index.ts';
 import {BattleCard} from './battle-pieces.tsx';
 import type {HeroClass} from '../../../packages/engine/src/index.ts';
 
@@ -18,15 +19,15 @@ export function PreviewRewards({profile,growth}:{profile?:AccountProfile;growth?
   return <section className="preview-reward-screen" aria-label="경험치와 카드 획득">
     <div className="preview-reward-feature">
       <strong>다음 획득 카드</strong>
-      {next&&catalog[next.cardId]?<div className="preview-reward-card"><BattleCard card={catalog[next.cardId]}/><span className="preview-reward-quantity">×{catalog[next.cardId].rarity==='legendary'?1:2}</span></div>:<div className="preview-reward-complete">모든 카드를 획득했습니다!</div>}
+      {next&&catalog[next.cardId]?<div className="preview-reward-card"><BattleCard card={catalog[next.cardId]}/><span className="preview-reward-quantity">×{maxCardCopies(catalog[next.cardId])}</span></div>:<div className="preview-reward-complete">모든 카드를 획득했습니다!</div>}
     </div>
     <aside className="preview-reward-sidebar">
       <strong>누적 XP {profile.xp.toLocaleString('ko-KR')}</strong>
       {next?<><p>다음 카드까지 {(next.xp-profile.xp).toLocaleString('ko-KR')} XP</p><progress max={Math.max(1,next.xp-previous)} value={Math.max(0,profile.xp-previous)}/><small>{profile.xp.toLocaleString('ko-KR')} / {next.xp.toLocaleString('ko-KR')} XP</small></>:<p>현재 모든 해금 완료</p>}
       <strong>이후 획득할 카드</strong>
-      <div className="preview-next-rewards">{nearby.map(item=><div key={item.cardId}><span>{catalog[item.cardId]?.name??item.cardId} · ×{catalog[item.cardId]?.rarity==='legendary'?1:2}</span><small>{item.xp.toLocaleString('ko-KR')} XP</small></div>)}</div>
+      <div className="preview-next-rewards">{nearby.map(item=><div key={item.cardId}><span>{catalog[item.cardId]?.name??item.cardId} · ×{maxCardCopies(catalog[item.cardId])}</span><small>{item.xp.toLocaleString('ko-KR')} XP</small></div>)}</div>
       <strong>최근 획득 카드</strong>
-      <div className="preview-next-rewards">{earned.length?earned.slice(0,6).map(id=><div key={id}><span>{catalog[id]?.name??id}</span><small>×{catalog[id]?.rarity==='legendary'?1:2}</small></div>):<small>최근 획득 기록 없음</small>}</div>
+      <div className="preview-next-rewards">{earned.length?earned.slice(0,6).map(id=><div key={id}><span>{catalog[id]?.name??id}</span><small>×{maxCardCopies(catalog[id])}</small></div>):<small>최근 획득 기록 없음</small>}</div>
       <small>랭크 {profile.rank} 기준 승리 +{rankedXpReward(profile.rank,'win')} XP · 무승부 +{rankedXpReward(profile.rank,'draw')} XP · 패배 +{rankedXpReward(profile.rank,'loss')} XP</small>
       <small>카드는 XP 도달 시 자동 획득됩니다. 전설은 1장, 나머지는 2장까지 덱에서 사용 가능.</small>
     </aside>
