@@ -113,7 +113,18 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.locator('.mulligan-cards[data-exchange=reveal] .mulligan-card-back').first().waitFor();
     const hand=page.locator('.own-hand .hand-card-slot .battle-card').first();
     await hand.waitFor();
-    if(hasTouch)await hand.tap({force:true});
+    if(hasTouch){
+      const point=await hand.evaluate(card=>{
+        const box=card.getBoundingClientRect();
+        const x=box.left+box.width/2;
+        for(let y=Math.max(1,box.top+4);y<Math.min(innerHeight,box.bottom);y+=4){
+          if(card.contains(document.elementFromPoint(x,y)))return {x,y};
+        }
+        return null;
+      });
+      assert.ok(point,label+' hand card has a visible touch target');
+      await page.touchscreen.tap(point.x,point.y);
+    }
     else await hand.hover();
     await page.waitForFunction(()=>getComputedStyle(document.querySelector('.own-hand .hand-card-slot .battle-card')).position==='absolute');
     await page.waitForTimeout(120);
