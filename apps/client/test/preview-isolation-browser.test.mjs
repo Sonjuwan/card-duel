@@ -53,6 +53,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.getByRole('button',{name:/^확정 \(\d+장 교체\)$/}).click();
   await page.locator('.battle.phase-playing .battle-arena').waitFor();
+  await page.getByRole('button',{name:'전투 설정'}).click();
   await page.locator('.battle-tools-toggle').click();
   await page.locator('.compact-concede').click();
   await page.getByRole('dialog',{name:'대전 결과'}).waitFor({timeout:20000});
@@ -64,29 +65,30 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   assert.equal(await start.isEnabled(),true,'preview must allow a new ranked match: '+JSON.stringify(diag));
   await start.click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor({timeout:20000});
-  // A deliberate in-game exit also records a loss, rather than parking a resumable match.
-  await page.getByRole('button',{name:'나가기',exact:true}).click();
+  // Saving is not a loss. Both resume and new-game choices must be available.
+  await page.getByRole('button',{name:'전투 설정'}).click();
+  await page.getByRole('button',{name:'저장 후 나가기'}).click();
+  await page.getByRole('button',{name:'이어서 플레이하기'}).waitFor();
+  await page.getByRole('button',{name:'이어서 플레이하기'}).click();
+  await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
+  await page.getByRole('button',{name:'전투 설정'}).click();
+  await page.getByRole('button',{name:'저장 후 나가기'}).click();
+  await page.getByRole('button',{name:'새로운 게임 시작'}).click();
   await page.getByRole('button',{name:'마법사',exact:true}).click();
-  const pending=await page.evaluate(async()=>{
+  const conceded=await page.evaluate(async()=>{
     const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
     const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
-    const saves=await new Promise((resolve,reject)=>{const tx=db.transaction('matches','readonly'),all=tx.objectStore('matches').getAll();tx.oncomplete=()=>resolve(all.result.map(e=>({phase:e.snapshot.summary.phase,winner:e.snapshot.state.winner,reason:e.snapshot.state.reason})));tx.onerror=()=>reject(tx.error)});
-    db.close();return saves;
+    const result=await new Promise((resolve,reject)=>{const tx=db.transaction('matches','readonly'),all=tx.objectStore('matches').getAll();tx.oncomplete=()=>resolve(all.result.map(e=>({phase:e.snapshot.summary.phase,winner:e.snapshot.state.winner,reason:e.snapshot.state.reason})));tx.onerror=()=>reject(tx.error)});
+    db.close();return result;
   });
-  assert.ok(pending.some(x=>x.phase==='finished'&&x.reason==='concede'&&x.winner===1),'intentional exit must be recorded as a defeat');
+  assert.ok(conceded.some(x=>x.phase==='finished'&&x.reason==='concede'&&x.winner===1),'starting a new game records the previous saved ranked match as defeat');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
-  await page.getByText('자동 저장됨',{exact:true}).waitFor();
-  // Closing the tab without invoking an explicit in-game action cannot flush
-  // reliably on mobile, so the next boot settles the last durable snapshot.
   await page.reload();
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
-  await page.getByRole('button',{name:'마법사',exact:true}).click();
-  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).waitFor();
-  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent?.trim()==='선택한 덱으로 대전 시작');return !!b&&!b.disabled;},{timeout:15000});
-  assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true,'reopen must enable fresh game rather than resume');
-  assert.equal(await page.getByRole('button',{name:'이어하기',exact:true}).count(),0,'preview exposes no resume action');
+  await page.getByRole('button',{name:'이어서 플레이하기'}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'새로운 게임 시작'}).count(),1,'reopening a saved match offers both resume and new game');
   const verify=await page.evaluate(async()=>{
     const names=(await indexedDB.databases()).map(db=>db.name);
     const txRead=async()=>{
