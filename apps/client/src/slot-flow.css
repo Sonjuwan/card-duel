@@ -581,3 +581,15 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
   .preview-card-reward-popup{gap:4px;padding:7px}
   .preview-card-reward-actions button{min-height:35px;padding:4px 9px;font-size:12px}
 }
+
+.lobby-main.preview-lobby .preview-workspace>[data-deck-screen=build]{
+  position:relative;min-height:0;height:100%;overflow:hidden;
+}
+.lobby-main.preview-lobby .preview-deck-back{
+  position:absolute;top:2px;right:2px;z-index:16;
+  min-height:32px;padding:4px 9px;font-size:11px;
+  border:1px solid #bca06c;box-shadow:0 1px 5px #0009;
+}
+.lobby-main.preview-lobby .preview-workspace>[data-deck-screen=build]>.deck-builder{
+  height:100%;min-height:0;overflow:auto;
+}
