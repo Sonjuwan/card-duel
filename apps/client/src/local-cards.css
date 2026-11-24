@@ -202,3 +202,23 @@
   .deck-builder .collection-book .collection-leaf{grid-template-columns:minmax(0,1fr)}
   .card-browser .collection-book .collection-leaf{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* Card Duel detailed card: name-mounted rarity, bottom tribe, sword and blood drop.
+   This applies only to printed cards; BattleMinion keeps its separate field UI. */
+.battle-card .card-rarity-anchor{position:relative;display:flex;justify-content:center;align-items:flex-start;flex:0 0 0;height:0;z-index:5;pointer-events:none}
+.battle-card .card-rarity-anchor .rarity-gem{display:block;position:absolute;top:-2px;left:50%;width:clamp(8px,9cqi,13px);height:clamp(8px,9cqi,13px);margin-left:0;transform:translateX(-50%) rotate(45deg);border:1px solid #e9f4ff;border-radius:2px;box-shadow:0 1px 2px #372516,0 0 0 1px #704c29;background:linear-gradient(135deg,#e5e8ea,#7b858f);z-index:5}
+.battle-card.rarity-basic .card-rarity-anchor .rarity-gem{display:none}
+.battle-card.rarity-common .card-rarity-anchor .rarity-gem{background:linear-gradient(135deg,#fff,#bfc4c9 55%,#707b83)}
+.battle-card.rarity-rare .card-rarity-anchor .rarity-gem{background:linear-gradient(135deg,#d9f5ff,#328ce0 55%,#124aa8)}
+.battle-card.rarity-epic .card-rarity-anchor .rarity-gem{background:linear-gradient(135deg,#edd4ff,#9b4ccc 55%,#55228f)}
+.battle-card.rarity-legendary .card-rarity-anchor .rarity-gem{background:linear-gradient(135deg,#fff1ad,#ed9a22 55%,#aa490d)}
+.battle-card .card-name{z-index:4}
+.battle-card .card-copy{padding-top:clamp(7px,7cqi,12px)}
+.battle-card.rarity-basic .card-copy{padding-top:2px}
+.battle-card .card-statline{justify-content:space-between}
+.battle-card .card-tribe{min-width:0;max-width:55%;padding:1px 4px;border-radius:999px;border:1px solid #937448;background:linear-gradient(#f4dfb2,#cfa56c);color:#3c291a;font-size:clamp(7px,8cqi,11px);font-weight:900;line-height:1.2;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.battle-card .card-tribe:empty{visibility:hidden}
+.battle-card .stat-attack{position:relative;clip-path:polygon(50% 0%,62% 22%,84% 10%,77% 38%,100% 47%,78% 59%,90% 90%,57% 78%,48% 100%,38% 77%,9% 91%,21% 59%,0 47%,22% 38%,17% 12%,39% 24%);border-radius:0!important;background:radial-gradient(circle at 33% 25%,#fff4c5,#d7a745 48%,#714921)!important}
+.battle-card .stat-health:not(.stat-durability){clip-path:polygon(50% 0,75% 27%,91% 53%,93% 71%,79% 91%,50% 100%,21% 91%,7% 71%,9% 53%,25% 27%);border-radius:50% 50% 47% 47%!important;background:radial-gradient(circle at 35% 23%,#ffd2d0,#e04742 47%,#8b1224)!important}
+.battle-card .stat-durability{border-radius:22% 22% 43% 43%!important;background:radial-gradient(circle at 30% 20%,#e5f1f9,#7393a9 57%,#334b68)!important}
