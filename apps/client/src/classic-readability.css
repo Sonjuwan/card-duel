@@ -6,7 +6,7 @@
   box-sizing:border-box;
   container-type:inline-size;
   aspect-ratio:0.68 / 1;
-  width:min(100%,245px,calc(25dvh - 12px));
+  width:min(100%,230px,calc(25dvh - 12px));
   height:auto;
   min-height:0;
   max-width:none;
@@ -134,7 +134,7 @@
     overscroll-behavior:contain;
   }
   .lobby-main .collection-book .deck-card-detail-trigger{
-    width:min(100%,245px);
+    width:min(100%,230px);
     max-width:none;
     min-height:44px;
   }
