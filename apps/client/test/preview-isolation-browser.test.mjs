@@ -80,6 +80,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
   await page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'}).waitFor();
+  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent?.trim()==='이 덱으로 랭크 대전 시작');return !!b&&!b.disabled;},{timeout:15000});
   assert.equal(await page.getByRole('button',{name:'이 덱으로 랭크 대전 시작'}).isEnabled(),true,'reopen must enable fresh game rather than resume');
   assert.equal(await page.getByRole('button',{name:'이어하기',exact:true}).count(),0,'preview exposes no resume action');
   const verify=await page.evaluate(async()=>{
