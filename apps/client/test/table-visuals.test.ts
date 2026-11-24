@@ -16,11 +16,11 @@ test('every valid hand size has a symmetric fan with one slot per card',()=>{
 });
 test('collection book paginates every legal card exactly once and clamps invalid pages',()=>{
   const ids=Array.from({length:140},(_,i)=>i);
-  const first=collectionPage(ids,-2);assert.equal(first.page,0);assert.equal(first.pages,12);
+  const first=collectionPage(ids,-2);assert.equal(first.page,0);assert.equal(first.pages,18);
   assert.deepEqual(Array.from({length:first.pages},(_,i)=>collectionPage(ids,i).items).flat(),ids);
-  assert.deepEqual(collectionPage(ids,99).items,[132,133,134,135,136,137,138,139]);
+  assert.deepEqual(collectionPage(ids,99).items,[136,137,138,139]);
   assert.deepEqual(collectionPage([],99),{page:0,pages:1,items:[]});
-  assert.equal(collectionPage(ids,NaN,0).items.length,12);
+  assert.equal(collectionPage(ids,NaN,0).items.length,8);
 });
 test('card book keyboard navigation follows actual desktop and narrow mobile geometry without activation',()=>{
   const box=(left:number,top:number)=>({left,top,width:90,height:120});
@@ -79,7 +79,7 @@ test('visual changes are derived solely from consecutive authorized player views
 });
 
 test('grouped spreads keep the class boundary and reach every card at both sizes',()=>{
-  for(const size of [4,6,12]){
+  for(const size of [4,6,8,12]){
     const classCards=Array.from({length:15},(_,i)=>`class-${i}`);
     const neutralCards=Array.from({length:21},(_,i)=>`neutral-${i}`);
     const groups=[{key:'class',items:classCards},{key:'neutral',items:neutralCards}];
