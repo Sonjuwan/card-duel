@@ -55,7 +55,29 @@ scope.onmessage=({data})=>{
       if(data.type==='exportGrowth'){if(!store.readGrowth)throw Error('성장 저장소를 사용할 수 없습니다.');const record=await store.readGrowth(currentGrowth);scope.postMessage({type:'growthBackup',backup:createGrowthBackup(record,currentGrowth),profile:record.profile});}
       else{if(!store.restoreGrowth)throw Error('성장 저장소를 사용할 수 없습니다.');const record=await store.restoreGrowth(data.backup,currentGrowth);scope.postMessage({type:'growthRestored',profile:record.profile});}return;
     }
-    if(data.type==='inspectSave'){const available=await refresh(data.catalogHash);let otherActiveRanked:boolean|undefined;if(data.catalog&&store.readGrowth)try{const rules=offlineGrowth(data.catalog);profile=(await store.readGrowth(rules)).profile;if(store.inspectSlot)otherActiveRanked=(await store.inspectSlot(data.catalogHash,rules)).otherActiveRanked;}catch{/* Practice can still use the old match store. */}scope.postMessage({type:'saveInfo',save:lastSaved,available,profile,otherActiveRanked});return;}
+    if(data.type==='inspectSave'){
+      // A user who closed the UI preview during a match must return to a
+      // recorded defeat rather than an unfinished game. The browser cannot
+      // promise to flush IndexedDB during pagehide, so settle on next launch.
+      // This is opt-in per request; older/live versions retain their saves.
+      if(data.settleAbandoned){
+        if(!data.catalog)throw Error('중단 경기 패배 판정에 카드 정보가 필요합니다.');
+        const snapshot=await store.read(data.catalogHash);
+        if(snapshot&&snapshot.summary.phase!=='finished'){
+          const previous=publicSaveSummary(snapshot,data.catalogHash);
+          const abandoned=LocalDuel.restore(snapshot,data.catalog,data.catalogHash);
+          abandoned.forfeit();
+          const completed=abandoned.checkpoint();
+          if(!completed)throw Error('중단 경기 패배 상태를 기록하지 못했습니다.');
+          if(Date.parse(completed.summary.savedAt)<=Date.parse(previous.savedAt))
+            completed.summary.savedAt=new Date(Date.parse(previous.savedAt)+1).toISOString();
+          const rules=snapshot.input.ranked?offlineGrowth(data.catalog):undefined;
+          const ranked=rules?{growth:rules,award:abandoned.rankedAward()}:undefined;
+          const applied=await store.write(completed,owner,true,previous,ranked);
+          if(!applied)throw Error('경기 기록이 다른 탭에서 변경되었습니다. 저장소를 다시 확인하세요.');
+        }
+      }
+      const available=await refresh(data.catalogHash);let otherActiveRanked:boolean|undefined;if(data.catalog&&store.readGrowth)try{const rules=offlineGrowth(data.catalog);profile=(await store.readGrowth(rules)).profile;if(store.inspectSlot)otherActiveRanked=(await store.inspectSlot(data.catalogHash,rules)).otherActiveRanked;}catch{/* Practice can still use the old match store. */}scope.postMessage({type:'saveInfo',save:lastSaved,available,profile,otherActiveRanked});return;}
     if(data.type==='start'){clear();if(data.ranked&&data.developerRank!==undefined)throw Error('랭크와 개발자 시험은 동시에 시작할 수 없습니다.');if(data.developerExperiment!==undefined&&(typeof data.developerExperiment!=='boolean'||data.developerRank===undefined||data.ranked))throw Error('실험 AI는 개발자 시험에서만 사용할 수 있습니다.');const {ranked:_,developerTest:__,...practice}=data.input;growth=undefined;profile=undefined;let input=practice;if(data.ranked){if(!store.readGrowth)throw Error('오프라인 성장 저장소가 필요합니다.');growth=offlineGrowth(practice.catalog);if(store.inspectSlot&&practice.catalogHash&&(await store.inspectSlot(practice.catalogHash,growth)).otherActiveRanked)throw Error('이전 카드 버전의 진행 중인 랭크 경기가 있습니다. 해당 버전에서 경기를 완료한 뒤 다시 시작하세요.');const record=await store.readGrowth(growth);profile=record.profile;input=createOfflineRankedInput(practice,record,growth);}else if(data.developerRank!==undefined)input=createOfflineDeveloperInput(practice,offlineGrowth(practice.catalog),data.developerRank,data.developerExperiment);duel=new LocalDuel(input);ownsSave=false;saveAvailable=true;lastSaved=null;
       initialClaimExpected=data.replaceSave??null;
       initialClaimRetryable=!data.ranked;
@@ -72,11 +94,18 @@ scope.onmessage=({data})=>{
       clear();if(!await persist())throw Error('경기 저장에 실패했습니다. 브라우저를 닫지 마세요.');
       view(data.requestId);schedule();return;
     }
+    if(data.type==='forfeit'&&duel){
+      clear();
+      duel.forfeit();
+      if(!await persist()||!lastSaved)throw Error('패배 기록 저장에 실패했습니다. 다시 시도하세요.');
+      scope.postMessage({type:'forfeited',requestId:data.requestId,save:lastSaved,profile});
+      duel=undefined;return;
+    }
     if(data.type==='pause'&&duel){clear();if(!await persist()||!lastSaved)throw Error('경기 저장에 실패했습니다. 브라우저를 닫지 마세요.');scope.postMessage({type:'paused',requestId:data.requestId,save:lastSaved,profile});duel=undefined;return;}
     if(data.type==='discard'){clear();if(duel){if(ownsSave)await store.remove(data.catalogHash,owner);duel=undefined;}else if(!data.expected||!await store.remove(data.catalogHash,undefined,data.expected)){await refresh(data.catalogHash);throw Error('다른 탭에서 저장 경기를 변경했습니다. 다시 확인해 주세요.');}const available=await refresh(data.catalogHash);scope.postMessage({type:'discarded',requestId:data.requestId,save:lastSaved,available});return;}
     if(data.type==='act'&&duel){clear();if(duel.expireTurn())await emit();duel.act(data.revision,data.action);await emit(data.requestId);schedule();}
     else throw Error('진행 중인 경기가 없습니다.');
-  }catch(e){fail(e,'requestId'in data?data.requestId:undefined);if(data.type==='act'||data.type==='pause'||data.type==='retrySave'||data.type==='discard'||data.type==='rematch')schedule();else clear();}});
+  }catch(e){fail(e,'requestId'in data?data.requestId:undefined);if(data.type==='act'||data.type==='pause'||data.type==='retrySave'||data.type==='discard'||data.type==='forfeit'||data.type==='rematch')schedule();else clear();}});
 };
 return ()=>{clear();duel=undefined;};
 }
