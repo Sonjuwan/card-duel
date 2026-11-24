@@ -6,6 +6,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Only the newest source candidate may package/publish this preview.
+concurrency:
+  group: ui-preview-build-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build-playable:
     runs-on: ubuntu-latest
@@ -117,7 +121,19 @@ jobs:
           path: pages
           fetch-depth: 1
           persist-credentials: true
+      - name: Check this run is still the current UI branch HEAD
+        id: freshness
+        shell: bash
+        run: |
+          current="$(git -C pages ls-remote origin refs/heads/ui/readability-classic-20261124 | cut -f1)"
+          if [ "$current" = "$GITHUB_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Newer UI candidate exists; do not publish an older build"
+          fi
       - name: Publish only the ui-preview subdirectory
+        if: steps.freshness.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
