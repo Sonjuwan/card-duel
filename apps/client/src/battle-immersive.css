@@ -524,7 +524,7 @@
   /* Selected/hovered full hand cards expand into the own half only.
      The upper edge is capped below the opponent's field. */
   .game-main .duel-screen.preview-compact .arena-field .hand-card-slot{
-    --duel-hand-open-scale:clamp(1.65,calc(42dvh / 155px),2.6);
+    --duel-hand-open-scale:clamp(1.65,2.2,2.6);
   }
   .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card{
     transform:translateY(calc(-1 * min(23dvh,110px))) scale(var(--duel-hand-open-scale))!important;
@@ -533,7 +533,7 @@
 }
 @media (hover:hover) and (pointer:fine) and (orientation:landscape){
   .game-main .duel-screen.preview-compact .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
-    transform:translateY(calc(-1 * min(23dvh,110px))) scale(clamp(1.65,calc(42dvh / 155px),2.6))!important;
+    transform:translateY(calc(-1 * min(23dvh,110px))) scale(clamp(1.65,2.2,2.6))!important;
     transform-origin:bottom center!important;z-index:70!important;
   }
 }
