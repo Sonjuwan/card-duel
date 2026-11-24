@@ -1,4 +1,4 @@
-Card Duel v0.300.0 · UI preview
+Card Duel v0.301.0 · UI preview
 Play at https://sonjuwan.github.io/card-duel/ui-preview/
 Preview saves, decks and progression use the existing preview slot namespaces.
 The preview has its own service worker scope at /card-duel/ui-preview/.
