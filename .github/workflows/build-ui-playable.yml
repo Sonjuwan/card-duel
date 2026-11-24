@@ -99,8 +99,8 @@ jobs:
 
   deploy-phone-preview:
     name: Publish isolated-path mobile web preview
-    needs: [build-playable]
-    if: ${{ needs.build-playable.result == 'success' }}
+    needs: [build-playable, browser-regression]
+    if: ${{ needs.build-playable.result == 'success' && needs.browser-regression.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
