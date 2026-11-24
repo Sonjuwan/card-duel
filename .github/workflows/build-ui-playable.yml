@@ -83,6 +83,8 @@ jobs:
         run: npm run test:solo-app-browser
       - name: Check PC and tablet card geometry and capture screens
         run: node --test apps/client/test/classic-ui-browser.test.mjs
+      - name: Ensure combat canvas uses full phone and tablet height
+        run: node --test apps/client/test/battle-immersive-browser.test.mjs
       - name: Concede then start another match on phone and desktop
         run: node --test apps/client/test/concede-restart-browser.test.mjs
       - name: Verify preview and live website saves remain isolated after concede
