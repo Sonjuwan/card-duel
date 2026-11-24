@@ -14,11 +14,11 @@ function subscribeBook(callback:()=>void){
   return ()=>media.forEach(query=>query.removeEventListener('change',callback));
 }
 export function useBookSize(){
-  return useSyncExternalStore(subscribeBook,()=>window.matchMedia(phoneBook).matches?4:window.matchMedia(compactBook).matches?6:12,()=>12);
+  return useSyncExternalStore(subscribeBook,()=>window.matchMedia(phoneBook).matches?4:window.matchMedia(compactBook).matches?4:8,()=>8);
 }
 
 type BookNavigation={page:number;pages:number;label:string;onPage:(page:number)=>void};
-export function CollectionBook<T extends Card>({cards,renderCard,size=12,paging}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation}){
+export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation}){
   const perLeaf=size/2;
   const navigate=(event:KeyboardEvent<HTMLDivElement>)=>{
     if(event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||!(event.target instanceof HTMLElement)||!event.target.matches('button.battle-card'))return;
