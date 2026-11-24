@@ -461,3 +461,82 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
   .lobby-main.preview-lobby .preview-workspace>[data-deck-screen=saved] .saved-deck-entry{padding:4px}
   .lobby-main.preview-lobby .card-browser>.card-browser-controls{top:40px;width:24%;max-height:calc(100% - 42px)}
 }
+
+/* Catalog consumes two rows; right rail gets ALL filters and paging controls. */
+.lobby-main.preview-lobby .card-browser .card-browser-controls{
+  display:flex;flex-direction:column;align-items:stretch;gap:5px;z-index:5;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters{
+  display:flex;flex-direction:column;gap:6px;align-items:stretch;width:100%;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters .controls{
+  display:flex;flex-direction:column;align-items:stretch;gap:5px;margin:0;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters .card-set-tabs{
+  display:flex;flex-wrap:wrap;gap:3px;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters .card-set-tabs button{
+  flex:1 1 20%;font-size:10px;padding:2px;min-height:28px;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters input[type=search],
+.lobby-main.preview-lobby .card-browser .preview-card-filters select{
+  min-height:34px;min-width:0;width:100%;padding:4px 6px;font-size:12px;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters .new-only-filter input{
+  min-width:14px;width:16px;height:16px;margin:0;flex:none;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-filters button.secondary{
+  min-height:30px;padding:4px 7px;font-size:11px;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-paging{
+  width:100%;display:flex;justify-content:space-around;align-items:center;
+  gap:4px;font-size:12px;
+}
+.lobby-main.preview-lobby .card-browser .preview-card-paging button{
+  min-height:33px;min-width:36px;padding:2px;
+}
+.lobby-main.preview-lobby .card-browser .collection-spread{
+  display:block;height:100%;min-height:0;overflow:hidden;
+}
+.lobby-main.preview-lobby .card-browser .collection-spread>.book-edge,
+.lobby-main.preview-lobby .card-browser .collection-spread>.book-page-status{display:none}
+.lobby-main.preview-lobby .card-browser .collection-spread>.collection-book.preview-grid-book{
+  height:100%;width:100%;max-height:none;min-height:0;overflow:hidden;
+  grid-column:auto;grid-row:auto;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(0,1fr));gap:clamp(3px,.6vw,9px);
+  padding:3px;
+}
+.lobby-main.preview-lobby .card-browser .collection-book.preview-grid-book[data-book-size="6"]{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.lobby-main.preview-lobby .card-browser .collection-book.preview-grid-book>.collection-leaf{
+  display:contents;
+}
+.lobby-main.preview-lobby .card-browser .collection-book.preview-grid-book .collection-item{
+  width:100%;height:100%;min-height:0;min-width:0;max-height:100%;
+  display:flex;flex-direction:column;gap:2px;
+  overflow:visible;align-items:stretch;
+}
+.lobby-main.preview-lobby .card-browser .collection-book.preview-grid-book .collection-item>.battle-card{
+  flex:1;max-height:calc(100% - 19px);max-width:none;width:100%;
+  min-height:0;min-width:0;
+}
+.lobby-main.preview-lobby .card-browser .collection-book.preview-grid-book .collection-blank{
+  display:none;
+}
+.lobby-main.preview-lobby .card-browser .collection-book.preview-grid-book .collection-item>small{
+  height:16px;min-height:16px;line-height:12px;padding:1px 2px;
+  font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .lobby-main.preview-lobby .card-browser .card-browser-controls{top:38px;padding:2px;gap:3px}
+  .lobby-main.preview-lobby .card-browser .preview-card-filters{gap:2px}
+  .lobby-main.preview-lobby .card-browser .preview-card-filters .controls{gap:2px}
+  .lobby-main.preview-lobby .card-browser .preview-card-filters .card-set-tabs button{min-height:24px;font-size:9px}
+  .lobby-main.preview-lobby .card-browser .preview-card-filters input[type=search],
+  .lobby-main.preview-lobby .card-browser .preview-card-filters select{min-height:28px;font-size:10px;padding:2px 4px}
+  .lobby-main.preview-lobby .card-browser .preview-card-filters .new-only-filter{font-size:9px}
+  .lobby-main.preview-lobby .card-browser .preview-card-filters button.secondary{min-height:26px;font-size:10px}
+  .lobby-main.preview-lobby .card-browser .preview-card-paging button{min-height:27px;min-width:27px}
+}
