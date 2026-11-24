@@ -372,3 +372,12 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     min-height:22px;font-size:10px;padding:1px 2px;
   }
 }
+.lobby-main .lobby-settings-entry,.lobby-main .lobby-settings-entry:has(~.lobby-page-nav){
+  left:max(6px,env(safe-area-inset-left));right:auto;
+}
+.lobby-main .integrated-browser .book-class-tabs{margin-block-start:51px}
+.game-main .duel-screen.preview-compact>.duel-title .compact-settings-trigger{left:0;right:auto}
+.game-main .compact-home-trigger{left:auto;right:0}
+@media(orientation:landscape) and (max-height:460px){
+  .lobby-main .integrated-browser .book-class-tabs{grid-auto-rows:clamp(20px,6.3dvh,27px)}
+}

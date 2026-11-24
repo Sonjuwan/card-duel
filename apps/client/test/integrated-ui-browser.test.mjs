@@ -55,6 +55,9 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.screenshot({path:'ui-evidence/rank-'+label+'.png'});
     await page.getByRole('button',{name:'메인으로'}).click();
     await page.getByRole('button',{name:'카드 도감',exact:true}).click();
+    const settingsRect=await page.getByRole('button',{name:'설정',exact:true}).boundingBox();
+    const homeRect=await page.getByRole('button',{name:'메인으로'}).boundingBox();
+    assert.ok(settingsRect.x+settingsRect.width<width*.5&&homeRect.x>width*.5);
     const pageCards=page.locator('.collection-leaf .battle-card');
     await pageCards.first().waitFor();
     assert.equal(await pageCards.count(),8,label);
