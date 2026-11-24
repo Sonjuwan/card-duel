@@ -6,7 +6,7 @@
   box-sizing:border-box;
   container-type:inline-size;
   aspect-ratio:0.68 / 1;
-  width:min(100%,205px,calc(34dvh - 76.5px));
+  width:min(100%,245px,calc(25dvh - 12px));
   height:auto;
   min-height:0;
   max-width:none;
@@ -134,7 +134,7 @@
     overscroll-behavior:contain;
   }
   .lobby-main .collection-book .deck-card-detail-trigger{
-    width:min(100%,205px);
+    width:min(100%,245px);
     max-width:none;
     min-height:44px;
   }
@@ -365,4 +365,18 @@
     font-size:clamp(18px,14cqi,27px);
   }
   .game-main .mulligan-confirm{min-height:44px}
+}
+
+
+/* Tablet 4:3: keep all eight card leaves above the footer, rather than
+   forcing the last row beneath a second nested vertical scroll. */
+@media (orientation:landscape) and (max-width:1100px) and (min-height:701px){
+  .lobby-main .deck-workspace-nav{margin:4px 0}
+  .lobby-main .deck-panel.deck-builder{padding:8px 10px}
+  .lobby-main .deck-builder .deck-editor-controls{gap:2px}
+  .lobby-main .deck-builder .book-pane{gap:2px}
+  .lobby-main .deck-builder .collection.classic-collection.collection-book{
+    padding:4px 6px;
+    gap:5px;
+  }
 }
