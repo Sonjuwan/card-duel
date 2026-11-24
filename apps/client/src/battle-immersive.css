@@ -442,3 +442,98 @@
     transform-origin:bottom center!important;
   }
 }
+
+/* 2026-11-24: compact settings is a centered blocking dialog, not a tiny
+   top-right dropdown. The closed gear stays in its original corner. */
+@media (orientation:landscape){
+  .game-main .duel-screen.preview-compact>.duel-title[data-settings-open="true"]{
+    z-index:5000!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title[data-settings-open="true"]::before{
+    content:"";position:fixed;inset:0;background:#0c0a0bea;z-index:0;
+    pointer-events:auto;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title[data-settings-open="true"] .duel-toolbar{
+    display:flex!important;position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+    transform:translate(-50%,-50%)!important;
+    width:min(940px,95dvw)!important;max-width:95dvw!important;
+    height:auto!important;max-height:94dvh!important;overflow:visible!important;
+    padding:clamp(8px,1.4dvh,15px)!important;gap:clamp(4px,1dvh,9px)!important;
+    border:3px solid #c6a36d;border-radius:16px;background:#282330!important;
+    box-shadow:0 12px 34px #000b;z-index:2!important;
+    align-items:stretch!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .duel-toolbar .duel-indicators{
+    flex:none!important;flex-direction:row!important;justify-content:center!important;
+    flex-wrap:wrap!important;align-items:center!important;font-size:clamp(10px,1.6dvh,13px)!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .duel-toolbar .duel-actions{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    align-items:center!important;gap:clamp(4px,1dvh,9px)!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .duel-toolbar .duel-actions>button{
+    width:100%!important;min-height:clamp(31px,6dvh,44px)!important;
+    font-size:clamp(11px,2.4dvh,16px)!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .battle-sound-flat{
+    grid-column:1/-1;display:block!important;width:100%!important;height:auto!important;
+    min-height:0!important;max-height:none!important;overflow:visible!important;
+    padding:0!important;margin:0!important;background:none!important;border:0!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .battle-sound-flat .sound-settings{
+    display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:clamp(3px,.7dvh,8px)!important;
+    position:static!important;max-height:none!important;overflow:visible!important;width:100%!important;
+    padding:0!important;background:none!important;border:0!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings{
+    display:block!important;position:static!important;grid-column:1/-1;
+    width:100%!important;margin:0!important;border:0!important;background:transparent!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings>summary{display:none!important}
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .dialogue-settings-panel{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:clamp(3px,.7dvh,8px)!important;
+    position:static!important;width:100%!important;max-width:none!important;
+    max-height:none!important;overflow:visible!important;
+    padding:0!important;margin:0!important;background:transparent!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings label,
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings button{
+    font-size:clamp(10px,2dvh,14px)!important;min-height:0!important;
+    padding:clamp(2px,.5dvh,6px)!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings input,
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings select{min-height:26px!important;max-width:100%!important}
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings small,
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .voice-preview-status,
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .haptic-controls>small,
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .haptic-controls>span{
+    display:none!important;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .haptic-controls{
+    display:grid!important;grid-template-columns:1fr 1fr!important;gap:4px!important;
+    grid-column:span 2;
+  }
+  .game-main .duel-screen.preview-compact>.duel-title .compact-settings-close{
+    display:block!important;width:100%!important;min-height:clamp(32px,6dvh,44px)!important;
+    font-size:clamp(12px,2.6dvh,17px)!important;
+  }
+  .game-main .duel-screen.preview-compact .classic-mulligan .mulligan-cards{
+    justify-content:center!important;overflow-x:hidden!important;
+  }
+  /* Selected/hovered full hand cards expand into the own half only.
+     The upper edge is capped below the opponent's field. */
+  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot{
+    --duel-hand-open-scale:clamp(1.65,calc(42dvh / 155px),2.6);
+  }
+  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card{
+    transform:translateY(calc(-1 * min(23dvh,110px))) scale(var(--duel-hand-open-scale))!important;
+    transform-origin:bottom center!important;z-index:70!important;
+  }
+}
+@media (hover:hover) and (pointer:fine) and (orientation:landscape){
+  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
+    transform:translateY(calc(-1 * min(23dvh,110px))) scale(clamp(1.65,calc(42dvh / 155px),2.6))!important;
+    transform-origin:bottom center!important;z-index:70!important;
+  }
+}
