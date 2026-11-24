@@ -3,7 +3,8 @@ import {strict as assert} from 'node:assert';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../apps/client/src/Battle.tsx',import.meta.url),'utf8');
 test('public card inspection disables background actions without disabling its own modal',()=>{
- assert.match(source,/className="duel-title" inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
+ assert.match(source,/className=\{`duel-title/);
+ assert.match(source,/data-settings-open=\{compactSettingsOpen\} inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
  assert.match(source,/className="arena-message" inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
  assert.match(source,/className="battle-arena classic-table" inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
  assert.match(source,/className="mulligan-arena classic-mulligan" inert=\{!!inspectedOverlay\}/);
