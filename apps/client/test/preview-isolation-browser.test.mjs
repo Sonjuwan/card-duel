@@ -64,6 +64,28 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   assert.equal(await start.isEnabled(),true,'preview must allow a new ranked match: '+JSON.stringify(diag));
   await start.click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor({timeout:20000});
+  // A deliberate in-game exit also records a loss, rather than parking a resumable match.
+  await page.getByRole('button',{name:'나가기',exact:true}).click();
+  await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).waitFor({timeout:20000});
+  const pending=await page.evaluate(async()=>{
+    const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+    const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+    const saves=await new Promise((resolve,reject)=>{const tx=db.transaction('matches','readonly'),all=tx.objectStore('matches').getAll();tx.oncomplete=()=>resolve(all.result.map(e=>({phase:e.snapshot.summary.phase,winner:e.snapshot.state.winner,reason:e.snapshot.state.reason})));tx.onerror=()=>reject(tx.error)});
+    db.close();return saves;
+  });
+  assert.ok(pending.some(x=>x.phase==='finished'&&x.reason==='concede'&&x.winner===1),'intentional exit must be recorded as a defeat');
+  await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
+  await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
+  await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
+  await page.getByText('자동 저장됨',{exact:true}).waitFor();
+  // Closing the tab without invoking an explicit in-game action cannot flush
+  // reliably on mobile, so the next boot settles the last durable snapshot.
+  await page.reload();
+  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
+  await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).isEnabled(),true,'reopen must enable fresh game rather than resume');
+  assert.equal(await page.getByRole('button',{name:'이어하기',exact:true}).count(),0,'preview exposes no resume action');
   const verify=await page.evaluate(async()=>{
     const names=(await indexedDB.databases()).map(db=>db.name);
     const txRead=async()=>{
