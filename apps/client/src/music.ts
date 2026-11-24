@@ -3,7 +3,7 @@ const tracks=loadTracks();
 function loadTracks():Record<string,string>{
   try{return import.meta.glob<string>('./assets/music/*.mp3',{eager:true,query:'?inline',import:'default'});}catch{return {};}
 }
-export type MusicScene='home'|'prepare'|'library'|'deck'|'battle'|'win'|'loss';
+export type MusicScene='home'|'prepare'|'library'|'deck'|'battle'|'progress'|'win'|'loss';
 const battleTracks=Object.keys(tracks).filter(path=>path.includes('/battle-'));
 const fade=1.3;
 let context:AudioContext|undefined,bus:GainNode|undefined;
@@ -12,6 +12,7 @@ let timer:ReturnType<typeof setTimeout>|undefined;
 let scene:MusicScene='home',match='',revision=0,loading=false,completed=false;
 let bag:string[]=[],lastBattle='';
 let level=.4,master=1,muted=false,ducked=false;
+let celebration:ReturnType<typeof setTimeout>|undefined;
 
 export function drawMusicTrack(pool:readonly string[],remaining:readonly string[],last:string,random=Math.random){
   const bag=[...(remaining.length?remaining:pool)];
@@ -42,12 +43,17 @@ function fadeOut(){
 }
 function update(){
   if(!bus||!context)return;
-  bus.gain.setTargetAtTime(muted?0:level*master*(ducked?.32:1),context.currentTime,.17);
+  bus.gain.setTargetAtTime(muted?0:level*master*(ducked?.32:celebration!==undefined?.45:1),context.currentTime,.17);
 }
 export function setMusicMix(music:number,overall:number,silent:boolean){
   level=music/100;master=overall/100;muted=silent;update();
 }
 export function duckMusic(speaking:boolean){ducked=speaking;update();}
+export function duckMusicForCelebration(milliseconds:number){
+  clearTimeout(celebration);
+  celebration=setTimeout(()=>{celebration=undefined;update();},milliseconds);
+  update();
+}
 async function advance(){
   const audio=context,output=bus;
   if(!audio||!output||audio.state!=='running'||document.hidden||loading)return;
@@ -56,6 +62,7 @@ async function advance(){
   loading=true;
   try{
     const response=await fetch(tracks[key]);
+    if(!response.ok)throw new Error('Soundtrack unavailable');
     const buffer=await audio.decodeAudioData(await response.arrayBuffer());
     if(request!==revision||document.hidden||audio!==context)return;
     fadeOut();

@@ -185,3 +185,190 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .lobby-main .integrated-browser .card-browser-controls .deck-inspector{display:none}
 }
+
+/* The catalog fits one spread. Only deck construction uses a scrolling card list. */
+.lobby-main .deck-panel.integrated-browser{
+  --catalog-card-width:min(100%, max(45px, calc((100dvh - 92px) / 3.1)));
+  padding:6px 5px 6px 12px;
+}
+.lobby-main .deck-panel.integrated-browser>.deck-layout,
+.lobby-main.preview-lobby .deck-panel.integrated-browser>.deck-layout{
+  display:grid;grid-template-columns:minmax(0,1fr) clamp(155px,23vw,290px);
+  gap:5px;height:auto;align-items:start;
+}
+.lobby-main .integrated-browser .book-with-tabs{padding-inline-start:7px;overflow:visible}
+.lobby-main .integrated-browser .book-class-tabs{align-self:start;margin-block-start:4px}
+.lobby-main .integrated-browser .book-class-tabs button[aria-pressed=true]{transform-origin:center;transform:scale(1.13)}
+.lobby-main .integrated-browser .collection-spread,
+.lobby-main.preview-lobby .integrated-browser .collection-spread{
+  position:relative;display:block;width:100%;padding-inline:clamp(18px,3vw,37px);padding-block-end:17px;
+}
+.lobby-main .deck-panel.integrated-browser .book-with-tabs .collection.classic-collection.collection-book{
+  max-height:none;overflow:hidden;padding:3px;gap:clamp(5px,1.6vw,21px);height:auto;min-height:0;
+}
+.lobby-main .integrated-browser .book-with-tabs .collection-book[data-book-size="8"] .collection-leaf{gap:3px 4px}
+.lobby-main .deck-panel.integrated-browser .book-with-tabs .collection-book .battle-card,
+.lobby-main .deck-panel.integrated-browser .book-with-tabs .collection-book .collection-blank{
+  width:var(--catalog-card-width);max-width:230px;
+}
+.lobby-main .integrated-browser .collection-book .collection-item{gap:0;padding:1px}
+.lobby-main .integrated-browser .collection-set-label{font-size:clamp(7px,1.25dvh,11px);line-height:1.1;padding:1px 2px}
+.lobby-main.preview-lobby .integrated-browser .collection-spread>.book-edge,
+.lobby-main .integrated-browser .collection-spread>.book-edge{
+  display:grid;place-items:center;position:absolute;inset:0 auto 0 0;
+  width:clamp(18px,3vw,37px);padding:0;border-radius:8px 0 0 8px;min-width:0;
+}
+.lobby-main.preview-lobby .integrated-browser .collection-spread>.book-edge:nth-last-child(2),
+.lobby-main .integrated-browser .collection-spread>.book-edge:nth-last-child(2){inset:0 0 0 auto;border-radius:0 8px 8px 0}
+.lobby-main.preview-lobby .integrated-browser .collection-spread>.book-page-status,
+.lobby-main .integrated-browser .collection-spread>.book-page-status{
+  display:block;position:absolute;inset:auto 20% 2px;text-align:center;font-size:10px;
+}
+.lobby-main .integrated-browser .card-browser-controls{display:flex;position:static;width:auto;max-height:none;margin:0;padding-top:42px}
+.catalog-filters{min-width:0}
+.catalog-filters summary{cursor:pointer;font-weight:750;color:#f5d9a9}
+.catalog-filters .controls{display:flex;gap:4px;margin:4px 0}
+.catalog-filters input[type=search]{min-width:0;width:100%}
+.rarity-filters,.catalog-filters .book-mana-filter{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;width:100%}
+.catalog-filters .book-mana-filter{grid-template-columns:repeat(4,minmax(0,1fr))}
+.rarity-filters button,.catalog-filters .book-mana-filter button{
+  display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;min-height:25px;padding:2px 1px;font-size:11px;
+}
+.rarity-filters button{color:#fce7bc;background:#342a3b;border-color:#92795d}
+.rarity-filters button[aria-pressed=true]{border-color:#fff0ad;background:#604520}
+.rarity-legendary .rarity-gem{background:#ffb257}
+.lobby-main .deck-panel .deck-card-scroll .collection.classic-collection.collection-book.collection-continuous{
+  grid-template-columns:repeat(4,minmax(0,1fr));max-height:calc(100dvh - 105px);
+  gap:5px;overflow:auto;overscroll-behavior:contain;align-items:start;
+}
+.lobby-main .deck-builder .deck-layout .deck-sidebar .deck-list{
+  display:flex;flex-direction:column;max-height:calc(100dvh - 105px);overflow:hidden;
+}
+.deck-list-scroll{overflow:auto;overscroll-behavior:contain;min-height:0;flex:1}
+.deck-list .saved-decks{margin:3px 0 0;flex-shrink:0}
+.deck-list .saved-decks input{min-width:0;width:100%}
+.preview-lobby .preview-hero-choice .preview-hero-tile{gap:6px}
+.preview-lobby .preview-hero-tile .preview-hero-art{
+  width:44%;height:83%;max-width:none;max-height:none;aspect-ratio:1;flex:none;border-radius:10px;
+}
+.preview-lobby .preview-hero-tile .preview-hero-art .painted-art{background-position:center 24%}
+.preview-developer{margin:auto!important;width:min(100%,850px);justify-content:center;align-self:center}
+.preview-developer .preview-mode-choices{justify-content:center}
+@media(max-width:680px) and (orientation:portrait){
+  .lobby-main .deck-panel.integrated-browser>.deck-layout,
+  .lobby-main.preview-lobby .deck-panel.integrated-browser>.deck-layout{grid-template-columns:minmax(0,1fr)}
+  .lobby-main .integrated-browser .card-browser-controls{padding-top:0}
+}
+@media(orientation:landscape) and (max-height:460px){
+  .catalog-filters .card-set-tabs button,.catalog-filters .controls button,.catalog-filters .controls select{min-height:21px;padding:1px 3px}
+  .catalog-filters .rarity-filters button,.catalog-filters .book-mana-filter button{min-height:21px}
+  .catalog-filters .controls{gap:3px}
+}
+
+/* Floating controls occupy only the two corner targets. */
+.lobby-main .floating-home,.lobby-main.preview-lobby .floating-home{
+  position:absolute;top:max(5px,env(safe-area-inset-top));right:max(6px,env(safe-area-inset-right));
+  z-index:125;margin:0;height:auto;min-height:0;width:auto;background:none;padding:0;pointer-events:none;
+}
+.lobby-main .floating-home button,.lobby-settings-entry>button,.game-main .compact-home-trigger{
+  width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;
+  border:1px solid #a78e64;border-radius:9px;background:#29202bea;color:#ffe3ab;
+  font-size:23px;line-height:1;pointer-events:auto;
+}
+.lobby-main .floating-home>strong{display:none}
+.game-main .compact-home-trigger{position:absolute;right:52px;top:0;z-index:12}
+.game-main .duel-title[data-settings-open=true]>.compact-home-trigger{display:none}
+.mulligan-card-frame{position:relative;flex:0 1 auto;width:min(19dvw,calc((100dvh - 130px) / 1.55),180px);min-width:0;perspective:450px}
+.game-main .classic-mulligan .mulligan-cards .mulligan-card-frame>.battle-card{
+  width:100%;min-width:0;max-width:none;aspect-ratio:var(--full-card-ratio);transform:none;
+}
+.mulligan-cards[data-exchange=return] .mulligan-card-frame[data-replaced]{animation:mulligan-return .42s ease-in both;animation-delay:var(--exchange-delay)}
+.mulligan-cards[data-exchange=reveal] .mulligan-card-frame[data-replaced]{animation:mulligan-deal .68s both;animation-delay:var(--exchange-delay)}
+.mulligan-card-back{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(#4c6380,#162637);border:2px solid #d3aa67;border-radius:9px;color:#e7cd91;pointer-events:none;animation:mulligan-flip .68s both;animation-delay:var(--exchange-delay)}
+.mulligan-card-back svg{width:56%;height:56%}
+@keyframes mulligan-return{0%{transform:translate(0) scale(1);opacity:1}75%,100%{transform:translate(22vw,-6vh) rotate(13deg) scale(.3);opacity:0}}
+@keyframes mulligan-deal{0%{opacity:0;transform:translate(22vw,-6vh) scale(.3) rotate(13deg)}57%{opacity:1;transform:translate(0) rotateY(0deg)}73%{transform:rotateY(86deg)}100%{transform:rotateY(0)}}
+@keyframes mulligan-flip{0%,72%{opacity:1}74%,100%{opacity:0}}
+.hero-portrait[data-shattered=true]{animation:portrait-rattle .38s ease-in;z-index:6}
+.hero-portrait[data-shattered=true]>.hero-emblem{animation:portrait-vanish 1.72s both}
+.hero-break{display:block;position:absolute;inset:4px 4px 10px;pointer-events:none;z-index:3}
+.hero-shard{position:absolute;inset:0;border:2px solid #a8804e;border-radius:50% 50% 8px 8px;animation:portrait-shard 1.72s both;overflow:hidden}
+.hero-shard .original-art,.hero-shard .painted-art{display:block;width:100%;height:100%}
+.hero-shard:nth-child(1){clip-path:polygon(0 0,48% 0,47% 39%,0 32%);--shard-x:-68px;--shard-y:-55px;--shard-r:-22deg}
+.hero-shard:nth-child(2){clip-path:polygon(48% 0,100% 0,100% 37%,47% 39%);--shard-x:58px;--shard-y:-62px;--shard-r:18deg}
+.hero-shard:nth-child(3){clip-path:polygon(0 32%,47% 39%,33% 72%,0 61%);--shard-x:-83px;--shard-y:10px;--shard-r:-49deg}
+.hero-shard:nth-child(4){clip-path:polygon(47% 39%,100% 37%,100% 66%,72% 58%,33% 72%);--shard-x:83px;--shard-y:5px;--shard-r:28deg}
+.hero-shard:nth-child(5){clip-path:polygon(0 61%,33% 72%,50% 100%,0 100%);--shard-x:-42px;--shard-y:70px;--shard-r:-24deg}
+.hero-shard:nth-child(6){clip-path:polygon(33% 72%,72% 58%,100% 66%,100% 100%,50% 100%);--shard-x:48px;--shard-y:73px;--shard-r:31deg}
+.hero-crack{position:absolute;inset:-3px;background:#fff1a3;filter:drop-shadow(0 0 6px #ffc370);clip-path:polygon(50% 0,53% 0,48% 39%,99% 36%,100% 40%,51% 43%,35% 72%,54% 100%,49% 100%,31% 71%,44% 42%,0 35%,0 31%,45% 38%);animation:portrait-crack .65s both}
+.hero-break>i{position:absolute;top:48%;left:48%;width:4px;aspect-ratio:1;background:#ffdc8b;border-radius:50%;box-shadow:0 0 6px #fecd82;animation:portrait-spark .95s .37s both}
+@keyframes portrait-rattle{20%,60%{translate:-3px 1px}40%,80%{translate:3px -1px}}
+@keyframes portrait-vanish{0%,27%{opacity:1}29%,100%{opacity:0}}
+@keyframes portrait-crack{0%,22%{opacity:0}54%,73%{opacity:1}100%{opacity:0}}
+@keyframes portrait-shard{0%,27%{opacity:0}28%,52%{opacity:1}100%{opacity:0;transform:translate(var(--shard-x),var(--shard-y)) rotate(var(--shard-r)) scale(.58)}}
+@keyframes portrait-spark{0%{opacity:1;transform:rotate(var(--ray)) translateX(0)}100%{opacity:0;transform:rotate(var(--ray)) translateX(103px) scale(.2)}}
+.rank-dashboard{align-items:center;justify-content:center}
+.rank-crest{width:clamp(85px,29dvh,245px);height:auto;filter:drop-shadow(0 7px 15px #0d0c17);display:block;margin:auto}
+.rank-dashboard .preview-progress-detail .rank-crest{width:clamp(55px,17dvh,120px)}
+.rank-stars{font-size:clamp(16px,5dvh,38px);color:#74667a;letter-spacing:.18em}
+.rank-stars [data-earned=true]{color:#ffdc78;text-shadow:0 0 8px #e3a044}
+.reward-road{
+  width:min(100%,1270px);margin:auto;position:relative;padding:6px clamp(24px,5vw,58px) 10px;overflow:hidden;
+  text-align:center;touch-action:pan-y;
+}
+.reward-road header{margin-bottom:clamp(9px,3dvh,25px)}
+.reward-road header strong{font-size:clamp(19px,5dvh,40px);color:#ffe3a4}
+.road-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(4px,1.1vw,14px);align-items:end}
+.road-stop{position:relative;min-width:0;display:grid;justify-items:center;gap:5px}
+.road-stop>.battle-card,.reward-reveal .preview-reward-popup-card>.battle-card{
+  box-sizing:border-box;width:min(100%,175px,calc((100dvh - 135px) / 1.55));height:auto;min-height:0;max-height:none;flex:none;aspect-ratio:var(--full-card-ratio);
+}
+.road-stop[data-state=next]>.battle-card{outline:2px solid #fdd588;box-shadow:0 0 21px #e8a94d95}
+.road-stop[data-state=locked]>.battle-card{opacity:.74}
+.road-marker{position:relative;width:24px;height:24px;border-radius:50%;background:#362e3a;border:1px solid #b69765;display:grid;place-items:center;color:#ffe5a2;isolation:isolate}
+.road-marker::before{content:"";position:absolute;width:23vw;height:3px;background:#786451;z-index:-1;left:50%;top:50%}
+.road-stop:last-child .road-marker::before{display:none}
+.road-stop[data-state=owned] .road-marker::before{background:#e8bc62}
+.road-stop small{z-index:1;background:#26202b;padding:2px 4px}
+.reward-road .road-edge{position:absolute;top:0;bottom:0;width:clamp(21px,4vw,45px);min-width:0;padding:0}
+.road-edge.previous{left:0}.road-edge.next{right:0}
+.reward-reveal .preview-reward-popup-card,.reward-reveal .rank-crest{animation:reward-flare .68s ease both}
+@keyframes reward-flare{from{transform:rotateY(75deg) scale(.75);opacity:.3;filter:brightness(2.3)}to{transform:none;opacity:1;filter:brightness(1)}}
+@media(prefers-reduced-motion:reduce){
+  .mulligan-card-frame,.mulligan-card-back,.hero-portrait[data-shattered=true],.hero-shard,.hero-crack,.hero-break>i,.reward-reveal>*{animation:none!important}
+  .hero-portrait[data-shattered=true]>.hero-emblem,.hero-break{visibility:hidden}
+}
+.game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible)){transform:none!important}
+@media(hover:hover) and (pointer:fine){
+  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:hover{transform:none!important}
+}
+.road-cards{position:relative}
+.road-progress{position:absolute;left:10%;right:10%;bottom:27px;height:4px;border-radius:4px;background:linear-gradient(90deg,#e8bc62 var(--road-progress),#786451 var(--road-progress));pointer-events:none}
+.road-marker::before{display:none}
+.promotion-crest{display:grid;place-items:center;isolation:isolate}
+.promotion-crest>span{grid-area:1/1}
+.promotion-previous{animation:promotion-out .9s ease both}
+.promotion-current{animation:promotion-in 1.15s ease both}
+.promotion-crest[data-tier-up=true] .promotion-current{filter:drop-shadow(0 0 22px #ffda86)}
+@keyframes promotion-out{0%,25%{opacity:1;filter:brightness(1)}65%{opacity:.9;filter:brightness(3)}100%{opacity:0;transform:scale(1.14)}}
+@keyframes promotion-in{0%,43%{opacity:0;transform:scale(.84)}72%{opacity:1;filter:brightness(2)}100%{opacity:1;filter:brightness(1);transform:none}}
+@media(prefers-reduced-motion:reduce){.promotion-previous{display:none}.promotion-current{animation:none}}
+.lobby-main.preview-lobby .integrated-browser .card-browser-controls{
+  max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin
+}
+.reward-road header{padding-inline-end:clamp(48px,12vw,112px)}
+@media(orientation:landscape) and (max-height:460px){
+  .lobby-main.preview-lobby .integrated-browser .catalog-filters .controls{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px
+  }
+  .lobby-main.preview-lobby .integrated-browser .catalog-filters .controls>*{min-width:0;grid-column:span 2}
+  .lobby-main.preview-lobby .integrated-browser .catalog-filters .controls>select{
+    grid-column:span 1;grid-row:2;min-height:25px;font-size:11px;padding:1px 2px
+  }
+  .lobby-main.preview-lobby .integrated-browser .catalog-filters .controls>input[type=search]{
+    min-height:25px;padding:1px 3px;font-size:11px;
+  }
+  .lobby-main.preview-lobby .integrated-browser .catalog-filters .controls button{
+    min-height:22px;font-size:10px;padding:1px 2px;
+  }
+}

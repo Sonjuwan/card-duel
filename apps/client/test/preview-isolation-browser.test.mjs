@@ -1,3 +1,4 @@
+import {musicAssets} from '../solo-app/music-assets.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -6,7 +7,7 @@ import {loadSoloRelease} from '../../cli/serve-solo-app.mjs';
 
 test('hosted UI preview keeps the root website saves intact after concede and restarting',{timeout:120000},async t=>{
   const {files}=loadSoloRelease();
-  const mime={'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','manifest.webmanifest':'application/manifest+json','icon-192.png':'image/png','icon-512.png':'image/png'};
+  const mime={...Object.fromEntries(musicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','manifest.webmanifest':'application/manifest+json','icon-192.png':'image/png','icon-512.png':'image/png'};
   const server=createServer((req,res)=>{
     const uri=(req.url??'/').split('?')[0];
     const path=uri==='/'||uri==='/ui-preview/'?'index.html':uri.startsWith('/ui-preview/')?uri.slice('/ui-preview/'.length):uri.slice(1);

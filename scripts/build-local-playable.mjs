@@ -1,3 +1,4 @@
+import {restoreSoloMusic} from '../apps/client/solo-app/music-assets.mjs';
 /** Build a REAL playable version from a source-only candidate ZIP on a user
  * computer with Node 24 and internet access. This is not an alternate game
  * implementation or a shortcut around the complete validation gates. */
@@ -46,7 +47,7 @@ function verifyOutputs(version,out){
   if(!index.includes(`Card Duel v${version}`))fail('Compiled PWA displays the wrong release version.');
   const standalone=join(project,'solo-offline.html');
   const html=readFileSync(standalone,'utf8');
-  if(!html.includes(readFileSync(join(project,'dist/solo-app/game.js'),'utf8'))||
+  if(!html.includes(restoreSoloMusic(readFileSync(join(project,'dist/solo-app/game.js'),'utf8'),name=>readFileSync(join(project,'dist/solo-app',name))))||
      !html.includes(readFileSync(join(project,'dist/solo-app/game.css'),'utf8')))
     fail('Compiled standalone HTML does not match the new PWA executable.');
   const target=join(out,`Card-Duel-v${version}-standalone.html`);

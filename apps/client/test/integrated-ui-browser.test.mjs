@@ -43,6 +43,17 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await settings.getByRole('button',{name:'기본 설정으로 복원'}).click();
     assert.equal(await music.inputValue(),'40');
     await settings.getByRole('button',{name:'닫기',exact:true}).click();
+    await page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+    const reward=await page.locator('.road-stop .battle-card').first().boundingBox();
+    assert.ok(reward&&Math.abs(reward.width/reward.height-1/1.55)<.025,label+' reward ratio '+JSON.stringify(reward));
+    await page.getByRole('button',{name:'다음 보상 구간'}).click();
+    await page.getByRole('button',{name:'이전 보상 구간'}).click();
+    await page.screenshot({path:'ui-evidence/road-'+label+'.png'});
+    await page.getByRole('button',{name:'메인으로'}).click();
+    await page.getByRole('button',{name:/등급/}).click();
+    await page.getByRole('img',{name:'브론즈 V',exact:true}).waitFor();
+    await page.screenshot({path:'ui-evidence/rank-'+label+'.png'});
+    await page.getByRole('button',{name:'메인으로'}).click();
     await page.getByRole('button',{name:'카드 도감',exact:true}).click();
     const pageCards=page.locator('.collection-leaf .battle-card');
     await pageCards.first().waitFor();
@@ -54,10 +65,19 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     assert.match(await page.locator('.book-page-status').textContent(),/주술사 1\//);
     await page.getByRole('button',{name:'이전 페이지',exact:true}).click();
     assert.match(await page.locator('.book-page-status').textContent(),/전사 \d+\//);
-    await page.getByRole('button',{name:'카드 필터',exact:true}).click();
     await page.getByRole('button',{name:'10마나 이상',exact:true}).click();
     await page.getByRole('button',{name:'필터 초기화',exact:true}).click();
-    await page.getByRole('dialog',{name:'카드 필터',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
+    assert.equal(await page.locator('.collection-inspector-sidebar').count(),0);
+    const geometry=await page.locator('.collection-book').evaluate(book=>({
+      scrolling:book.scrollHeight>book.clientHeight+2,
+      edge:book.previousElementSibling.getBoundingClientRect().height,
+      book:book.getBoundingClientRect().height,
+      top:Math.min(...Array.from(book.querySelectorAll('.battle-card'),card=>card.getBoundingClientRect().top)),
+      tab:document.querySelector('.book-class-tabs button[aria-pressed=true]').getBoundingClientRect().top,
+    }));
+    assert.equal(geometry.scrolling,false);
+    assert.ok(geometry.edge>=geometry.book);
+    assert.ok(geometry.top>=0&&geometry.tab>=0,label+' spread clipping '+JSON.stringify(geometry));
     await page.screenshot({path:'ui-evidence/integrated-'+label+'-catalog.png'});
     await page.getByRole('button',{name:'메인으로'}).click();
     await page.getByRole('button',{name:'대전',exact:true}).click();
@@ -85,15 +105,18 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.getByRole('button',{name:'대전',exact:true}).click();
     await resume.click();
     await page.locator('.mulligan-cards .battle-card').first().waitFor();
+    await page.locator('.mulligan-cards .battle-card').first().click();
     await page.locator('.mulligan-confirm').click();
+    await page.locator('.mulligan-cards[data-exchange=reveal] .mulligan-card-back').first().waitFor();
     const hand=page.locator('.own-hand .hand-card-slot .battle-card').first();
     await hand.waitFor();
     await hand.focus();
     const {top,bottom}=await hand.evaluate(card=>({
       top:card.getBoundingClientRect().top,
-      bottom:document.querySelector('.friendly-minions').getBoundingClientRect().bottom,
+      bottom:document.querySelector('.friendly-board').getBoundingClientRect().bottom,
     }));
     assert.ok(top>=bottom-1,label+' hand preview should clear the friendly lane');
+    t.diagnostic(label+' reward='+reward.width+'×'+reward.height+' hand clearance='+(top-bottom).toFixed(1)+'px');
     assert.deepEqual(errors,[]);
     await context.close();
   }

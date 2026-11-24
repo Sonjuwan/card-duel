@@ -1,3 +1,4 @@
+import {musicAssets,restoreSoloMusic} from '../solo-app/music-assets.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,webcrypto} from 'node:crypto';
@@ -12,6 +13,7 @@ const read=name=>readFileSync(resolve(directory,name));
 const worker=read('sw.js').toString();
 const release=JSON.parse(worker.match(/const release = (.+);/)[1]);
 const scope='https://example.invalid/game/';
+const assetCount=Object.keys(release.files).length;
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 
 test('install package embeds actual game and includes content-checked manifest resources',()=>{
@@ -27,7 +29,8 @@ test('install package embeds actual game and includes content-checked manifest r
   assert.ok(html.indexOf('id="solo-asset-watch"')<html.indexOf('href="game.css"'),'resource errors must be observed before art CSS loads');
   assert.ok(html.length<6000,'installable document stays under 6 KB and excludes bundled game/card art');
   assert.ok(!html.includes('data:image/webp;base64,'));
-  assert.equal(read('game.js').toString(),standaloneScript?.[1],'game JS matches standalone exactly');
+  assert.equal(restoreSoloMusic(read('game.js').toString(),read),standaloneScript?.[1],'installable audio restores the exact standalone bundle');
+  assert.doesNotMatch(read('game.js').toString(),/data:audio\/mpeg;base64,/);
   assert.equal(read('game.css').toString(),standaloneStyle?.[1],'card art and styles match standalone exactly');
   assert.match(read('game.css').toString(),/#solo-app-banner button\{min-height:44px\}/,'installed update and storage protection controls keep mobile-sized targets');
   assert.ok((read('game.css').toString().match(/data:image\/webp;base64,/g)??[]).length>=380,'all embedded card art survives');
@@ -35,7 +38,7 @@ test('install package embeds actual game and includes content-checked manifest r
   assert.ok(html.includes(`Card Duel v${JSON.parse(readFileSync('package.json','utf8')).version}`));
   assert.equal(manifest.display,'standalone');assert.equal(manifest.id,'./');assert.equal(manifest.scope,'./');
   assert.deepEqual(manifest.icons.map(icon=>icon.sizes),['192x192','512x512']);
-  assert.deepEqual(Object.keys(release.files).sort(),['index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'].sort());
+  assert.deepEqual(Object.keys(release.files).sort(),[...musicAssets,'index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'].sort());
   for(const [name,digest] of Object.entries(release.files))assert.equal(hash(read(name)),digest);
   for(const icon of manifest.icons){const png=read(icon.src),size=Number(icon.sizes.split('x')[0]);assert.equal(png.readUInt32BE(16),size);assert.equal(png.readUInt32BE(20),size);}
   assert.match(release.id,/^[a-f0-9]{64}$/);
@@ -69,9 +72,9 @@ function fakeWorker({corrupt=false,offline=false,script=worker,readAsset=read,sh
   return {storage,old,other,name,pointer,pointerKey,event,request,progress,claimed:()=>claimed,setOffline:value=>{offline=value;},setCorrupt:value=>{corrupt=value;},setAssetReader:value=>{readAsset=value;}};
 }
 test('service worker completes precache, preserves old release until activation, then serves exact offline game',async()=>{
-  const app=fakeWorker();await app.event('install');assert.equal(app.storage.get(app.name).size,7);
-  assert.deepEqual(app.progress.map(report=>report.done),[1,2,3,4,5,6,7]);
-  assert.ok(app.progress.every(report=>report.type==='card-duel-cache-progress'&&report.release===release.id&&report.all===7));
+  const app=fakeWorker();await app.event('install');assert.equal(app.storage.get(app.name).size,assetCount);
+  assert.deepEqual(app.progress.map(report=>report.done),Array.from({length:assetCount},(_,i)=>i+1));
+  assert.ok(app.progress.every(report=>report.type==='card-duel-cache-progress'&&report.release===release.id&&report.all===assetCount));
   assert.ok(app.storage.has(app.old));assert.equal(app.claimed(),0);
   await app.event('activate');assert.ok(!app.storage.has(app.old));assert.ok(app.storage.has(app.other));assert.equal(app.claimed(),1);
   const response=await app.request(scope);assert.equal(hash(Buffer.from(await response.arrayBuffer())),release.files['index.html']);
@@ -97,13 +100,13 @@ test('interrupted or mixed patch never deletes old active version or activates p
 test('an exact cached release can reinstall offline and a partial repair never deletes its valid assets',async()=>{
   const first=fakeWorker();await first.event('install');await first.event('activate');
   const same=fakeWorker({sharedStorage:first.storage,seedOld:false,offline:true});
-  await same.event('install');assert.equal(same.storage.get(same.name).size,7);
+  await same.event('install');assert.equal(same.storage.get(same.name).size,assetCount);
   await same.event('activate');assert.equal(hash(Buffer.from(await (await same.request(scope)).arrayBuffer())),release.files['index.html']);
   same.storage.get(same.name).set(scope+'register.js',new Response('damaged cache entry'));
   const repair=fakeWorker({sharedStorage:same.storage,seedOld:false,offline:true});
-  await assert.rejects(repair.event('install'));assert.ok(repair.storage.has(repair.name));assert.equal(repair.storage.get(repair.name).size,6);
+  await assert.rejects(repair.event('install'));assert.ok(repair.storage.has(repair.name));assert.equal(repair.storage.get(repair.name).size,assetCount-1);
   assert.equal(hash(Buffer.from(await (await repair.request(scope)).arrayBuffer())),release.files['index.html']);
-  repair.setOffline(false);await repair.event('install');assert.equal(repair.storage.get(repair.name).size,7);
+  repair.setOffline(false);await repair.event('install');assert.equal(repair.storage.get(repair.name).size,assetCount);
 });
 test('a corrupted cached game or stylesheet is never served, but the exact release can repair it',async()=>{
   const first=fakeWorker();await first.event('install');await first.event('activate');

@@ -28,7 +28,7 @@ test('hand previews stay below the friendly row and resize with the arena',()=>{
   const source=read('../apps/client/src/Battle.tsx');
   assert.match(css,/var\(--hand-preview-y,0px\)/);
   assert.match(css,/var\(--hand-preview-width,100%\)/);
-  assert.match(source,/board.getBoundingClientRect\(\).bottom\+4/);
+  assert.match(source,/ownBoard\?\.getBoundingClientRect\(\).bottom/);
   assert.match(source,/landscapeHandPreviewShift\(box.left,box.width,width/);
   assert.match(source,/window.addEventListener\('resize',queue\)/);
   assert.match(source,/observer\?\.disconnect\(\)/);

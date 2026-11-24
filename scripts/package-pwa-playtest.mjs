@@ -1,3 +1,4 @@
+import {restoreSoloMusic} from '../apps/client/solo-app/music-assets.mjs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {existsSync,mkdtempSync,mkdirSync,readdirSync,readFileSync,rmSync,writeFileSync,copyFileSync} from 'node:fs';
@@ -19,7 +20,7 @@ if(!/^0\.\d+\.0$/.test(previous))throw Error('Previously built game version must
 const stable=resolve(root,'dist/solo-app');
 const binaries=['game.js','game.css'];
 const original=readFileSync(join(root,'solo-offline.html'),'utf8');
-for(const name of binaries){const asset=readFileSync(join(stable,name),'utf8');if(!original.includes(asset))throw Error(`Stable ${name} was modified`);}
+for(const name of binaries){const asset=readFileSync(join(stable,name),'utf8');if(!original.includes(restoreSoloMusic(asset,track=>readFileSync(join(stable,track)))))throw Error(`Stable ${name} was modified`);}
 const target=resolve(out),file=join(target,`Card-Duel-PWA-playtest-v${previous}-game-v${candidate}-installer.zip`);
 if(existsSync(file))throw Error('Refusing to overwrite a published playtest archive');
 mkdirSync(target,{recursive:true});

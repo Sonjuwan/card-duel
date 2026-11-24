@@ -5,7 +5,7 @@ import {modalTabIndex} from '../apps/client/src/battle-actions.ts';
 const battle=readFileSync(new URL('../apps/client/src/Battle.tsx',import.meta.url),'utf8');
 test('completed battle results are a keyboard-modal and not merely a visual overlay',()=>{
   assert.match(battle,/result-window[^\n]+role="dialog" aria-modal="true" aria-label="대전 결과" tabIndex=\{-1\} ref=\{resultRef\}/);
-  assert.match(battle,/s\?\.phase!=='finished'\|\|playing/);
+  assert.match(battle,/const presentingResult=s\?\.phase==='finished'&&!playing&&!shattering/);
   assert.match(battle,/querySelector<HTMLElement>\('button:not\(:disabled\)'\)/);
   assert.match(battle,/onKeyDownCapture=\{resultKeys\}/);
 });

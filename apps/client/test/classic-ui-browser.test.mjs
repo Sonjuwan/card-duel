@@ -30,7 +30,7 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
         size:document.querySelector('.card-browser .collection-book')?.getAttribute('data-book-size'),
         width:rect?.width??0,height:rect?.height??0,
         descriptionDisplay:cards[0]&&getComputedStyle(cards[0].querySelector('.card-copy')).display,
-        inspector:document.querySelector('.card-browser .collection-inspector-sidebar')?.getBoundingClientRect().width??0,
+        inspector:document.querySelector('.card-browser .catalog-filters')?.getBoundingClientRect().width??0,
         viewportWidth:innerWidth,documentWidth:document.documentElement.scrollWidth
       };
     });
@@ -40,7 +40,7 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     assert.ok(book.width>=110,label+' card width '+JSON.stringify(book));
     assert.ok(Math.abs(book.width/book.height-1/1.55)<.04,label+' card ratio '+JSON.stringify(book));
     assert.notEqual(book.descriptionDisplay,'none',label+' should show card effect text');
-    assert.ok(book.inspector>=150,label+' card details sidebar');
+    assert.ok(book.inspector>=150,label+' live filter sidebar');
     assert.ok(book.documentWidth<=book.viewportWidth+2,label+' no document horizontal scrolling');
     await page.screenshot({path:'ui-evidence/'+label+'-catalog.png',fullPage:false});
     await page.locator('.card-browser .collection-book .battle-card').first().click();
@@ -52,15 +52,12 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     await page.getByRole('button',{name:'덱 만들기',exact:true}).click();
     await page.getByRole('button',{name:'빈 덱 만들기',exact:true}).click();
     await page.locator('.deck-builder .collection-book .battle-card').first().waitFor();
-    assert.equal(await page.locator('.deck-builder .collection-book .battle-card').count(),8,label+' deck builder count');
+    await page.getByRole('button',{name:'공용',exact:true}).click();
+    assert.ok(await page.locator('.deck-builder .collection-book .battle-card').count()>8,label+' continuous deck catalog');
     assert.equal(await page.locator('.deck-builder .deck-sidebar').count(),1,label+' deck list visible');
-    const bounds=await page.evaluate(()=>{
-      const items=[...document.querySelectorAll('.deck-builder .collection-book .collection-item')];
-      const last=items.at(-1)?.getBoundingClientRect();
-      const viewport=document.querySelector('.lobby-main>.screen-content')?.getBoundingClientRect();
-      return {bottom:last?.bottom??Infinity,availableBottom:viewport?.bottom??innerHeight};
-    });
-    assert.ok(bounds.bottom<=bounds.availableBottom+2,label+' all eight deck cards must be visible without vertical scroll: '+JSON.stringify(bounds));
+    assert.equal(await page.locator('.deck-builder .book-edge').count(),0);
+    const scroller=page.locator('.deck-builder .collection-continuous');
+    assert.ok(await scroller.evaluate(element=>element.scrollHeight>element.clientHeight));
     await page.screenshot({path:'ui-evidence/'+label+'-deck-builder.png',fullPage:false});
     await page.locator('.deck-builder .collection-book .battle-card').first().click();
     await page.locator('.deck-builder .game-toast[role=status]').getByText(/1장 추가/).waitFor();

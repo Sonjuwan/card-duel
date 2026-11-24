@@ -106,7 +106,7 @@ test('classic desktop collection displays eight cards in a readable two-leaf spr
   assert.match(css,/overflow-y:auto/);
   assert.match(css,/collection-inspector-sidebar/);
   const app=readFileSync('apps/client/src/App.tsx','utf8');
-  assert.match(app,/className="deck-sidebar card-browser-controls collection-inspector-sidebar"/);
+  assert.match(app,/className="catalog-filters" open/);assert.doesNotMatch(app,/collection-inspector-sidebar/);
 });
 test('desktop battlefield uses adjacent minion lanes and a zero-height separator',()=>{
   const css=readFileSync('apps/client/src/classic-readability.css','utf8');

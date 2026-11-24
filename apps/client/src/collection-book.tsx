@@ -25,7 +25,7 @@ export function ManaFilter({value,onChange}:{value:string;onChange:(value:string
 }
 
 type BookNavigation={page:number;pages:number;label:string;onPage:(page:number)=>void};
-export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,gridMode=false}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation;gridMode?:boolean}){
+export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,continuous=false}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation;continuous?:boolean}){
   const perLeaf=size/2;
   const swipeStart=useRef<{x:number;y:number}|null>(null);
   const navigate=(event:KeyboardEvent<HTMLDivElement>)=>{
@@ -39,11 +39,11 @@ export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,g
     const next=paging?paging.page+direction:-1;
     if(paging&&next>=0&&next<paging.pages)paging.onPage(next);
   };
-  return <div className="collection-spread" onKeyDown={event=>{
+  return <div className={`collection-spread${continuous?' deck-card-scroll':''}`} onKeyDown={event=>{
     if(paging&&event.target instanceof HTMLElement&&event.target.matches('.book-edge')&&['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();turn(event.key==='ArrowLeft'?-1:1);}
   }}>
   {paging&&<button type="button" className="book-edge secondary" disabled={paging.page===0} onClick={()=>turn(-1)} aria-label="이전 페이지">◀</button>}
-  <div className={`collection classic-collection collection-book${gridMode?' preview-grid-book':''}`} data-book-size={size} onTouchStart={event=>{
+  <div className={`collection classic-collection collection-book${continuous?' collection-continuous':''}`} data-book-size={size} onTouchStart={event=>{
       const touch=event.touches[0];
       swipeStart.current=event.touches.length===1?{x:touch.clientX,y:touch.clientY}:null;
     }} onTouchCancel={()=>{swipeStart.current=null;}} onTouchEnd={event=>{
@@ -54,7 +54,7 @@ export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,g
       if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5)turn(dx<0?1:-1);
     }} role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동, Home과 End로 첫 카드와 마지막 카드 이동" onKeyDown={navigate}>
     {cards.length===0?<p className="empty-collection">검색 결과가 없습니다. 검색어나 필터를 바꿔 보세요.</p>:
-      [0,1].map(leaf=><div key={`${paging?.page??0}:${leaf}`} className="collection-leaf" data-book-page={leaf===0?'left':'right'} aria-label={leaf===0?'왼쪽 페이지':'오른쪽 페이지'}>{cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).map(c=>renderCard(c))}{Array.from({length:Math.max(0,perLeaf-cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).length)},(_,i)=><span key={`empty-${i}`} className="collection-blank" aria-hidden="true"/>)}</div>)}
+      continuous?cards.map(renderCard):[0,1].map(leaf=><div key={`${paging?.page??0}:${leaf}`} className="collection-leaf" data-book-page={leaf===0?'left':'right'} aria-label={leaf===0?'왼쪽 페이지':'오른쪽 페이지'}>{cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).map(c=>renderCard(c))}{Array.from({length:Math.max(0,perLeaf-cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).length)},(_,i)=><span key={`empty-${i}`} className="collection-blank" aria-hidden="true"/>)}</div>)}
   </div>
   {paging&&<button type="button" className="book-edge secondary" disabled={paging.page>=paging.pages-1} onClick={()=>turn(1)} aria-label="다음 페이지">▶</button>}
   {paging&&<span className="book-page-status" role="status" aria-live="polite" aria-atomic="true">{paging.label}</span>}

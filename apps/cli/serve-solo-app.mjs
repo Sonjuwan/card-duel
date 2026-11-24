@@ -1,3 +1,4 @@
+import {musicAssets} from '../client/solo-app/music-assets.mjs';
 import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -6,7 +7,7 @@ import {resolve} from 'node:path';
 
 export const SOLO_PORT=4179;
 const packageDirectory=fileURLToPath(new URL('../../dist/solo-app/',import.meta.url));
-const types={'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','manifest.webmanifest':'application/manifest+json','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','icon-192.png':'image/png','icon-512.png':'image/png'};
+const types={...Object.fromEntries(musicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','manifest.webmanifest':'application/manifest+json','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','icon-192.png':'image/png','icon-512.png':'image/png'};
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function loadSoloRelease(directory=packageDirectory){
   const worker=readFileSync(resolve(directory,'sw.js')).toString('utf8');
@@ -16,7 +17,7 @@ export function loadSoloRelease(directory=packageDirectory){
   // Legacy releases have one inline document (5 assets); new releases keep
   // the same independent HTML separately and install 7 verified resources.
   const required=['index.html','manifest.webmanifest','register.js','icon-192.png','icon-512.png'];
-  if(!required.every(name=>expected.includes(name))||![5,7].includes(expected.length)||!expected.every(name=>Object.hasOwn(types,name)&&name!=='sw.js')||(expected.includes('game.js')!==expected.includes('game.css')))throw Error('Invalid release asset list');
+  if(!required.every(name=>expected.includes(name))||![5,7,7+musicAssets.length].includes(expected.length)||!expected.every(name=>Object.hasOwn(types,name)&&name!=='sw.js')||(expected.includes('game.js')!==expected.includes('game.css'))||musicAssets.some(name=>expected.includes(name))&&(!expected.includes('game.js')||!musicAssets.every(name=>expected.includes(name))))throw Error('Invalid release asset list');
   const files=new Map([['sw.js',Buffer.from(worker)],...expected.map(name=>[name,readFileSync(resolve(directory,name))])]);
   for(const name of expected)if(!Object.hasOwn(release.files,name)||sha256(files.get(name))!==release.files[name])throw Error(`Release asset integrity mismatch: ${name}`);
   const template=worker.replace(marker,'const release = __CACHE_SPEC__;');

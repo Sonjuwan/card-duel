@@ -1,3 +1,4 @@
+import {musicAssets} from '../solo-app/music-assets.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -10,7 +11,7 @@ import {loadSoloRelease} from '../../cli/serve-solo-app.mjs';
 
 test('UI preview chooses a save slot first, then uses only that slot cards, decks, ranked checkpoint and progress',{timeout:120000},async t=>{
   const {files}=loadSoloRelease();
-  const mime={'index.html':'text/html','game.js':'text/javascript','game.css':'text/css','register.js':'text/javascript','sw.js':'text/javascript','manifest.webmanifest':'application/manifest+json','icon-192.png':'image/png','icon-512.png':'image/png'};
+  const mime={...Object.fromEntries(musicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html','game.js':'text/javascript','game.css':'text/css','register.js':'text/javascript','sw.js':'text/javascript','manifest.webmanifest':'application/manifest+json','icon-192.png':'image/png','icon-512.png':'image/png'};
   const server=createServer((req,res)=>{
     const url=(req.url??'/').split('?')[0];
     const path=url==='/ui-preview/'?'index.html':url.startsWith('/ui-preview/')?url.slice('/ui-preview/'.length):'index.html';

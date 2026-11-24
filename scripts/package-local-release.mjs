@@ -1,3 +1,4 @@
+import {musicAssets,restoreSoloMusic} from '../apps/client/solo-app/music-assets.mjs';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {copyFileSync,cpSync,existsSync,readFileSync,readdirSync,renameSync,rmSync,statSync,unlinkSync} from 'node:fs';
@@ -33,13 +34,13 @@ function main(){
   const prefix=`card-duel-v${serial}`;
   const archive=join(parent,`${prefix}-source-and-play.zip`),bundle=join(parent,`${prefix}-git-increment.bundle`),html=join(parent,`Card-Duel-v${version}.html`),snapshot=join(parent,`v${serial}-solo-app`);
   for(const target of [archive,bundle,html,snapshot])check(!existsSync(target),`Release output already exists: ${target}`);
-  const installationFiles=['index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'];
+  const installationFiles=[...musicAssets,'index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'];
   const solo=readFileSync(join(project,'solo-offline.html'),'utf8');
   const app=readFileSync(join(project,'dist/solo-app/index.html'),'utf8');
   check(app.includes(`Card Duel v${version}`),'Installable app version does not match the committed release. Rebuild first.');
   const embeddedScript=solo.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1],embeddedCss=solo.match(/<style>([\s\S]*?)<\/style>/)?.[1];
   check(embeddedScript!==undefined&&embeddedCss!==undefined,'Standalone HTML is incomplete.');
-  check(embeddedScript===bytes('dist/solo-app/game.js').toString()&&embeddedCss===bytes('dist/solo-app/game.css').toString(),'Standalone and installable game assets differ. Rebuild and verify.');
+  check(embeddedScript===restoreSoloMusic(bytes('dist/solo-app/game.js').toString(),name=>bytes('dist/solo-app/'+name))&&embeddedCss===bytes('dist/solo-app/game.css').toString(),'Standalone and installable game assets differ. Rebuild and verify.');
   const sw=bytes('dist/solo-app/sw.js').toString(),match=sw.match(/const release = (.+);/);
   check(!!match,'Installable service worker lacks its release specification.');
   const release=JSON.parse(match[1]);

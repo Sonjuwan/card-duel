@@ -1,3 +1,4 @@
+import {restoreSoloMusic} from '../apps/client/solo-app/music-assets.mjs';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {cpSync,existsSync,mkdirSync,mkdtempSync,readFileSync,readdirSync,renameSync,rmSync,writeFileSync} from 'node:fs';
@@ -34,7 +35,7 @@ function main(){
   const installer=readFileSync(join(project,'dist/solo-app/index.html'),'utf8');
   check(installer.includes(`Card Duel v${release}`),`Existing verified installer must still be v${release}; cannot label a newer binary as verified.`);
   const standalone=readFileSync(join(project,'solo-offline.html'),'utf8');
-  check(standalone.includes(readFileSync(join(project,'dist/solo-app/game.js'),'utf8')),'Standalone script and installer differ.');
+  check(standalone.includes(restoreSoloMusic(readFileSync(join(project,'dist/solo-app/game.js'),'utf8'),name=>readFileSync(join(project,'dist/solo-app',name)))),'Standalone script and installer differ.');
   check(standalone.includes(readFileSync(join(project,'dist/solo-app/game.css'),'utf8')),'Standalone styles and installer differ.');
   const additional=[...walk('dist/solo-app'),...walk('data/ai')];
   check(additional.filter(p=>p.startsWith(`data${sep}ai${sep}`)).length>=10,'Missing gitignored AI training/checkpoint files.');

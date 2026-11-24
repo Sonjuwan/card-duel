@@ -1,3 +1,4 @@
+import {lethalPortraits,mulliganSlots} from '../src/battle-cinematics.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -29,14 +30,16 @@ const active=JSON.parse(readFileSync('data/cards/active.json','utf8')) as {file:
 const raw=readFileSync(`data/cards/${active.file}`,'utf8');
 loadPublicCatalog(JSON.parse(raw),createHash('sha256').update(raw).digest('hex'));
 const noOp=()=>{};
+const legalMageCount=Object.values(catalog).filter(c=>c.kind!=='coin'&&c.class==='mage'&&c.collectible!==false).length;
+
 test('deck builder renders the live deck count next to unabridged collection descriptions',()=>{
   const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
   assert.match(html,/class="panel deck-panel deck-builder"/);
   assert.match(html,/내 덱 <span class="deck-live-count">2\/30<\/span>/);
-  assert.equal((html.match(/class="card-copy"/g)??[]).length,8);
+  assert.equal((html.match(/class="card-copy"/g)??[]).length,legalMageCount);
 });
 test('deck editor labels add operations and starts with no transient message',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.doesNotMatch(html,/class="game-toast"/);assert.match(html,/aria-label="[^"]+덱에 추가"/);});
-test('deck editor has independent card inspection and explicit one-card removal buttons',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.equal((html.match(/class="secondary deck-card-detail-trigger"/g)??[]).length,8);assert.equal((html.match(/class="deck-inspect-row"/g)??[]).length,1);assert.equal((html.match(/class="deck-remove"/g)??[]).length,1);assert.match(html,/aria-label="[^"]+ 한 장 제거"/);assert.match(html,/<dialog class="collection-detail-dialog"/);});
+test('deck editor has independent card inspection and explicit one-card removal buttons',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.equal((html.match(/class="secondary deck-card-detail-trigger"/g)??[]).length,legalMageCount);assert.equal((html.match(/class="deck-inspect-row"/g)??[]).length,1);assert.equal((html.match(/class="deck-remove"/g)??[]).length,1);assert.match(html,/aria-label="[^"]+ 한 장 제거"/);assert.match(html,/<dialog class="collection-detail-dialog"/);});
 test('offline promotion panel exposes separate wins and XP progress and handles the maximum rank',()=>{const growth=offlineGrowth(catalog),profile=readOfflineGrowth(undefined,growth).profile;const panel=(p:typeof profile)=>renderToStaticMarkup(<OfflineGrowthPanel profile={p} growth={growth} deck={starterDeck(catalog,'warrior')} busy={false} ready onStart={noOp} onDeck={noOp}/>);const initial=panel(profile);assert.match(initial,/aria-label="승급 승리 진행률"/);assert.match(initial,/aria-label="승급 XP 진행률"/);assert.match(initial,/3승 남음/);const threshold=growth.ranks[1].minimumXp??0;assert.match(panel({...profile,xp:threshold,rankWins:growth.winsPerRank}),/다음 유효한 현재 랭크 승리에서 승급합니다/);const max=panel({...profile,rank:25});assert.match(max,/최고 랭크 달성/);assert.doesNotMatch(max,/aria-label="승급 승리 진행률"/);});
 test('solo practice history shows filter controls, total matching records and ten rows per page',()=>{const history:SoloResult[]=Array.from({length:26},(_,i)=>({code:`LOCAL-${i}`,date:'2026-11-22T00:00:00Z',heroClass:'mage',opponent:'warrior',difficulty:3,result:'win',turns:7,generation:0,catalogHash:'previous'}));const html=renderToStaticMarkup(<SoloHistory history={history}/>);assert.match(html,/최근 26\/100경기/);assert.match(html,/전체 버전/);assert.match(html,/전체 결과/);assert.match(html,/페이지 1\/3/);assert.equal((html.match(/class="solo-history-entry"/g)??[]).length,10);assert.match(html,/disabled=""[^>]*>이전 기록/);assert.match(html,/>다음 기록/);});
 test('offline save slot controls expose their current status, rank, and match summary to assistive technology',()=>{
@@ -162,11 +165,11 @@ test('save banner distinguishes pending work from last durable timestamp and con
   assert.match(markup(true,timestamp),/save-indicator warn">저장 확인 중…/);assert.match(markup(false,timestamp),/save-indicator good">자동 저장됨/);assert.match(markup(true,timestamp),/최근 저장 <time dateTime="2026-11-23T02:11:00.000Z">/);
   assert.doesNotMatch(markup(false,'invalid'),/class="last-saved-at"/);
 });
-test('deck editor renders a partial deck, eight cards per page, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,8);assert.equal((html.match(/class="battle-card /g)??[]).length,8);assert.match(html,/book-edge/);assert.match(html,/마법사 1\/\d+장/);});
+test('deck editor renders a partial deck, continuous browse list, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,legalMageCount);assert.equal((html.match(/class="battle-card /g)??[]).length,legalMageCount);assert.doesNotMatch(html,/book-edge/);});
 test('card book advertises keyboard geometry navigation and announces updated pages without activating cards',()=>{
-  const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
+  const html=renderToStaticMarkup(<DeckWorkspace deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialScreen="cards"/>);
   assert.match(html,/role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동/);
-  assert.match(html,/role="status" aria-live="polite" aria-atomic="true">마법사/);
+  assert.match(html,/role="status" aria-live="polite" aria-atomic="true">전사/);
 });
 test('waiting room and mulligan states render independently',()=>{const waiting=render(null),mulligan=render(create());assert.match(waiting,/친구를 기다리는 중/);assert.match(waiting,/TEST23/);assert.match(mulligan,/시작 카드 선택/);assert.match(mulligan,/선공/);assert.match(mulligan,/확정/);});
 test('battle view shows only own cards, both hero resources and visible readiness/blocked reasons',()=>{let s=ready();s.players[0].hand=[{cardId:'wisp',instanceId:'own0'},{cardId:'blade_burst',instanceId:'own1'}];s.players[1].hand=[{cardId:'flame_sphere',instanceId:'hidden-opponent-card'}];s.players[0].mana=10;s.players[0].maxMana=10;s.players[0].board=[{cardId:'wolf',instanceId:'friend',attack:3,health:2,maxHealth:2,attacksRemaining:1}];const html=render(s);assert.match(html,/내 턴/);assert.match(html,/공격 가능 1회/);assert.match(html,/장착한 무기가 없습니다/);assert.match(html,/class="battle-minion faction-neutral is-ready"/);assert.ok(!html.includes('hidden-opponent-card'));assert.ok(!html.includes(catalog.flame_sphere.name));assert.match(html,/마나 10\/10/);assert.match(html,/오류 신고용 전투 기록/);assert.match(html,/전투 기록 복사/);assert.equal((html.match(/class="card-back"/g)??[]).length,1);assert.equal((html.match(/class="battle-card /g)??[]).length,2);});
@@ -231,9 +234,9 @@ test('all 443 client card definitions render independently without external asse
  assert.equal(ids.size,443);assert.ok(subjects.size>=36,`subject coverage=${subjects.size}`);
  for(const heroClass of HERO_CLASSES){const hero=renderToStaticMarkup(<LocalHeroArt heroClass={heroClass}/>);const power=renderToStaticMarkup(<LocalPowerArt heroClass={heroClass}/>);assert.ok(hero.includes(`data-art-seed="${heroArtRecipe(heroClass).seed}"`));assert.ok(power.includes(`data-art-seed="${powerArtRecipe(heroClass).seed}"`));assert.ok(!hero.includes('https://'));assert.ok(!power.includes('https://'));}
 });
-test('deck editor shows eight illustrated cards and tile art only for the owned cards',()=>{
+test('deck editor shows illustrated catalog cards and tile art only for the owned cards',()=>{
  const html=renderToStaticMarkup(<ClassicNamesContext.Provider value={true}><DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/></ClassicNamesContext.Provider>);
- assert.equal((html.match(/class="original-art"/g)??[]).length,9);
+ assert.equal((html.match(/class="original-art"/g)??[]).length,legalMageCount+1);
  assert.match(html,/class="local-deck-tile"/);assert.ok(!html.includes('<img'));
 });
 test('each art instance owns unique gradient and clipping ids, even for repeated cards',()=>{
@@ -250,21 +253,21 @@ test('hover panel displays a large card with current buffed attack, damaged heal
 });
 test('deck builder has explicit set tabs with counts and each visible card has a set label',()=>{
  const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp}/>);
- assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/클래식 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,8);
+ assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/클래식 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,legalMageCount);
 });
 test('deck builder basic and original initial views never display cards from the opposite set',()=>{
  const basic=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="basic"/>);
  const original=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="original"/>);
  assert.match(basic,/data-set-filter="basic" aria-pressed="true"/);assert.match(original,/data-set-filter="original" aria-pressed="true"/);
  const classBasic=Object.values(catalog).filter(c=>c.kind!=='coin'&&c.class==='mage'&&c.collectible!==false&&c.rarity==='basic').length;
- assert.equal((basic.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,Math.min(8,classBasic));assert.equal((original.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,0);
+ assert.equal((basic.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,classBasic);assert.equal((original.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,0);
  assert.doesNotMatch(basic,/option value="rare"/);assert.doesNotMatch(basic,/option value="epic"/);assert.match(original,/option value="epic"/);assert.doesNotMatch(original,/option value="basic"/);
 });
 test('deck builder renders visible cards in ascending mana order in each set',()=>{
  for(const initialSet of ['all','basic','original'] as const){
   const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet={initialSet}/>);
   const costs=[...h.matchAll(/data-preview-cost="(\d+)"/g)].map(m=>Number(m[1]));
-  assert.ok(costs.length>0&&costs.length<=8);assert.deepEqual(costs,[...costs].sort((a,b)=>a-b));
+  assert.ok(costs.length>0&&costs.length<=legalMageCount);assert.deepEqual(costs,[...costs].sort((a,b)=>a-b));
  }
 });
 test('deck workspace separates class list, saved deck list, read-only catalogue and builder; book has two four-card leaves',()=>{
@@ -272,8 +275,9 @@ test('deck workspace separates class list, saved deck list, read-only catalogue 
  for(const screen of ['classes','saved','cards','build'] as const){
   const h=renderToStaticMarkup(<DeckWorkspace {...props} initialScreen={screen}/>);assert.match(h,new RegExp(`data-deck-screen="${screen}"`));
   assert.equal((h.match(/data-deck-screen=/g)??[]).length,1);assert.equal((h.match(/data-deck-nav=/g)??[]).length,4);
-  if(screen==='cards'||screen==='build'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/data-book-page="left"/);assert.match(h,/data-book-page="right"/);}
+  if(screen==='cards'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/data-book-page="left"/);assert.match(h,/data-book-page="right"/);}
   if(screen==='cards'){assert.match(h,/전체<small>382<\/small>/);assert.doesNotMatch(h,/덱 저장/);assert.match(h,/<dialog class="collection-detail-dialog" aria-label="카드 확대 상세"/);}
+  if(screen==='build'){assert.match(h,/collection-continuous/);assert.doesNotMatch(h,/book-edge/);}
   if(screen==='saved'){assert.match(h,/저장한 덱이 없습니다/);assert.match(h,/저장 덱 백업 다운로드/);assert.match(h,/덱 백업 추가/);}
   if(screen==='classes')assert.equal((h.match(/class="class-choice /g)??[]).length,9);
  }
@@ -289,3 +293,24 @@ test('opponent hidden cards are never registered as hover sources',()=>{
  const html=render(s);assert.match(html,/data-preview-card="wisp"/);assert.ok(!html.includes('data-preview-card="flame_sphere"'));assert.ok(!html.includes('data-hover-preview'));
 });
 test('an old-card-version ranked save blocks a new ranked match but keeps backup available',()=>{const growth=offlineGrowth(catalog),profile=readOfflineGrowth(undefined,growth).profile;const html=renderToStaticMarkup(<OfflineGrowthPanel profile={profile} growth={growth} deck={starterDeck(catalog,'warrior')} busy={false} ready rankBlocked onStart={noOp} onDeck={noOp} onBackup={noOp}/>);assert.match(html,/이전 카드 버전의 진행 중인 랭크 경기가 있습니다/);assert.match(html,/<button[^>]*disabled[^>]*>솔로 랭크 대전 시작<\/button>/);assert.match(html,/<button[^>]*>성장 백업 다운로드<\/button>/);});
+
+
+test('lethal portrait staging excludes surrender and restored results',()=>{
+  const s=ready();
+  const before=getPlayerView(s,0);
+  const finished=applyAction(s,1,{type:'concede'});
+  const conceded=getPlayerView(finished,0);
+  assert.deepEqual(lethalPortraits(before,conceded),{own:false,enemy:false});
+  const fatal={...conceded,opponent:{...conceded.opponent,health:0}};
+  assert.deepEqual(lethalPortraits(before,fatal),{own:false,enemy:true});
+  assert.deepEqual(lethalPortraits(undefined,fatal),{own:false,enemy:false});
+  const fragments=renderToStaticMarkup(<HeroPortrait player={fatal.opponent} label="상대" shatter/>);
+  assert.equal((fragments.match(/class="hero-shard"/g)??[]).length,6);
+});
+test('mulligan staging maps authoritative replacement cards back to the original selected slots',()=>{
+  const a={instanceId:'a',cardId:'wolf'}, b={instanceId:'b',cardId:'wisp'}, c={instanceId:'c',cardId:'wolf'};
+  const incoming={instanceId:'d',cardId:'wisp'};
+  assert.deepEqual(mulliganSlots([a,b,c],[a,c,incoming,{instanceId:'coin',cardId:'__coin'}],['b']),[
+    {key:'a',card:a,swapping:false},{key:'b',card:incoming,swapping:true},{key:'c',card:c,swapping:false},
+  ]);
+});

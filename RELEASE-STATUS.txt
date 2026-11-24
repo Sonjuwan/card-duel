@@ -1,2 +1,2 @@
-v0.300.0 is a SOURCE-ONLY candidate; use the verified build command to package a playable release.
-Build baseline: PREVIOUS VERIFIED v0.297.0.
+v0.301.0 is a SOURCE-ONLY candidate; use the verified build command to package a playable release.
+Build baseline: PREVIOUS VERIFIED v0.300.0.

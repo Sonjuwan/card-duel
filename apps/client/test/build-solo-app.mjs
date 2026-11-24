@@ -1,3 +1,4 @@
+import {splitSoloMusic} from '../solo-app/music-assets.mjs';
 import {createHash} from 'node:crypto';
 import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -82,7 +83,8 @@ if(!viewport)throw Error('Could not locate standalone viewport meta');
 const immersiveViewport='<meta name="viewport" content="'+(viewport[1].includes('viewport-fit=cover')?viewport[1]:viewport[1]+',viewport-fit=cover')+'"/>';
 const html=standalone.replace(viewport[0],immersiveViewport).replace(script[0],'<script type="module" src="game.js"></script>').replace(style[0],assetWatch+'<link rel="stylesheet" href="game.css">').replace('</head>',head+shellStyle+'</head>').replace('<div id="root">',banner+'<div id="root">').replace('</body>','<script src="register.js" defer></script></body>');
 if(html===standalone||!html.includes(banner)||!html.includes('game.js')||!html.includes('game.css')||!html.includes('register.js'))throw Error('Could not package standalone game');
-const files={'index.html':Buffer.from(html),'game.js':Buffer.from(script[1]),'game.css':Buffer.from(style[1]),'manifest.webmanifest':Buffer.from(JSON.stringify(manifest,null,2)), 'register.js':readFileSync(resolve(source,'register.js')),'icon-192.png':readFileSync(resolve(source,'icon-192.png')),'icon-512.png':readFileSync(resolve(source,'icon-512.png'))};
+const score=splitSoloMusic(script[1],name=>readFileSync(resolve('apps/client/src/assets/music',name)));
+const files={...score.files,'index.html':Buffer.from(html),'game.js':Buffer.from(score.script),'game.css':Buffer.from(style[1]),'manifest.webmanifest':Buffer.from(JSON.stringify(manifest,null,2)), 'register.js':readFileSync(resolve(source,'register.js')),'icon-192.png':readFileSync(resolve(source,'icon-192.png')),'icon-512.png':readFileSync(resolve(source,'icon-512.png'))};
 const template=readFileSync(resolve(source,'sw-template.js'),'utf8');
 const hashes=Object.fromEntries(Object.entries(files).map(([path,bytes])=>[path,digest(bytes)]));
 const release={id:digest(JSON.stringify(hashes)+template),files:hashes};

@@ -1,3 +1,4 @@
+import {musicAssets,restoreSoloMusic} from '../apps/client/solo-app/music-assets.mjs';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {cpSync,existsSync,mkdirSync,mkdtempSync,readFileSync,rmSync,writeFileSync,readdirSync} from 'node:fs';
@@ -10,20 +11,20 @@ const run=(bin,args,cwd)=>{const p=spawnSync(bin,args,{cwd,encoding:'utf8'});if(
 const assert=(ok,message)=>{if(!ok)throw Error(message);};
 const sha=b=>createHash('sha256').update(b).digest('hex');
 export function inspectPlayablePwa(dist=join(project,'dist/solo-app')){
-  const names=['index.html','game.js','game.css','manifest.webmanifest','register.js','sw.js','icon-192.png','icon-512.png'];
+  const names=[...musicAssets,'index.html','game.js','game.css','manifest.webmanifest','register.js','sw.js','icon-192.png','icon-512.png'];
   for(const name of names)assert(existsSync(join(dist,name)),`Missing release asset ${name}`);
   const read=name=>readFileSync(join(dist,name));
   const html=read('index.html').toString();
   const version=JSON.parse(readFileSync(join(project,'package.json'),'utf8')).version;
   assert(html.includes(`Card Duel v${version}`),'Installable game version must match compiled binary, never candidate source version');
   const standalone=readFileSync(join(project,'solo-offline.html'),'utf8');
-  assert(standalone.includes(read('game.js').toString()),'Compiled script differs from verified standalone binary');
+  assert(standalone.includes(restoreSoloMusic(read('game.js').toString(),read)),'Compiled script differs from verified standalone binary');
   assert(standalone.includes(read('game.css').toString()),'Compiled card graphics differ from verified standalone binary');
   const spec=read('sw.js').toString().match(/const release = (.+);/)?.[1];
   assert(spec,'Missing integrity manifest from service worker');
   const release=JSON.parse(spec);
   assert(/^[a-f0-9]{64}$/.test(release.id),'Invalid immutable release identifier');
-  assert(Object.keys(release.files).length===7,'Unexpected pre-cached release asset count');
+  assert(Object.keys(release.files).length===names.length-1,'Unexpected pre-cached release asset count');
   for(const [name,hash] of Object.entries(release.files))assert(names.includes(name)&&sha(read(name))===hash,`Offline integrity mismatch: ${name}`);
   const manifest=JSON.parse(read('manifest.webmanifest').toString());
   assert(manifest.display==='standalone'&&manifest.orientation==='landscape','Not an installable landscape PWA');
@@ -49,8 +50,8 @@ export function packagePlayablePwa(outputDir){
     ].join('\n'));
     run('zip',['-q','-r','-9',zip,'card-duel-pwa'],staging);
     run('unzip',['-tq',zip],staging);
-    assert(readdirSync(packageDir).length===9,'Missing install instructions or compiled assets');
-    return {version:meta.version,release:meta.release.slice(0,12),zip,files:9};
+    assert(readdirSync(packageDir).length===meta.assets.length+1,'Missing install instructions or compiled assets');
+    return {version:meta.version,release:meta.release.slice(0,12),zip,files:meta.assets.length+1};
   }finally{rmSync(staging,{recursive:true,force:true});}
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){

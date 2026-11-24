@@ -1,4 +1,4 @@
-import {beginMusic,setMusicMix} from './music.ts';
+import {beginMusic,setMusicMix,duckMusicForCelebration} from './music.ts';
 import type { BattleAnimation } from '../../../packages/protocol.ts';
 import type {GameState,PlayerId} from '../../../packages/engine/src/index.ts';
 import type { FxTheme,ImpactFeedback } from './battle-fx-model.ts';
@@ -192,4 +192,24 @@ export async function playEmbeddedVoice(bytes:ArrayBuffer,active:()=>boolean,onE
 export function playCardPickup(){
   if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{noise(.085,1500,580,.12,0,'bandpass');tone(350,260,.075,.05,'triangle');}catch{}
+}
+
+export function playCinematicSound(kind:'xp'|'card'|'rare'|'rank'|'tier'|'shatter'){
+  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  try{
+    if(kind==='shatter'){
+      noise(.43,1900,140,.42,.27,'bandpass');
+      noise(.72,7300,300,.35,.43,'highpass');
+      tone(116,34,1.16,.52,'sine',.39);
+      return;
+    }
+    const patterns={xp:[523,659,784],card:[523,659,784,1047],rare:[392,587,698,880,1175],rank:[392,523,659,784,1047],tier:[262,392,523,659,784,1047,1319]};
+    const step={xp:.09,card:.19,rare:.25,rank:.35,tier:.43}[kind];
+    const melody=patterns[kind];
+    duckMusicForCelebration((melody.length+1.1)*step*1000);
+    melody.forEach((pitch,i)=>{
+      tone(pitch,pitch,step*2.1,.19,'sine',step*i);
+      tone(pitch*2,pitch*1.997,step*1.4,.055,'triangle',step*i);
+    });
+  }catch{/* A closed audio device leaves presentation available. */}
 }
