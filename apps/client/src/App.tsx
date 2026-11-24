@@ -95,7 +95,7 @@ function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,
   const bookSize=useBookSize();
   const pageResult=groupedCollection([deck.heroClass,'neutral'].map(key=>({key,items:shown.filter(card=>card.class===key)})),page,bookSize);
   const [deckPage,setDeckPage]=useState(0);
-  const deckRows=collectionPage(legal.filter(c=>counts.has(c.id)),deckPage,bookSize===4?1:bookSize===6?3:5);
+  const deckRows=collectionPage(legal.filter(c=>counts.has(c.id)),deckPage,bookSize===4?2:10);
   useEffect(()=>setPage(0),[query,kind,filterRarity,filterCost,filterScope,filterSet,deck.heroClass,restricted,bookSize]);
   const kindCounts={minion:0,spell:0,weapon:0,secret:0};for(const id of deck.cards){const c=catalog[id];if(c&&c.kind!=='coin')kindCounts[c.kind]++;}
   const averageCost=deck.cards.length?(curve.reduce((sum,n,i)=>sum+n*i,0)/deck.cards.length).toFixed(1):'0.0';
