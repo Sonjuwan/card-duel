@@ -231,7 +231,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   useEffect(()=>{let stopped=false,probe:Worker|undefined,timer:ReturnType<typeof setTimeout>|undefined;
     const close=()=>{if(timer!==undefined)clearTimeout(timer);probe?.terminate();};
     const finish=(data?:Extract<LocalResponse,{type:'saveInfo'}>)=>{if(stopped)return;stopped=true;close();if(workerRef.current)return;setSaveAvailable(data?.available??false);setSavedMatch(old=>reconcileSaveProbe(old,data));if(standalone){if(data?.profile)setOfflineProfile(old=>!old||data.profile!.revision>=old.revision?data.profile:old);setOldRankedPending(data?.otherActiveRanked);}};
-    try{if(!workerFactory)throw Error('Missing worker factory');probe=workerFactory();probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{if(data.type==='saveInfo')finish(data);else if(data.type==='error')finish();};probe.onerror=()=>finish();timer=setTimeout(()=>finish(),5000);probe.postMessage({type:'inspectSave',catalogHash,...(standalone?{catalog}:{})},...(lossOnExit?{settleAbandoned:true}:{})) satisfies LocalRequest);}catch{finish();}
+    try{if(!workerFactory)throw Error('Missing worker factory');probe=workerFactory();probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{if(data.type==='saveInfo')finish(data);else if(data.type==='error')finish();};probe.onerror=()=>finish();timer=setTimeout(()=>finish(),5000);probe.postMessage({type:'inspectSave',catalogHash,...(standalone?{catalog}:{}),...(lossOnExit?{settleAbandoned:true}:{})} satisfies LocalRequest);}catch{finish();}
     return()=>{stopped=true;close();};
   },[saveProbe]);
   const [lobbyView,setLobbyView]=useState<LobbyView>(initialLobbyView);
