@@ -26,6 +26,8 @@ jobs:
         run: npm run check:frontend-syntax
       - name: Type-check entire game
         run: npm run typecheck
+      - name: Prepare standalone game for integration tests
+        run: npm run build:solo-app
       - name: Game engine and interface regression tests
         run: npm test
       - name: Compile installable/offline game and verify integrity
