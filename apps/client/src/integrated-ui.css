@@ -381,3 +381,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 @media(orientation:landscape) and (max-height:460px){
   .lobby-main .integrated-browser .book-class-tabs{grid-auto-rows:clamp(20px,6.3dvh,27px)}
 }
+
+.game-main .duel-screen.preview-compact>.duel-title.compact-title{right:auto!important;left:max(5px,env(safe-area-inset-left))!important}
+.game-main .duel-screen>.compact-home-trigger{top:3px;right:max(5px,env(safe-area-inset-right));z-index:309}
