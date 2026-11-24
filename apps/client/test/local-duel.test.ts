@@ -464,3 +464,35 @@ test('actual worker receives commands and emits a redacted playable match',{time
   const finished=next(m=>m.type==='view'&&m.view.status==='finished');worker.postMessage({type:'act',requestId:2,revision:ready.view.state!.revision,action:{type:'concede'}} satisfies LocalRequest);
   assert.equal((await finished).type,'view');
 });
+
+
+test('exit while playing records a loss, and app relaunch settles an abandoned ranked save exactly once',async t=>{
+  let entry:Entry|undefined,record:OfflineGrowthRecord|undefined;
+  const store:LocalSaveStore={
+    async read(){return structuredClone(entry?.snapshot??null);},
+    async readGrowth(growth){return readOfflineGrowth(structuredClone(record),growth);},
+    async write(snapshot,owner,claim,expected,ranked){
+      if(!saveWriteAllowed(entry,owner,claim,expected)||!canReplaceRankedSave(entry,snapshot))return false;
+      if(ranked){record=readOfflineGrowth(record,ranked.growth);if(ranked.award)record=settleOfflineRanked(record,ranked.growth,snapshot.input.ranked!,ranked.award);}
+      entry={hash,owner,snapshot:structuredClone(snapshot)};return true;
+    },
+    async remove(_,owner,expected){if(!saveRemoveAllowed(entry,owner,expected)||activeRankedSave(entry))return false;entry=undefined;return true;}
+  };
+  const tab=(owner:string)=>{let receive:(m:LocalResponse)=>void=()=>{};const scope:LocalDuelScope={postMessage:m=>receive(m),onmessage:()=>{}};t.after(attachLocalDuel(scope,store,owner));return {send:(data:LocalRequest)=>new Promise<LocalResponse>((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Worker timed out')),3000);receive=m=>{clearTimeout(timer);resolve(m);};scope.onmessage({data});})};};
+  const first=tab('first');
+  const started=await first.send({type:'start',input:savedInput,ranked:true});assert.equal(started.type,'view');assert.equal(entry?.snapshot.summary.phase,'mulligan');
+  const exited=await first.send({type:'forfeit',requestId:1});assert.equal(exited.type,'forfeited');
+  assert.equal(entry?.snapshot.summary.phase,'finished');assert.equal(entry?.snapshot.state.winner,1);assert.equal(entry?.snapshot.state.reason,'concede');
+  assert.equal(record?.profile.matchStats?.ranked.losses,1);assert.equal(record?.profile.xp,0);
+  const rerun=tab('reload'),existing=await rerun.send({type:'inspectSave',catalogHash:hash,catalog,settleAbandoned:true});assert.equal(existing.type,'saveInfo');assert.equal(existing.save?.phase,'finished');
+  assert.equal(record?.profile.matchStats?.ranked.losses,1,'already settled results are never awarded twice');
+  // Start another game and simulate the browser being killed without notifying the old worker.
+  const second=await rerun.send({type:'start',input:{...savedInput,code:'abandoned-later'},ranked:true,replaceSave:existing.save});assert.equal(second.type,'view');
+  assert.equal(entry?.snapshot.summary.phase,'mulligan');
+  const reboot=tab('after-browser-close'),settled=await reboot.send({type:'inspectSave',catalogHash:hash,catalog,settleAbandoned:true});
+  assert.equal(settled.type,'saveInfo');assert.equal(settled.save?.phase,'finished');
+  assert.equal(entry?.snapshot.state.winner,1);assert.equal(entry?.snapshot.state.reason,'concede');
+  assert.equal(record?.profile.matchStats?.ranked.losses,2);
+  const check=await reboot.send({type:'inspectSave',catalogHash:hash,catalog,settleAbandoned:true});assert.equal(check.type,'saveInfo');
+  assert.equal(record?.profile.matchStats?.ranked.losses,2,'restart must not count a second loss');
+});
