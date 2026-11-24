@@ -1,9 +1,8 @@
 import {useSyncExternalStore} from 'react';
 import type { ReactNode, RefObject, KeyboardEvent } from 'react';
 import type { Card, Catalog } from '../../../packages/engine/src/index.ts';
-import { CardInspector } from './battle-pieces.tsx';
+import { BattleCard, CardInspector } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
-import { LocalCardArt } from './local-art.tsx';
 import { collectionNavigation } from './table-visuals.ts';
 
 const compactBook='(orientation:landscape) and (max-height: 700px)';
@@ -48,5 +47,5 @@ export function showCollectionDetail(dialog:HTMLDialogElement|null,sidebar:HTMLE
   else sidebar?.scrollIntoView({block:'nearest'});
 }
 export function CollectionDetailDialog({dialogRef,item,catalog}:{dialogRef:RefObject<HTMLDialogElement|null>;item:Inspectable|null;catalog:Catalog}){
-  return <dialog ref={dialogRef} className="collection-detail-dialog" aria-label="카드 확대 상세"><div className="collection-detail-header"><h3>카드 확대 상세</h3><button type="button" className="secondary" onClick={()=>dialogRef.current?.close()}>닫기</button></div>{item&&<><div className="collection-detail-art"><LocalCardArt card={item.card}/></div><CardInspector item={item} catalog={catalog}/></>}</dialog>;
+  return <dialog ref={dialogRef} className="collection-detail-dialog" aria-label="카드 확대 상세"><div className="collection-detail-header"><h3>카드 확대 상세</h3><button type="button" className="secondary" onClick={()=>dialogRef.current?.close()}>닫기</button></div>{item&&<><div className="collection-detail-body"><div className="collection-detail-card"><BattleCard card={item.card}/></div><CardInspector item={item} catalog={catalog}/></div></>}</dialog>;
 }
