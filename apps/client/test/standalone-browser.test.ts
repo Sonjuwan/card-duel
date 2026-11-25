@@ -4,6 +4,7 @@ import {chromium} from 'playwright';
 import {mkdirSync,readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
+import {createCatalog,practiceDeck} from '../../../packages/engine/src/index.ts';
 
 test('stalled local command remains locked, accepts a late acknowledgement or recovers only after confirmation',{timeout:60000},async()=>{
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
@@ -289,6 +290,15 @@ test('desktop native drag shares the mobile placement and rejected-control feedb
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:900}});
   page.setDefaultTimeout(8000);
   try{
+    const {file}=JSON.parse(readFileSync('data/cards/active.json','utf8'));
+    const deck=practiceDeck(createCatalog(JSON.parse(readFileSync('data/cards/'+file,'utf8'))),'mage');
+    await page.addInitScript(deck=>{
+      const post=Worker.prototype.postMessage;
+      Worker.prototype.postMessage=function(this:Worker,message:any,options?:any){
+        if(message?.type==='start')message={...message,input:{...message.input,deck,firstPlayer:0,seed:10,animationSpeed:'normal'}};
+        post.call(this,message,options);
+      };
+    },{...deck,cards:deck.cards.map(id=>id==='recruit'?'wisp':id)});
     await page.goto(`http://127.0.0.1:${address.port}/`);
     await page.getByRole('button',{name:'대전',exact:true}).click();
     await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기',exact:true}).click();
@@ -301,18 +311,13 @@ test('desktop native drag shares the mobile placement and rejected-control feedb
     await page.getByRole('button',{name:/확정/}).click();
     const turn=page.locator('.end-turn.your-turn');
     await turn.waitFor();
-    const card=page.locator('.battle-hand .battle-card.kind-minion[aria-disabled="false"]').first();
-    for(let round=0;round<3&&await card.count()===0;round++){
-      await turn.click();
-      await turn.waitFor({state:'hidden'});
-      await turn.waitFor({timeout:20000});
-    }
+    const card=page.locator('.battle-hand .battle-card[data-preview-card="wisp"][aria-disabled="false"]').first();
     await card.waitFor();
     const minions=page.locator('.friendly-minions .battle-minion'),count=await minions.count();
     await card.dragTo(page.locator('.self-hero-zone .hero-power'));
     assert.equal(await minions.count(),count);
     const stage=page.locator('.fx-play-card[data-card-reveal-kind="summon"]');
-    await card.dragTo(page.locator('.friendly-board .position-slot[data-drop-position="0"]'));
+    await card.dragTo(page.locator('.friendly-board'));
     await stage.waitFor();
     assert.equal(await stage.locator('.battle-card').count(),1);
     assert.equal(await stage.locator('.fx-summon-portrait').count(),1);
