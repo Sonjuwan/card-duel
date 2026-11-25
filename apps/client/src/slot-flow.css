@@ -319,6 +319,22 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
 }
 .lobby-main.preview-lobby .preview-deck-tile.chosen{border-color:#ead289;box-shadow:inset 0 0 0 2px #d6aa64}
 .lobby-main.preview-lobby .preview-deck-tile small{color:#d1c6b2}
+.lobby-main.preview-lobby .preview-deck-pages .preview-deck-tile{
+  background:#63462f;border-color:#c59960;color:#fff3d7;
+}
+.lobby-main.preview-lobby .preview-deck-pages .preview-deck-tile small{color:#f4dfb7}
+.lobby-main.preview-lobby .preview-deck-pages .preview-deck-tile.chosen{
+  background:#745029;border-color:#ffe18a;box-shadow:inset 0 0 0 2px #d6aa64;
+}
+.lobby-main.preview-lobby .preview-deck-pages .preview-deck-empty{
+  background:#44312a;border-color:#9b7856;
+}
+.lobby-main.preview-lobby .preview-deck-pages>button{
+  background:#684a32;border-color:#cea46d;color:#fff0c9;opacity:1;
+}
+.lobby-main.preview-lobby .preview-deck-pages>button:disabled{
+  background:#383031;border-color:#766559;color:#ac9987;opacity:1;
+}
 .lobby-main.preview-lobby .preview-deck-actions{
   flex:none;display:flex;align-items:center;gap:10px;min-height:43px;
 }

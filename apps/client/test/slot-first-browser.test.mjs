@@ -54,9 +54,17 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   assert.ok(await page.getByRole('button',{name:entries[1].name}).isVisible(),'slot 2 owns its saved warrior deck');
   assert.equal(await page.locator('.preview-deck-grid>*').count(),9);
   assert.equal(await page.locator('.preview-deck-empty').count(),8);
-  const singleTile=await page.locator('.preview-deck-grid button').first().boundingBox();
+  const tile=page.locator('.preview-deck-grid button').first();
+  const colors=locator=>locator.evaluate(el=>{
+    const style=getComputedStyle(el);
+    return [style.color,style.backgroundColor,style.borderTopColor];
+  });
+  assert.deepEqual((await colors(page.locator('.preview-deck-empty').first())).slice(1),['rgb(68, 49, 42)','rgb(155, 120, 86)']);
+  const singleTile=await tile.boundingBox();
   assert.equal(await page.getByRole('button',{name:entries[0].name}).count(),0,'slot 1 mage deck never leaks into slot 2');
   await page.getByRole('button',{name:entries[1].name}).click();
+  assert.equal(await tile.getAttribute('aria-pressed'),'true');
+  assert.equal((await colors(tile))[2],'rgb(255, 225, 138)');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true,'slot 2 saved deck playable');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
@@ -83,10 +91,26 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   assert.ok(await page.getByRole('button',{name:entries[0].name}).isVisible(),'slot 1 saved mage deck available');
   assert.equal(await page.getByRole('button',{name:entries[1].name}).count(),0,'slot 2 warrior deck not visible in slot 1');
   assert.equal(await page.locator('.preview-deck-grid>button').count(),9);
+  assert.deepEqual(await colors(page.locator('.preview-deck-grid button').nth(1)),['rgb(255, 243, 215)','rgb(99, 70, 47)','rgb(197, 153, 96)']);
   const multiTile=await page.locator('.preview-deck-grid button').first().boundingBox();
   assert.ok(singleTile&&multiTile);
   assert.deepEqual([multiTile.width,multiTile.height],[singleTile.width,singleTile.height]);
-  await page.getByRole('button',{name:'다음 덱 페이지'}).click();
+  const previousPage=page.getByRole('button',{name:'이전 덱 페이지'});
+  const nextPage=page.getByRole('button',{name:'다음 덱 페이지'});
+  assert.equal(await previousPage.isDisabled(),true);
+  assert.equal(await nextPage.isEnabled(),true);
+  assert.notDeepEqual(await colors(previousPage),await colors(nextPage));
+  for(const viewport of [{width:780,height:360},{width:1366,height:768}]){
+    await page.setViewportSize(viewport);
+    assert.equal(await page.locator('.preview-deck-grid>*').count(),9);
+    const grid=await page.locator('.preview-deck-grid').boundingBox();
+    assert.ok(grid&&grid.y+grid.height<=viewport.height);
+    assert.notDeepEqual(await colors(previousPage),await colors(nextPage));
+  }
+  await page.setViewportSize({width:844,height:390});
+  await nextPage.click();
+  assert.equal(await nextPage.isDisabled(),true);
+  assert.equal(await previousPage.isEnabled(),true);
   assert.equal(await page.locator('.preview-deck-grid>button').count(),1);
   assert.equal(await page.locator('.preview-deck-empty').count(),8);
   await page.getByRole('button',{name:'이전 덱 페이지'}).click();
