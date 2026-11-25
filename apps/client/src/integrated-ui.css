@@ -772,17 +772,17 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   font-size:clamp(15px,2.8dvh,23px);text-shadow:0 1px 3px #2c1b08;
 }
 .lobby-main .saved-decks .deck-save-primary:disabled { filter:saturate(.52) brightness(.74) }
-.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) {
+.lobby-main .deck-builder .deck-layout .book-pane .collection-spread:has(.book-edge) {
   display:grid;grid-template-columns:clamp(22px,4vw,42px) minmax(0,1fr) clamp(22px,4vw,42px);align-items:center;gap:2px;
 }
-.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-book {
+.lobby-main .deck-builder .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-book {
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;min-width:0;overflow:hidden;
 }
-.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-leaf {
+.lobby-main .deck-builder .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-leaf {
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:3px;min-width:0;
 }
-.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-item { min-width:0;width:100% }
-.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .book-page-status { grid-column:2;text-align:center }
+.lobby-main .deck-builder .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-item { min-width:0;width:100% }
+.lobby-main .deck-builder .deck-layout .book-pane .collection-spread:has(.book-edge) .book-page-status { grid-column:2;text-align:center }
 .lobby-main .deck-builder .collection-spread { --builder-card-width:clamp(48px,calc((100dvh - 122px)/3.55),150px) }
 .lobby-main .deck-builder .book-with-tabs .collection-book :is(.battle-card,.collection-blank) { width:min(100%,var(--builder-card-width));margin-inline:auto }
 .lobby-main .deck-builder .book-with-tabs .collection-book { overflow:hidden }
@@ -813,6 +813,9 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .arena-field .hero-zone .hero-emblem {
     width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;scale:1;
   }
+}
+.lobby-main .deck-builder .collection-spread>.book-edge {
+  position:static;inset:auto;transform:none;width:100%;align-self:center;
 }
 .game-main .duel-screen .effect-choices button { touch-action:manipulation;display:grid;place-items:center;text-align:center }
 @media (pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
