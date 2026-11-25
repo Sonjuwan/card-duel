@@ -57,6 +57,25 @@ test('phone/tablet combat uses entire available height instead of three redundan
     assert.ok(result.endTurnTouch>=36,label+' end turn accessible');
     assert.ok(result.documentWidth<=result.viewportWidth+2,label+' no horizontal page scroll');
     assert.ok(result.documentHeight<=result.viewportHeight+2,label+' no vertical page scroll');
+    const faces=await page.locator('.arena-field .hero-portrait').evaluateAll(heroes=>heroes.map(hero=>{
+      const frame=hero.getBoundingClientRect();
+      const emblem=hero.querySelector('.hero-emblem');
+      const art=emblem.getBoundingClientRect(),style=getComputedStyle(hero);
+      return {
+        left:art.left-(frame.left+parseFloat(style.borderLeftWidth)),
+        right:art.right-(frame.right-parseFloat(style.borderRightWidth)),
+        top:art.top-(frame.top+parseFloat(style.borderTopWidth)),
+        bottom:art.bottom-(frame.bottom-parseFloat(style.borderBottomWidth)),
+        radius:getComputedStyle(emblem).borderRadius===style.borderRadius,
+        clipped:getComputedStyle(emblem).overflow==='hidden',
+        fit:getComputedStyle(emblem.querySelector('.painted-art')).backgroundSize,
+      };
+    }));
+    assert.equal(faces.length,2);
+    for(const face of faces){
+      assert.ok([face.left,face.right,face.top,face.bottom].every(value=>Math.abs(value)<1.5),JSON.stringify({label,face}));
+      assert.ok(face.radius&&face.clipped&&face.fit==='cover',JSON.stringify(face));
+    }
     await page.screenshot({path:'ui-evidence/'+label+'-immersive-battle.png',fullPage:false});
     assert.deepEqual(errors,[],label+' no browser exceptions');
     await context.close();
@@ -81,12 +100,13 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         super.onmessage=event=>{
           const data=event.data;
           if(window.denseFixtureActive&&data?.type==='view')return;
-          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10)=>{
+          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10,classes)=>{
             window.denseFixtureActive=true;
             const fixture=structuredClone(data),view=fixture.view.state;
             fixture.view.animation=undefined;
             view.revision+=1;
             for(const [i,side] of [view.self,view.opponent].entries()){
+              if(classes)side.heroClass=classes[i];
               side.board=Array.from({length:units},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
               side.handCount=10;
             }
@@ -188,6 +208,16 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     assert.equal(await hand.getAttribute('aria-expanded'),'false');
   }
   await page.setViewportSize({width:780,height:360});
+  const classes=['warrior','shaman','rogue','paladin','hunter','druid','warlock','mage','priest'];
+  for(let i=0;i<classes.length;i++){
+    const pair=[classes[i],classes[(i+1)%classes.length]];
+    await page.evaluate(pair=>window.denseBoard(7,10,pair),pair);
+    for(const [index,zone] of ['self','enemy'].entries()){
+      const art=page.locator(`.${zone}-hero-zone .hero-emblem .art-hero-${pair[index]}`);
+      await art.waitFor();
+      assert.notEqual(await art.evaluate(el=>getComputedStyle(el).backgroundImage),'none');
+    }
+  }
   const unitSizes=[];
   for(let count=1;count<=10;count++){
     await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);

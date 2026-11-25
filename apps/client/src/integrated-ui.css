@@ -585,7 +585,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 }
 
 
-.game-main .hero-portrait .hero-emblem { scale:1.25 }
+.game-main .mulligan-arena .hero-portrait .hero-emblem { scale:1.25 }
 .game-main .duel-screen[data-card-drop=true] .arena-board { box-shadow:inset 0 0 0 1px #ffe5ac80,inset 0 0 22px #ffda9826 }
 .spell-cast-anchor {
   position:absolute;z-index:14;pointer-events:none;left:var(--cast-x,50%);top:var(--cast-top,78%);translate:-50% -50%;
@@ -740,9 +740,11 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .duel-screen .arena-field .minion-medallion>.painted-art { background-size:cover }
 .game-main .duel-screen .hero-zone .hero-portrait { aspect-ratio:1;min-width:0 }
 .game-main .duel-screen .hero-zone .hero-emblem {
-  width:auto;height:100%;aspect-ratio:1;border-radius:42%;scale:1.12;
+  position:absolute;inset:0;width:auto;height:auto;aspect-ratio:auto;
+  max-width:none;max-height:none;margin:0;padding:0;
+  border-radius:inherit;scale:1;transform:none;overflow:hidden;box-shadow:none;
 }
-.game-main .duel-screen .hero-zone .hero-emblem .painted-art { background-size:cover;background-position:center 41% }
+.game-main .duel-screen .hero-zone .hero-emblem .painted-art { width:100%;height:100%;border-radius:inherit;background-size:cover;background-position:center 41% }
 .chosen-spell-anchor {
   position:absolute;z-index:40;left:50%;top:0;translate:-50% -50%;
   min-width:36px;min-height:36px;display:grid;place-items:center;
@@ -810,9 +812,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .arena-field .enemy-hero-zone .hero-portrait { translate:0 7px }
   .game-main .duel-screen .arena-field .self-hero-zone .hero-portrait { translate:0 -7px }
-  .game-main .duel-screen .arena-field .hero-zone .hero-emblem {
-    width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;scale:1;
-  }
 }
 .lobby-main .deck-builder .collection-spread>.book-edge {
   position:static;inset:auto;transform:none;width:100%;align-self:center;
