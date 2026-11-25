@@ -114,9 +114,9 @@ export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false
     <span className={`card-mana${cost<card.cost?' discounted':cost>card.cost?' increased':''}`}>{cost}</span>
     <span className="card-art"><LocalCardArt card={card}/></span>
     <span className="card-name">{displayName}</span>
-    <span className="card-type">{cardKindLabel[card.kind]}{card.kind==='minion'&&tribes[card.tribe]?' · '+tribes[card.tribe]:''}</span>
+    <span className="card-rarity-anchor" aria-label={rarity==='legendary'?'전설 등급':rarity==='epic'?'영웅 등급':rarity==='rare'?'희귀 등급':rarity==='common'?'일반 등급':'기본 카드'}><span className="rarity-gem" aria-hidden="true"/></span>
     <span className="card-copy">{cardDescription(card)}</span>
-    {card.kind==='minion'||card.kind==='weapon'?<span className="card-statline"><span className="stat stat-attack">{card.attack}</span><span className="rarity-gem" aria-label={rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}/><span className="stat stat-health">{card.kind==='minion'?card.health:card.durability}</span></span>:<span className="card-statline no-stats"><span className="rarity-gem" aria-label={rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}/></span>}
+    {(card.kind==='minion'||card.kind==='weapon')&&<span className="card-statline"><span className="stat stat-attack">{card.attack}</span><span className="card-tribe">{card.kind==='minion'&&card.tribe!=='none'&&tribes[card.tribe]?tribes[card.tribe]:''}</span><span className={card.kind==='weapon'?'stat stat-health stat-durability':'stat stat-health'}>{card.kind==='minion'?card.health:card.durability}</span></span>}
     {mulligan&&selected&&<span className="replace-banner">교체</span>}
   </button>;
 }

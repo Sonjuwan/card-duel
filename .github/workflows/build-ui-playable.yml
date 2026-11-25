@@ -1,0 +1,167 @@
+name: Build Card Duel playable UI preview
+on:
+  push:
+    branches:
+      - ui/readability-classic-20261124
+  workflow_dispatch:
+permissions:
+  contents: read
+# Only the newest source candidate may package/publish this preview.
+concurrency:
+  group: ui-preview-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-playable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout UI candidate
+        uses: actions/checkout@v4
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Protect original card rules and AI champion data
+        run: npm run verify:release-baseline
+      - name: Frontend syntax verification
+        run: npm run check:frontend-syntax
+      - name: Type-check entire game
+        run: npm run typecheck
+      - name: Prepare standalone game for integration tests
+        run: npm run build:solo-app
+      - name: Game engine and interface regression tests
+        run: npm test
+      - name: Compile installable/offline game and verify integrity
+        run: npm run test:solo-app
+      - name: Check gameplay regression including saved solo matches
+        run: npm run test:playable-core
+      - name: Compile browser client
+        run: npm run build
+      - name: Verify server rendered interface
+        run: npm run test:render
+      - name: Package standalone HTML and installable PWA
+        run: |
+          mkdir -p artifact
+          cp solo-offline.html artifact/Card-Duel-UI-Readability-Preview.html
+          cp -a dist/solo-app artifact/solo-app
+          node scripts/package-playable-pwa.mjs artifact
+          cat > artifact/README.txt <<'README'
+          Card Duel UI Readability Preview (based on v0.297)
+          1. On desktop, open Card-Duel-UI-Readability-Preview.html to play offline.
+          2. For PWA installation, upload all files inside solo-app/ to one HTTPS directory.
+          3. The installer ZIP contains the compiled PWA. This is a preview, not the live deployment.
+          4. The main branch, live app, saved decks and AI training data were not changed.
+          5. Back up locally stored progress before switching origins or clearing site data.
+          README
+      - name: Upload verified playable preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-duel-ui-readable-playable
+          path: artifact/
+          retention-days: 14
+          if-no-files-found: error
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build the actual PWA before launching landscape tests
+        run: npm run build:solo-app
+      - name: Test real landscape browser flows
+        run: npm run test:landscape-browser
+      - name: Test installed/offline application in browser
+        run: npm run test:solo-app-browser
+      - name: Check PC and tablet card geometry and capture screens
+        run: node --test apps/client/test/classic-ui-browser.test.mjs
+      - name: Ensure combat canvas uses full phone and tablet height
+        run: node --test apps/client/test/battle-immersive-browser.test.mjs
+      - name: Concede then start another match on phone and desktop
+        run: node --test apps/client/test/concede-restart-browser.test.mjs
+      - name: Verify preview and live website saves remain isolated after concede
+        run: node --test apps/client/test/preview-isolation-browser.test.mjs
+      - name: Verify slot-first navigation and slot-owned deck isolation
+        run: node --test apps/client/test/slot-first-browser.test.mjs
+      - name: Upload visual PC and tablet screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-duel-ui-visual-checks
+          path: ui-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+
+  deploy-phone-preview:
+    name: Publish isolated-path mobile web preview
+    needs: [build-playable]
+    if: ${{ needs.build-playable.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    concurrency:
+      group: card-duel-preview-gh-pages
+      cancel-in-progress: false
+    steps:
+      - name: Download tested compiled PWA
+        uses: actions/download-artifact@v4
+        with:
+          name: card-duel-ui-readable-playable
+          path: candidate
+      - name: Checkout existing GitHub Pages without touching live root
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Check this run is still the current UI branch HEAD
+        id: freshness
+        shell: bash
+        run: |
+          current="$(git -C pages ls-remote origin refs/heads/ui/readability-classic-20261124 | cut -f1)"
+          if [ "$current" = "$GITHUB_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Newer UI candidate exists; do not publish an older build"
+          fi
+      - name: Publish only the ui-preview subdirectory
+        if: steps.freshness.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f candidate/solo-app/index.html
+          test -f candidate/solo-app/sw.js
+          test -f pages/index.html
+          grep -q 'v0.298.0' pages/index.html
+          mkdir -p pages/ui-preview
+          rm -f pages/ui-preview/index.html pages/ui-preview/game.js pages/ui-preview/game.css pages/ui-preview/register.js pages/ui-preview/sw.js pages/ui-preview/manifest.webmanifest pages/ui-preview/icon-192.png pages/ui-preview/icon-512.png
+          cp candidate/solo-app/{index.html,game.js,game.css,register.js,sw.js,manifest.webmanifest,icon-192.png,icon-512.png} pages/ui-preview/
+          cat > pages/ui-preview/SAFETY.txt <<'TXT'
+          Card Duel UI preview uses game code based on v0.297.
+          The original live root index.html is v0.298 and remains untouched.
+          NOTICE: Both addresses share the same sonjuwan.github.io origin.
+          Open this preview in a private/incognito browser window to avoid
+          accessing or altering the original site's saved games and decks.
+          TXT
+          cd pages
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- ui-preview
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish verified Card Duel UI preview in /ui-preview/"
+            git push origin HEAD:gh-pages
+          fi
+      - name: Confirm the stable phone preview address
+        run: echo "https://sonjuwan.github.io/card-duel/ui-preview/"

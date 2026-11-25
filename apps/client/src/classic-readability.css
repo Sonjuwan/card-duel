@@ -1,0 +1,388 @@
+/* v0.297 readability work: game objects first, no gameplay or data changes.
+   Imported after legacy styles so book geometry is defined in one place. */
+
+/* Reading surfaces share a consistent complete-card silhouette. */
+.lobby-main .collection.classic-collection.collection-book .battle-card{
+  box-sizing:border-box;
+  container-type:inline-size;
+  aspect-ratio:0.68 / 1;
+  width:min(100%,230px,calc(25dvh - 12px));
+  height:auto;
+  min-height:0;
+  max-width:none;
+  flex:0 0 auto;
+  align-self:center;
+  overflow:visible;
+  padding:5px 6px 3px;
+}
+.lobby-main .collection.classic-collection.collection-book .battle-card .card-art{
+  box-sizing:border-box;
+  flex:0 0 42%;
+  width:100%;
+  max-width:none;
+  height:auto;
+  min-height:0;
+  aspect-ratio:auto;
+  overflow:hidden;
+}
+.lobby-main .collection-book .battle-card .card-name{
+  flex:none;
+  font-size:clamp(11px,7.8cqi,17px);
+  line-height:1.18;
+  padding:3px 2px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  overflow:visible;
+  text-overflow:clip;
+}
+.lobby-main .collection-book .battle-card .card-type{
+  flex:none;
+  display:block;
+  font-size:clamp(9px,5.4cqi,12px);
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  line-height:1.16;
+}
+.lobby-main .collection-book .battle-card .card-copy{
+  display:block;
+  flex:1 1 auto;
+  min-height:0;
+  height:auto;
+  padding:3px 2px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  font-size:clamp(10px,6.3cqi,14px);
+  line-height:1.28;
+  font-weight:680;
+  text-align:center;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+.lobby-main .collection-book .battle-card .card-statline{
+  flex:none;
+  margin-bottom:0;
+}
+.lobby-main .collection-book .battle-card .stat{
+  width:clamp(24px,20cqi,40px);
+  height:clamp(24px,20cqi,40px);
+  font-size:clamp(16px,13cqi,26px);
+}
+.lobby-main .collection-book .battle-card .card-mana{
+  width:clamp(27px,21cqi,44px);
+  height:clamp(30px,23cqi,48px);
+  font-size:clamp(17px,14cqi,27px);
+}
+/* A two-page spread: two columns per leaf and two rows per page. */
+@media (orientation:landscape) {
+  .lobby-main .deck-panel .deck-layout{
+    grid-template-columns:minmax(0,1fr) clamp(225px,24vw,310px);
+    align-items:start;
+    gap:clamp(8px,1vw,16px);
+    min-width:0;
+  }
+  .lobby-main .deck-panel.card-browser>.deck-layout{
+    grid-template-columns:minmax(0,1fr) clamp(225px,24vw,310px);
+  }
+  .lobby-main .deck-panel .book-pane{min-width:0}
+  .lobby-main .deck-panel .collection.classic-collection.collection-book{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:auto;
+    align-items:start;
+    gap:clamp(6px,.9vw,14px);
+    padding:clamp(8px,1.1vw,16px);
+    max-height:min(78dvh,800px);
+    overflow-x:hidden;
+    overflow-y:auto;
+    scrollbar-width:thin;
+  }
+  .lobby-main .collection-book[data-book-size="8"] .collection-leaf{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(2,auto);
+    gap:clamp(7px,1vw,15px) clamp(4px,.7vw,12px);
+    align-content:start;
+    justify-items:center;
+    min-width:0;
+  }
+  .lobby-main .collection-book .collection-item{
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+    align-items:center;
+    min-width:0;
+    width:100%;
+    min-height:0;
+    gap:3px;
+  }
+  .lobby-main .collection-book .collection-blank{
+    width:100%;
+    aspect-ratio:0.68/1;
+    min-height:0;
+  }
+  .lobby-main .deck-panel .deck-sidebar{
+    min-width:0;
+    align-self:start;
+  }
+  .lobby-main .deck-panel .deck-sidebar .deck-list{
+    max-height:min(75dvh,740px);
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+  }
+  .lobby-main .collection-book .deck-card-detail-trigger{
+    width:min(100%,230px);
+    max-width:none;
+    min-height:44px;
+  }
+  .lobby-main .card-browser .collection-inspector-sidebar .card-inspector{
+    min-height:200px;
+    overflow-y:auto;
+    max-height:65dvh;
+  }
+}
+@media (orientation:landscape) and (max-height:700px){
+  /* Four large cards instead of six tiny ones on short landscape screens. */
+  .lobby-main .collection-book[data-book-size="4"] .collection-leaf{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:auto;
+  }
+  .lobby-main .deck-panel .collection.classic-collection.collection-book{
+    max-height:calc(100dvh - 150px);
+    padding:5px;
+    gap:5px;
+  }
+  .lobby-main .collection-book .battle-card .card-copy{font-size:clamp(10px,6.2cqi,13px)}
+  .lobby-main .collection.classic-collection.collection-book .battle-card{width:min(100%,205px,calc(55dvh - 24px))}
+}
+@media (orientation:landscape) and (max-width:1020px){
+  .lobby-main .deck-panel .deck-layout,
+  .lobby-main .deck-panel.card-browser>.deck-layout{
+    grid-template-columns:minmax(0,1fr) clamp(168px,26vw,230px);
+    gap:6px;
+  }
+}
+@media (pointer:fine) and (min-width:941px){
+  .lobby-main .deck-builder .collection-book .deck-card-detail-trigger{display:none}
+}
+@media (orientation:portrait){
+  .lobby-main .collection-book .collection-leaf{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Put the two minion lanes next to each other; no separate centre combat panel.
+   The zero-height divider still remains in the DOM for event/accessibility code. */
+@media (min-width:941px) and (min-height:601px){
+  .game-main .battle.phase-playing .classic-table .arena-field,
+  .game-main .battle.phase-finished .classic-table .arena-field{
+    grid-template-rows:4.5% 13.5% 24.5% 0% 24.5% 13% 20%;
+    inset:0 10.5%;
+  }
+  .game-main .battle.phase-playing .classic-table .arena-field>.battle-divider,
+  .game-main .battle.phase-finished .classic-table .arena-field>.battle-divider{
+    height:0;
+    min-height:0;
+    overflow:hidden;
+    padding:0;
+    border:0;
+    opacity:0;
+    pointer-events:none;
+  }
+  .game-main .battle .classic-table .hero-portrait{
+    width:clamp(108px,11.5vw,170px);
+    height:calc(100% - 3px);
+  }
+  .game-main .battle .classic-table .hero-health,
+  .game-main .battle .classic-table .hero-attack,
+  .game-main .battle .classic-table .hero-armor{
+    width:clamp(30px,4.3vh,41px);
+    height:clamp(30px,4.3vh,41px);
+    font-size:clamp(19px,2.8vh,27px);
+  }
+  .game-main .battle .classic-table .minion-row .battle-minion{
+    max-width:none;
+  }
+  .game-main .battle .classic-table .minion-statline .stat{
+    width:clamp(26px,4vh,39px);
+    height:clamp(26px,4vh,39px);
+    font-size:clamp(17px,2.7vh,25px);
+  }
+  /* Detailed information belongs in the existing overlay, not a wide left rail. */
+  .game-main .battle.phase-playing .classic-table>.arena-left,
+  .game-main .battle.phase-finished .classic-table>.arena-left{display:none}
+}
+
+
+/* One large, legible complete card alongside its full rules and keyword data. */
+.collection-detail-dialog{
+  width:min(94vw,760px);
+  max-width:calc(100dvw - 20px);
+  max-height:min(92dvh,800px);
+}
+.collection-detail-body{
+  display:grid;
+  grid-template-columns:minmax(0,260px) minmax(0,1fr);
+  align-items:start;
+  gap:clamp(10px,2vw,20px);
+  min-width:0;
+}
+.collection-detail-body .collection-detail-card{
+  min-width:0;
+  width:100%;
+  max-width:260px;
+}
+.collection-detail-body .battle-card{
+  container-type:inline-size;
+  aspect-ratio:0.68/1;
+  width:100%;
+  height:auto;
+  max-width:none;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  cursor:default;
+  padding:8px;
+}
+.collection-detail-body .battle-card .card-art{
+  flex:0 0 42%;
+  width:100%;
+  height:auto;
+  aspect-ratio:auto;
+  min-height:0;
+  max-width:none;
+}
+.collection-detail-body .battle-card .card-name{
+  font-size:clamp(15px,7.5cqi,21px);
+  white-space:normal;
+  overflow-wrap:anywhere;
+  overflow:visible;
+  text-overflow:clip;
+}
+.collection-detail-body .battle-card .card-type{
+  font-size:clamp(11px,5.4cqi,14px);
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+}
+.collection-detail-body .battle-card .card-copy{
+  display:block;
+  flex:1;
+  min-height:0;
+  height:auto;
+  white-space:pre-wrap;
+  font-size:clamp(12px,6.5cqi,17px);
+  line-height:1.28;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-width:thin;
+}
+.collection-detail-body .battle-card .card-mana{
+  width:clamp(34px,20cqi,50px);
+  height:clamp(38px,22cqi,55px);
+  font-size:clamp(22px,14cqi,31px);
+}
+.collection-detail-body .battle-card .stat{
+  width:clamp(30px,17cqi,45px);
+  height:clamp(30px,17cqi,45px);
+  font-size:clamp(19px,12cqi,29px);
+}
+.collection-detail-body .card-inspector{
+  min-width:0;
+  max-height:72dvh;
+  overflow:auto;
+}
+@media(max-width:650px){
+  .collection-detail-body{grid-template-columns:minmax(0,1fr);justify-items:center}
+  .collection-detail-body .card-inspector{width:100%;max-height:none}
+  .collection-detail-body .collection-detail-card{width:min(100%,230px)}
+}
+@media (orientation:landscape) and (max-height:500px){
+  .collection-detail-dialog{max-height:98dvh;padding:7px}
+  .collection-detail-body{grid-template-columns:minmax(0,155px) minmax(0,1fr);gap:8px}
+  .collection-detail-body .battle-card .card-copy{font-size:10px}
+}
+
+
+/* Mulligan uses full readable cards, not tiny copies of the battle hand. */
+@media (min-width:941px) and (min-height:701px){
+  .game-main .duel-screen.phase-mulligan .mulligan-arena{
+    min-height:0;
+    flex:1 1 auto;
+    gap:clamp(9px,1.4dvh,17px);
+    padding:clamp(8px,1.5dvh,18px);
+  }
+  .game-main .mulligan-cards{
+    max-width:940px;
+    gap:clamp(10px,1.4vw,24px);
+    overflow:visible;
+  }
+  .game-main .mulligan-cards .battle-card{
+    box-sizing:border-box;
+    container-type:inline-size;
+    width:min(20vw,205px);
+    max-width:205px;
+    height:auto;
+    aspect-ratio:0.68/1;
+    flex:0 1 205px;
+    min-height:0;
+    overflow:visible;
+    padding:6px;
+  }
+  .game-main .mulligan-cards .card-art{
+    flex:0 0 42%;
+    width:100%;
+    height:auto;
+    min-height:0;
+    aspect-ratio:auto;
+  }
+  .game-main .mulligan-cards .card-name{
+    flex:none;
+    font-size:clamp(12px,7.5cqi,17px);
+    white-space:normal;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    text-overflow:clip;
+  }
+  .game-main .mulligan-cards .card-copy{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    scrollbar-width:thin;
+    font-size:clamp(11px,6.4cqi,15px);
+    line-height:1.3;
+  }
+  .game-main .mulligan-cards .card-type{font-size:clamp(10px,5.5cqi,12px)}
+  .game-main .mulligan-cards .card-statline .stat{
+    width:clamp(27px,19cqi,40px);
+    height:clamp(27px,19cqi,40px);
+    font-size:clamp(17px,13cqi,26px);
+  }
+  .game-main .mulligan-cards .card-mana{
+    width:clamp(30px,21cqi,44px);
+    height:clamp(34px,23cqi,48px);
+    font-size:clamp(18px,14cqi,27px);
+  }
+  .game-main .mulligan-confirm{min-height:44px}
+}
+
+
+/* Tablet 4:3: keep all eight card leaves above the footer, rather than
+   forcing the last row beneath a second nested vertical scroll. */
+@media (orientation:landscape) and (max-width:1100px) and (min-height:701px){
+  .lobby-main .deck-workspace-nav{margin:4px 0}
+  .lobby-main .deck-panel.deck-builder{padding:8px 10px}
+  .lobby-main .deck-builder .deck-editor-controls{gap:2px}
+  .lobby-main .deck-builder .book-pane{gap:2px}
+  .lobby-main .deck-builder .collection.classic-collection.collection-book .battle-card{
+    width:min(calc(100% - 8px),230px,calc(25dvh - 12px));
+  }
+  .lobby-main .deck-builder .collection-book .collection-item>small{
+    padding:0 3px;line-height:1.1;
+  }
+  .lobby-main .deck-builder .collection.classic-collection.collection-book{
+    padding:4px 6px;
+    gap:5px;
+  }
+}

@@ -12,7 +12,8 @@ test('mobile turn-end stays at least 44px while surrender moves into deliberate 
 });
 test('the surrendered game command and confirmation are identical in both layouts',()=>{
  assert.match(battle,/const confirmConcede=\(\)=>\{if\(window\.confirm\('항복하시겠습니까\?'\)\)perform\(\{type:'concede'\}\)/);
- assert.match(battle,/className="secondary danger concede-button" disabled=\{!connected\|\|busy\} onClick=\{confirmConcede\}/);
+ assert.doesNotMatch(battle,/className="secondary danger concede-button"/);
+ assert.match(battle,/className="secondary danger" type="button" disabled=\{busy\} onClick=\{confirmConcede\}>항복하기/);
  assert.match(battle,/className="secondary danger compact-concede" disabled=\{!connected\|\|busy\} onClick=\{confirmConcede\}/);
  assert.match(battle,/onClick=\{e=>perform\(\{type:'endTurn'\}/);
 });

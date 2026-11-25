@@ -6,7 +6,7 @@ import type { Deck } from '../../../packages/engine/src/index.ts';
 import { draftKey,readDraft,saveDraft,readDeveloperDraft,saveDeveloperDraft,mergeRoomView } from '../src/storage.ts';
 import type { RoomView } from '../../../packages/protocol.ts';
 import {backupDeckLibrary,restoreDeckLibrary,decksKey,mergeDeckLibraries,saveNamedDeck,deleteNamedDeck,withDeckLibraryLock,changedDeckLibrary,deckLibraryAfterWriteFailure,checkedDeckLibrary,isDeckLibraryStorageEvent} from '../src/named-decks.ts';
-import {soloSlotStorage,soloSlotDatabase,rememberSlot,readSelectedSlot,hasSlotLocalData} from '../src/solo-slots.ts';
+import {soloSlotStorage,soloSlotDatabase,rememberSlot,readSelectedSlot,hasSlotLocalData,currentSoloNamespace} from '../src/solo-slots.ts';
 import {readSoloSettings,saveSoloSettings,DEFAULT_SOLO_SETTINGS,recordSoloResult,readSoloHistory} from '../src/solo-settings.ts';
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.19.0.json',import.meta.url),'utf8')));
 function store(){const m=new Map<string,string>();return {get length(){return m.size;},key:(i:number)=>[...m.keys()][i]??null,getItem:(k:string)=>m.get(k)??null,setItem:(k:string,v:string)=>{m.set(k,v);}};}
@@ -130,3 +130,34 @@ test('delayed pending or legacy acknowledgement keeps exact saved reward receipt
   assert.deepEqual(mergeRoomView(saved,{...pending,ranked:{...pending.ranked!,reward:'saved'}}).ranked,saved.ranked);
 });
 test('delayed account PvP result cannot undo confirmed history settlement',()=>{const saved:RoomView={code:'ABC234',seat:0,mode:'human',status:'finished',opponentConnected:true,state:null,ownedPvp:true,pvpReward:'saved'};assert.equal(mergeRoomView(saved,{...saved,pvpReward:'pending'}).pvpReward,'saved');assert.equal(mergeRoomView(saved,{...saved,code:'ABC235',pvpReward:'pending'}).pvpReward,'pending');});
+
+test('UI preview saves are isolated without altering or deleting live v0.298 storage',()=>{
+  const backing=store();
+  assert.equal(currentSoloNamespace('/card-duel/'),'main');
+  assert.equal(currentSoloNamespace('/card-duel/ui-preview/'),'ui-preview');
+  assert.equal(currentSoloNamespace('/card-duel/ui-preview/index.html'),'ui-preview');
+  assert.equal(currentSoloNamespace('/another-ui-preview-copy/'),'main');
+  const original=soloSlotStorage(1,backing,'main');
+  const preview=soloSlotStorage(1,backing,'ui-preview');
+  original.setItem('card-duel-saved-decks','original-live');
+  preview.setItem('card-duel-saved-decks','preview-only');
+  assert.equal(original.getItem('card-duel-saved-decks'),'original-live');
+  assert.equal(preview.getItem('card-duel-saved-decks'),'preview-only');
+  assert.equal(backing.getItem('card-duel-saved-decks'),'original-live');
+  assert.equal(backing.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks'),'preview-only');
+  assert.equal(original.length,1,'the main site cannot enumerate preview keys');
+  assert.equal(preview.length,1,'the preview cannot enumerate main keys');
+  assert.equal(hasSlotLocalData(1,backing,'main'),true);
+  assert.equal(hasSlotLocalData(1,backing,'ui-preview'),true);
+  assert.equal(hasSlotLocalData(2,backing,'ui-preview'),false);
+  assert.equal(soloSlotDatabase(1,'main'),'card-duel-solo-saves-v1');
+  assert.equal(soloSlotDatabase(1,'ui-preview'),'card-duel-solo-saves-v1-ui-preview');
+  assert.equal(soloSlotDatabase(2,'ui-preview'),'card-duel-solo-saves-v1-slot-2-ui-preview');
+  assert.ok(rememberSlot(2,backing,'ui-preview'));
+  assert.equal(readSelectedSlot(backing,'ui-preview'),2);
+  assert.equal(readSelectedSlot(backing,'main'),1);
+  assert.ok(rememberSlot(3,backing,'main'));
+  assert.equal(readSelectedSlot(backing,'main'),3);
+  assert.equal(readSelectedSlot(backing,'ui-preview'),2);
+  assert.equal(backing.getItem('card-duel-saved-decks'),'original-live','legacy data not migrated or overwritten');
+});

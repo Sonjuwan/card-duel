@@ -33,10 +33,10 @@ test('deck builder renders the live deck count next to unabridged collection des
   const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
   assert.match(html,/class="panel deck-panel deck-builder"/);
   assert.match(html,/내 덱 <span class="deck-live-count">2\/30<\/span>/);
-  assert.equal((html.match(/class="card-copy"/g)??[]).length,12);
+  assert.equal((html.match(/class="card-copy"/g)??[]).length,8);
 });
 test('deck editor labels add operations and presents an accessible status message',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/class="deck-edit-notice" role="status" aria-atomic="true"/);assert.match(html,/aria-label="[^"]+덱에 추가"/);});
-test('deck editor has independent card inspection and explicit one-card removal buttons',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.equal((html.match(/class="secondary deck-card-detail-trigger"/g)??[]).length,12);assert.equal((html.match(/class="deck-inspect-row"/g)??[]).length,1);assert.equal((html.match(/class="deck-remove"/g)??[]).length,1);assert.match(html,/aria-label="[^"]+ 한 장 제거"/);assert.match(html,/<dialog class="collection-detail-dialog"/);});
+test('deck editor has independent card inspection and explicit one-card removal buttons',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.equal((html.match(/class="secondary deck-card-detail-trigger"/g)??[]).length,8);assert.equal((html.match(/class="deck-inspect-row"/g)??[]).length,1);assert.equal((html.match(/class="deck-remove"/g)??[]).length,1);assert.match(html,/aria-label="[^"]+ 한 장 제거"/);assert.match(html,/<dialog class="collection-detail-dialog"/);});
 test('offline promotion panel exposes separate wins and XP progress and handles the maximum rank',()=>{const growth=offlineGrowth(catalog),profile=readOfflineGrowth(undefined,growth).profile;const panel=(p:typeof profile)=>renderToStaticMarkup(<OfflineGrowthPanel profile={p} growth={growth} deck={starterDeck(catalog,'warrior')} busy={false} ready onStart={noOp} onDeck={noOp}/>);const initial=panel(profile);assert.match(initial,/aria-label="승급 승리 진행률"/);assert.match(initial,/aria-label="승급 XP 진행률"/);assert.match(initial,/3승 남음/);const threshold=growth.ranks[1].minimumXp??0;assert.match(panel({...profile,xp:threshold,rankWins:growth.winsPerRank}),/다음 유효한 현재 랭크 승리에서 승급합니다/);const max=panel({...profile,rank:25});assert.match(max,/최고 랭크 달성/);assert.doesNotMatch(max,/aria-label="승급 승리 진행률"/);});
 test('solo practice history shows filter controls, total matching records and ten rows per page',()=>{const history:SoloResult[]=Array.from({length:26},(_,i)=>({code:`LOCAL-${i}`,date:'2026-11-22T00:00:00Z',heroClass:'mage',opponent:'warrior',difficulty:3,result:'win',turns:7,generation:0,catalogHash:'previous'}));const html=renderToStaticMarkup(<SoloHistory history={history}/>);assert.match(html,/최근 26\/100경기/);assert.match(html,/전체 버전/);assert.match(html,/전체 결과/);assert.match(html,/페이지 1\/3/);assert.equal((html.match(/class="solo-history-entry"/g)??[]).length,10);assert.match(html,/disabled=""[^>]*>이전 기록/);assert.match(html,/>다음 기록/);});
 test('offline save slot controls expose their current status, rank, and match summary to assistive technology',()=>{
@@ -103,11 +103,11 @@ test('selected attack and targeted power expose a cancelable pressed state; actu
   const power=renderToStaticMarkup(<HeroPower player={player} sourceId="power" enabled selected/>);assert.match(power,/aria-pressed="true"/);assert.match(power,/다시 누르면 취소/);
   const immediate=renderToStaticMarkup(<HeroPower player={{...player,heroClass:'warrior'}} sourceId="power" enabled/>);assert.doesNotMatch(immediate,/aria-pressed/);
 });
-test('solo battle shows six class emotes, voice controls and separate non-interactive caption slots',()=>{
+test('solo battle hides emote menu but preserves voice and independent caption slots',()=>{
   const view:RoomView={...room(ready()),mode:'bot',botEngine:'device'};
   const html=renderToStaticMarkup(<Battle room={view} send={noOp} leave={noOp} connected busy={false}/>);
-  assert.match(html,/대사 음성 켜짐/);assert.match(html,/aria-label="직업 고유 감정표현"/);
-  for(const label of ['인사','감사','칭찬','사과','놀람','도발'])assert.match(html,new RegExp('<b>'+label+'</b>'));
+  assert.match(html,/대사 음성 켜짐/);assert.doesNotMatch(html,/aria-label="직업 고유 감정표현"/);
+  for(const label of ['인사','감사','칭찬','사과','놀람','도발'])assert.doesNotMatch(html,new RegExp('<b>'+label+'</b>'));
   assert.equal((html.match(/class="battle-dialogue-captions"/g)??[]).length,2);
   assert.match(html,/전투 진동 꺼짐/);assert.match(html,/이 기기는 진동 API 미지원/);assert.match(html,/진동 미리 체험/);
   assert.match(html,/aria-label="전투 연출 품질"/);assert.match(html,/절전 · 가벼운 효과/);assert.match(html,/풍부 · 화려한 효과/);
@@ -162,7 +162,7 @@ test('save banner distinguishes pending work from last durable timestamp and con
   assert.match(markup(true,timestamp),/save-indicator warn">저장 확인 중…/);assert.match(markup(false,timestamp),/save-indicator good">자동 저장됨/);assert.match(markup(true,timestamp),/최근 저장 <time dateTime="2026-11-23T02:11:00.000Z">/);
   assert.doesNotMatch(markup(false,'invalid'),/class="last-saved-at"/);
 });
-test('deck editor renders a partial deck, twelve cards per page, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,12);assert.equal((html.match(/class="battle-card /g)??[]).length,12);assert.match(html,/book-edge/);assert.match(html,/마법사 1\/\d+장/);});
+test('deck editor renders a partial deck, eight cards per page, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,8);assert.equal((html.match(/class="battle-card /g)??[]).length,8);assert.match(html,/book-edge/);assert.match(html,/마법사 1\/\d+장/);});
 test('card book advertises keyboard geometry navigation and announces updated pages without activating cards',()=>{
   const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
   assert.match(html,/role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동/);
@@ -176,7 +176,7 @@ test('only the connected chooser sees modal semantics, inert background and a re
   const s=ready();s.pendingChoice={owner:0,cards:[{cardId:'wolf',instanceId:'choice'}]};
   const markup=renderToStaticMarkup(<Battle room={room(s)} send={noOp} leave={noOp} onPause={noOp} connected busy={false}/>);
   assert.match(markup,/class="choice-window" role="dialog" aria-modal="true" tabindex="-1"/);
-  assert.match(markup,/class="arena-field" inert=""/);assert.match(markup,/class="duel-title" inert=""/);
+  assert.match(markup,/class="arena-field" inert=""/);assert.match(markup,/class="duel-title"[^>]* inert=""/);
   assert.match(markup,/class="battle-utilities"[^>]* inert=""/);
   assert.match(markup,/class="choice-window".*저장 후 나가기.*나가기/);
   for(const waiting of [render(s,1),render(s,0,false)]){assert.match(waiting,/class="choice-window" role="status"/);assert.doesNotMatch(waiting,/ inert=""/);}
@@ -231,9 +231,9 @@ test('all 443 client card definitions render independently without external asse
  assert.equal(ids.size,443);assert.ok(subjects.size>=36,`subject coverage=${subjects.size}`);
  for(const heroClass of HERO_CLASSES){const hero=renderToStaticMarkup(<LocalHeroArt heroClass={heroClass}/>);const power=renderToStaticMarkup(<LocalPowerArt heroClass={heroClass}/>);assert.ok(hero.includes(`data-art-seed="${heroArtRecipe(heroClass).seed}"`));assert.ok(power.includes(`data-art-seed="${powerArtRecipe(heroClass).seed}"`));assert.ok(!hero.includes('https://'));assert.ok(!power.includes('https://'));}
 });
-test('deck editor shows twelve illustrated cards and tile art only for the owned cards',()=>{
+test('deck editor shows eight illustrated cards and tile art only for the owned cards',()=>{
  const html=renderToStaticMarkup(<ClassicNamesContext.Provider value={true}><DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/></ClassicNamesContext.Provider>);
- assert.equal((html.match(/class="original-art"/g)??[]).length,13);
+ assert.equal((html.match(/class="original-art"/g)??[]).length,9);
  assert.match(html,/class="local-deck-tile"/);assert.ok(!html.includes('<img'));
 });
 test('each art instance owns unique gradient and clipping ids, even for repeated cards',()=>{
@@ -250,29 +250,29 @@ test('hover panel displays a large card with current buffed attack, damaged heal
 });
 test('deck builder has explicit set tabs with counts and each visible card has a set label',()=>{
  const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp}/>);
- assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/오리지널 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,12);
+ assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/오리지널 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,8);
 });
 test('deck builder basic and original initial views never display cards from the opposite set',()=>{
  const basic=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="basic"/>);
  const original=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="original"/>);
  assert.match(basic,/data-set-filter="basic" aria-pressed="true"/);assert.match(original,/data-set-filter="original" aria-pressed="true"/);
  const classBasic=Object.values(catalog).filter(c=>c.kind!=='coin'&&c.class==='mage'&&c.collectible!==false&&c.rarity==='basic').length;
- assert.equal((basic.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,Math.min(12,classBasic));assert.equal((original.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,0);
+ assert.equal((basic.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,Math.min(8,classBasic));assert.equal((original.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,0);
  assert.doesNotMatch(basic,/option value="rare"/);assert.doesNotMatch(basic,/option value="epic"/);assert.match(original,/option value="epic"/);assert.doesNotMatch(original,/option value="basic"/);
 });
 test('deck builder renders visible cards in ascending mana order in each set',()=>{
  for(const initialSet of ['all','basic','original'] as const){
   const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet={initialSet}/>);
   const costs=[...h.matchAll(/data-preview-cost="(\d+)"/g)].map(m=>Number(m[1]));
-  assert.ok(costs.length>0&&costs.length<=12);assert.deepEqual(costs,[...costs].sort((a,b)=>a-b));
+  assert.ok(costs.length>0&&costs.length<=8);assert.deepEqual(costs,[...costs].sort((a,b)=>a-b));
  }
 });
-test('deck workspace separates class list, saved deck list, read-only catalogue and builder; book has two six-card leaves',()=>{
+test('deck workspace separates class list, saved deck list, read-only catalogue and builder; book has two four-card leaves',()=>{
  const props={deck:{heroClass:'mage' as const,cards:['wolf']},setDeck:noOp};
  for(const screen of ['classes','saved','cards','build'] as const){
   const h=renderToStaticMarkup(<DeckWorkspace {...props} initialScreen={screen}/>);assert.match(h,new RegExp(`data-deck-screen="${screen}"`));
   assert.equal((h.match(/data-deck-screen=/g)??[]).length,1);assert.equal((h.match(/data-deck-nav=/g)??[]).length,4);
-  if(screen==='cards'||screen==='build'){assert.equal((h.match(/class="collection-item"/g)??[]).length,12);assert.match(h,/data-book-page="left"/);assert.match(h,/data-book-page="right"/);}
+  if(screen==='cards'||screen==='build'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/data-book-page="left"/);assert.match(h,/data-book-page="right"/);}
   if(screen==='cards'){assert.match(h,/전체<small>382<\/small>/);assert.doesNotMatch(h,/덱 저장/);assert.match(h,/<dialog class="collection-detail-dialog" aria-label="카드 확대 상세"/);}
   if(screen==='saved'){assert.match(h,/저장한 덱이 없습니다/);assert.match(h,/저장 덱 백업 다운로드/);assert.match(h,/덱 백업 추가/);}
   if(screen==='classes')assert.equal((h.match(/class="class-choice /g)??[]).length,9);

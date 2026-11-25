@@ -16,11 +16,11 @@ test('every valid hand size has a symmetric fan with one slot per card',()=>{
 });
 test('collection book paginates every legal card exactly once and clamps invalid pages',()=>{
   const ids=Array.from({length:140},(_,i)=>i);
-  const first=collectionPage(ids,-2);assert.equal(first.page,0);assert.equal(first.pages,12);
+  const first=collectionPage(ids,-2);assert.equal(first.page,0);assert.equal(first.pages,18);
   assert.deepEqual(Array.from({length:first.pages},(_,i)=>collectionPage(ids,i).items).flat(),ids);
-  assert.deepEqual(collectionPage(ids,99).items,[132,133,134,135,136,137,138,139]);
+  assert.deepEqual(collectionPage(ids,99).items,[136,137,138,139]);
   assert.deepEqual(collectionPage([],99),{page:0,pages:1,items:[]});
-  assert.equal(collectionPage(ids,NaN,0).items.length,12);
+  assert.equal(collectionPage(ids,NaN,0).items.length,8);
 });
 test('card book keyboard navigation follows actual desktop and narrow mobile geometry without activation',()=>{
   const box=(left:number,top:number)=>({left,top,width:90,height:120});
@@ -79,7 +79,7 @@ test('visual changes are derived solely from consecutive authorized player views
 });
 
 test('grouped spreads keep the class boundary and reach every card at both sizes',()=>{
-  for(const size of [4,6,12]){
+  for(const size of [4,6,8,12]){
     const classCards=Array.from({length:15},(_,i)=>`class-${i}`);
     const neutralCards=Array.from({length:21},(_,i)=>`neutral-${i}`);
     const groups=[{key:'class',items:classCards},{key:'neutral',items:neutralCards}];
@@ -90,4 +90,43 @@ test('grouped spreads keep the class boundary and reach every card at both sizes
     assert.equal(groupedCollection(groups,boundary-1,size).current.key,'class');
     assert.deepEqual(next.spreads.flatMap(spread=>spread.items),[...classCards,...neutralCards]);
   }
+});
+
+
+test('classic desktop collection displays eight cards in a readable two-leaf spread',()=>{
+  const css=readFileSync('apps/client/src/classic-readability.css','utf8');
+  const book=readFileSync('apps/client/src/collection-book.tsx','utf8');
+  assert.equal(collectionPage(Array.from({length:17},(_,i)=>i),0).items.length,8);
+  assert.equal(collectionPage(Array.from({length:17},(_,i)=>i),2).items.length,1);
+  assert.match(book,/matches\?4:window\.matchMedia\(compactBook\)\.matches\?4:8/);
+  assert.match(css,/collection-book\[data-book-size="8"\] \.collection-leaf\{/);
+  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css,/aspect-ratio:0\.68 \/ 1/);
+  assert.match(css,/\.collection-book \.battle-card \.card-copy\{/);
+  assert.match(css,/overflow-y:auto/);
+  assert.match(css,/collection-inspector-sidebar/);
+  const app=readFileSync('apps/client/src/App.tsx','utf8');
+  assert.match(app,/className="deck-sidebar collection-inspector-sidebar"/);
+});
+test('desktop battlefield uses adjacent minion lanes and a zero-height separator',()=>{
+  const css=readFileSync('apps/client/src/classic-readability.css','utf8');
+  const rows=css.match(/grid-template-rows:4\.5% 13\.5% 24\.5% 0% 24\.5% 13% 20%/);
+  assert.ok(rows);
+  assert.equal([4.5,13.5,24.5,0,24.5,13,20].reduce((a,b)=>a+b,0),100);
+  assert.match(css,/\.arena-field>\.battle-divider/);
+  assert.match(css,/pointer-events:none/);
+  for(const entry of ['main.tsx','offline-main.tsx']){
+    assert.match(readFileSync('apps/client/src/'+entry,'utf8'),/import '\.\/classic-readability\.css';/);
+  }
+});
+
+
+test('collection detail uses a complete Card Duel card and mulligan keeps its readable size',()=>{
+  const css=readFileSync('apps/client/src/classic-readability.css','utf8');
+  const book=readFileSync('apps/client/src/collection-book.tsx','utf8');
+  assert.match(book,/<div className="collection-detail-card"><BattleCard card=\{item\.card\}\/><\/div>/);
+  assert.match(book,/<CardInspector item=\{item\} catalog=\{catalog\}\/>/);
+  assert.match(css,/\.collection-detail-body\{[\s\S]*grid-template-columns:minmax\(0,260px\)/);
+  assert.match(css,/\.game-main \.mulligan-cards \.battle-card\{/);
+  assert.match(css,/aspect-ratio:0\.68\/1/);
 });

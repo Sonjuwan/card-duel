@@ -6,7 +6,7 @@ export function fanSlot(index:number,count:number):string {
   const spread=Math.min(9,count-1);
   return `fan-${Math.round(9-spread+2*spread*index/Math.max(1,count-1))}`;
 }
-export const COLLECTION_PAGE_SIZE=12;
+export const COLLECTION_PAGE_SIZE=8;
 export function collectionPage<T>(items:readonly T[],requested:number,size=COLLECTION_PAGE_SIZE) {
   if(!Number.isInteger(size)||size<1)size=COLLECTION_PAGE_SIZE;
   const pages=Math.max(1,Math.ceil(items.length/size));

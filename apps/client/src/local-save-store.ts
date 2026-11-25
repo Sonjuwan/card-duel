@@ -4,7 +4,7 @@ import type {GrowthView,MatchAward} from '../../../packages/account-protocol.ts'
 import {readOfflineGrowth,settleOfflineRanked,canRestoreGrowth,decodeGrowthBackup} from './offline-growth.ts';
 import type {OfflineGrowthRecord} from './offline-growth.ts';
 import {soloSlotDatabase} from './solo-slots.ts';
-import type {SoloSlot} from './solo-slots.ts';
+import type {SoloSlot,SoloNamespace} from './solo-slots.ts';
 export type SaveVersion=Pick<LocalSaveSummary,'code'|'revision'|'savedAt'>;
 export type RankedWrite={growth:GrowthView;award?:MatchAward};
 export interface LocalSaveStore{read(hash:string):Promise<LocalDuelCheckpoint|null>;write(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected?:SaveVersion|null,ranked?:RankedWrite):Promise<boolean>;remove(hash:string,owner?:string,expected?:SaveVersion):Promise<boolean>;readGrowth?(growth:GrowthView):Promise<OfflineGrowthRecord>;restoreGrowth?(raw:unknown,growth:GrowthView):Promise<OfflineGrowthRecord>;inspectSlot?(hash:string,growth:GrowthView):Promise<LocalSlotOverview>}
@@ -39,7 +39,7 @@ export function slotOverview(raw:unknown,entry:Entry|undefined,saveCount:number,
 export class IndexedLocalSaveStore implements LocalSaveStore{
   private db:Promise<IDBDatabase>|undefined;
   private readonly dbName:string;
-  constructor(slot:SoloSlot=1){this.dbName=soloSlotDatabase(slot);}
+  constructor(slot:SoloSlot=1,namespace:SoloNamespace='main'){this.dbName=soloSlotDatabase(slot,namespace);}
   private open(){
     if(this.db)return this.db;
     const opening=new Promise<IDBDatabase>((resolve,reject)=>{
