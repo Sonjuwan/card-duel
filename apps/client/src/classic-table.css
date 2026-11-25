@@ -44,13 +44,13 @@
 .turn-flash.enemy{color:#ddd9cb;text-shadow:0 2px 2px #100e0d}
 .motion-delta{position:absolute;left:50%;top:32%;z-index:8;pointer-events:none;font-size:clamp(28px,5vh,52px);font-weight:1000;line-height:1;color:#fff5be;text-shadow:0 0 2px #1f180c,2px 2px 2px #2e1308,-2px -2px 1px #2e1308;animation:damageNumber 1.8s ease both}
 .motion-delta.damage{color:#ffd166}.motion-delta.heal{color:#a3ff9b}
-.battle-minion.is-entering{animation:manifest .9s cubic-bezier(.15,.8,.2,1.1) both}
+.battle-minion.is-entering{animation:manifest .9s ease-out both}
 .battle-minion.is-hit,.hero-portrait.is-hit{animation:hitJolt .78s ease}
 .battle-minion.is-healed,.hero-portrait.is-healed{animation:healingPulse 1.1s ease}
 .card-drawn>.battle-card{animation:drawCard .9s ease-out both}
 @keyframes turnReveal{0%{opacity:0;scale:.74}20%,66%{opacity:1;scale:1}100%{opacity:0;scale:1.05}}
 @keyframes damageNumber{0%{opacity:0;transform:translate(-50%,-12px) scale(.65)}20%{opacity:1;transform:translate(-50%,0) scale(1.2)}60%{opacity:1;transform:translate(-50%,-10px) scale(1)}100%{opacity:0;transform:translate(-50%,-32px) scale(.9)}}
-@keyframes manifest{0%{opacity:.1;scale:.28;filter:brightness(1.6)}70%{opacity:1;scale:1.08}100%{scale:1}}
+@keyframes manifest{0%{opacity:.1;scale:.28;filter:brightness(1.6)}70%{opacity:1;scale:.96}100%{scale:1}}
 @keyframes hitJolt{0%,100%{translate:0;filter:none}20%{translate:-5px 2px;filter:brightness(1.55) saturate(1.5)}40%{translate:4px -1px}70%{translate:-2px 0}}
 @keyframes healingPulse{0%,100%{filter:none}40%{filter:brightness(1.5) drop-shadow(0 0 9px #86f981)}}
 @keyframes drawCard{0%{opacity:.05;transform:translate(100px,-55px) rotate(15deg) scale(.7)}100%{opacity:1;transform:none}}

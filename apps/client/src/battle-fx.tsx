@@ -176,13 +176,14 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
       prepareFxGhost(ghost);layer.parentElement?.append(ghost);ghosts.push(ghost);
       const geometry={left:`${box.left-rect.left}px`,top:`${box.top-rect.top}px`,width:`${box.width}px`,height:`${box.height}px`};
       const dies=a.attackerId&&impacts.some(i=>i.kind==='leave'&&i.target.kind==='minion'&&i.target.instanceId===a.attackerId);
+      const returned=at+(1-at)*(dies ? .48 : .78);
       animations.push(caster.animate([{opacity:0},{opacity:0}],{duration:cue.duration,fill:'none'}));
       animations.push(ghost.animate([
         {...geometry,transform:'translate(0,0) scale(1)',opacity:1,offset:0},
         {...geometry,transform:`translate(${-dx*.12}px,${-dy*.12}px) scale(1.10)`,opacity:1,offset:at*.52,easing:'ease-in'},
         {...geometry,transform:`translate(${dx*reach}px,${dy*reach}px) scale(1.13)`,opacity:1,offset:at,easing:'ease-out'},
-        {...geometry,transform:`translate(${dx*.50}px,${dy*.50}px) scale(.97)`,opacity:dies?0:1,offset:Math.min(.85,at+.16)},
-        {...geometry,transform:'translate(0,0) scale(1)',opacity:dies?0:1,offset:1}
+        {...geometry,transform:'translate(0,0) scale(1)',opacity:1,offset:returned,easing:'ease-in'},
+        {...geometry,transform:dies?'translateY(14px) scale(.38) rotate(-12deg)':'translate(0,0) scale(1)',opacity:dies?0:1,offset:1}
       ],{duration:cue.duration,fill:'both'}));
     }
     const reveal=cardReveal.current;

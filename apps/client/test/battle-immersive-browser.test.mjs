@@ -180,8 +180,10 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   const page=await context.newPage();
   const cards=JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8'));
   await page.addInitScript(deck=>{
+    window.touchActions=[];
     const post=Worker.prototype.postMessage;
     Worker.prototype.postMessage=function(data,...rest){
+      if(data?.type==='act')window.touchActions.push(data.action.type);
       if(data?.type==='start')data={...data,ranked:false,input:{...data.input,deck,firstPlayer:0,seed:10,difficulty:1,animationSpeed:'normal'}};
       return post.call(this,data,...rest);
     };
@@ -217,8 +219,10 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await drag(first,field);
   const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
   await summon.waitFor();
-  await turn.tap();
-  await page.getByRole('button',{name:'예약 1개 취소'}).waitFor();
+  await page.waitForTimeout(300);
+  await turn.evaluate(button=>button.click());
+  assert.deepEqual(await page.evaluate(()=>window.touchActions.slice(-1)),['playCard']);
+  await page.waitForFunction(()=>window.touchActions.at(-1)==='endTurn');
   await friendly.first().waitFor();
   await turn.waitFor({state:'hidden'});
   await turn.waitFor({timeout:35000});
