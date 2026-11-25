@@ -6,6 +6,7 @@ import type { Action, Card, GameState, HeroClass, Minion, PlayerId, Target } fro
 import { planAttack, planCard, planPower, resolveDrop, repositionSelection, placementOptions, toggleActionSelection, selectHandCard, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from '../src/battle-actions.ts';
 import type { DragIntent, Intent, Selection } from '../src/battle-actions.ts';
 import { nearestBoardSlot, touchDropLocations,pointerDrop,dropFeedbackText } from '../src/touch-gesture.ts';
+import type { TouchHit } from '../src/touch-gesture.ts';
 
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8')));
 function ready(hero:HeroClass='mage',first:PlayerId=0){let s=createGame(catalog,[practiceDeck(catalog,hero),practiceDeck(catalog,'warrior')],{seed:123,firstPlayer:first});s=applyAction(s,0,{type:'mulligan',replace:[]});s=applyAction(s,1,{type:'mulligan',replace:[]});s.players[first].mana=10;s.players[first].maxMana=10;return s;}
@@ -133,10 +134,10 @@ test('all nine power controls resolve the same accepted action by click or drag'
   for(const hero of HERO_CLASSES){
     const state=ready(hero),view=getPlayerView(state,0),intent=drag({kind:'power'},state);
     const power=getHeroPower(view.self),click=planPower(view,0,state.catalog);
-    const target=power.targetRule?enemyHero:undefined;
-    const action=target?targetAction(view,0,state.catalog,click?.selection??null,target):click?.action;
+    const target:Target|undefined=power.targetRule?enemyHero:undefined;
+    const action:Action|null|undefined=target?targetAction(view,0,state.catalog,click?.selection??null,target):click?.action;
     assert.ok(action,hero);
-    const hit=target?{field:true,hero:'enemy' as const}:{field:true,ownBoard:true};
+    const hit:TouchHit=target?{field:true,hero:'enemy'}:{field:true,ownBoard:true};
     assert.deepEqual(pointerDrop(view,0,state.catalog,intent,hit,0).intent?.action,action,hero);
     const next=applyAction(state,0,action);
     assert.equal(next.players[0].mana,state.players[0].mana-2,hero);
