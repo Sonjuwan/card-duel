@@ -8,7 +8,7 @@ import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 test('phone/tablet combat uses entire available height instead of three redundant header rows',{timeout:120000},async t=>{
   const server=createSoloAppServer(process.env.CARD_DUEL_GEOMETRY_BASELINE);
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});
-  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
   const addr=server.address();assert.ok(addr&&typeof addr==='object');
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
@@ -67,7 +67,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   const server=createSoloAppServer();
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
   const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:780,height:360},isMobile:true,hasTouch:true});
@@ -184,6 +184,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     assert.equal(await hand.getAttribute('aria-expanded'),'false');
   }
   await page.setViewportSize({width:780,height:360});
+  const unitSizes=[];
   for(let count=1;count<=10;count++){
     await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);
     await page.waitForFunction(count=>Number(document.querySelector('.own-hand .battle-hand')?.dataset.count)===count,count);
@@ -199,6 +200,11 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
       });
     },count);
     assert.ok(noOverlap,`hand of ${count} stays outside mana and deck`);
+    const units=await page.locator('.arena-field .battle-minion').evaluateAll(elements=>elements.map(element=>{
+      const {width,height}=element.getBoundingClientRect();return [width,height];
+    }));
+    if(count===1)unitSizes.push(units[0]);
+    assert.ok(units.every(([width,height])=>Math.abs(width-unitSizes[0][0])<.1&&Math.abs(height-unitSizes[0][1])<.1));
     await page.locator('.folded-hand').tap();
   }
   await context.close();
@@ -209,7 +215,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   const server=createSoloAppServer();
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
   const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:780,height:360},isMobile:true,hasTouch:true});
@@ -304,7 +310,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   const server=createSoloAppServer();
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
   const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:780,height:360},isMobile:true,hasTouch:true});

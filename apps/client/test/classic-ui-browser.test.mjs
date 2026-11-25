@@ -53,11 +53,11 @@ test('compiled PC and tablet show eight readable cards, detail preview and live 
     await page.getByRole('button',{name:'빈 덱 만들기',exact:true}).click();
     await page.locator('.deck-builder .collection-book .battle-card').first().waitFor();
     await page.getByRole('button',{name:'공용',exact:true}).click();
-    assert.ok(await page.locator('.deck-builder .collection-book .battle-card').count()>8,label+' continuous deck catalog');
+    assert.equal(await page.locator('.deck-builder .collection-book .battle-card').count(),8,label+' paged deck catalog');
     assert.equal(await page.locator('.deck-builder .deck-sidebar').count(),1,label+' deck list visible');
-    assert.equal(await page.locator('.deck-builder .book-edge').count(),0);
-    const scroller=page.locator('.deck-builder .collection-continuous');
-    assert.ok(await scroller.evaluate(element=>element.scrollHeight>element.clientHeight));
+    assert.equal(await page.locator('.deck-builder .book-edge').count(),2);
+    const pageBox=page.locator('.deck-builder .collection-book');
+    assert.ok(await pageBox.evaluate(el=>el.scrollHeight<=el.clientHeight+2));
     await page.screenshot({path:'ui-evidence/'+label+'-deck-builder.png',fullPage:false});
     await page.locator('.deck-builder .collection-book .battle-card').first().click();
     await page.locator('.deck-builder .game-toast[role=status]').getByText(/1장 추가/).waitFor();

@@ -801,3 +801,16 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   display:grid;place-items:center;padding:0;min-width:0;min-height:32px;
 }
 .game-main .duel-screen :is(.power-mana,.hero-armor,.end-turn,.compact-home-trigger,.compact-settings-trigger) { text-align:center }
+@media (pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
+  .game-main .duel-screen .arena-field .hero-zone .hero-portrait {
+    --combat-hero-size:clamp(55px,18.7dvh,120px);
+    width:var(--combat-hero-size)!important;height:var(--combat-hero-size)!important;
+    border-radius:42%;overflow:visible;
+  }
+  .game-main .duel-screen .arena-field .enemy-hero-zone .hero-portrait { translate:0 7px }
+  .game-main .duel-screen .arena-field .self-hero-zone .hero-portrait { translate:0 -7px }
+  .game-main .duel-screen .arena-field .hero-zone .hero-emblem {
+    width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;scale:1;
+  }
+}
+.game-main .duel-screen .effect-choices button { touch-action:manipulation;display:grid;place-items:center;text-align:center }

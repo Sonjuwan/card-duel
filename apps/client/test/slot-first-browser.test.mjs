@@ -91,6 +91,7 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   assert.equal(await page.locator('.preview-deck-empty').count(),8);
   await page.getByRole('button',{name:'이전 덱 페이지'}).click();
   await page.getByRole('button',{name:/새 덱 만들기/}).click();
+  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).click();
   const builder=page.locator('.deck-builder');
   await builder.waitFor();
   assert.equal(await builder.locator('.collection-leaf').count(),2);

@@ -10,13 +10,13 @@ test('all deck pages are full-height game screens, not a scrolling browser docum
   assert.match(patch,/screen-content:has\(>\.deck-workspace\),[\s\S]*?screen-content:has\(>\.card-browser\)\{overflow:hidden\}/);
   assert.match(patch,/\.deck-workspace\{[\s\S]*?flex:1 1 0%;min-height:0;min-width:0;overflow:hidden/);
 });
-test('deck browsing and live deck rows use separate contained scrolling regions',()=>{
+test('deck browsing uses pages while live deck rows retain contained scrolling',()=>{
   const integrated=readFileSync(new URL('../apps/client/src/integrated-ui.css',import.meta.url),'utf8');
   const editor=app.slice(app.indexOf('function DeckEditorView'),app.indexOf('export type DeckScreen'));
   assert.match(editor,/deckRows\.map/);
-  assert.match(editor,/<CollectionBook cards=\{browseCards\} continuous/);
-  assert.doesNotMatch(editor,/deckPage|paging=|PageControls/);
+  assert.match(editor,/<CollectionBook cards=\{bookPage.items\} paging=/);
+  assert.doesNotMatch(editor,/<CollectionBook[^>]+continuous/);
   assert.match(integrated,/\.deck-list-scroll\{overflow:auto;overscroll-behavior:contain/);
-  assert.match(integrated,/collection-continuous\{[^}]*overflow:auto/);
+  assert.match(integrated,/\.deck-builder \.book-with-tabs \.collection-book \{ overflow:hidden/);
   assert.match(app,/savedRows\.items\.map/);
 });
