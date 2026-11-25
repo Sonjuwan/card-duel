@@ -10,10 +10,11 @@ test('mobile turn-end stays at least 44px while surrender moves into deliberate 
  assert.match(patch,/\.turn-control>\.end-turn\{[\s\S]*?min-height:44px/);
  assert.match(patch,/\.battle-utilities\[data-tools-open="true"\]>.compact-concede\{[\s\S]*?min-height:44px/);
 });
-test('the surrendered game command and confirmation are identical in both layouts',()=>{
- assert.match(battle,/const confirmConcede=\(\)=>\{if\(window\.confirm\('항복하시겠습니까\?'\)\)perform\(\{type:'concede'\}\)/);
+test('surrender controls share a confirmed concede action',()=>{
+ assert.match(battle,/const confirmConcede=\(\)=>\{\s*if\(!window\.confirm\('항복하시겠습니까\?'\)\)return;\s*setCompactSettingsOpen\(false\);\s*setBattleToolsOpen\(false\);\s*perform\(\{type:'concede'\}\)/);
  assert.doesNotMatch(battle,/className="secondary danger concede-button"/);
  assert.match(battle,/className="secondary danger" type="button" disabled=\{busy\} onClick=\{confirmConcede\}>항복하기/);
+ assert.match(battle,/className="secondary danger desktop-concede" type="button" disabled=\{!connected\|\|busy\} onClick=\{confirmConcede\}/);
  assert.match(battle,/className="secondary danger compact-concede" disabled=\{!connected\|\|busy\} onClick=\{confirmConcede\}/);
  assert.match(battle,/onClick=\{e=>perform\(\{type:'endTurn'\}/);
 });

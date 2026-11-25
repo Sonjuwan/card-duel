@@ -43,7 +43,7 @@ test('battle, deck maker and card catalog are actual switched game screens',()=>
   assert.match(app,/initialLobbyView='home'/);
   assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
   for(const part of ['등급','퀘스트','경험치 · 카드 획득','개발자 모드'])assert.ok(app.includes(part));
-  assert.match(app,/lobbyView==='catalog'\?<CardBrowser unreadIds=/);
+  assert.match(app,/lobbyView==='catalog'\?<CardBrowser\b[^>]*\bfocusCardId=\{catalogFocus\}[^>]*\bunreadIds=/);
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
