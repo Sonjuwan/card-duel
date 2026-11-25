@@ -24,15 +24,17 @@ const browserStorage=():SlotStorage|undefined=>{try{return globalThis.localStora
 export function readSelectedSlot(storage=browserStorage(),namespace:SoloNamespace=currentSoloNamespace()):SoloSlot{try{const value=Number(storage?.getItem(selectedSlotKey(namespace)));if(validSoloSlot(value))return value;}catch{}return 1;}
 export function rememberSlot(slot:SoloSlot,storage=browserStorage(),namespace:SoloNamespace=currentSoloNamespace()){if(!validSoloSlot(slot))return false;try{if(!storage)return false;storage.setItem(selectedSlotKey(namespace),String(slot));return true;}catch{return false;}}
 /** Captures its slot forever; switching another tab or changing preference cannot redirect writes. */
-export function soloSlotStorage(slot:SoloSlot,storage=browserStorage(),namespace:SoloNamespace=currentSoloNamespace()):SlotStorage{
+export function soloSlotStorage(slot:SoloSlot,storage=browserStorage(),namespace:SoloNamespace=currentSoloNamespace(),deckMode:'player'|'developer'='player'):SlotStorage{
   if(!validSoloSlot(slot))throw Error('잘못된 저장 슬롯');
-  const prefix=namespace==='ui-preview'?`card-duel-ui-preview-slot-${slot}:`:slot===1?'':`card-duel-slot-${slot}:`;
+  const slotPrefix=namespace==='ui-preview'?`card-duel-ui-preview-slot-${slot}:`:slot===1?'':`card-duel-slot-${slot}:`;
+  const prefix=slotPrefix+(deckMode==='developer'?'developer:':'');
   const keys=()=>{
     if(!storage)return [];
     return Array.from({length:storage.length},(_,i)=>storage.key(i)).filter((key):key is string=>typeof key==='string'&&(
-      namespace==='ui-preview'?key.startsWith(prefix):
-      slot===1?!key.startsWith('card-duel-slot-')&&!key.startsWith('card-duel-ui-preview-'):
-      key.startsWith(prefix)
+      deckMode==='developer'?key.startsWith(prefix):
+      namespace==='ui-preview'?key.startsWith(prefix)&&!key.startsWith(prefix+'developer:'):
+      slot===1?!key.startsWith('card-duel-slot-')&&!key.startsWith('card-duel-ui-preview-')&&!key.startsWith('developer:'):
+      key.startsWith(prefix)&&!key.startsWith(prefix+'developer:')
     )).map(key=>key.slice(prefix.length));
   };
   return {getItem:key=>storage?.getItem(prefix+key)??null,setItem:(key,value)=>{if(!storage)throw Error('저장 공간을 사용할 수 없습니다.');storage.setItem(prefix+key,value);},get length(){return keys().length;},key:index=>keys()[index]??null};

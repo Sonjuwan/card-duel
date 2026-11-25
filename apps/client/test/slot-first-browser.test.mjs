@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
 import {chromium} from 'playwright';
-import {createCatalog} from '../../../packages/engine/src/index.ts';
+import {createCatalog,maxCardCopies} from '../../../packages/engine/src/index.ts';
 import {recommendedOwnedDeck} from '../../../packages/progression.ts';
 import {offlineGrowth,readOfflineGrowth} from '../src/offline-growth.ts';
 import {loadSoloRelease} from '../../cli/serve-solo-app.mjs';
@@ -23,7 +23,9 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});
   t.after(()=>new Promise(resolve=>server.close(resolve)));
   const a=server.address();assert.ok(a&&typeof a==='object');
-  const cards=JSON.parse(readFileSync(new URL('../../../data/cards/v0.19.0.json',import.meta.url),'utf8'));
+  const dataPath=new URL('../../../data/cards/',import.meta.url);
+  const {file}=JSON.parse(readFileSync(new URL('active.json',dataPath),'utf8'));
+  const cards=JSON.parse(readFileSync(new URL(file,dataPath),'utf8'));
   const catalog=createCatalog(cards),growth=offlineGrowth(catalog),profile=readOfflineGrowth(undefined,growth).profile;
   const entries=[
     {name:'슬롯1 마법사',deck:recommendedOwnedDeck(catalog,growth,'mage',profile,117)},
@@ -126,6 +128,47 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   await builder.getByRole('button',{name:'다음 페이지'}).click();
   assert.match(await builder.locator('.book-page-status').textContent(),/^2 \/ /);
   assert.equal(await builder.getByRole('button',{name:'덱 저장',exact:true}).evaluate(button=>getComputedStyle(button).whiteSpace),'nowrap');
+  const growthRecord=()=>page.evaluate(async()=>{
+    const request=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+    const db=await new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+    try{
+      const record=db.transaction('growth','readonly').objectStore('growth').get('player');
+      return await new Promise((resolve,reject)=>{record.onsuccess=()=>resolve(record.result);record.onerror=()=>reject(record.error);});
+    }finally{db.close();}
+  });
+  const before=await growthRecord();
+  assert.ok(before?.profile);
+  await page.getByRole('button',{name:'메인으로'}).click();
+  const developer=page.getByRole('button',{name:/개발자 모드/});
+  await developer.click();
+  await developer.click();
+  const count=Object.values(catalog).filter(card=>maxCardCopies(card)>0).length;
+  await page.getByText(`덱 구성 카드 ${count}종 전체 해금 · 개발자 모드 전용`).waitFor();
+  await page.getByRole('button',{name:'시험 덱 구성'}).click();
+  await page.getByRole('button',{name:/마법사/}).first().click();
+  assert.equal(await page.getByText(entries[0].name,{exact:true}).count(),0,'player deck library is isolated');
+  await page.getByRole('button',{name:'전체 카드 추천 덱 만들기',exact:true}).click();
+  await page.locator('.deck-builder .deck-live-count').getByText('30/30',{exact:true}).waitFor();
+  const playerDecks=await page.evaluate(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks'));
+  await page.getByPlaceholder('저장할 덱 이름').fill('개발자 시험 덱');
+  await page.getByRole('button',{name:'덱 저장',exact:true}).click();
+  await page.waitForFunction(()=>localStorage.getItem('card-duel-ui-preview-slot-1:developer:card-duel-saved-decks')?.includes('개발자 시험 덱'));
+  assert.equal(await page.evaluate(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks')),playerDecks);
+  await page.getByRole('button',{name:'메인으로'}).click();
+  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('button',{name:'개발자 랭크 시험 시작',exact:true}).click();
+  await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
+  await page.locator('.mulligan-confirm').click();
+  await page.getByRole('button',{name:'전투 설정'}).click();
+  await page.getByRole('button',{name:'항복하기',exact:true}).click();
+  await page.getByRole('dialog',{name:'대전 결과'}).waitFor();
+  assert.deepEqual(await growthRecord(),before,'developer match cannot award progression or alter ownership');
+  await page.getByRole('button',{name:'대전 준비로 돌아가기',exact:true}).click();
+  await page.getByRole('button',{name:'메인으로'}).click();
+  await page.getByRole('button',{name:/개발자 모드/}).first().click();
+  await page.getByRole('button',{name:'유저 모드',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'시험 덱 구성'}).count(),0);
+  assert.deepEqual(await growthRecord(),before);
   assert.deepEqual(errors,[]);
   await context.close();
 });
