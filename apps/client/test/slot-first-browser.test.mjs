@@ -156,6 +156,7 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   assert.equal(await page.evaluate(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks')),playerDecks);
   await page.getByRole('button',{name:'메인으로'}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-lobby-tab')==='developer');
   await page.getByRole('button',{name:'개발자 랭크 시험 시작',exact:true}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.locator('.mulligan-confirm').click();

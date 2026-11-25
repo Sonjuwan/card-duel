@@ -13,7 +13,7 @@ test('navigation from unmounted panels returns focus to the matching persistent 
   assert.match(app,/const openLobbyView=\(next:Exclude<LobbyView,'home'>,restoreFocus=false,cardId\?:string\)=>\{/);
   assert.match(app,/if\(restoreFocus\)requestAnimationFrame\(\(\)=>screenScrollRef\.current\?\.querySelector<HTMLButtonElement>/);
   assert.match(app,/onEdit=\{\(\)=>openLobbyView\('decks',true\)\}/);
-  assert.match(app,/onPlay=\{\(\)=>openLobbyView\('play',true\)\}/);
+  assert.match(app,/onPlay=\{\(\)=>openLobbyView\(practiceLobby,true\)\}/);
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('play',true\)\}/);
 });
 

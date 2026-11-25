@@ -249,6 +249,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const onViewNewCard=(id:string)=>{const next=markCardViewed(id,storage);unreadRef.current=next;setUnreadCards(next);};
   const [previewEditHero,setPreviewEditHero]=useState<HeroClass|null>(null);
   const [offlineMode,setOfflineMode]=useState<OfflineMode>(initialOfflineMode);
+  const practiceLobby=lossOnExit&&offlineMode==='developer'?'developer':'play';
   const developerDeckStorage=useMemo(()=>soloSlotStorage(slot,undefined,currentSoloNamespace(),'developer'),[slot]);
   const modeDecks=useRef<Partial<Record<OfflineMode,Deck>>>({});
   const localGrowth=useMemo(()=>standalone?offlineGrowth(catalog):undefined,[standalone]);
@@ -365,7 +366,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     socket.on('room:view',acceptView);socket.on('room:error',e=>{if(!workerRef.current)setError(e);});socket.on('room:expired',event=>{if(!workerRef.current&&(sessionRef.current?.code===event.code||ticketRef.current)){connectionEpoch.current++;clearServerRoom();setError(event.reason);}});socket.connect();return()=>{connectionEpoch.current++;socket.disconnect();socketRef.current=null;clearWatchdog();workerRef.current?.terminate();workerRef.current=null;};
   },[]);
   const recoverLocalWorker=(message:string)=>{
-    acknowledgeWorker();workerRef.current?.terminate();workerRef.current=null;setRoom(null);setSaveRetryable(false);setLobbyView('play');changeBusy(false);
+    acknowledgeWorker();workerRef.current?.terminate();workerRef.current=null;setRoom(null);setSaveRetryable(false);setLobbyView(practiceLobby);changeBusy(false);
     startSaveProbe();setError(message+' 마지막으로 저장된 경기를 다시 확인합니다.');
   };
   const recoverStalledWorker=()=>{
@@ -394,7 +395,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
           acknowledgeWorker();
           setError(data.error);changeBusy(false);return;
         }
-        if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView('play');setSavedMatch(data.save);setSaveAvailable(data.type==='paused'||data.type==='forfeited'||(data.type==='discarded'&&data.available));if(data.type==='paused')setToast({text:'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.',kind:'success'});else if(data.type==='forfeited')setToast({text:'기존 경기가 패배로 정산되었습니다.',kind:'info'});changeBusy(false);return;}
+        if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView(practiceLobby);setSavedMatch(data.save);setSaveAvailable(data.type==='paused'||data.type==='forfeited'||(data.type==='discarded'&&data.available));if(data.type==='paused')setToast({text:'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.',kind:'success'});else if(data.type==='forfeited')setToast({text:'기존 경기가 패배로 정산되었습니다.',kind:'info'});changeBusy(false);return;}
         if(data.type!=='view')return;
         const firstView=!hasView;hasView=true;
         if(data.save!==undefined)setSavedMatch(data.save);if(data.saveAvailable!==undefined)setSaveAvailable(data.saveAvailable);
@@ -479,7 +480,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onCatalog={id=>{setRewardPopup([]);setPromotion(undefined);openLobbyView('catalog',true,id);}} onClose={()=>{setRewardPopup([]);setPromotion(undefined);}}/>}
     {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(saveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} lastSavedAt={onDevice&&saveAvailable===true&&savedMatch?.code===room.code?savedMatch.savedAt:undefined} autoSaved={onDevice?!!saveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴">
-    <button type="button" data-lobby-tab="play" onClick={()=>openLobbyView(offlineMode==='developer'?'developer':'play',true)}><Sigil kind="warrior"/>대전</button>
+    <button type="button" data-lobby-tab="play" onClick={()=>openLobbyView(practiceLobby,true)}><Sigil kind="warrior"/>대전</button>
     <button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>
     <button type="button" data-lobby-tab="slots" onClick={()=>openLobbyView('slots',true)}><Sigil kind="neutral"/>슬롯 선택</button>
     <button type="button" data-lobby-tab="rank" onClick={()=>openLobbyView('rank',true)}>🏆 등급</button>
@@ -496,7 +497,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
     :lobbyView==='rewards'&&lossOnExit?<><PreviewRewards profile={offlineProfile} growth={localGrowth} onCatalog={id=>openLobbyView('catalog',true,id)}/><div className="preview-reward-backups"><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup()}>성장 기록 백업</button><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup(undefined,true)}>성장+덱 통합 백업</button><BackupFilePicker label="미진행 슬롯에 성장 백업 복원" disabled={busy||!growthReady||offlineProfile?.revision!==0} onFile={file=>void growthBackup(file)} onError={setError}/></div></>
     :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setPreviewEditHero(null);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
-    :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} unreadIds={lossOnExit?unreadCards:[]} onViewed={lossOnExit?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={standalone&&offlineMode==='developer'?developerDeckStorage:storage} onPlay={()=>openLobbyView(lossOnExit&&offlineMode==='developer'?'developer':'play',true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
+    :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} unreadIds={lossOnExit?unreadCards:[]} onViewed={lossOnExit?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={standalone&&offlineMode==='developer'?developerDeckStorage:storage} onPlay={()=>openLobbyView(practiceLobby,true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
     </>}
     </div>
     <footer>독자 카드 {Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false).length}종 · 9개 직업 · 개발 중인 테스트 버전<small className="reference-notice">자체 제작 일러스트 · 인터넷 이미지 요청 없음</small></footer>
