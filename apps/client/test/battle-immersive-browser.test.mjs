@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdirSync} from 'node:fs';
+import {mkdirSync,readFileSync} from 'node:fs';
+import {createCatalog,practiceDeck} from '../../../packages/engine/src/index.ts';
 import {chromium} from 'playwright';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 
@@ -79,7 +80,9 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
       set onmessage(handler){
         super.onmessage=event=>{
           const data=event.data;
+          if(window.denseFixtureActive&&data?.type==='view')return;
           if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=()=>{
+            window.denseFixtureActive=true;
             const fixture=structuredClone(data),view=fixture.view.state;
             fixture.view.animation=undefined;
             view.revision+=1;
@@ -104,7 +107,11 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   await portraitButton.tap();
   await page.waitForFunction(()=>document.fullscreenElement!==null||document.querySelector('.rotate-device-status')?.textContent.includes('가로'));
   const enteredFullscreen=await page.evaluate(()=>!!document.fullscreenElement);
-  await page.setViewportSize({width:780,height:360});
+  const metrics=await context.newCDPSession(page);
+  const landscape=(width,height)=>metrics.send('Emulation.setDeviceMetricsOverride',{
+    width,height,deviceScaleFactor:1,mobile:true,screenOrientation:{type:'landscapePrimary',angle:90},
+  });
+  await landscape(780,360);
   await portraitButton.waitFor({state:'hidden'});
   assert.match(await menu.textContent(),/가로 전체화면/);
   await page.getByRole('button',{name:'대전',exact:true}).tap();
@@ -117,6 +124,8 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   await page.evaluate(()=>window.denseBoard());
   await page.locator('.enemy-board .battle-minion').nth(6).waitFor();
   await page.locator('.friendly-board .battle-minion').nth(6).waitFor();
+  await page.evaluate(async()=>{if(document.fullscreenElement)await document.exitFullscreen();});
+  await metrics.detach();
   for(const width of [640,780,844,1024]){
     await page.setViewportSize({width,height:width===1024?768:360});
     const dimensions=await page.evaluate(()=>{
@@ -140,7 +149,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     }
     const share=dimensions.rows.reduce((sum,{row})=>sum+row.height,0)/dimensions.height;
     t.diagnostic(width+'px board share '+(share*100).toFixed(1)+'%');
-    assert.ok(share>=.63, String(share));
+    assert.ok(share>=.65, String(share));
     const hand=page.locator('.folded-hand');
     const board=page.locator('.friendly-board');
     const before=await board.boundingBox();
@@ -156,5 +165,71 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     await page.locator('.friendly-board').tap({position:{x:12,y:9}});
     assert.equal(await hand.getAttribute('aria-expanded'),'false');
   }
+  await context.close();
+});
+
+
+test('touch drag plays a minion and targeted spell while turn end waits in the queue',{timeout:90000},async t=>{
+  const server=createSoloAppServer();
+  server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
+  t.after(()=>browser.close());
+  const context=await browser.newContext({viewport:{width:780,height:360},isMobile:true,hasTouch:true});
+  const page=await context.newPage();
+  const cards=JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8'));
+  await page.addInitScript(deck=>{
+    const post=Worker.prototype.postMessage;
+    Worker.prototype.postMessage=function(data,...rest){
+      if(data?.type==='start')data={...data,ranked:false,input:{...data.input,deck,firstPlayer:0,seed:10,difficulty:1,animationSpeed:'normal'}};
+      return post.call(this,data,...rest);
+    };
+  },practiceDeck(createCatalog(cards),'mage'));
+  await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
+  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
+  await page.getByRole('button',{name:'대전',exact:true}).tap();
+  await page.getByRole('button',{name:'마법사',exact:true}).tap();
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
+  await page.locator('.mulligan-confirm').tap();
+  const hand=page.locator('.folded-hand'),field=page.locator('.friendly-board');
+  const turn=page.locator('.end-turn.your-turn');
+  const friendly=field.locator('.battle-minion');
+  await turn.waitFor();
+  await hand.tap();
+  const first=page.locator('.own-hand button[data-preview-card="recruit"]');
+  await first.tap();
+  await field.tap({position:{x:30,y:10}});
+  await first.waitFor({state:'hidden'});
+  const pointer=await context.newCDPSession(page);
+  const drag=async(source,target)=>{
+    const from=await source.boundingBox(),to=await target.boundingBox();
+    assert.ok(from&&to);
+    const a={x:Math.round(from.x+from.width/2),y:Math.round(from.y+from.height/2)};
+    const b={x:Math.round(to.x+to.width/2),y:Math.round(to.y+to.height/2)};
+    await pointer.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[a]});
+    for(const i of [1,2,3,4,5]){
+      await pointer.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:Math.round(a.x+(b.x-a.x)*i/5),y:Math.round(a.y+(b.y-a.y)*i/5)}]});
+    }
+    await pointer.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  };
+  await hand.tap();
+  await drag(first,field);
+  const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
+  await summon.waitFor();
+  await turn.tap();
+  await page.getByRole('button',{name:'예약 1개 취소'}).waitFor();
+  await friendly.first().waitFor();
+  await turn.waitFor({state:'hidden'});
+  await turn.waitFor({timeout:35000});
+  await hand.tap();
+  const spell=page.locator('.own-hand button[data-preview-card="ice_shard"]');
+  await spell.waitFor();
+  const enemy=page.locator('.enemy-hero-zone .hero-portrait');
+  const before=Number(await enemy.locator('.hero-health').textContent());
+  await drag(spell,enemy);
+  await page.locator('.battle-fx-layer[data-fx-kind="spell"][data-fx-side="own"]').waitFor();
+  await page.waitForFunction(health=>Number(document.querySelector('.enemy-hero-zone .hero-health')?.textContent)<health,before);
+  assert.equal(await hand.getAttribute('aria-expanded'),'false');
   await context.close();
 });

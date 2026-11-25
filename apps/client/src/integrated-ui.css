@@ -583,7 +583,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .arena-right>.own-resources { bottom:3px;right:max(58px,calc(env(safe-area-inset-right) + 55px)) }
   .game-main .duel-screen .arena-right .mana-display,
   .game-main .duel-screen .arena-right .deck-pile { min-height:0!important;width:auto!important;display:flex!important;gap:2px;padding:2px!important }
-  .game-main .duel-screen .arena-right .deck-stack { height:17px!important;width:12px!important }
+  .game-main .duel-screen .arena-right .deck-stack { display:block!important;height:17px!important;width:12px!important }
   .game-main .duel-screen .battle-arena.classic-table>.arena-left {
     position:absolute!important;inset:36% auto auto 0!important;z-index:8;width:26px!important;height:auto!important;
   }
@@ -603,6 +603,9 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     border-radius:2px;background:linear-gradient(130deg,#7863a2,#21152f);transform:rotate(-18deg);transform-origin:bottom center }
   .folded-cards i:nth-child(2) { transform:rotate(5deg) }
   .folded-cards i:nth-child(3) { transform:rotate(25deg) }
+  @media (prefers-reduced-motion:no-preference) {
+    .battle:not([data-animation-speed="instant"]) .folded-hand[data-drawn=true] .folded-cards { animation:drawCard .9s ease-out }
+  }
   .folded-hand[data-playable=true] { outline:2px solid #91f4a3;outline-offset:-2px }
   .game-main .duel-screen .own-hand .battle-hand {
     visibility:hidden!important;pointer-events:none!important;position:absolute!important;

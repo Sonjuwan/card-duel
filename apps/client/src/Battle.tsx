@@ -415,7 +415,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     if(!active||e.pointerType==='mouse'||!e.isPrimary||!(e.target instanceof Element))return;
     const source=e.target.closest<HTMLElement>('[data-action-source]'),intent=intentFromSource(source?.dataset.actionSource);
     if(!intent||!planDrag(s,seat,catalog,intent,boardPosition))return;
-    touchRef.current={pointerId:e.pointerId,originX:e.clientX,originY:e.clientY,drag:{intent,revision:s.revision},phase:'pending',canPanBoard:intent.kind==='attack'&&source?.closest<HTMLElement>('.friendly-minions')?.dataset.scrollable==='true'};
+    const handToggle=intent.kind==='card'?source?.closest('.own-hand')?.querySelector('.folded-hand'):null;
+    const allowHandPan=!handToggle||getComputedStyle(handToggle).display==='none';
+    touchRef.current={pointerId:e.pointerId,originX:e.clientX,originY:e.clientY,drag:{intent,revision:s.revision},phase:'pending',allowHandPan,canPanBoard:intent.kind==='attack'&&source?.closest<HTMLElement>('.friendly-minions')?.dataset.scrollable==='true'};
   };
   const pointerSlotAt=(hit:Element|null,x:number,intent:DragIntent):number|undefined=>{
     if(intent.kind!=='card'||catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']?.kind!=='minion')return undefined;
@@ -608,7 +610,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
         <div className="hero-zone self-hero-zone"><DialogueCaptions captions={dialogue.captions} side={seat} mode={captionMode} catalog={catalog} hero={s.self.heroClass} heroForm={s.self.heroForm}/><WeaponSlot player={s.self} catalog={catalog} onInspect={cardInspect}/><div className="hero-center"><Secrets count={s.self.secretCount} names={s.self.secrets.map(c=>displayCardName(catalog[c.cardId],classicNames))} cards={s.self.secrets.map(c=>catalog[c.cardId])}/><HeroPortrait shatter={shattered.own} delta={visual?.ownHeroDelta} sourceId="hero" player={s.self} label="나" enabled={canTarget(ownHeroTarget)||canAttack()&&(!highlight||highlight.kind==='heroAttack')} ready={canAttack()&&!highlight&&!currentDrag} selected={highlight?.kind==='heroAttack'} targeted={canTarget(ownHeroTarget)} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,ownHeroTarget)} onClick={keyboard=>{if(canTarget(ownHeroTarget))choose(ownHeroTarget,keyboard);else if(canAttack())setSelected(old=>toggleActionSelection(old,planAttack(s,seat,catalog)));}} onDragStart={canAttack()?e=>beginDrag(e,{kind:'heroAttack'}):undefined} onDragEnd={nativeDragEnd}/></div><HeroPower sourceId="power" player={s.self} enabled={!!power} ready={!!power&&!highlight&&!currentDrag} selected={highlight?.kind==='power'} reason={powerReason} onClick={keyboard=>applyIntent(power,keyboard)} onDragStart={power?e=>beginDrag(e,{kind:'power'}):undefined} onDragEnd={nativeDragEnd}/></div>
         <div className="own-hand" data-hand-open={handOpen}>
           <button type="button" className="folded-hand" aria-expanded={handOpen} aria-label={`내 손패 ${s.self.handCount}장 ${handOpen?'접기':'펼치기'}`}
-            data-playable={s.self.hand.some(c=>handReady(c.instanceId))}
+            data-playable={s.self.hand.some(c=>handReady(c.instanceId))} data-drawn={Boolean(visual?.drawn.size)}
             onClick={()=>{if(handOpen){setSelected(null);setPeekCardId(null);}setHandOpen(!handOpen);}}>
             <span className="folded-cards" aria-hidden="true">{Array.from({length:Math.min(3,s.self.handCount)},(_,i)=><i key={i}/>)}</span>
             <b>{s.self.handCount}</b>

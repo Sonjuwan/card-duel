@@ -1,7 +1,7 @@
 import {resolveDrop} from './battle-actions.ts';
 import type {DragIntent,DragState,DropLocation,Intent} from './battle-actions.ts';
 import type {PlayerId,PlayerView,Catalog,Target} from '../../../packages/engine/src/index.ts';
-export type TouchGesture={pointerId:number;originX:number;originY:number;drag:DragState;phase:'pending'|'dragging'|'scrolling';canPanBoard?:boolean};
+export type TouchGesture={pointerId:number;originX:number;originY:number;drag:DragState;phase:'pending'|'dragging'|'scrolling';canPanBoard?:boolean;allowHandPan?:boolean};
 export function canPanBoard(overflowX:string,clientWidth:number,scrollWidth:number):boolean{
   return (overflowX==='auto'||overflowX==='scroll')&&Number.isFinite(clientWidth)&&Number.isFinite(scrollWidth)&&clientWidth>0&&scrollWidth-clientWidth>1;
 }
@@ -27,7 +27,7 @@ export function advanceGesture(gesture:TouchGesture,x:number,y:number,revision:n
   const dx=Math.abs(x-gesture.originX),dy=Math.abs(y-gesture.originY);
   if(Math.hypot(dx,dy)<9)return gesture;
   // Natural sideways scrolling of a ten-card hand is not a card play.
-  if((gesture.drag.intent.kind==='card'||gesture.canPanBoard&&gesture.drag.intent.kind==='attack')&&dx>dy*1.35)return{...gesture,phase:'scrolling'};
+  if((gesture.drag.intent.kind==='card'&&gesture.allowHandPan!==false||gesture.canPanBoard&&gesture.drag.intent.kind==='attack')&&dx>dy*1.35)return{...gesture,phase:'scrolling'};
   return{...gesture,phase:'dragging'};
 }
 /** An old gesture or scroll must not turn into the browser's synthetic tap.
