@@ -1,5 +1,5 @@
 /* The build substitutes a content-derived cache identifier and asset digests. */
-const release = {"id":"84463a47d8c8dbd33c7a64362cc13656ebd0cf8a45ce753c37fb0e7960ef1ff0","files":{"index.html":"a7cb663060c5932c2010868f0e8664addcaf7d7a6536623313726e64ee96b628","game.js":"9a27710d1c58e92487a84c7b09ab76b53e7bb02b41c35f3a4878f51473212990","game.css":"5d094dd07e98f8f9ad6d2e422696bf1b9cc33387978e5deebe24e2d48183d2d4","manifest.webmanifest":"81922b9d40d3a3f15d8168adeaaa2fb80009daac17242666b98c69f146df2ea4","register.js":"ad4382555dc051456317816cb2a95dd0f0993b0a763597bf3ab356a159014622","icon-192.png":"2190f8168d94278ce3dd23fb9f935fce878efe9f0f4be4739ef1d8bda3850a74","icon-512.png":"eddf576e10e76b866739b33183ec014d9b91058bf4fb10c84e41fd6d9600f4ff"}};
+const release = {"id":"1537a153fb7d8444cf7d15d25617910a5128bf8948e4618fe4d4ea47bfa8c690","version":"0.311.0","files":{"game.js":"af2601edc43f27e1422ded529876f83b73e3203ee863ee002672244ed9026ea4","game.css":"384fced404b818e65c2989362aee5e4de3334535ba2de3c3005c3602a20a7615","manifest.webmanifest":"81922b9d40d3a3f15d8168adeaaa2fb80009daac17242666b98c69f146df2ea4","register.js":"33bdada5c1a9b20419d7eca2d14a94d3f92b28ac8e1b1769ec493f55f9c3de34","icon-192.png":"2190f8168d94278ce3dd23fb9f935fce878efe9f0f4be4739ef1d8bda3850a74","icon-512.png":"eddf576e10e76b866739b33183ec014d9b91058bf4fb10c84e41fd6d9600f4ff","index.html":"b3a249be5b84e0adb21d3058a0205c9bcccb0a3f6ce941448f3e0b6fb4536daa"}};
 const prefix = 'card-duel-solo-app:' + self.registration.scope + ':';
 const cacheName = prefix + release.id;
 const url = path => new URL(path, self.registration.scope).href;
@@ -92,5 +92,56 @@ self.addEventListener('fetch',event=>{
       try{await cache.put(address,recovered.clone());checkedCache.add(address);}catch{/* Quota exceeded: the verified response can still be played. */}
       return recovered;
     }catch{return new Response('Offline app cache missing. Reopen while connected.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});}
+  })());
+});
+
+// A waiting worker can only be promoted by a user request from a controlled
+// game window. Each game window must freeze its lobby and acknowledge first.
+let applying=false;
+async function gameWindows(){
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  return windows.filter(client=>{
+    const address=new URL(client.url);address.search='';address.hash='';
+    return address.href===root||address.href===app;
+  });
+}
+function checkWindow(client,token){
+  return new Promise(resolve=>{
+    const {port1,port2}=new MessageChannel();
+    const finish=result=>{clearTimeout(timer);port1.close();resolve(result);};
+    const timer=setTimeout(()=>finish('다른 게임 창의 상태를 확인할 수 없습니다.'),3000);
+    port1.onmessage=event=>finish(event.data?.token===token?event.data.reason:'다른 게임 창의 상태를 확인할 수 없습니다.');
+    try{client.postMessage({type:'card-duel-prepare-update',release:release.id,version:release.version,token},[port2]);}
+    catch{finish('다른 게임 창의 상태를 확인할 수 없습니다.');}
+  });
+}
+self.addEventListener('message',event=>{
+  const port=event.ports[0],data=event.data;
+  if(!port)return;
+  if(data?.type==='card-duel-release'){
+    port.postMessage({release:release.id,version:release.version});
+    return;
+  }
+  if(data?.type!=='card-duel-apply-update'||data.release!==release.id||applying||
+    self.registration.waiting?.state!=='installed')return;
+  applying=true;
+  event.waitUntil((async()=>{
+    const token=crypto.randomUUID();
+    let windows=[];
+    try{
+      windows=await gameWindows();
+      if(!windows.some(client=>client.id===event.source?.id))throw Error('이 게임 창에서 다시 시도하세요.');
+      const reasons=await Promise.all(windows.map(client=>checkWindow(client,token)));
+      const reason=reasons.find(value=>value!==null);
+      if(reason!==undefined)throw Error(typeof reason==='string'?reason:'게임 저장 상태를 확인할 수 없습니다.');
+      const confirmed=await gameWindows();
+      if(confirmed.some(client=>!windows.some(known=>known.id===client.id)))throw Error('새 게임 창이 열렸습니다. 잠시 후 다시 시도하세요.');
+      // Locks prevent new actions in the verified windows up to controllerchange.
+      port.postMessage({ok:true});
+      await self.skipWaiting();
+    }catch(error){
+      for(const client of windows)client.postMessage({type:'card-duel-cancel-update',token});
+      port.postMessage({reason:error.message});
+    }finally{applying=false;}
   })());
 });
