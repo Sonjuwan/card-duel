@@ -595,7 +595,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .own-hand .folded-hand {
     display:flex;position:absolute;bottom:max(3px,env(safe-area-inset-bottom));
     right:max(4px,env(safe-area-inset-right));align-items:center;justify-content:center;gap:3px;
-    width:48px;height:44px;min-height:44px;padding:2px;pointer-events:auto;z-index:3;
+    width:48px;height:44px;min-height:44px;padding:2px;pointer-events:auto;touch-action:manipulation;z-index:3;
   }
   .folded-cards { position:relative;display:block;width:18px;height:19px }
   .folded-cards i { position:absolute;left:3px;top:3px;width:12px;height:17px;border:1px solid #d7ab70;

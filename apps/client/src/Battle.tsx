@@ -134,6 +134,11 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [drag,setDrag]=useState<DragState|null>(null),dragRef=useRef<DragState|null>(null);
   const touchRef=useRef<TouchGesture|null>(null),cancelledPointer=useRef<number|null>(null),suppressClick=useRef(0);
   const [handOpen,setHandOpen]=useState(false);
+  const handPress=useRef<{id:number;x:number;y:number}|null>(null);
+  const toggleHand=()=>{
+    if(handOpen){setSelected(null);setPeekCardId(null);}
+    setHandOpen(open=>!open);
+  };
   const [casting,setCasting]=useState(false);
   const castRef=useRef(false);
   const pointerPoint=useRef<{x:number;y:number}|null>(null);
@@ -673,7 +678,20 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
         <div className="own-hand" data-hand-open={handOpen}>
           <button type="button" className="folded-hand" aria-expanded={handOpen} aria-label={`내 손패 ${hand.length}장 ${handOpen?'접기':'펼치기'}`}
             data-playable={hand.some(c=>handReady(c.instanceId))} data-drawn={Boolean(visual?.drawn.size)}
-            onClick={()=>{if(handOpen){setSelected(null);setPeekCardId(null);}setHandOpen(open=>!open);}}>
+            onPointerDown={event=>{
+              if(event.isPrimary&&event.pointerType==='touch')handPress.current={id:event.pointerId,x:event.clientX,y:event.clientY};
+            }}
+            onPointerCancel={()=>{handPress.current=null;}}
+            onPointerUp={event=>{
+              const press=handPress.current;
+              if(!press||press.id!==event.pointerId)return;
+              handPress.current=null;
+              if(Math.hypot(event.clientX-press.x,event.clientY-press.y)>12)return;
+              // A rapid tap after dropping a card may receive no synthesized click.
+              suppressClick.current=Date.now()+250;
+              toggleHand();
+            }}
+            onClick={toggleHand}>
             <span className="folded-cards" aria-hidden="true">{Array.from({length:Math.min(3,hand.length)},(_,i)=><i key={i}/>)}</span>
             <b>{hand.length}</b>
           </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}
