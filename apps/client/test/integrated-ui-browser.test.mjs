@@ -128,6 +128,10 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.locator('.mulligan-cards .battle-card').first().click();
     await page.locator('.mulligan-confirm').click();
     await page.locator('.mulligan-cards[data-exchange=reveal] .mulligan-card-back').first().waitFor();
+    // A turn-start draw legitimately redistributes the hand fan. Measure hover
+    // only once the local player's turn and its last playback frame are settled.
+    await page.waitForFunction(()=>document.querySelector('.end-turn.your-turn')&&
+      !document.querySelector('.duel-screen.is-playing-fx'),null,{timeout:30000});
     const hand=page.locator('.own-hand .hand-card-slot .battle-card').first();
     assert.equal(await page.locator('.compact-home-trigger').count(),0);
     if(hasTouch){
