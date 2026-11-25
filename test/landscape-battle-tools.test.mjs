@@ -19,5 +19,5 @@ test('dialog has visible 44px close, focus return and Escape and Tab trapping',(
  assert.match(source,/if\(e\.key==='Escape'\)\{e\.preventDefault\(\);e\.stopPropagation\(\);closeBattleTools\(\)/);
  assert.match(source,/if\(e\.key!=='Tab'\)return/);
  assert.match(patch,/\.battle-tools-close\{[\s\S]*?min-height:44px/);
- assert.match(source,/className="battle-arena classic-table" inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
+ assert.match(source,/className="battle-arena classic-table" inert=\{battleToolsOpen\|\|!!inspectedOverlay\}/);
 });
