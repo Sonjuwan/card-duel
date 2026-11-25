@@ -6,7 +6,9 @@ const battle=readFileSync(new URL('../apps/client/src/Battle.tsx',import.meta.ur
 const css=readFileSync(new URL('../apps/client/src/landscape-shell.css',import.meta.url),'utf8');
 const patch=css.slice(css.lastIndexOf('/* v0.284:'));
 test('a prior save timestamp is not advertised as confirmed after current save is lost',()=>{
- assert.match(app,/lastSavedAt=\{onDevice&&saveAvailable===true&&savedMatch\?\.code===room\.code\?savedMatch\.savedAt:undefined\}/);
+ assert.match(app,/const battleSaveAvailable=room\?\.developerFree\?freeSave\?\.available:saveAvailable/);
+ assert.match(app,/const battleSave=room\?\.developerFree\?freeSave\?\.save:savedMatch/);
+ assert.match(app,/lastSavedAt=\{onDevice&&battleSaveAvailable===true&&battleSave\?\.code===room\.code\?battleSave\.savedAt:undefined\}/);
  assert.match(battle,/saveRetryable\?'저장 오류 · 재시도 가능'/);
  assert.match(battle,/savePending\?'저장 확인 중…'/);
 });
