@@ -151,6 +151,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const resultRef=useRef<HTMLDivElement>(null);
   const actionFocus=useRef<{source:string|undefined;trigger:Element|null;code:string;revision:number}|null>(null);
   const s=room.state,seat=room.seat,enemy:PlayerId=seat===0?1:0;
+  const acceptedTurn=acceptedRoom.state?.turn,acceptedPhase=acceptedRoom.state?.phase;
   const [exchange,setExchange]=useState<{before:PlayerView;marked:string[]}|null>(null);
   const exchangeAccepted=!!exchange&&!!s?.self.mulliganDone;
   const [exchangeRevealed,setExchangeRevealed]=useState(false);
@@ -253,7 +254,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [motion,setMotion]=useState<TableMotion|null>(null);
   useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),2000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
   const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision&&(!room.animation||cue?.animation.revision===motion?.revision)?motion:null;
-  useEffect(()=>{setHandOpen(false);},[s?.turn,s?.phase,room.code]);
+  useEffect(()=>{setHandOpen(false);},[acceptedTurn,acceptedPhase,room.code]);
   const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!inputBlocked;
   const ownChoiceOpen=!!s&&s.phase==='playing'&&!playing&&((!!s.choicePending&&!!s.self.pendingChoice?.length&&connected&&opponentReady)||(active&&selected?.kind==='cardChoice'));
   // End-of-match results are a genuine modal. The next/new game controls
@@ -322,7 +323,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     document.addEventListener('visibilitychange',changed);window.addEventListener('blur',interrupt);window.addEventListener('pagehide',hide);
     return()=>{document.removeEventListener('visibilitychange',changed);window.removeEventListener('blur',interrupt);window.removeEventListener('pagehide',hide);};
   },[]);
-  useEffect(()=>{setSelected(null);setInspected(null);setPosition(null);cancelActiveTouch();setDropNotice('');},[room.code,s?.turn,s?.phase,connected,opponentReady]);
+  useEffect(()=>{setSelected(null);setInspected(null);setPosition(null);cancelActiveTouch();setDropNotice('');},[room.code,acceptedTurn,acceptedPhase,connected,opponentReady]);
   const rulesView=projected??s;
   useLayoutEffect(()=>{
     const gesture=touchRef.current,held=dragRef.current??gesture?.drag;
@@ -672,7 +673,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
         <div className="own-hand" data-hand-open={handOpen}>
           <button type="button" className="folded-hand" aria-expanded={handOpen} aria-label={`내 손패 ${hand.length}장 ${handOpen?'접기':'펼치기'}`}
             data-playable={hand.some(c=>handReady(c.instanceId))} data-drawn={Boolean(visual?.drawn.size)}
-            onClick={()=>{if(handOpen){setSelected(null);setPeekCardId(null);}setHandOpen(!handOpen);}}>
+            onClick={()=>{if(handOpen){setSelected(null);setPeekCardId(null);}setHandOpen(open=>!open);}}>
             <span className="folded-cards" aria-hidden="true">{Array.from({length:Math.min(3,hand.length)},(_,i)=><i key={i}/>)}</span>
             <b>{hand.length}</b>
           </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}
