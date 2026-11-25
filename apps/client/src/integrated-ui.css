@@ -752,7 +752,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 /* Keep each square crop inside the existing frame. Focal points follow the
    individual face and shoulder silhouette in the original illustration. */
 .game-main .hero-emblem .art-hero-warrior { --hero-crop-size:112% auto;--hero-crop-position:50% 8% }
-.game-main .hero-emblem .art-hero-shaman  { --hero-crop-size:122% auto;--hero-crop-position:80% 0% }
+.game-main .hero-emblem .art-hero-shaman  { --hero-crop-size:114% auto;--hero-crop-position:73% 0% }
 .game-main .hero-emblem .art-hero-rogue   { --hero-crop-size:116% auto;--hero-crop-position:92% 0% }
 .game-main .hero-emblem .art-hero-paladin { --hero-crop-size:111% auto;--hero-crop-position:69% 0% }
 .game-main .hero-emblem .art-hero-hunter  { --hero-crop-size:130% auto;--hero-crop-position:70% 4% }
