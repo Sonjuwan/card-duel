@@ -89,7 +89,7 @@ test('battlecry targeting starts at a focusable projected minion',()=>{
 
 test('rapid pointer drag statuses do not repeatedly queue screen reader announcements',()=>{
   assert.match(battle,/role="status" aria-live=\{currentDrag\?"off":"polite"\}/);
-  assert.match(battle,/currentDrag&&dropFeedback\?dropFeedbackText/);
+  assert.match(battle,/currentDrag&&dropFeedback\?[^\n]+dropFeedbackText/);
 });
 
 

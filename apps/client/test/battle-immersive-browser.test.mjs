@@ -81,16 +81,17 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         super.onmessage=event=>{
           const data=event.data;
           if(window.denseFixtureActive&&data?.type==='view')return;
-          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=()=>{
+          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10)=>{
             window.denseFixtureActive=true;
             const fixture=structuredClone(data),view=fixture.view.state;
             fixture.view.animation=undefined;
             view.revision+=1;
             for(const [i,side] of [view.self,view.opponent].entries()){
-              side.board=Array.from({length:7},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
+              side.board=Array.from({length:units},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
               side.handCount=10;
             }
-            view.self.hand=Array.from({length:10},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
+            view.self.handCount=hand;
+            view.self.hand=Array.from({length:hand},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
             handler.call(this,new MessageEvent('message',{data:fixture}));
           };
           handler?.call(this,event);
@@ -181,6 +182,24 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     await page.screenshot({path:`ui-evidence/dense-${width}.png`});
     await page.locator('.friendly-board').tap({position:{x:65,y:6}});
     assert.equal(await hand.getAttribute('aria-expanded'),'false');
+  }
+  await page.setViewportSize({width:780,height:360});
+  for(let count=1;count<=10;count++){
+    await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);
+    await page.waitForFunction(count=>Number(document.querySelector('.own-hand .battle-hand')?.dataset.count)===count,count);
+    await page.locator('.folded-hand').tap();
+    const noOverlap=await page.evaluate(count=>{
+      const cards=[...document.querySelectorAll('.own-hand .battle-card')];
+      const mana=document.querySelector('.own-mana').getBoundingClientRect();
+      const deck=document.querySelector('.arena-right .own-resources .deck-pile').getBoundingClientRect();
+      const units=document.querySelectorAll('.friendly-board .battle-minion').length;
+      return units===Math.min(7,count)&&cards.length===count&&cards.every(card=>{
+        const r=card.getBoundingClientRect();
+        return r.width>0&&[mana,deck].every(box=>r.right<=box.left||r.left>=box.right||r.bottom<=box.top||r.top>=box.bottom);
+      });
+    },count);
+    assert.ok(noOverlap,`hand of ${count} stays outside mana and deck`);
+    await page.locator('.folded-hand').tap();
   }
   await context.close();
 });
@@ -360,10 +379,12 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await touch('touchEnd',[]);
   await page.locator('[data-hover-preview]').waitFor({state:'detached'});
   await drag(wind,enemyHero);
+  assert.equal(await wind.evaluate(unit=>unit.classList.contains('is-ready')),true);
   await drag(wind,enemyHero);
   assert.equal(await wind.evaluate(unit=>unit.classList.contains('is-ready')),false);
   await drag(wolf,enemyHero);
   assert.equal(await wolf.evaluate(unit=>unit.classList.contains('is-ready')),false);
+  assert.equal(await wolf.evaluate(unit=>unit.classList.contains('is-preparing')),true);
   const hand=page.locator('.folded-hand'),card=page.locator('[data-preview-card="harsh_overseer"].battle-card');
   await hand.tap();
   await drag(card,page.locator('.enemy-board'));

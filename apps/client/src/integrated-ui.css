@@ -660,6 +660,10 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   box-shadow:0 0 0 2px #384653,inset 0 0 0 2px #fff,0 4px 5px #172129;
 }
 .game-main .battle-minion.has-taunt.is-targeted .minion-medallion { outline:2px solid #fff2ba }
+.game-main .battle-minion.has-shield::before {
+  content:"";position:absolute;inset:-3px;border:2px solid #ffe075;border-radius:50%;
+  box-shadow:0 0 8px #ffe28ec0;pointer-events:none;
+}
 .game-main .duel-screen .is-attack-blocked :is(.minion-medallion,.hero-emblem) { filter:brightness(.62) saturate(.62) }
 .game-main .battle-minion.has-spell-power .minion-medallion { outline:2px solid #cf9cff;box-shadow:0 0 9px 3px #966cf5 }
 .game-main .battle-minion .status-poison { background:#265a42;color:#d5ff9e }

@@ -515,3 +515,42 @@ test('embedded voice requires approval and a matching checksum and maps by publi
   assert.equal(await approvedVoiceBytes({...clip,sha256:'0'.repeat(64)}),undefined);
   assert.equal(await approvedVoiceBytes({...clip,license:''}),undefined);
 });
+
+test('reserved windup credit leaves the travel, contact and return intact',()=>{
+  const start=room(ready(),0),end=structuredClone(start);
+  end.state!.revision++;
+  end.animation={kind:'attack',actor:0,revision:end.state!.revision,attackerId:'public-source'};
+  const cues:{windup?:number;impact:number;duration:number}[]=[];
+  const delays:number[]=[];
+  const timeline=new PlaybackTimeline(start,()=>{},cue=>{if(cue)cues.push(cue);},{
+    schedule:(_fn,ms)=>{delays.push(ms);return delays.length as unknown as ReturnType<typeof setTimeout>;},cancel:()=>{},
+  },()=>900);
+  timeline.receive(end,true);
+  assert.equal(cues[0].windup,0);
+  assert.equal(cues[0].impact,120);
+  assert.equal(cues[0].duration,600);
+  assert.deepEqual(delays,[120,600]);
+});
+
+test('Cruel Taskmaster uses the same valid minion targets on either side',()=>{
+  const setup=()=>{
+    const state=ready();
+    state.players[0].hand=[{cardId:'harsh_overseer',instanceId:'taskmaster-hand'}];
+    for(const side of [0,1] as const)state.players[side].board=[{
+      cardId:'wolf',instanceId:`taskmaster-victim-${side}`,attack:2,health:4,maxHealth:4,attacksRemaining:0,
+    }];
+    return state;
+  };
+  for(const side of [0,1] as const){
+    const {after}=action(setup(),{type:'playCard',instanceId:'taskmaster-hand',position:0,target:{kind:'minion',instanceId:`taskmaster-victim-${side}`}});
+    assert.equal(after.players[0].board[0].cardId,'harsh_overseer');
+    const victim=after.players[side].board.find(minion=>minion.instanceId===`taskmaster-victim-${side}`);
+    assert.equal(victim?.health,3);
+    assert.equal(victim?.attack,4);
+  }
+  assert.throws(()=>action(setup(),{type:'playCard',instanceId:'taskmaster-hand',target:enemyHero}));
+  assert.throws(()=>action(setup(),{type:'playCard',instanceId:'taskmaster-hand',target:{kind:'minion',instanceId:'taskmaster-hand'}}));
+  const empty=setup();
+  for(const player of empty.players)player.board=[];
+  assert.equal(action(empty,{type:'playCard',instanceId:'taskmaster-hand',position:0}).after.players[0].board[0].cardId,'harsh_overseer');
+});

@@ -5,11 +5,36 @@ import type {Card,Catalog} from '../../../packages/engine/src/index.ts';
 import type {RoomView} from '../../../packages/protocol.ts';
 import {advanceImpactHistory} from './battle-impact-history-model.ts';
 import type {ImpactHistoryEntry,ImpactPortrait} from './battle-impact-history-model.ts';
+function historyStorageKey(key:string){
+  return `card-duel:impact:v1:${location.pathname}:${key}`;
+}
+function restoreHistory(key:string,revision:number):ImpactHistoryEntry[]{
+  try{
+    const entries:ImpactHistoryEntry[]=JSON.parse(sessionStorage.getItem(historyStorageKey(key))??'[]');
+    return entries.filter(entry=>Number.isInteger(entry?.revision)&&entry.revision<=revision&&Array.isArray(entry.lines)&&Array.isArray(entry.effects));
+  }catch{return [];}
+}
 export function useImpactHistory(room:RoomView,connected:boolean,catalog:Catalog,name:(card:Card)=>string){
-  const key=`${room.code}:${room.seat}`,before=useRef<RoomView|null>(null),[history,setHistory]=useState<{key:string;entries:ImpactHistoryEntry[]}>({key,entries:[]});
-  useEffect(()=>{if(!connected||!room.state)return;
-    const prior=before.current;before.current=room;setHistory(old=>({key,entries:advanceImpactHistory(prior,room,old.key===key?old.entries:[],catalog,name)}));
+  const key=`${room.code}:${room.seat}`;
+  const before=useRef<RoomView|null>(null);
+  const [history,setHistory]=useState<{key:string;entries:ImpactHistoryEntry[]}>(()=>({
+    key,entries:room.state?restoreHistory(key,room.state.revision):[],
+  }));
+  useEffect(()=>{
+    if(!connected||!room.state)return;
+    const prior=before.current;
+    before.current=room;
+    setHistory(old=>{
+      if(!prior||old.key!==key||!prior.state)return {key,entries:restoreHistory(key,room.state!.revision)};
+      const entries=advanceImpactHistory(prior,room,old.entries,catalog,name);
+      return entries===old.entries?old:{key,entries};
+    });
   },[room.code,room.seat,room.state?.revision,connected]);
+  useEffect(()=>{
+    if(!history.entries.length)return;
+    try{sessionStorage.setItem(historyStorageKey(history.key),JSON.stringify(history.entries));}
+    catch{/* Private mode and storage limits can leave history available only in memory. */}
+  },[history]);
   return history.key===key?history.entries:[];
 }
 const actionMark={summon:'＋',attack:'⚔',heroAttack:'⚔',spell:'✦',weapon:'⚒',secret:'?',coin:'◉',power:'ϟ',turn:'↻',choice:'▣',heal:'✚',death:'☠',draw:'▤'};
