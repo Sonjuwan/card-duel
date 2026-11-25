@@ -16,15 +16,6 @@ test('preview book, audio settings and saved match work across desktop, tablet a
   mkdirSync('ui-evidence',{recursive:true});
   for(const [label,width,height,hasTouch] of [['pc',1920,1080,false],['tablet',1024,768,true],['phone',844,390,true]]){
     const context=await browser.newContext({viewport:{width,height},hasTouch,isMobile:hasTouch});
-    await context.addInitScript(()=>{
-      window.decodedTracks=0;
-      const decode=AudioContext.prototype.decodeAudioData;
-      AudioContext.prototype.decodeAudioData=function(...args){
-        const pending=decode.apply(this,args);
-        pending.then(buffer=>{if(buffer.duration>8)window.decodedTracks++;},()=>{});
-        return pending;
-      };
-    });
     const page=await context.newPage();
     page.setDefaultTimeout(6500);
     const errors=[];
@@ -34,14 +25,17 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
     await page.getByRole('button',{name:'설정',exact:true}).click();
     const settings=page.getByRole('dialog',{name:'설정',exact:true});
-    const music=settings.getByRole('slider',{name:'배경음악 음량'});
-    assert.equal(await music.inputValue(),'40');
-    await music.fill('27');
-    await page.waitForFunction(()=>window.decodedTracks>0);
-    await settings.getByRole('button',{name:'전체 음소거'}).click();
-    assert.equal(await music.inputValue(),'27');
+    const effects=settings.getByRole('slider',{name:'효과음 볼륨'});
+    const mute=settings.getByRole('button',{name:'전체 음소거'});
+    assert.equal(await settings.getByRole('slider',{name:'배경음악 음량'}).count(),0);
+    assert.equal(await effects.inputValue(),'75');
+    await effects.fill('27');
+    await mute.click();
+    assert.equal(await mute.getAttribute('aria-pressed'),'true');
+    assert.equal(await effects.inputValue(),'27');
     await settings.getByRole('button',{name:'기본 설정으로 복원'}).click();
-    assert.equal(await music.inputValue(),'40');
+    assert.equal(await mute.getAttribute('aria-pressed'),'false');
+    assert.equal(await effects.inputValue(),'75');
     await settings.getByRole('button',{name:'닫기',exact:true}).click();
     await page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
     const reward=await page.locator('.road-stop .battle-card').first().boundingBox();
