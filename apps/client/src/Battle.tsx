@@ -254,7 +254,6 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),2000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
   const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision&&(!room.animation||cue?.animation.revision===motion?.revision)?motion:null;
   useEffect(()=>{setHandOpen(false);},[s?.turn,s?.phase,room.code]);
-  useEffect(()=>{if(cue?.animation.actor===seat&&cue.animation.cardId)setHandOpen(false);},[cue,seat]);
   const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!inputBlocked;
   const ownChoiceOpen=!!s&&s.phase==='playing'&&!playing&&((!!s.choicePending&&!!s.self.pendingChoice?.length&&connected&&opponentReady)||(active&&selected?.kind==='cardChoice'));
   // End-of-match results are a genuine modal. The next/new game controls
@@ -499,7 +498,16 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     }));
     return target?.kind==='minion'?{...description,minionId:target.instanceId}:target?.kind==='hero'?{...description,hero:target.player===seat?'self':'enemy'}:description;
   };
-  const pointerPlan=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{const description=pointerDescription(hit,x,d.intent,touchY),result=pointerDrop(rules,seat,catalog,d,description,boardPosition),action=result.intent?.action,target=action&&'target' in action?action.target:undefined;return {...result,target,slot:result.intent?description.slot:undefined};};
+  const pointerPlan=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{
+    const description=pointerDescription(hit,x,d.intent,touchY);
+    const plan=planDrag(rules,seat,catalog,d.intent,boardPosition);
+    const spell=plan?.selection?.kind==='card'&&selectionCard(rules,catalog,plan.selection)?.kind==='spell';
+    const result=spell&&!castRef.current
+      ?{intent:null,feedback:'cancel' as const}
+      :pointerDrop(rules,seat,catalog,d,description,boardPosition);
+    const action=result.intent?.action,target=action&&'target' in action?action.target:undefined;
+    return {...result,target,slot:result.intent?description.slot:undefined};
+  };
   const updatePointerFeedback=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{const plan=pointerPlan(hit,x,d,touchY);setTouchSlot(plan.slot);setDropTarget(old=>old&&plan.target&&sameTarget(old,plan.target)?old:plan.target);setDropFeedback(plan.feedback);return plan;};
   const edgeDelta=(row:HTMLElement,x:number,y:number,elapsed=16)=>{
     const rect=row.getBoundingClientRect();if(row.dataset.scrollable!=='true'||y<Math.max(0,rect.top)||y>Math.min(document.documentElement.clientHeight,rect.bottom))return 0;

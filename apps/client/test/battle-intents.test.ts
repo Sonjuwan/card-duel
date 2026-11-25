@@ -88,3 +88,14 @@ test('windfury may reserve two attacks and spent attack counters recover on canc
   queue.cancelPending();
   assert.equal(projectBattleIntents(view,0,catalog,queue.pending).self.board[0].attacksRemaining,2);
 });
+
+test('a reserved weapon strike accounts for the last durability before another hero attack',()=>{
+  const view=getPlayerView(setup(),0);
+  view.self.weapon={attack:2,durability:1};
+  view.self.heroAttacksRemaining=2;
+  const action={type:'heroAttack',target:{kind:'hero',player:1}} as const;
+  const projected=projectBattleIntents(view,0,catalog,[action]);
+  assert.equal(projected.self.weapon,null);
+  assert.ok(validateBattleIntent(projected,0,catalog,action));
+  assert.equal(view.self.weapon.durability,1);
+});

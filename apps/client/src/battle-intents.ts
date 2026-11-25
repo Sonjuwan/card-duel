@@ -79,7 +79,18 @@ export function projectBattleIntents(base:PlayerView,seat:PlayerId,catalog:Catal
       const unit=self.board.find(unit=>unit.instanceId===action.attackerId);
       if(unit)unit.attacksRemaining--;
     }
-    if(action.type==='heroAttack')self.heroAttacksRemaining--;
+    if(action.type==='heroAttack'){
+      self.heroAttacksRemaining--;
+      self.heroAttacksMadeThisTurn=(self.heroAttacksMadeThisTurn??0)+1;
+      const weapon=self.weapon;
+      const ability=weapon?.cardId?catalog[weapon.cardId]:undefined;
+      if(weapon){
+        const takesAttack=ability?.kind==='weapon'&&ability.attackLossVsMinion&&action.target.kind==='minion';
+        const remaining=takesAttack?{...weapon,attack:weapon.attack-1}:{...weapon,durability:weapon.durability-1};
+        self.weapon=remaining.durability>0&&remaining.attack>0?remaining:null;
+      }
+      if(!self.weapon)self.heroAttacksRemaining=Math.min(self.heroAttacksRemaining,Math.max(0,1-self.heroAttacksMadeThisTurn));
+    }
     if(action.type==='heroPower'){
       const power=getHeroPower(self);
       self.mana-=power.cost;
