@@ -8,9 +8,10 @@ test('pending PWA installation and update messages cannot cover an active battle
   assert.match(builder,/#solo-app-banner\[hidden\]\{display:none!important\}/);
   assert.match(builder,/position:fixed/);
 });
-test('patch notification remains queued and reappears after the game screen unmounts',()=>{
-  // CSS only hides visually during the battle; no JS deletes a pending message.
-  assert.match(register,/const updateMessage = \(\) => announce\('새 버전 준비 완료/);
+test('pending updates use the game menu when present and preserve the legacy fallback',()=>{
+  assert.match(register,/const updateMessage = \(\) => \{if\(updateDialog\)return;announce\('새 버전 준비 완료/);
+  assert.match(register,/if\(updateDialog\)\{\s+connectGameUpdate\(registration,updateDialog\)/);
+  assert.match(register,/applyButton.disabled=!ready\|\|applying/);
   assert.match(register,/if\(banner\)banner.hidden=quietStartup\|\|statusDismissed/);
   assert.doesNotMatch(builder,/body:has\(#root \.game-main \.duel-screen\) #solo-app-banner\{display:none/);
 });

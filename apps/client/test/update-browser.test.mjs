@@ -37,7 +37,7 @@ test('installed game verifies and explicitly applies an update without reinstall
     if(served===next&&name==='game.css'&&mode==='block'){
       notifyStyle();await stylesheetBlocked;
     }
-    if(served===next&&name==='game.js'&&mode==='disconnect'){res.destroy();return;}
+    if(served===next&&name==='game.css'&&mode==='disconnect'){res.destroy();return;}
     res.setHeader('Cache-Control','no-store');
     res.setHeader('Content-Type',types[name.split('.').at(-1)]??'application/octet-stream');
     res.end(served===next&&name==='game.js'&&mode==='corrupt'?'damaged game script':bytes);
@@ -108,6 +108,10 @@ test('installed game verifies and explicitly applies an update without reinstall
   const second=await context.newPage();
   await second.setViewportSize({width:1366,height:768});
   await second.goto(url);await select(second,2);
+  await second.getByRole('button',{name:'게임 업데이트',exact:true}).click();
+  const desktopDialog=second.getByRole('dialog',{name:'게임 업데이트'});
+  await desktopDialog.waitFor();
+  await desktopDialog.getByRole('button',{name:'닫기',exact:true}).click();
   await second.getByRole('button',{name:'대전',exact:true}).tap();
   await second.getByRole('button',{name:'전사',exact:true}).tap();
   await second.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
