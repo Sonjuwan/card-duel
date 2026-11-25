@@ -74,7 +74,7 @@ test('phone/tablet combat uses entire available height instead of three redundan
     assert.equal(faces.length,2);
     for(const face of faces){
       assert.ok([face.left,face.right,face.top,face.bottom].every(value=>Math.abs(value)<1.5),JSON.stringify({label,face}));
-      assert.ok(face.radius&&face.clipped&&face.fit==='cover',JSON.stringify(face));
+      assert.ok(face.radius&&face.clipped&&parseFloat(face.fit)>100,JSON.stringify(face));
     }
     await page.screenshot({path:'ui-evidence/'+label+'-immersive-battle.png',fullPage:false});
     assert.deepEqual(errors,[],label+' no browser exceptions');
@@ -209,15 +209,26 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   }
   await page.setViewportSize({width:780,height:360});
   const classes=['warrior','shaman','rogue','paladin','hunter','druid','warlock','mage','priest'];
+  const crops=new Map();
   for(let i=0;i<classes.length;i++){
     const pair=[classes[i],classes[(i+1)%classes.length]];
     await page.evaluate(pair=>window.denseBoard(7,10,pair),pair);
     for(const [index,zone] of ['self','enemy'].entries()){
       const art=page.locator(`.${zone}-hero-zone .hero-emblem .art-hero-${pair[index]}`);
       await art.waitFor();
-      assert.notEqual(await art.evaluate(el=>getComputedStyle(el).backgroundImage),'none');
+      const style=await art.evaluate(el=>{
+        const {backgroundImage,backgroundSize,backgroundPosition}=getComputedStyle(el);
+        return {backgroundImage,backgroundSize,backgroundPosition};
+      });
+      assert.notEqual(style.backgroundImage,'none');
+      assert.ok(parseFloat(style.backgroundSize)>100&&parseFloat(style.backgroundSize)<=135);
+      const crop=style.backgroundSize+':'+style.backgroundPosition;
+      if(crops.has(pair[index]))assert.equal(crops.get(pair[index]),crop,'both sides use the same class crop');
+      crops.set(pair[index],crop);
+      await page.locator(`.${zone}-hero-zone .hero-portrait`).screenshot({path:`ui-evidence/hero-crop-${zone}-${pair[index]}.png`});
     }
   }
+  assert.equal(new Set(crops.values()).size,classes.length,'each class has its own focal point');
   const unitSizes=[];
   for(let count=1;count<=10;count++){
     await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);
