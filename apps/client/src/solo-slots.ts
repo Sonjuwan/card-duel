@@ -12,10 +12,11 @@ export function slotPreviewRefreshAction(visible:boolean,active:boolean):'start'
  * The live site's legacy keys/database names must remain byte-for-byte stable. */
 export type SoloNamespace='main'|'ui-preview';
 export const currentSoloNamespace=(pathname=typeof window==='undefined'?'':window.location.pathname):SoloNamespace=>/(?:^|\/)ui-preview(?:\/|$)/.test(pathname)?'ui-preview':'main';
-export const soloSlotDatabase=(slot:SoloSlot,namespace:SoloNamespace='main')=>{
+export const soloSlotDatabase=(slot:SoloSlot,namespace:SoloNamespace='main',developerFree=false)=>{
   if(!validSoloSlot(slot))throw Error('잘못된 저장 슬롯');
   const original=slot===1?'card-duel-solo-saves-v1':`card-duel-solo-saves-v1-slot-${slot}`;
-  return namespace==='ui-preview'?`${original}-ui-preview`:original;
+  const scoped=namespace==='ui-preview'?`${original}-ui-preview`:original;
+  return developerFree?`${scoped}-developer-free`:scoped;
 };
 export type SlotStorage=Pick<Storage,'getItem'|'setItem'|'key'|'length'>;
 const selectedKey='card-duel-active-solo-slot-v1';

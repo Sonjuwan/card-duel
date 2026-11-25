@@ -16,8 +16,9 @@ export interface LocalDuelInput{
   firstPlayer?:PlayerId;deckSeed?:number;animationSpeed?:AnimationSpeed;catalogHash?:string;
   ranked?:OfflineRankContext;
   developerTest?:OfflineDeveloperContext;
+  developerFree?:true;
 }
-export interface LocalSaveSummary{catalogHash:string;code:string;heroClass:HeroClass;opponent:HeroClass;difficulty:BotDifficulty;turn:number;phase:GameState['phase'];revision:number;savedAt:string;rank?:number;testRank?:number;testExperiment?:'mixture-v1';}
+export interface LocalSaveSummary{catalogHash:string;code:string;heroClass:HeroClass;opponent:HeroClass;difficulty:BotDifficulty;turn:number;phase:GameState['phase'];revision:number;savedAt:string;rank?:number;developerFree?:true;testRank?:number;testExperiment?:'mixture-v1';}
 export interface LocalSlotOverview{initialized:boolean;rank:number;xp:number;ownedCards:number;save:LocalSaveSummary|null;otherSaves:number;otherActiveRanked:boolean;}
 /** Private snapshot: never include this in any message to the React renderer. */
 export interface LocalDuelCheckpoint{schema:1;catalogHash:string;summary:LocalSaveSummary;input:Omit<LocalDuelInput,'catalog'|'device'>;state:Omit<GameState,'catalog'>;remainingMs?:number;botTurn:number;botActions:number;}
@@ -25,7 +26,8 @@ const integer=(n:unknown,min:number,max=Number.MAX_SAFE_INTEGER)=>typeof n==='nu
 export function publicSaveSummary(saved:LocalDuelCheckpoint,hash:string):LocalSaveSummary{
   const s=saved?.summary;if(saved?.schema!==1||saved.catalogHash!==hash||s?.catalogHash!==hash||typeof s.code!=='string'||!s.code||s.code.length>128||!HERO_CLASSES.includes(s.heroClass)||!HERO_CLASSES.includes(s.opponent)||!isBotDifficulty(s.difficulty)||!integer(s.turn,0,RULES.maxTurns)||!integer(s.revision,0)||!['mulligan','playing','finished'].includes(s.phase)||typeof s.savedAt!=='string'||!Number.isFinite(Date.parse(s.savedAt)))throw new RuleError('손상된 경기 저장 데이터');
   if(s.rank!==saved.input?.ranked?.rank||s.rank!==undefined&&!integer(s.rank,1,25)||s.testRank!==saved.input?.developerTest?.rank||s.testRank!==undefined&&!integer(s.testRank,1,25)||s.testExperiment!==saved.input?.developerTest?.experiment||s.testExperiment!==undefined&&(s.testExperiment!=='mixture-v1'||s.testRank===undefined||s.rank!==undefined))throw new RuleError('손상된 랭크 경기 저장 데이터');
-  return {catalogHash:hash,code:s.code,heroClass:s.heroClass,opponent:s.opponent,difficulty:s.difficulty,turn:s.turn,phase:s.phase,revision:s.revision,savedAt:s.savedAt,...(s.rank!==undefined?{rank:s.rank}:{}),...(s.testRank!==undefined?{testRank:s.testRank}:{}),...(s.testExperiment?{testExperiment:s.testExperiment}:{})};
+  if(s.developerFree!==saved.input?.developerFree||s.developerFree!==undefined&&s.developerFree!==true)throw new RuleError('손상된 개발자 자유 대전');
+  return {catalogHash:hash,code:s.code,heroClass:s.heroClass,opponent:s.opponent,difficulty:s.difficulty,turn:s.turn,phase:s.phase,revision:s.revision,savedAt:s.savedAt,...(s.rank!==undefined?{rank:s.rank}:{}),...(s.developerFree?{developerFree:true as const}:{}),...(s.testRank!==undefined?{testRank:s.testRank}:{}),...(s.testExperiment?{testExperiment:s.testExperiment}:{})};
 }
 function checkSavedState(s:Omit<GameState,'catalog'>,catalog:Catalog){
   if(!s||!['mulligan','playing','finished'].includes(s.phase)||!integer(s.revision,0)||!integer(s.rng,0,0xffffffff)||!integer(s.nextId,1)||!integer(s.turn,0,RULES.maxTurns)||![0,1].includes(s.firstPlayer)||![0,1].includes(s.activePlayer)||!Array.isArray(s.players)||s.players.length!==2||!Array.isArray(s.history)||s.history.length>60||s.phase==='finished'&&(![null,0,1].includes(s.winner)||!['health','fatigue','concede','turnLimit'].includes(s.reason??''))||s.phase!=='finished'&&(s.winner!==null||s.reason!==null))throw new RuleError('저장 경기의 상태가 손상되었습니다.');
@@ -57,6 +59,7 @@ export class LocalDuel{
     if(!DECK_STYLES.includes(this.style))throw new RuleError('잘못된 AI 덱 스타일');
     if(input.animationSpeed!==undefined&&!ANIMATION_SPEEDS.includes(input.animationSpeed))throw new RuleError('잘못된 연출 속도');
     const ranked=input.ranked,tier=ranked??input.developerTest;
+    if(input.developerFree!==undefined&&(input.developerFree!==true||tier))throw new RuleError('자유 대전 설정이 손상되었습니다.');
     if(ranked&&Object.hasOwn(ranked,'experiment')||input.developerTest?.experiment!==undefined&&input.developerTest.experiment!=='mixture-v1')throw new RuleError('실험 AI는 개발자 시험에서만 사용할 수 있습니다.');
     if(ranked&&input.developerTest||ranked&&!integer(ranked.profileRevision,0)||tier&&(!integer(tier.rank,1,25)||!integer(tier.deckPower,1,25)||tier.intelligence!==input.difficulty||tier.opponentDeck?.heroClass!==input.heroClass))throw new RuleError('저장 랭크 설정이 손상되었습니다.');
     const opponent=tier?tier.opponentDeck:strategicDeck(input.catalog,input.heroClass,this.style,this.input.deckSeed);
@@ -66,7 +69,7 @@ export class LocalDuel{
   checkpoint(now=Date.now()):LocalDuelCheckpoint|null{
     const hash=this.input.catalogHash;if(!hash||!/^[a-f0-9]{64}$/.test(hash))return null;
     const {catalog:_,device:__,...input}=this.input,{catalog:___,...state}=this.state;
-    return structuredClone({schema:1,catalogHash:hash,summary:{catalogHash:hash,code:this.input.code,heroClass:state.players[0].heroClass,opponent:state.players[1].heroClass,difficulty:this.input.difficulty,turn:state.turn,phase:state.phase,revision:state.revision,savedAt:new Date(now).toISOString(),...(input.ranked?{rank:input.ranked.rank}:{}),...(input.developerTest?{testRank:input.developerTest.rank}:{}),...(input.developerTest?.experiment?{testExperiment:input.developerTest.experiment}:{})},input:{...input,style:this.style},state,...(this.deadline!==undefined?{remainingMs:Math.max(0,this.deadline-now)}:{}),botTurn:this.botTurn,botActions:this.botActions});
+    return structuredClone({schema:1,catalogHash:hash,summary:{catalogHash:hash,code:this.input.code,heroClass:state.players[0].heroClass,opponent:state.players[1].heroClass,difficulty:this.input.difficulty,turn:state.turn,phase:state.phase,revision:state.revision,savedAt:new Date(now).toISOString(),...(input.ranked?{rank:input.ranked.rank}:{}),...(input.developerFree?{developerFree:true as const}:{}),...(input.developerTest?{testRank:input.developerTest.rank}:{}),...(input.developerTest?.experiment?{testExperiment:input.developerTest.experiment}:{})},input:{...input,style:this.style},state,...(this.deadline!==undefined?{remainingMs:Math.max(0,this.deadline-now)}:{}),botTurn:this.botTurn,botActions:this.botActions});
   }
   static restore(saved:LocalDuelCheckpoint,catalog:Catalog,hash:string,device?:DeviceInfo,now=Date.now()):LocalDuel{
     publicSaveSummary(saved,hash);
@@ -91,7 +94,7 @@ export class LocalDuel{
   }
   view():RoomView{
     const ranked=this.input.ranked;
-    return {code:this.input.code,seat:0,mode:'bot',botEngine:'device',botDifficulty:this.input.difficulty,botTrainingGeneration:this.input.generation??0,botDeckStyle:this.style,animationSpeed:this.input.animationSpeed??'normal',status:this.state.phase==='finished'?'finished':'playing',opponentConnected:true,state:getPlayerView(this.state,0),...(ranked?{ranked:{rank:ranked.rank,deckPower:ranked.deckPower,intelligence:ranked.intelligence,reward:'pending' as const}}:{}),...(this.input.developerTest?{developerTest:{rank:this.input.developerTest.rank,deckPower:this.input.developerTest.deckPower,intelligence:this.input.developerTest.intelligence,...(this.input.developerTest.experiment?{experiment:this.input.developerTest.experiment}:{})}}:{}),...(this.animation?{animation:structuredClone(this.animation)}:{}),...(this.deadline!==undefined?{turnDeadlineMs:this.deadline}:{})};
+    return {code:this.input.code,seat:0,mode:'bot',botEngine:'device',botDifficulty:this.input.difficulty,botTrainingGeneration:this.input.generation??0,botDeckStyle:this.style,animationSpeed:this.input.animationSpeed??'normal',status:this.state.phase==='finished'?'finished':'playing',opponentConnected:true,state:getPlayerView(this.state,0),...(ranked?{ranked:{rank:ranked.rank,deckPower:ranked.deckPower,intelligence:ranked.intelligence,reward:'pending' as const}}:{}),...(this.input.developerFree?{developerFree:true as const}:{}),...(this.input.developerTest?{developerTest:{rank:this.input.developerTest.rank,deckPower:this.input.developerTest.deckPower,intelligence:this.input.developerTest.intelligence,...(this.input.developerTest.experiment?{experiment:this.input.developerTest.experiment}:{})}}:{}),...(this.animation?{animation:structuredClone(this.animation)}:{}),...(this.deadline!==undefined?{turnDeadlineMs:this.deadline}:{})};
   }
   private apply(actor:PlayerId,action:Action,now=Date.now()){
     const before=this.state,trace:BattleVisualEvent[]=[];

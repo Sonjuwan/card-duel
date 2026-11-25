@@ -39,7 +39,7 @@ export function slotOverview(raw:unknown,entry:Entry|undefined,saveCount:number,
 export class IndexedLocalSaveStore implements LocalSaveStore{
   private db:Promise<IDBDatabase>|undefined;
   private readonly dbName:string;
-  constructor(slot:SoloSlot=1,namespace:SoloNamespace='main'){this.dbName=soloSlotDatabase(slot,namespace);}
+  constructor(slot:SoloSlot=1,namespace:SoloNamespace='main',developerFree=false){this.dbName=soloSlotDatabase(slot,namespace,developerFree);}
   private open(){
     if(this.db)return this.db;
     const opening=new Promise<IDBDatabase>((resolve,reject)=>{

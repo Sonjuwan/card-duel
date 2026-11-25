@@ -39,6 +39,7 @@ import type {AccountPlayMode} from './AccountPanel.tsx';
 import type {AccountView} from '../../../packages/account-protocol.ts';
 import type {AccountProfile} from '../../../packages/account-protocol.ts';
 import {offlineGrowth} from './offline-growth.ts';
+import {DeveloperFreePlay} from './DeveloperFreePlay.tsx';
 import {OfflineGrowthPanel,OfflineDeveloperPanel} from './OfflineGrowthPanel.tsx';
 import {backupDeckLibrary,restoreDeckLibrary,readDecks,saveNamedDeck,deleteNamedDeck,withDeckLibraryLock,deckLibraryAfterWriteFailure,checkedDeckLibrary} from './named-decks.ts';
 import {watchDeckLibraryChanges} from './deck-library-sync.ts';
@@ -220,7 +221,7 @@ export function App(props:AppProps={}){
 function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiProfile,initialOfflineMode='player',initialLobbyView='home',slot,onSlotChange,onReturnToSlots}:AppProps&{slot:SoloSlot;onSlotChange:(slot:SoloSlot)=>void;onReturnToSlots?:()=>void}){
   const storage=useMemo(()=>soloSlotStorage(slot),[slot]);
   const lossOnExit=standalone&&currentSoloNamespace()==='ui-preview';
-  const makeWorker=(target:SoloSlot)=>{if(!baseWorkerFactory)throw Error('저장 슬롯 작업 스레드가 없습니다.');const worker=baseWorkerFactory();if(standalone&&(target!==1||currentSoloNamespace()==='ui-preview'))worker.postMessage({type:'selectSlot',slot:target,...(currentSoloNamespace()==='ui-preview'?{namespace:'ui-preview'}:{})});return worker;};
+  const makeWorker=(target:SoloSlot,developerFree=false)=>{if(!baseWorkerFactory)throw Error('저장 슬롯 작업 스레드가 없습니다.');const worker=baseWorkerFactory();if(standalone&&(developerFree||target!==1||currentSoloNamespace()==='ui-preview'))worker.postMessage({type:'selectSlot',slot:target,...(developerFree?{developerFree:true}:{}),...(currentSoloNamespace()==='ui-preview'?{namespace:'ui-preview'}:{})});return worker;};
   const workerFactory=baseWorkerFactory?()=>makeWorker(slot):undefined;
   const socketRef=useRef<Socket<ServerEvents,ClientEvents>|null>(null);const sessionRef=useRef<Session|null>(standalone?null:readSession());
   const ticketRef=useRef<string|null>(standalone?null:readRoomTicket(sessionStore())),connectionEpoch=useRef(0);
@@ -294,6 +295,28 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     return()=>{stopped=true;close();};
   },[saveProbe]);
   const [lobbyView,setLobbyView]=useState<LobbyView>(initialLobbyView);
+  const [freeSave,setFreeSave]=useState<{save:LocalSaveSummary|null;available:boolean}>();
+  useEffect(()=>{
+    if(!lossOnExit||lobbyView!=='developer'||offlineMode!=='developer'||room||busy)return;
+    let probe:Worker|undefined;
+    const finish=(save:LocalSaveSummary|null,available:boolean)=>{
+      probe?.terminate();probe=undefined;
+      setFreeSave({save,available});
+    };
+    const timer=setTimeout(()=>finish(null,false),5000);
+    try{
+      probe=makeWorker(slot,true);
+      probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{
+        if(data.type==='saveInfo')finish(data.save,data.available);
+        else if(data.type==='error')finish(null,false);
+        else return;
+        clearTimeout(timer);
+      };
+      probe.onerror=()=>{clearTimeout(timer);finish(null,false);};
+      probe.postMessage({type:'inspectSave',catalogHash} satisfies LocalRequest);
+    }catch{clearTimeout(timer);finish(null,false);}
+    return ()=>{clearTimeout(timer);probe?.terminate();};
+  },[lossOnExit,lobbyView,offlineMode,room,busy,slot,baseWorkerFactory]);
   const [toast,setToast]=useState<{text:string;kind:'success'|'info'}|null>(null);
   useEffect(()=>{
     if(!toast)return;
@@ -401,13 +424,21 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     if(!workerRef.current||!workerStalledRef.current||!window.confirm('기기 AI 작업이 아직 진행 중일 수 있습니다. 작업을 중단하면 확인되지 않은 최신 행동은 사라질 수 있으며 마지막 저장 기록만 복구합니다. 중단하고 저장 경기를 다시 확인할까요?'))return;
     recoverLocalWorker('지연된 기기 AI 작업을 중단했습니다.');
   };
-  const startLocalWorker=(initialize:(worker:Worker)=>void)=>{
+  const startLocalWorker=(initialize:(worker:Worker)=>void,developerFree=false)=>{
     if(workerRef.current||busyRef.current)return;
     if(sessionRef.current||ticketRef.current){setError('기존 서버 대전을 복원하고 나간 뒤 기기 AI 대전을 시작하세요.');return;}
     changeBusy(true);setError('');
     try{
       if(!workerFactory)throw Error('Missing worker factory');
-      const worker=workerFactory();
+      const worker=developerFree?makeWorker(slot,true):workerFactory();
+      const updateSave=(save:LocalSaveSummary|null|undefined,available:boolean|undefined)=>{
+        if(developerFree){
+          setFreeSave(old=>({save:save===undefined?old?.save??null:save,available:available??old?.available??false}));
+        }else{
+          if(save!==undefined)setSavedMatch(save);
+          if(available!==undefined)setSaveAvailable(available);
+        }
+      };
       workerRef.current=worker;
       let hasView=false;
       const fail=(message:string)=>{if(workerRef.current!==worker)return;recoverLocalWorker(message);};
@@ -419,14 +450,14 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
         if(standalone&&data.profile)setOfflineProfile(old=>!old||data.profile!.revision>=old.revision?data.profile:old);
         if(data.type==='error'){
           if(data.requestId===undefined||!hasView){fail(data.error);return;}
-          if(data.save!==undefined)setSavedMatch(data.save);if(data.saveAvailable!==undefined)setSaveAvailable(data.saveAvailable);
+          updateSave(data.save,data.saveAvailable);
           acknowledgeWorker();
           setError(data.error);changeBusy(false);return;
         }
-        if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView(practiceLobby);setSavedMatch(data.save);setSaveAvailable(data.type==='paused'||data.type==='forfeited'||(data.type==='discarded'&&data.available));if(data.type==='paused')setToast({text:'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.',kind:'success'});else if(data.type==='forfeited')setToast({text:'기존 경기가 패배로 정산되었습니다.',kind:'info'});changeBusy(false);return;}
+        if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView(practiceLobby);updateSave(data.save,data.type==='paused'||data.type==='forfeited'||(data.type==='discarded'&&data.available));if(data.type==='paused')setToast({text:'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.',kind:'success'});else if(data.type==='forfeited')setToast({text:'기존 경기가 패배로 정산되었습니다.',kind:'info'});changeBusy(false);return;}
         if(data.type!=='view')return;
         const firstView=!hasView;hasView=true;
-        if(data.save!==undefined)setSavedMatch(data.save);if(data.saveAvailable!==undefined)setSaveAvailable(data.saveAvailable);
+        updateSave(data.save,data.saveAvailable);
         setRoom(previous=>mergeRoomView(previous,data.view));if(localViewAcknowledges(data.requestId,localRequestId.current,firstView,data.view.state?.revision,data.resumed)){acknowledgeWorker(true);changeBusy(false);}
       };
       worker.onerror=()=>fail(standalone?'이 기기에서 AI 작업이 중단되었습니다. 확인되지 않은 최신 행동은 복구되지 않을 수 있습니다.':'이 기기에서 AI 작업이 중단되었습니다.');
@@ -457,18 +488,30 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
         }};worker.onerror=()=>finish('성장 백업 작업을 완료하지 못했습니다.');timer=setTimeout(()=>finish('성장 저장소 응답이 지연되었습니다. 다시 확인하세요.'),10000);worker.postMessage(payload);
     }catch(e){finish(e instanceof Error?e.message:'성장 백업 파일을 열 수 없습니다.');}
   };
-  const beginLocal=(config:ResolvedSolo,matchDeck:Deck,ranked=false,developerRank?:number,developerExperiment=false)=>{
+  const beginLocal=(config:ResolvedSolo,matchDeck:Deck,ranked=false,developerRank?:number,developerExperiment=false,developerFree=false)=>{
+    if(developerFree&&(!standalone||offlineMode!=='developer'||ranked||developerRank!==undefined))return;
+    const saved=developerFree?freeSave?.save:savedMatch;
+    const available=developerFree?freeSave?.available:saveAvailable;
     if(ranked&&offlineMode==='developer'){setError('유저 모드에서 랭크 대전을 시작하세요.');return;}
     if(ranked&&!growthReady){setError('저장소와 성장 기록을 확인한 뒤 랭크 경기를 시작하세요.');return;}
     if(ranked&&oldRankedPending){setError('이전 카드 버전에서 진행 중인 랭크 경기를 완료한 뒤 다시 시작하세요.');return;}
-    if(savedMatch?.rank!==undefined&&savedMatch.phase!=='finished'){setError('진행 중인 랭크 대전을 먼저 이어서 완료하거나 항복하세요.');return;}
-    if(saveAvailable===undefined){setError('저장된 경기를 확인하는 중입니다. 잠시 후 다시 시도하세요.');return;}
-    if(savedMatch&&savedMatch.phase!=='finished'&&!window.confirm('새 대전을 시작하면 저장된 진행 중인 경기가 교체됩니다. 새 대전을 시작할까요?'))return;
+    if(saved?.rank!==undefined&&saved.phase!=='finished'){setError('진행 중인 랭크 대전을 먼저 이어서 완료하거나 항복하세요.');return;}
+    if(available===undefined){setError('저장된 경기를 확인하는 중입니다. 잠시 후 다시 시도하세요.');return;}
+    if(saved&&saved.phase!=='finished'&&!window.confirm('새 대전을 시작하면 저장된 진행 중인 경기가 교체됩니다. 새 대전을 시작할까요?'))return;
     startLocalWorker(worker=>{void (initialAiProfile?Promise.resolve(initialAiProfile):localAiProfile(catalogHash)).then(profile=>{
         if(workerRef.current!==worker)return;
-        const request:LocalRequest={type:'start',replaceSave:savedMatch,ranked,developerRank,...(developerExperiment?{developerExperiment:true}:{}),input:{catalog,catalogHash,deck:structuredClone(matchDeck),heroClass:config.heroClass,difficulty:config.difficulty,seed:config.seed,code:newLocalCode(),style:config.style,firstPlayer:config.firstPlayer,deckSeed:config.deckSeed,weights:profile.weights,generation:profile.generation,deviceMode:config.deviceMode,animationSpeed:config.animationSpeed,device:deviceInfo()}};
+        const request:LocalRequest={type:'start',replaceSave:saved,ranked,developerRank,...(developerExperiment?{developerExperiment:true}:{}),input:{catalog,catalogHash,...(developerFree?{developerFree:true as const}:{}),deck:structuredClone(matchDeck),heroClass:config.heroClass,difficulty:config.difficulty,seed:config.seed,code:newLocalCode(),style:config.style,firstPlayer:config.firstPlayer,deckSeed:config.deckSeed,weights:profile.weights,generation:profile.generation,deviceMode:config.deviceMode,animationSpeed:config.animationSpeed,device:deviceInfo()}};
         worker.postMessage(request);
-      }).catch(()=>{if(workerRef.current===worker)recoverLocalWorker('기기 AI를 시작하지 못했습니다.');});});
+      }).catch(()=>{if(workerRef.current===worker)recoverLocalWorker('기기 AI를 시작하지 못했습니다.');});},developerFree);
+  };
+  const beginDeveloperFree=(player:HeroClass,opponent:SoloClass)=>{
+    const config=resolveSolo({...soloSettings,heroClass:opponent,style:'practice'},random32());
+    beginLocal(config,practiceDeck(catalog,player),false,undefined,false,true);
+  };
+  const resumeDeveloperFree=()=>{
+    const save=freeSave?.save;
+    if(offlineMode!=='developer'||!save||!freeSave?.available)return;
+    startLocalWorker(worker=>worker.postMessage({type:'resume',catalog,catalogHash,device:deviceInfo(),expectedCode:save.code} satisfies LocalRequest),true);
   };
   const forfeitSaved=()=>{if(!savedMatch||savedMatch.phase==='finished'||saveAvailable!==true||busyRef.current)return;if(!window.confirm('저장된 기존 경기를 패배로 기록하고 새로운 게임을 시작하시겠습니까?'))return;startLocalWorker(worker=>worker.postMessage({type:'forfeitSaved',requestId:localRequestId.current,catalog,catalogHash,expected:savedMatch} satisfies LocalRequest));};
   const resumeLocal=()=>{if(!savedMatch||saveAvailable!==true)return;if(standalone&&(savedMatch.testRank!==undefined&&offlineMode!=='developer'||savedMatch.rank!==undefined&&offlineMode!=='player')){setError('이 저장 경기는 '+(savedMatch.testRank!==undefined?'개발자':'유저')+' 모드에서 이어할 수 있습니다.');return;}startLocalWorker(worker=>worker.postMessage({type:'resume',catalog,catalogHash,device:deviceInfo(),expectedCode:savedMatch.code} satisfies LocalRequest));};
@@ -498,6 +541,8 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
       {standalone&&<nav className="lobby-tabs" aria-label="오프라인 게임 모드"><button className={offlineMode==='player'?'chosen':''} aria-pressed={offlineMode==='player'} disabled={busy} onClick={()=>switchOfflineMode('player')}>유저 모드</button><button className={offlineMode==='developer'?'chosen':''} aria-pressed={offlineMode==='developer'} disabled={busy} onClick={()=>switchOfflineMode('developer')}>개발자 모드</button></nav>}
       {standalone&&localGrowth&&(lossOnExit?lobbyView==='slots':lobbyView==='play')&&(offlineMode==='player'?<OfflineGrowthPanel profile={offlineProfile} growth={localGrowth} deck={deck} busy={busy} ready={growthReady} rankBlocked={oldRankedPending} onDeck={editDeck} onStart={()=>beginLocal(resolveSolo(soloSettings,random32()),deck,true)} onBackup={()=>void growthBackup()} onCombinedBackup={()=>void growthBackup(undefined,true)} onRestore={file=>void growthBackup(file)} onRestoreError={setError}/>:<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>)}
 <div className="saved-duel-panel" aria-label="저장된 솔로 대전">{savedMatch?<><div><strong>{savedMatch.phase==='finished'?'지난 대전 결과':savedMatch.rank!==undefined?'진행 중인 랭크 대전':savedMatch.testRank!==undefined?(savedMatch.testExperiment?'진행 중인 실험 AI 시험':'진행 중인 개발자 시험'):'진행 중인 솔로 대전'}</strong><p>{className[savedMatch.heroClass]} vs {className[savedMatch.opponent]} · {savedMatch.difficulty}단계 · {savedMatch.turn}턴 · {new Date(savedMatch.savedAt).toLocaleString('ko-KR')}</p>{savedMatchConfidence(saveAvailable)&&<small role="status" className="warn">{savedMatchConfidence(saveAvailable)}</small>}</div>{!lossOnExit&&<button disabled={busy||saveAvailable===undefined} onClick={resumeLocal}>{saveAvailable===false?'이어하기 재시도':savedMatch.phase==='finished'?'결과 보기':'이어하기'}</button>}<button disabled={busy||saveAvailable!==true||savedMatch.rank!==undefined&&savedMatch.phase!=='finished'} className="secondary" onClick={discardSaved}>저장 경기 제거</button></>:<small>{saveAvailable===undefined?'저장 경기 확인 중…':saveAvailable?'기기 AI 대전은 자동으로 저장됩니다.':'경기 저장소에 접근할 수 없습니다.'}</small>}{workerFactory&&saveAvailable!==undefined&&(savedMatch||!saveAvailable||standalone&&oldRankedPending===undefined)&&<button type="button" className="secondary" disabled={busy} onClick={recheckSave}>저장소 다시 확인</button>}</div></>;
+  const battleSaveAvailable=room?.developerFree?freeSave?.available:saveAvailable;
+  const battleSave=room?.developerFree?freeSave?.save:savedMatch;
   const gameUpdateMenu=standalone&&typeof document!=='undefined'&&document.querySelector('meta[name="card-duel-build"]')&&
     <button type="button" className="game-update-menu" onClick={()=>window.dispatchEvent(new Event('card-duel-update-open'))}>게임 업데이트</button>;
   return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><h1>Card Duel</h1></div></div><div className="connection">{onReturnToSlots&&!room&&lobbyView==='slots'&&<button type="button" className="secondary slot-return" disabled={busy} onClick={onReturnToSlots}>슬롯 {slot} 변경</button>}<span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
@@ -508,7 +553,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}
     {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onCatalog={id=>{setRewardPopup([]);setPromotion(undefined);openLobbyView('catalog',true,id);}} onClose={()=>{setRewardPopup([]);setPromotion(undefined);}}/>}
-    {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(saveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} lastSavedAt={onDevice&&saveAvailable===true&&savedMatch?.code===room.code?savedMatch.savedAt:undefined} autoSaved={onDevice?!!saveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
+    {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} lastSavedAt={onDevice&&battleSaveAvailable===true&&battleSave?.code===room.code?battleSave.savedAt:undefined} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴">
     <button type="button" data-lobby-tab="play" onClick={()=>openLobbyView(practiceLobby,true)}><Sigil kind="warrior"/>대전</button>
     <button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>
@@ -527,7 +572,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     :lobbyView==='rank'&&lossOnExit?<PreviewRank profile={offlineProfile} growth={localGrowth}/>
     :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
     :lobbyView==='rewards'&&lossOnExit?<><PreviewRewards profile={offlineProfile} growth={localGrowth} onCatalog={id=>openLobbyView('catalog',true,id)}/><div className="preview-reward-backups"><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup()}>성장 기록 백업</button><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup(undefined,true)}>성장+덱 통합 백업</button><BackupFilePicker label="미진행 슬롯에 성장 백업 복원" disabled={busy||!growthReady||offlineProfile?.revision!==0} onFile={file=>void growthBackup(file)} onError={setError}/></div></>
-    :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setPreviewEditHero(null);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
+    :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button><DeveloperFreePlay initialHero={deck.heroClass} busy={busy} ready={freeSave?.available} onStart={beginDeveloperFree} onResume={freeSave?.save&&freeSave.save.phase!=='finished'?resumeDeveloperFree:undefined}/>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setPreviewEditHero(null);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
     :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} developer={standalone&&offlineMode==='developer'} unreadIds={lossOnExit&&offlineMode==='player'?unreadCards:[]} onViewed={lossOnExit&&offlineMode==='player'?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} developer={standalone&&offlineMode==='developer'} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={standalone&&offlineMode==='developer'?developerDeckStorage:storage} onPlay={()=>openLobbyView(practiceLobby,true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
     </>}
     </div>

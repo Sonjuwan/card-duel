@@ -36,7 +36,7 @@ function validResult(v:unknown):v is SoloResult{
 export function readSoloHistory(storage=store()):SoloResult[]{try{const raw=JSON.parse(storage?.getItem(historyKey)??'[]');return Array.isArray(raw)?raw.filter(validResult).slice(0,100):[];}catch{return [];}}
 /** Record only finished practice matches. Ranked history belongs to the account. */
 export function resultFromRoom(room:RoomView,hash:string,date=new Date().toISOString()):SoloResult|null{
-  const s=room.state;if(room.mode!=='bot'||room.ranked||room.developerTest||s?.phase!=='finished')return null;
+  const s=room.state;if(room.mode!=='bot'||room.ranked||room.developerFree||room.developerTest||s?.phase!=='finished')return null;
   return {code:room.code,date,heroClass:s.self.heroClass,opponent:s.opponent.heroClass,difficulty:room.botDifficulty??3,style:room.botDeckStyle,result:s.winner===null?'draw':s.winner===room.seat?'win':'loss',turns:s.turn,generation:room.botTrainingGeneration??0,catalogHash:hash};
 }
 export function recordSoloResult(result:SoloResult,storage=store(),inMemory:SoloResult[]=[]):SoloResult[]{
