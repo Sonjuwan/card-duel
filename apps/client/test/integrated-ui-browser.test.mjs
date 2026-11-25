@@ -12,7 +12,10 @@ async function previewBrowser(t){
     if(req.url.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  t.after(()=>new Promise(resolve=>{
+    server.close(resolve);
+    server.closeAllConnections();
+  }));
   const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
   return {browser,url:'http://127.0.0.1:'+server.address().port+'/ui-preview/'};
@@ -137,6 +140,7 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       await hand.waitFor();
       assert.deepEqual(await board.boundingBox(),before,label+' hand does not reflow the board');
       await page.screenshot({path:'ui-evidence/hand-'+label+'.png'});
+      assert.equal(await folded.getAttribute('aria-expanded'),'true',label+' hand stays open between touches');
       await folded.tap();
       await hand.waitFor({state:'hidden'});
     }else{
