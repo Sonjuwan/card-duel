@@ -201,10 +201,10 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     },count);
     assert.ok(noOverlap,`hand of ${count} stays outside mana and deck`);
     const units=await page.locator('.arena-field .battle-minion').evaluateAll(elements=>elements.map(element=>{
-      const {width,height}=element.getBoundingClientRect();return [width,height];
+      const {width,height}=getComputedStyle(element);return [Number.parseFloat(width),Number.parseFloat(height)];
     }));
     if(count===1)unitSizes.push(units[0]);
-    assert.ok(units.every(([width,height])=>Math.abs(width-unitSizes[0][0])<.1&&Math.abs(height-unitSizes[0][1])<.1));
+    assert.ok(units.every(([width,height])=>Math.abs(width-unitSizes[0][0])<.1&&Math.abs(height-unitSizes[0][1])<.1),JSON.stringify({count,units,reference:unitSizes[0]}));
     await page.locator('.folded-hand').tap();
   }
   await context.close();
@@ -300,6 +300,13 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   const rail=page.locator('.impact-rail');
   await rail.locator('.impact-icon').nth(4).waitFor();
   assert.ok(await rail.evaluate(el=>el.scrollHeight>el.clientHeight));
+  assert.ok(await rail.locator('.impact-icon').evaluateAll(buttons=>buttons.every(button=>{
+    const portrait=button.querySelector('.impact-portrait'),mark=button.querySelector('.impact-kind');
+    if(!portrait||!mark)return true;
+    const a=portrait.getBoundingClientRect(),b=mark.getBoundingClientRect();
+    return a.width>0&&b.width>0&&a.right<=b.left+.5;
+  })), 'action glyphs have their own column');
+  await page.screenshot({path:'ui-evidence/phone-action-rail.png'});
   await rail.evaluate(el=>{el.scrollTop=el.scrollHeight;});
   await page.getByRole('button',{name:'최신 행동으로 이동'}).click();
   await page.waitForFunction(()=>document.querySelector('.impact-rail').scrollTop===0);
