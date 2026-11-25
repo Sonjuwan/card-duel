@@ -263,7 +263,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await drag(first,enemyBoard);
   const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
   await summon.waitFor();
-  await hand.tap();
+  assert.equal(await hand.getAttribute('aria-expanded'),'true');
   const pending=page.locator('.own-hand button[data-preview-card="mana_wyrm"]');
   await pending.waitFor();
   await drag(pending,enemyBoard,async()=>{
@@ -290,7 +290,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   });
   await page.locator('.battle-fx-layer[data-fx-kind="spell"][data-fx-side="own"]').waitFor();
   await page.waitForFunction(health=>Number(document.querySelector('.enemy-hero-zone .hero-health')?.textContent)<health,before);
-  assert.equal(await hand.getAttribute('aria-expanded'),'false');
+  assert.equal(await hand.getAttribute('aria-expanded'),await page.locator('.own-hand .battle-card').count()>0?'true':'false');
   const rail=page.locator('.impact-rail');
   await rail.locator('.impact-icon').nth(4).waitFor();
   assert.ok(await rail.evaluate(el=>el.scrollHeight>el.clientHeight));
@@ -342,7 +342,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
           const [own,enemy]=state.players;
           own.board=[unit('wind_farseer','test-wind',3,3,2,['windfury']),unit('wolf','test-wolf',2,4,1)];
           enemy.board=[unit('wolf','test-enemy',2,5,0)];
-          own.hand=[{cardId:'harsh_overseer',instanceId:'test-battlecry'},{cardId:'ice_shard',instanceId:'test-spell'}];
+          own.hand=[{cardId:'harsh_overseer',instanceId:'test-battlecry'},{cardId:'ice_shard',instanceId:'test-spell'},{cardId:'silver_protector',instanceId:'shield-card'},{cardId:'nature_choice',instanceId:'wrath-3'},{cardId:'nature_choice',instanceId:'wrath-1'}];
           own.mana=10;own.maxMana=10;
           store.put(row);
         };
@@ -396,8 +396,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   assert.ok(await wolf.evaluate(el=>el.classList.contains('is-targeted')));
   await drag(anchor,enemyHero);
   await anchor.waitFor({state:'detached'});
-  assert.equal(await page.locator('.own-hand').getAttribute('data-hand-open'),'false');
-  await hand.tap();
+  assert.equal(await page.locator('.own-hand').getAttribute('data-hand-open'),'true');
   await drag(card,page.locator('.enemy-board'));
   await anchor.waitFor();
   await drag(anchor,enemyUnit,()=>page.locator('.aim-overlay line[visibility="visible"]').waitFor({state:'attached'}));
@@ -408,8 +407,24 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   assert.equal(await ownBoard.locator('.battle-minion').count(),3);
   assert.equal(await page.evaluate(()=>window.combatActions.filter(action=>action.type==='attack').length),3);
   assert.equal(await page.evaluate(()=>window.combatActions.filter(action=>action.instanceId==='test-battlecry').length),1);
-  await hand.tap();
   await drag(page.locator('.own-hand [data-preview-card="ice_shard"]'),enemyHero);
   await page.waitForFunction(()=>window.combatActions.some(action=>action.instanceId==='test-spell'&&action.target?.kind==='hero'));
+  const shieldCard=page.locator('[data-action-source="card:shield-card"]');
+  await drag(shieldCard,page.locator('.enemy-board'));
+  await anchor.waitFor();
+  await drag(anchor,wolf);
+  await page.waitForFunction(()=>document.querySelector('[data-preview-minion="test-wolf"]')?.classList.contains('has-shield'));
+  const chosenSpell=page.getByRole('button',{name:'주문 대상 지정',exact:true});
+  for(const [index,id] of ['wrath-3','wrath-1'].entries()){
+    await drag(page.locator(`[data-action-source="card:${id}"]`),page.locator('.enemy-board'));
+    const choice=page.getByRole('dialog',{name:'카드 효과 선택'});
+    await choice.getByRole('button',{name:index===0?'피해 3':'피해 1 + 드로우',exact:true}).tap();
+    await chosenSpell.waitFor();
+    await drag(chosenSpell,enemyUnit);
+    await page.waitForFunction(({id,index})=>window.combatActions.some(action=>action.instanceId===id&&action.choice===index),{id,index});
+  }
+  await page.waitForFunction(()=>!document.querySelector('[data-preview-minion="test-enemy"]'));
+  assert.equal(await page.locator('.own-hand .battle-card').count(),1);
+
   await context.close();
 });

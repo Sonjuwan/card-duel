@@ -131,11 +131,12 @@ export function playBattleResultSound(result:ResultSound){
     else{[392,494,392].forEach((f,i)=>tone(f,f,.34,.12,'sine',i*.12));}
   }catch{/* Result sound must not interrupt gameplay or saving. */}
 }
-export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'impact',feedback?:ImpactFeedback){
+export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'lunge'|'impact',feedback?:ImpactFeedback){
   if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{
+    if(beat==='lunge'){noise(.13,600,3900,.28,0,'bandpass');return;}
     if(beat==='start'){
-      if(a.kind==='attack'||a.kind==='heroAttack'){noise(.34,300,3200,.40,0,'bandpass');tone(160,360,.28,.13,'triangle');}
+      if(a.kind==='attack'||a.kind==='heroAttack')return;
       else if(a.kind==='turn'){[392,494,659].forEach((f,i)=>tone(f,f,.3,.07,'sine',i*.10));}
       else {noise(.28,500,2400,.20,0,'bandpass');tone(220,480,.32,.12,'triangle');if(theme==='arcane'||theme==='holy'||theme==='ice')tone(620,990,.48,.10,'sine',.07);}
       return;
@@ -153,7 +154,12 @@ export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'im
     else if(a.kind==='attack'||a.kind==='heroAttack'||a.kind==='weapon'){
       // Low body + abrasive transient + a short metallic ring.
       const intensity=feedback?.kind==='damage'?feedback.strength:a.kind==='weapon'?1:.7;
-      tone(intensity>=1?138:103,34,.27,.62*intensity,'sine');noise(.13,2900,420,.46*intensity);tone(1150,520,.23,.12*intensity,'triangle');noise(.45,420,110,.18*intensity,.04);
+      const variant=a.revision%3;
+      tone(122+variant*18,48,.20,.42*intensity,'sine');
+      tone(205+variant*34,87,.145,.18*intensity,'triangle');
+      noise(.096,2300+variant*560,540,.34*intensity);
+      noise(.24,680+variant*155,185,.21*intensity,.012);
+      noise(.062,4500+variant*710,960,.14*intensity,.004,'highpass');
     }else if(a.kind==='summon'){playLayers(summonSoundLayers(theme));}
     else if(a.kind==='turn'||a.kind==='choice')tone(540,440,.22,.08,'triangle');
     else if(theme==='fire'){noise(.54,1600,130,.42*impactStrength);tone(100,36,.49,.44*impactStrength);noise(.32,4200,600,.18,.08);}

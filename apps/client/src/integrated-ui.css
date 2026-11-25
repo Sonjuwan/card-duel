@@ -435,11 +435,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   --unit:min(11cqw,13.6dvh);
   --gap:clamp(3px,.6vw,10px);
 }
-.game-main .battle .arena-field .minion-row[data-board-count="1"],
-.game-main .battle .arena-field .minion-row[data-board-count="2"],
-.game-main .battle .arena-field .minion-row[data-board-count="3"] {
-  --unit:min(17cqw,15.2dvh);
-}
 .game-main .duel-screen .arena-field .minion-row .battle-minion {
   box-sizing:border-box;display:grid;place-items:center;
   width:var(--unit)!important;min-width:var(--unit)!important;height:var(--unit)!important;
@@ -514,9 +509,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     --unit:min(10cqw,19.2dvh);
     width:100%!important;height:100%!important;min-height:0!important;
     overflow:visible!important;gap:var(--gap)!important;justify-content:center!important;
-  }
-  .game-main .duel-screen .arena-field .minion-row[data-board-count]:is([data-board-count="1"],[data-board-count="2"],[data-board-count="3"]) {
-    --unit:min(16cqw,22.4dvh);
   }
   .game-main .duel-screen .arena-field .minion-row .position-slot {
     position:absolute;inset:0 auto 0 calc(-1 * var(--gap));height:100%;width:var(--gap);
@@ -731,3 +723,81 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .mulligan-deck .deck-pile { min-height:0 }
 
 .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card { transform:none!important }
+
+.game-main .duel-screen .impact-icon.secondary {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:2px;padding:0;
+}
+.game-main .duel-screen .impact-icon .impact-portrait {
+  position:relative;inset:auto;width:100%;height:100%;min-width:0;
+}
+.game-main .duel-screen .impact-icon .impact-kind {
+  position:relative;inset:auto;width:1.04em;height:1.24em;font-size:clamp(11px,2.6dvh,21px);
+}
+.game-main .duel-screen .arena-field .minion-row .minion-medallion {
+  width:100%!important;height:100%!important;border-radius:inherit;
+  border-color:transparent;overflow:hidden;
+}
+.game-main .duel-screen .arena-field .minion-medallion>.painted-art { background-size:cover }
+.game-main .duel-screen .hero-zone .hero-portrait { aspect-ratio:1;min-width:0 }
+.game-main .duel-screen .hero-zone .hero-emblem {
+  width:auto;height:100%;aspect-ratio:1;border-radius:42%;scale:1.12;
+}
+.game-main .duel-screen .hero-zone .hero-emblem .painted-art { background-size:cover;background-position:center 41% }
+.chosen-spell-anchor {
+  position:absolute;z-index:40;left:50%;top:0;translate:-50% -50%;
+  min-width:36px;min-height:36px;display:grid;place-items:center;
+  touch-action:none;border:1px solid #dfaaff;border-radius:50%;background:#442b63;color:#fff;
+}
+.game-main .duel-screen .battlecry-anchor { left:calc(-1 * var(--gap,6px));width:clamp(24px,7.5dvh,48px) }
+.game-main .duel-screen .arena-right .deck-number { font-variant-numeric:tabular-nums;text-align:center }
+@media (pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
+  .game-main .duel-screen .arena-field .hero-zone .hero-portrait { height:clamp(53px,19dvh,112px)!important }
+  .game-main .duel-screen:not(.is-dragging) .own-hand:is([data-hand-open=false],[data-hand-targeting=true]) .battle-hand { display:none!important }
+}
+
+.lobby-main .preview-deck-pages {
+  display:grid;grid-template-columns:36px minmax(0,1fr) 36px;align-items:center;gap:4px;
+}
+.lobby-main .preview-deck-pages .preview-deck-grid {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,clamp(32px,13dvh,95px));gap:5px;min-width:0;
+}
+.lobby-main .preview-deck-pages .preview-deck-tile { grid-column:auto;min-width:0;min-height:0;padding:3px 5px;overflow:hidden;text-align:center }
+.preview-deck-empty { border:1px solid #b8a07b28;border-radius:7px }
+.preview-deck-page-count { grid-column:2;justify-self:center;font-variant-numeric:tabular-nums }
+.preview-deck-shortcuts { display:flex;justify-content:center;gap:6px }
+.lobby-main .preview-deck-shortcuts .preview-deck-tile { min-height:30px;padding:3px 9px;text-align:center }
+.lobby-main .deck-editor .deck-save-primary,.lobby-main .saved-decks .deck-save-primary {
+  display:grid;place-items:center;width:100%;min-width:0;min-height:34px;padding:4px 5px;
+  white-space:nowrap;background:linear-gradient(#f8c740,#9e620c);color:white;font-weight:950;
+  font-size:clamp(15px,2.8dvh,23px);text-shadow:0 1px 3px #2c1b08;
+}
+.lobby-main .saved-decks .deck-save-primary:disabled { filter:saturate(.52) brightness(.74) }
+.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) {
+  display:grid;grid-template-columns:clamp(22px,4vw,42px) minmax(0,1fr) clamp(22px,4vw,42px);align-items:center;gap:2px;
+}
+.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-book {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;min-width:0;overflow:hidden;
+}
+.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-leaf {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:3px;min-width:0;
+}
+.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .collection-item { min-width:0;width:100% }
+.lobby-main .deck-layout .book-pane .collection-spread:has(.book-edge) .book-page-status { grid-column:2;text-align:center }
+.lobby-main .deck-builder .collection-spread { --builder-card-width:clamp(48px,calc((100dvh - 122px)/3.55),150px) }
+.lobby-main .deck-builder .book-with-tabs .collection-book :is(.battle-card,.collection-blank) { width:min(100%,var(--builder-card-width));margin-inline:auto }
+.lobby-main .deck-builder .book-with-tabs .collection-book { overflow:hidden }
+.lobby-main .deck-builder .collection-item .collection-set-label { text-align:center;line-height:1.15 }
+.lobby-main .deck-builder .deck-editor-controls { padding-inline-end:47px }
+.game-main .duel-screen .impact-rail-shell .impact-icon.secondary { width:calc(var(--impact-size) + 12px)!important }
+.game-main .duel-screen .impact-rail-shell>.impact-preview { left:calc(var(--impact-size) + 17px)!important }
+@media (pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left { width:50px!important }
+  .game-main .duel-screen .arena-field .arena-board { padding-inline-start:51px!important }
+}
+.game-main .battle-minion.has-taunt .minion-medallion { border-radius:inherit!important }
+.game-main .duel-screen .battle-minion :is(.stat,.minion-status-icons) { pointer-events:none }
+.lobby-main.preview-lobby .preview-flow-heading { padding-inline:42px }
+.lobby-main .deck-builder .book-edge,.lobby-main .preview-deck-pages>button {
+  display:grid;place-items:center;padding:0;min-width:0;min-height:32px;
+}
+.game-main .duel-screen :is(.power-mana,.hero-armor,.end-turn,.compact-home-trigger,.compact-settings-trigger) { text-align:center }

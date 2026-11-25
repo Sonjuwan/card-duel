@@ -30,7 +30,7 @@ const active=JSON.parse(readFileSync('data/cards/active.json','utf8')) as {file:
 const raw=readFileSync(`data/cards/${active.file}`,'utf8');
 loadPublicCatalog(JSON.parse(raw),createHash('sha256').update(raw).digest('hex'));
 const noOp=()=>{};
-const legalMageCount=Object.values(catalog).filter(c=>c.kind!=='coin'&&c.class==='mage'&&c.collectible!==false).length;
+const legalMageCount=Math.min(8,Object.values(catalog).filter(c=>c.kind!=='coin'&&c.class==='mage'&&c.collectible!==false).length);
 
 test('deck builder renders the live deck count next to unabridged collection descriptions',()=>{
   const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
@@ -165,7 +165,7 @@ test('save banner distinguishes pending work from last durable timestamp and con
   assert.match(markup(true,timestamp),/save-indicator warn">저장 확인 중…/);assert.match(markup(false,timestamp),/save-indicator good">자동 저장됨/);assert.match(markup(true,timestamp),/최근 저장 <time dateTime="2026-11-23T02:11:00.000Z">/);
   assert.doesNotMatch(markup(false,'invalid'),/class="last-saved-at"/);
 });
-test('deck editor renders a partial deck, continuous browse list, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,legalMageCount);assert.equal((html.match(/class="battle-card /g)??[]).length,legalMageCount);assert.doesNotMatch(html,/book-edge/);});
+test('deck editor renders a partial deck, eight-card spread, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,legalMageCount);assert.equal((html.match(/class="battle-card /g)??[]).length,legalMageCount);assert.equal((html.match(/class="book-edge secondary"/g)??[]).length,2);});
 test('card book advertises keyboard geometry navigation and announces updated pages without activating cards',()=>{
   const html=renderToStaticMarkup(<DeckWorkspace deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialScreen="cards"/>);
   assert.match(html,/role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동/);
@@ -260,7 +260,7 @@ test('deck builder basic and original initial views never display cards from the
  const original=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="original"/>);
  assert.match(basic,/data-set-filter="basic" aria-pressed="true"/);assert.match(original,/data-set-filter="original" aria-pressed="true"/);
  const classBasic=Object.values(catalog).filter(c=>c.kind!=='coin'&&c.class==='mage'&&c.collectible!==false&&c.rarity==='basic').length;
- assert.equal((basic.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,classBasic);assert.equal((original.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,0);
+ assert.equal((basic.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,Math.min(8,classBasic));assert.equal((original.match(/class="battle-card [^"]*rarity-basic/g)??[]).length,0);
  assert.doesNotMatch(basic,/option value="rare"/);assert.doesNotMatch(basic,/option value="epic"/);assert.match(original,/option value="epic"/);assert.doesNotMatch(original,/option value="basic"/);
 });
 test('deck builder renders visible cards in ascending mana order in each set',()=>{
@@ -277,7 +277,7 @@ test('deck workspace separates class list, saved deck list, read-only catalogue 
   assert.equal((h.match(/data-deck-screen=/g)??[]).length,1);assert.equal((h.match(/data-deck-nav=/g)??[]).length,4);
   if(screen==='cards'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/data-book-page="left"/);assert.match(h,/data-book-page="right"/);}
   if(screen==='cards'){assert.match(h,/전체<small>382<\/small>/);assert.doesNotMatch(h,/덱 저장/);assert.match(h,/<dialog class="collection-detail-dialog" aria-label="카드 확대 상세"/);}
-  if(screen==='build'){assert.match(h,/collection-continuous/);assert.doesNotMatch(h,/book-edge/);}
+  if(screen==='build'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/book-edge/);assert.doesNotMatch(h,/collection-continuous/);}
   if(screen==='saved'){assert.match(h,/저장한 덱이 없습니다/);assert.match(h,/저장 덱 백업 다운로드/);assert.match(h,/덱 백업 추가/);}
   if(screen==='classes')assert.equal((h.match(/class="class-choice /g)??[]).length,9);
  }

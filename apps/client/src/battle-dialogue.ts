@@ -88,23 +88,13 @@ export function heroEmote(hero:HeroClass,side:PlayerId,emote:Emote):DialogueLine
 export function dialoguePlan(a:BattleAnimation,before:PlayerView,after:PlayerView,seat:PlayerId,catalog:Catalog,name=(c:Card)=>c.name):DialoguePlan{
   const start:DialogueLine[]=[],impact:DialogueLine[]=[],death:DialogueLine[]=[];
   const hero=(side:PlayerId)=>(side===seat?before.self:before.opponent).heroClass;
-  const cardFor=(target:Target)=>target.kind==='minion'?catalog[[...before.self.board,...before.opponent.board,...after.self.board,...after.opponent.board].find(m=>m.instanceId===target.instanceId)?.cardId??'']:undefined;
   const line=(side:PlayerId,kind:'play'|'attack'|'hit'|'death',card?:Card)=>cardDialogue(card,hero(side),side,kind,a.revision,name);
   if(a.kind==='secret')start.push({...line(a.actor,'play'),speaker:'비밀',text:'쉿... 아직은 비밀이다.'});
-  else if(a.kind==='attack')start.push(line(a.actor,'attack',a.attackerId?cardFor({kind:'minion',instanceId:a.attackerId}):undefined));
   else if(a.kind==='heroAttack')start.push(line(a.actor,'attack'));
   else if(a.kind==='power')start.push(line(a.actor,'play'));
   else if(['summon','spell','weapon','coin'].includes(a.kind)&&a.cardId&&catalog[a.cardId])start.push(line(a.actor,'play',catalog[a.cardId]));
-  const characterLine=(side:PlayerId,target:Target,kind:'hit'|'death')=>{
-    const card=cardFor(target),spoken=line(side,kind,card);
-    return target.kind==='minion'&&!card?{...spoken,speaker:'하수인',text:kind==='hit'?'으윽!':'여기까지...'}:spoken;
-  };
-  for(const e of impactChanges(before,after,seat,a.events))if(e.kind==='damage'&&(e.amount??0)>0)impact.push(characterLine(e.side,e.target,'hit'));
-  // A bounce or transform is not death. The trace is authoritative, including
-  // a minion that was summoned and destroyed within a single transaction.
-  const dead=new Set<string>();
-  for(const e of a.events??[])if(e.kind==='death'&&e.target.kind==='minion'&&!dead.has(e.target.instanceId)){
-    dead.add(e.target.instanceId);death.push(characterLine(e.side,e.target,'death'));
+  for(const event of impactChanges(before,after,seat,a.events)){
+    if(event.kind==='damage'&&event.target.kind==='hero'&&(event.amount??0)>0)impact.push(line(event.side,'hit'));
   }
   for(const side of [seat,seat===0?1:0] as PlayerId[]){
     const old=side===seat?before.self:before.opponent,next=side===seat?after.self:after.opponent;

@@ -18,5 +18,5 @@ test('short pointer clicks do not create a hand selection or a board inspector',
   assert.match(battle,/onClick=\{keyboard=>\{if\(keyboard\)applyIntent/);
 });
 test('the touch hand exposes whether its panel is expanded',()=>{
-  assert.match(battle,/className="folded-hand" aria-expanded=\{handOpen\}/);
+  assert.match(battle,/className="folded-hand" aria-expanded=\{handOpen&&hand.length>0\}/);
 });

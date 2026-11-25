@@ -288,6 +288,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const hasDeath=trace.some(event=>event.kind==='death');
     const secretBeat=Math.max(0,trace.findIndex(event=>event.kind==='secretTriggered'))*35;
     playBattleSound(a,theme,'start');
+    if(attack)timeouts.push(setTimeout(()=>playBattleSound(a,theme,'lunge'),cue.windup??cue.impact*700/820));
     const impact=()=>{
       if(impacted||document.hidden)return;impacted=true;playBattleSound(a,theme,'impact',feedback);playBattleHaptic(a,feedback,seat);
       if(feedback.shake>0&&!reduced&&!spatialInvalid){

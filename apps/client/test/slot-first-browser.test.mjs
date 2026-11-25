@@ -33,7 +33,7 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});
   await context.addInitScript(({entries})=>{
-    localStorage.setItem('card-duel-ui-preview-slot-1:card-duel-saved-decks',JSON.stringify([entries[0]]));
+    localStorage.setItem('card-duel-ui-preview-slot-1:card-duel-saved-decks',JSON.stringify([entries[0],...Array.from({length:9},(_,i)=>({...entries[0],name:'마법사 시험덱 '+(i+2)}))]));
     localStorage.setItem('card-duel-ui-preview-slot-2:card-duel-saved-decks',JSON.stringify([entries[1]]));
   },{entries});
   const page=await context.newPage();
@@ -52,6 +52,9 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   assert.equal(await page.locator('.preview-hero-tile').count(),9,'the nine hero classes occupy the play screen');
   await page.getByRole('button',{name:'전사',exact:true}).click();
   assert.ok(await page.getByRole('button',{name:entries[1].name}).isVisible(),'slot 2 owns its saved warrior deck');
+  assert.equal(await page.locator('.preview-deck-grid>*').count(),9);
+  assert.equal(await page.locator('.preview-deck-empty').count(),8);
+  const singleTile=await page.locator('.preview-deck-grid button').first().boundingBox();
   assert.equal(await page.getByRole('button',{name:entries[0].name}).count(),0,'slot 1 mage deck never leaks into slot 2');
   await page.getByRole('button',{name:entries[1].name}).click();
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).waitFor();
@@ -79,6 +82,25 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   await page.getByRole('button',{name:'마법사',exact:true}).click();
   assert.ok(await page.getByRole('button',{name:entries[0].name}).isVisible(),'slot 1 saved mage deck available');
   assert.equal(await page.getByRole('button',{name:entries[1].name}).count(),0,'slot 2 warrior deck not visible in slot 1');
+  assert.equal(await page.locator('.preview-deck-grid>button').count(),9);
+  const multiTile=await page.locator('.preview-deck-grid button').first().boundingBox();
+  assert.ok(singleTile&&multiTile);
+  assert.deepEqual([multiTile.width,multiTile.height],[singleTile.width,singleTile.height]);
+  await page.getByRole('button',{name:'다음 덱 페이지'}).click();
+  assert.equal(await page.locator('.preview-deck-grid>button').count(),1);
+  assert.equal(await page.locator('.preview-deck-empty').count(),8);
+  await page.getByRole('button',{name:'이전 덱 페이지'}).click();
+  await page.getByRole('button',{name:/새 덱 만들기/}).click();
+  const builder=page.locator('.deck-builder');
+  await builder.waitFor();
+  assert.equal(await builder.locator('.collection-leaf').count(),2);
+  assert.equal(await builder.locator('.collection-item,.collection-blank').count(),8);
+  await builder.getByRole('button',{name:'공용',exact:true}).click();
+  assert.equal(await builder.locator('.collection-item,.collection-blank').count(),8);
+  assert.equal(await builder.getByRole('button',{name:'다음 페이지'}).isEnabled(),true);
+  await builder.getByRole('button',{name:'다음 페이지'}).click();
+  assert.match(await builder.locator('.book-page-status').textContent(),/^2 \/ /);
+  assert.equal(await builder.getByRole('button',{name:'덱 저장',exact:true}).evaluate(button=>getComputedStyle(button).whiteSpace),'nowrap');
   assert.deepEqual(errors,[]);
   await context.close();
 });

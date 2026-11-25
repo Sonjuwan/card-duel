@@ -6,7 +6,7 @@ test('public card inspection disables background actions without disabling its o
  assert.match(source,/className=\{`duel-title/);
  assert.match(source,/data-settings-open=\{compactSettingsOpen\} inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
  assert.match(source,/className="arena-message" inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
- assert.match(source,/className="battle-arena classic-table" inert=\{ownChoiceOpen\|\|battleToolsOpen\|\|!!inspectedOverlay\}/);
+ assert.match(source,/className="battle-arena classic-table" inert=\{battleToolsOpen\|\|!!inspectedOverlay\}/);
  assert.match(source,/className="mulligan-arena classic-mulligan" ref=\{exchangeArena\} inert=\{!!inspectedOverlay\}/);
  assert.match(source,/className="battle-utilities" data-tools-open=\{battleToolsOpen\} inert=\{ownChoiceOpen\|\|!!inspectedOverlay\}/);
  assert.match(source,/const inspectDialog=inspectedOverlay&&!ownChoiceOpen&&<div className="board-inspect-backdrop"/);

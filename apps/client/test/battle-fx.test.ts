@@ -213,7 +213,7 @@ test('legendary voices have card-specific lines, stable voices, and stage-depend
   const voices=[{name:'A',lang:'ko-KR',localService:true},{name:'B',lang:'ko-KR',localService:true},{name:'C',lang:'ko-KR',localService:false}];
   const chosen=new Set(ids.map(id=>localKoreanVoice(voices,id)?.name));assert.equal(chosen.size,2);for(const id of ids)assert.equal(localKoreanVoice(voices,id)?.name,localKoreanVoice([...voices].reverse(),id)?.name);assert.ok(!chosen.has('C'));
 });
-test('accepted play, combat damage and death produce correctly attributed dialogue from either seat',()=>{
+test('summon voice remains while minion attack, hit and death stay silent',()=>{
   const s=ready();s.players[0].hand=[{cardId:'wisp',instanceId:'held'}];
   const play=action(s,{type:'playCard',instanceId:'held'});assert.equal(dialoguePlan(play.animation,getPlayerView(s,0),getPlayerView(play.after,0),0,catalog).start[0].cardId,'wisp');
   s.players[0].board=[{cardId:'wolf',instanceId:'attacker',attack:4,health:5,maxHealth:5,attacksRemaining:1}];
@@ -222,9 +222,7 @@ test('accepted play, combat damage and death produce correctly attributed dialog
   const events:BattleVisualEvent[]=[];const after=applyAction(s,0,a,{visualEvent:e=>events.push(e)}),animation=describeAcceptedAction(s,after,0,a,events)!;
   const plan=dialoguePlan(animation,getPlayerView(s,0),getPlayerView(after,0),0,catalog);
   const reversed=dialoguePlan(animation,getPlayerView(s,1),getPlayerView(after,1),1,catalog);
-  assert.deepEqual(plan.start,reversed.start);assert.equal(plan.start[0].cardId,'wolf');
-  assert.ok(plan.impact.some(l=>l.side===1&&l.cardId==='wisp'));assert.ok(plan.impact.some(l=>l.side===0&&l.cardId==='wolf'));
-  assert.deepEqual(plan.death.map(l=>[l.side,l.cardId]),[[1,'wisp']]);assert.deepEqual(plan.death,reversed.death);
+  assert.deepEqual(plan,{start:[],impact:[],death:[]});assert.deepEqual(plan,reversed);
 });
 test('blocked, shielded and returned units never speak false hit or death lines; secrets stay generic',()=>{
   const s=ready();s.players[0].board=[{cardId:'wolf',instanceId:'attacker',attack:3,health:5,maxHealth:5,attacksRemaining:1}];
