@@ -5,10 +5,10 @@ function token(id: string, name: string, attack: number, health: number, extra: 
 }
 export const HERO_TOKENS: MinionCard[] = [
   token('__squire','은빛 보병',1,1),
-  token('__stone_totem','바위 토템',0,2,{tribe:'totem',keywords:['taunt']}),
+  token('__stone_totem','바위 토템',0,2,{tribe:'totem',description:'도발',keywords:['taunt']}),
   token('__flame_totem','불꽃 토템',1,1,{tribe:'totem'}),
-  token('__healing_totem','치유 토템',0,2,{tribe:'totem',endTurn:[{kind:'heal',target:'friendlyMinions',amount:1}]}),
-  token('__magic_totem','마력 토템',0,2,{tribe:'totem',spellDamage:1})
+  token('__healing_totem','치유 토템',0,2,{tribe:'totem',description:'내 턴이 끝날 때 모든 아군 하수인의 생명력을 1 회복합니다.',endTurn:[{kind:'heal',target:'friendlyMinions',amount:1}]}),
+  token('__magic_totem','마력 토템',0,2,{tribe:'totem',description:'주문 공격력 +1',spellDamage:1})
 ];
 export interface HeroPower { name: string; cost: number; targetRule?: TargetRule; effects: Effect[] }
 export function getHeroPower(player:{heroClass:HeroClass;shadowformLevel?:1|2;heroForm?:'jaraxxus'}):HeroPower {

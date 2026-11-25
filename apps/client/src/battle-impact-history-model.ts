@@ -10,7 +10,7 @@ export type ImpactHistoryEntry={revision:number;turn:number;actor:string;kind:Ba
 export function advanceImpactHistory(before:RoomView|null,after:RoomView,previous:ImpactHistoryEntry[],catalog:Catalog,name:(card:Card)=>string):ImpactHistoryEntry[]{
   if(!before?.state||!after.state||before.code!==after.code||before.seat!==after.seat)return [];
   if(before.state.revision===after.state.revision)return previous;
-  if(after.state.revision!==before.state.revision+1||before.state.phase!=='playing')return [];
+  if(after.state.revision!==before.state.revision+1||before.state.phase!=='playing')return previous;
   const a=freshAcceptedAnimation(before,after);if(!a)return previous;
   const seat=after.seat,enemy=after.mode==='bot'?'AI':'상대',actor=a.actor===seat?'나':enemy;
   const player=(side:PlayerId,frame=before.state!)=>side===seat?frame.self:frame.opponent;
@@ -57,7 +57,6 @@ export function advanceImpactHistory(before:RoomView|null,after:RoomView,previou
     const card=catalog[revealed.cardId];
     effects.unshift({cardId:card.id,label:`${name(card)} · 비밀 발동`});
   }
-  if(!lines.length&&!source)return previous;
-  if(!lines.length&&source)lines.push(source.label);
-  return [{revision:a.revision,turn:after.state.turn,actor,kind:a.kind,source,target,effects,lines},...previous].slice(0,5);
+  if(!lines.length)lines.push(source?.label??(a.kind==='secret'?'비밀 설치':a.kind==='turn'?'턴 변경':'행동 완료'));
+  return [{revision:a.revision,turn:after.state.turn,actor,kind:a.kind,source,target,effects,lines},...previous];
 }

@@ -1,4 +1,4 @@
-import {heroPowerReason,publicCardReason} from '../../../packages/engine/src/index.ts';
+import {getHeroPower,heroPowerReason,publicCardCost,publicCardReason} from '../../../packages/engine/src/index.ts';
 import type {Action,Catalog,PlayerId,PlayerView} from '../../../packages/engine/src/index.ts';
 import {planAttack,planCard,planPower,targetAction} from './battle-actions.ts';
 
@@ -17,9 +17,10 @@ export class BattleIntentQueue{
   constructor(limit=4){this.limit=limit;}
   get full(){return this.pending.length+Number(!!this.inFlight)>=this.limit;}
   get ending(){return this.inFlight?.type==='endTurn'||this.pending.some(action=>action.type==='endTurn');}
-  offer(action:BattleIntent){
+  offer(action:BattleIntent,allowRepeatedAttack=false){
     const key=intentKey(action);
-    if(this.full||this.ending||this.pending.some(item=>intentKey(item)===key)||this.inFlight&&intentKey(this.inFlight)===key)return false;
+    const repeatable=allowRepeatedAttack&&(action.type==='attack'||action.type==='heroAttack');
+    if(this.full||this.ending||!repeatable&&(this.pending.some(item=>intentKey(item)===key)||this.inFlight&&intentKey(this.inFlight)===key))return false;
     this.pending.push(action);
     return true;
   }
@@ -62,4 +63,60 @@ export function validateBattleIntent(view:PlayerView,seat:PlayerId,catalog:Catal
   }
   const selection=planAttack(view,seat,catalog,action.type==='attack'?action.attackerId:undefined);
   if(!targetAction(view,seat,catalog,selection,action.target))return '공격자나 대상을 사용할 수 없습니다.';
+}
+
+
+/** Reserve only public, deterministic costs and counters. Damage, random
+ * outcomes and private responses are decided by the authoritative engine. */
+export function projectBattleIntents(base:PlayerView,seat:PlayerId,catalog:Catalog,actions:readonly BattleIntent[]):PlayerView{
+  if(!actions.length)return base;
+  const self={...base.self,board:base.self.board.map(unit=>({...unit})),hand:base.self.hand.slice()};
+  const projected={...base,self};
+  for(const action of actions){
+    if(validateBattleIntent(projected,seat,catalog,action))continue;
+    if(action.type==='endTurn')break;
+    if(action.type==='attack'){
+      const unit=self.board.find(unit=>unit.instanceId===action.attackerId);
+      if(unit)unit.attacksRemaining--;
+    }
+    if(action.type==='heroAttack')self.heroAttacksRemaining--;
+    if(action.type==='heroPower'){
+      const power=getHeroPower(self);
+      self.mana-=power.cost;
+      self.heroPowerUsed=true;
+      const summon=power.effects.find(effect=>effect.kind==='summon'||effect.kind==='summonUniqueRandom');
+      const cardId=summon?.kind==='summon'?summon.cardId:summon?.cardIds.find(id=>!self.board.some(unit=>unit.cardId===id));
+      const card=cardId?catalog[cardId]:undefined;
+      if(card?.kind==='minion'&&self.board.length<7)self.board.push({cardId:card.id,instanceId:'reservation:power',attack:card.attack,health:card.health,maxHealth:card.health,attacksRemaining:0});
+    }
+    if(action.type==='playCard'){
+      const held=self.hand.find(card=>card.instanceId===action.instanceId)!;
+      const card=catalog[held.cardId];
+      self.mana-=publicCardCost(projected,seat,card,catalog,held.costDiscount);
+      self.hand=self.hand.filter(card=>card!==held);
+      self.handCount--;
+      self.cardsPlayedThisTurn++;
+      if(card.kind==='coin')self.mana=Math.min(10,self.mana+1);
+      if(card.kind==='spell'||card.kind==='coin'||card.kind==='secret')delete self.nextSpellDiscount;
+      if(card.kind==='spell'){
+        const effects=action.choice===undefined?card.effects:card.choices?.[action.choice]?.effects;
+        for(const effect of effects??[]){
+          if(effect.condition)continue;
+          if(effect.kind==='discountNextSpell')self.nextSpellDiscount=(self.nextSpellDiscount??0)+effect.amount;
+          if(effect.kind==='summon'&&effect.side!=='enemy'&&!effect.per){
+            const token=catalog[effect.cardId];
+            if(token?.kind==='minion')for(let i=0;i<effect.count&&self.board.length<7;i++)self.board.push({
+              cardId:token.id,instanceId:`reservation:${held.instanceId}:${i}`,attack:token.attack,health:token.health,maxHealth:token.health,attacksRemaining:0,
+            });
+          }
+        }
+      }
+      if(card.kind==='secret')self.nextSecretFree=false;
+      if(card.kind==='minion')self.minionsPlayedThisTurn=(self.minionsPlayedThisTurn??0)+1;
+      if(card.kind==='minion')self.board.splice(action.position??self.board.length,0,{
+        cardId:card.id,instanceId:'reservation:'+held.instanceId,attack:card.attack,health:card.health,maxHealth:card.health,attacksRemaining:0,
+      });
+    }
+  }
+  return projected;
 }

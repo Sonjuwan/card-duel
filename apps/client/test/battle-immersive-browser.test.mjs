@@ -187,7 +187,10 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
       if(data?.type==='start')data={...data,ranked:false,input:{...data.input,deck,firstPlayer:0,seed:10,difficulty:1,animationSpeed:'normal'}};
       return post.call(this,data,...rest);
     };
-  },practiceDeck(createCatalog(cards),'mage'));
+  },(()=>{
+    const deck=practiceDeck(createCatalog(cards),'mage');
+    return {...deck,cards:deck.cards.map(id=>id==='recruit'?'wisp':id)};
+  })());
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
@@ -199,12 +202,12 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   const friendly=field.locator('.battle-minion');
   await turn.waitFor();
   await hand.tap();
-  const first=page.locator('.own-hand button[data-preview-card="recruit"]');
+  const first=page.locator('.own-hand button[data-preview-card="wisp"]');
   await first.tap();
   await field.tap({position:{x:30,y:10}});
   await first.waitFor({state:'hidden'});
   const pointer=await context.newCDPSession(page);
-  const drag=async(source,target)=>{
+  const drag=async(source,target,beforeRelease)=>{
     const from=await source.boundingBox(),to=await target.boundingBox();
     assert.ok(from&&to);
     const a={x:Math.round(from.x+from.width/2),y:Math.round(from.y+from.height/2)};
@@ -213,17 +216,27 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
     for(const i of [1,2,3,4,5]){
       await pointer.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:Math.round(a.x+(b.x-a.x)*i/5),y:Math.round(a.y+(b.y-a.y)*i/5)}]});
     }
+    if(beforeRelease)await beforeRelease();
     await pointer.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   };
   await hand.tap();
-  await drag(first,field);
+  const enemyBoard=page.locator('.enemy-board');
+  await drag(first,enemyBoard);
   const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
   await summon.waitFor();
+  await hand.tap();
+  const pending=page.locator('.own-hand button[data-preview-card="mana_wyrm"]');
+  await pending.waitFor();
+  await drag(pending,enemyBoard,async()=>{
+    await friendly.first().waitFor();
+    assert.equal(await page.locator('.duel-screen').evaluate(el=>el.classList.contains('is-dragging')),true);
+  });
+  await pending.waitFor({state:'detached'});
+  assert.match(await page.locator('.own-resources .mana-number').textContent(),/^0\//);
   await page.waitForTimeout(300);
   await turn.evaluate(button=>button.click());
-  assert.deepEqual(await page.evaluate(()=>window.touchActions.slice(-1)),['playCard']);
   await page.waitForFunction(()=>window.touchActions.at(-1)==='endTurn');
-  await friendly.first().waitFor();
+  assert.deepEqual(await page.evaluate(()=>window.touchActions.slice(1,4)),['playCard','playCard','endTurn']);
   await turn.waitFor({state:'hidden'});
   await turn.waitFor({timeout:35000});
   await hand.tap();
@@ -231,9 +244,19 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await spell.waitFor();
   const enemy=page.locator('.enemy-hero-zone .hero-portrait');
   const before=Number(await enemy.locator('.hero-health').textContent());
-  await drag(spell,enemy);
+  await drag(spell,enemy,async()=>{
+    await page.locator('.spell-cast-anchor').waitFor();
+    assert.equal(await page.locator('.touch-drag-ghost').count(),0);
+    await page.locator('.aim-overlay line[visibility="visible"]').waitFor({state:'attached'});
+  });
   await page.locator('.battle-fx-layer[data-fx-kind="spell"][data-fx-side="own"]').waitFor();
   await page.waitForFunction(health=>Number(document.querySelector('.enemy-hero-zone .hero-health')?.textContent)<health,before);
   assert.equal(await hand.getAttribute('aria-expanded'),'false');
+  const rail=page.locator('.impact-rail');
+  await rail.locator('.impact-icon').nth(4).waitFor();
+  assert.ok(await rail.evaluate(el=>el.scrollHeight>el.clientHeight));
+  await rail.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await page.getByRole('button',{name:'최신 행동으로 이동'}).click();
+  await page.waitForFunction(()=>document.querySelector('.impact-rail').scrollTop===0);
   await context.close();
 });

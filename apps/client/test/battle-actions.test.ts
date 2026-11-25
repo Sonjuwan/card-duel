@@ -88,7 +88,7 @@ test('shared pointer hover and drop classify exact placement, valid targets, cho
   assert.deepEqual(pointerDrop(view,0,catalog,d,{ownBoard:true,field:true,minionId:'right'},2),{intent:null,feedback:'invalid'});
   assert.equal(pointerDrop({...view,revision:view.revision+1},0,catalog,d,{ownBoard:true,slot:1},2).feedback,'cancel');
   view=hold(s,'flame_sphere');const target=pointerDrop(view,0,catalog,d,{field:true,hero:'enemy'},2);assert.equal(target.feedback,'action');assert.equal(applyAction(s,0,actionOf(target.intent)).players[1].health,24);
-  const selection=pointerDrop(view,0,catalog,d,{field:true},2);assert.equal(selection.feedback,'target');assert.equal(selection.intent?.action,undefined);assert.match(dropFeedbackText(selection.feedback),/대상을 선택/);
+  const selection=pointerDrop(view,0,catalog,d,{field:true},2);assert.deepEqual(selection,{intent:null,feedback:'invalid'});
   const choice=Object.values(catalog).find(c=>c.kind==='spell'&&c.choices?.length);assert.ok(choice?.kind==='spell');const other=ready(choice.class==='neutral'?'mage':choice.class),choiceView=hold(other,choice.id);assert.equal(pointerDrop(choiceView,0,catalog,drag({kind:'card',id:'held'},other),{field:true},0).feedback,'choice');
 });
 test('changing a pending minion placement preserves its target/choice and submits the new position',()=>{
@@ -145,4 +145,19 @@ test('all nine power controls resolve the same accepted action by click or drag'
     const spent=getPlayerView(next,0);
     assert.equal(pointerDrop(spent,0,next.catalog,drag({kind:'power'},next),hit,0).intent,null,hero);
   }
+});
+
+test('an enemy board drop reserves a friendly slot and does not commit a targeted spell on empty ground',()=>{
+  const s=ready();
+  minion(s,0,'wolf','left');
+  minion(s,0,'wolf','right');
+  const view=hold(s,'wisp');
+  const pointer=drag({kind:'card',id:'held'},s);
+  const drop=pointerDrop(view,0,catalog,pointer,{enemyBoard:true,field:true,slot:1},0);
+  assert.deepEqual(drop.intent?.action,{type:'playCard',instanceId:'held',position:1,choice:undefined});
+  const after=applyAction(s,0,drop.intent!.action!);
+  assert.deepEqual(after.players[0].board.map(unit=>unit.cardId),['wolf','wisp','wolf']);
+  assert.deepEqual(after.players[1].board,[]);
+  const spell=hold(s,'flame_sphere');
+  assert.equal(pointerDrop(spell,0,catalog,pointer,{field:true,enemyBoard:true},0).intent,null);
 });

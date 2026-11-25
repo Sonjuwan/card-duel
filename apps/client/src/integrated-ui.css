@@ -469,13 +469,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .folded-hand { display:none }
 .game-main .battle .arena-field .arena-board { container-type:inline-size }
 .game-main .battle .arena-field .minion-row {
-  --unit:min(13cqw,17dvh);
+  --unit:min(11cqw,13.6dvh);
   --gap:clamp(3px,.6vw,10px);
 }
 .game-main .battle .arena-field .minion-row[data-board-count="1"],
 .game-main .battle .arena-field .minion-row[data-board-count="2"],
 .game-main .battle .arena-field .minion-row[data-board-count="3"] {
-  --unit:min(21cqw,19dvh);
+  --unit:min(17cqw,15.2dvh);
 }
 .game-main .duel-screen .arena-field .minion-row .battle-minion {
   box-sizing:border-box;display:grid;place-items:center;
@@ -533,7 +533,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     padding:0!important;margin:0!important;align-items:center;
   }
   .game-main .duel-screen .arena-field .hero-zone .hero-portrait {
-    min-height:0!important;height:clamp(33px,12dvh,66px)!important;
+    min-height:0!important;height:clamp(40px,15dvh,83px)!important;
   }
   .game-main .duel-screen .arena-field .hero-zone :is(.weapon-medallion,.power-medallion) {
     width:clamp(30px,9dvh,53px);height:clamp(30px,9dvh,53px);
@@ -547,13 +547,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     padding:0 46px 0 28px!important;overflow:visible!important;display:flex!important;
   }
   .game-main .duel-screen .arena-field .minion-row {
-    --gap:clamp(2px,.5vw,7px);
-    --unit:min(12cqw,24dvh);
+    --gap:clamp(6px,1vw,10px);
+    --unit:min(10cqw,19.2dvh);
     width:100%!important;height:100%!important;min-height:0!important;
     overflow:visible!important;gap:var(--gap)!important;justify-content:center!important;
   }
   .game-main .duel-screen .arena-field .minion-row[data-board-count]:is([data-board-count="1"],[data-board-count="2"],[data-board-count="3"]) {
-    --unit:min(19cqw,28dvh);
+    --unit:min(16cqw,22.4dvh);
   }
   .game-main .duel-screen .arena-field .minion-row .position-slot {
     position:absolute;inset:0 auto 0 calc(-1 * var(--gap));height:100%;width:var(--gap);
@@ -587,7 +587,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .battle-arena.classic-table>.arena-left {
     position:absolute!important;inset:36% auto auto 0!important;z-index:8;width:26px!important;height:auto!important;
   }
-  .game-main .duel-screen .battle-arena.classic-table>.arena-left .impact-rail> :nth-child(n+4) { display:none }
   .game-main .duel-screen .arena-field>.own-hand {
     position:absolute!important;inset:auto 0 0!important;height:0!important;min-height:0!important;
     width:100%!important;overflow:visible!important;z-index:34;pointer-events:none;transform:none!important;
@@ -628,4 +627,47 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .own-hand .battle-hand .hand-card-slot>.battle-card .card-copy { visibility:visible }
   .game-main .duel-screen .own-hand .battle-hand .hand-card-slot:has(>.is-selected) { z-index:2 }
+}
+
+
+.game-main .hero-portrait .hero-emblem { scale:1.25 }
+.game-main .duel-screen .arena-field .minion-statline .stat,
+.game-main .arena-field .hero-health,
+.game-main .arena-field .weapon-medallion .stat-attack {
+  position:relative;isolation:isolate;display:grid;place-items:center;
+  width:clamp(22px,5.7dvh,44px);height:clamp(22px,5.7dvh,44px);
+  font-size:clamp(17px,4.7dvh,34px);font-weight:950;color:#fff;
+  background:none;box-shadow:none;border:0;text-shadow:0 2px 2px #000;
+  -webkit-text-stroke:2px #181019;paint-order:stroke fill;
+}
+.game-main .arena-field :is(.hero-health,.weapon-medallion .stat-attack) { position:absolute }
+.game-main .arena-field .stat .sigil { position:absolute;inset:-8%;width:116%;height:116%;z-index:-1 }
+.game-main .arena-field .stat-attack .sigil { fill:#bb841e;stroke:#fff0a0 }
+.game-main .arena-field .stat-health .sigil { fill:#bf283e;stroke:#ffbbc0 }
+.game-main .arena-field .stat-health.damaged .sigil { stroke:#ff794f;fill:#961622 }
+.game-main .duel-screen .arena-field .minion-statline .stat[data-stat-tone="increased"] { color:#baff9f }
+.game-main .duel-screen .arena-field .minion-statline .stat[data-stat-tone="reduced"] { color:#ffb5a4 }
+.game-main .duel-screen[data-card-drop=true] .arena-board { box-shadow:inset 0 0 0 1px #ffe5ac80,inset 0 0 22px #ffda9826 }
+.spell-cast-anchor {
+  position:absolute;z-index:14;pointer-events:none;left:var(--cast-x,50%);top:var(--cast-top,78%);translate:-50% -50%;
+  width:clamp(30px,10dvh,70px);aspect-ratio:1;border:2px solid #dfc7ff;border-radius:50%;
+  background:radial-gradient(circle,#fbf2ff80,transparent 68%);box-shadow:0 0 15px #9573f0;
+}
+.spell-cast-anchor[data-tone="mage"] { border-color:#a8e4ff;box-shadow:0 0 15px #71cdff }
+.spell-cast-anchor[data-tone="priest"] { border-color:#fff3b6;box-shadow:0 0 15px #f6d887 }
+.spell-cast-anchor[data-tone="warlock"] { border-color:#eea5ff;box-shadow:0 0 15px #a33fc1 }
+.touch-drag-ghost,.touch-drag-ghost *,.battle-fx-layer,.battle-fx-layer * { pointer-events:none!important }
+.impact-rail-shell { position:relative;--impact-size:clamp(25px,5.6dvh,54px);--impact-count:4 }
+.impact-rail-shell .impact-rail {
+  max-height:calc(var(--impact-count) * (var(--impact-size) + 2px) - 2px);
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;
+  overflow-anchor:none;scrollbar-width:none;gap:2px!important;justify-items:start;
+}
+.impact-rail-shell .impact-rail .impact-icon.secondary { width:var(--impact-size)!important;min-width:0!important;min-height:0!important;height:var(--impact-size)!important }
+.impact-rail-shell>.impact-preview { left:calc(var(--impact-size) + 5px)!important;top:0!important;bottom:auto!important }
+.impact-latest.secondary { width:var(--impact-size);min-width:0;min-height:24px;padding:0 }
+@media(min-height:540px) { .impact-rail-shell { --impact-count:5 } }
+@media(pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left { width:27px!important }
+  .impact-rail-shell { --impact-size:25px }
 }

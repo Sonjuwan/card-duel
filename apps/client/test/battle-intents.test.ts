@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {applyAction,createCatalog,createGame,getPlayerView,practiceDeck} from '../../../packages/engine/src/index.ts';
-import {BattleIntentQueue,validateBattleIntent} from '../src/battle-intents.ts';
+import {BattleIntentQueue,projectBattleIntents,validateBattleIntent} from '../src/battle-intents.ts';
 
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.21.0.json',import.meta.url),'utf8')));
 function setup(){
@@ -54,4 +54,37 @@ test('new authority can reject spent mana, a missing instance, a dead target and
   assert.equal(validateBattleIntent(view,0,catalog,{type:'endTurn'}),undefined);
   assert.ok(validateBattleIntent({...view,choicePending:true},0,catalog,{type:'endTurn'}));
   assert.ok(validateBattleIntent({...view,activePlayer:1},0,catalog,{type:'endTurn'}));
+});
+
+test('projected reservations reduce public mana and capacity without modifying the accepted frame',()=>{
+  const state=setup(),view=getPlayerView(state,0);
+  view.self.mana=5;
+  view.self.hand=[{instanceId:'one',cardId:'wolf'},{instanceId:'two',cardId:'wolf'}];
+  view.self.handCount=2;
+  view.self.board=Array.from({length:6},(_,index)=>({instanceId:'unit'+index,cardId:'wolf',attack:2,health:2,maxHealth:2,attacksRemaining:1}));
+  const action={type:'playCard',instanceId:'one',position:0} as const;
+  const projected=projectBattleIntents(view,0,catalog,[action]);
+  assert.equal(projected.self.mana,5-catalog.wolf.cost);
+  assert.equal(projected.self.board.length,7);
+  assert.deepEqual(projected.self.hand.map(card=>card.instanceId),['two']);
+  assert.ok(validateBattleIntent(projected,0,catalog,{type:'playCard',instanceId:'two'}));
+  assert.equal(view.self.board.length,6);
+  assert.equal(view.self.mana,5);
+  assert.equal(projectBattleIntents(view,0,catalog,[]),view);
+});
+
+test('windfury may reserve two attacks and spent attack counters recover on cancellation',()=>{
+  const view=getPlayerView(setup(),0);
+  view.self.board=[{instanceId:'wind',cardId:'wolf',attack:2,health:2,maxHealth:2,attacksRemaining:2,keywords:['windfury']}];
+  const attack={type:'attack',attackerId:'wind',target:{kind:'hero',player:1}} as const;
+  const queue=new BattleIntentQueue();
+  assert.ok(queue.offer(attack,true));
+  let projected=projectBattleIntents(view,0,catalog,queue.pending);
+  assert.equal(projected.self.board[0].attacksRemaining,1);
+  assert.equal(validateBattleIntent(projected,0,catalog,attack),undefined);
+  assert.ok(queue.offer(attack,true));
+  projected=projectBattleIntents(view,0,catalog,queue.pending);
+  assert.ok(validateBattleIntent(projected,0,catalog,attack));
+  queue.cancelPending();
+  assert.equal(projectBattleIntents(view,0,catalog,queue.pending).self.board[0].attacksRemaining,2);
 });

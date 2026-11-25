@@ -48,7 +48,7 @@ export function interruptTouch(gesture:TouchGesture|null,cancelledPointer:number
 export function isCaptureHandoff(type:string,fromChild:boolean,arenaHasCapture:boolean):boolean{
   return type==='lostpointercapture'&&fromChild&&arenaHasCapture;
 }
-export type TouchHit={minionId?:string;hero?:'self'|'enemy';slot?:number;ownBoard?:boolean;field?:boolean;hand?:boolean;control?:boolean};
+export type TouchHit={minionId?:string;hero?:'self'|'enemy';slot?:number;ownBoard?:boolean;enemyBoard?:boolean;field?:boolean;hand?:boolean;control?:boolean};
 /** Pick the closest actual insertion gap in the friendly row. This allows
  * a finger wider than a 5px slot to place a minion without shifting the row. */
 export function nearestBoardSlot(x:number,slots:readonly {position:number;x:number}[]):number|undefined{
@@ -100,7 +100,15 @@ export type DropFeedback='action'|'target'|'choice'|'invalid'|'cancel';
 export function pointerDrop(view:PlayerView,seat:PlayerId,catalog:Catalog,drag:DragState|null,hit:TouchHit,position:number):{intent:Intent|null;feedback:DropFeedback}{
   if(!drag||drag.revision!==view.revision||hit.hand||hit.control||!hit.field&&!hit.ownBoard&&!hit.minionId&&!hit.hero)return {intent:null,feedback:'cancel'};
   const d=drag.intent,card=d.kind==='card'?catalog[view.self.hand.find(h=>h.instanceId===d.id)?.cardId??'']:undefined;
-  if(card?.kind==='minion'&&hit.ownBoard&&hit.slot===undefined)return {intent:null,feedback:'invalid'};
+  if(card?.kind==='minion'&&(hit.ownBoard||hit.enemyBoard)){
+    if(hit.slot===undefined)return {intent:null,feedback:'invalid'};
+    const intent=resolveDrop(view,seat,catalog,drag,{kind:'board',position:hit.slot});
+    return {intent,feedback:!intent?'invalid':intent.action?'action':intent.selection.kind==='cardChoice'?'choice':'target'};
+  }
+  if(card?.kind==='spell'&&hit.field&&!hit.minionId&&!hit.hero){
+    const plan=resolveDrop(view,seat,catalog,drag,{kind:'board',position});
+    if(plan?.selection?.kind==='card')return {intent:null,feedback:'invalid'};
+  }
   for(const location of touchDropLocations(hit,seat,position,!!card&&card.kind!=='minion')){
     const intent=resolveDrop(view,seat,catalog,drag,location);if(!intent)continue;
     return {intent,feedback:intent.action?'action':intent.selection?.kind==='cardChoice'?'choice':'target'};

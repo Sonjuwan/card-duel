@@ -169,17 +169,18 @@ function room(s:GameState,seat:PlayerId,animation?:BattleAnimation):RoomView{
   return {code:'TESTFX',seat,mode:'human',status:s.phase==='finished'?'finished':'playing',opponentConnected:true,state:getPlayerView(s,seat),animation};
 }
 function action(s:GameState,a:Action,actor:PlayerId=0){const after=applyAction(s,actor,a);const animation=describeAcceptedAction(s,after,actor,a);assert.ok(animation);return{after,animation};}
-test('recent impact history records exact public outcomes, caps at five and rejects replay or hidden identities',()=>{
+test('recent impact history records exact public outcomes, retains earlier actions and rejects replay or hidden identities',()=>{
   const s=ready(),target:Target={kind:'hero',player:1};s.players[1].armor=2;s.players[0].board=[{cardId:'wolf',instanceId:'attacker',attack:3,health:3,maxHealth:3,attacksRemaining:1}];
   const a:Action={type:'attack',attackerId:'attacker',target},events:BattleVisualEvent[]=[];const result=applyAction(s,0,a,{visualEvent:e=>events.push(e)}),anim=describeAcceptedAction(s,result,0,a,events)!;
   const before=room(s,0),after=room(result,0,anim),name=(card:typeof catalog[string])=>card.name;
   const entry=advanceImpactHistory(before,after,[],catalog,name);assert.equal(entry.length,1);assert.equal(entry[0].actor,'나');assert.equal(entry[0].source?.cardId,'wolf');assert.equal(entry[0].target?.armor,0);assert.equal(entry[0].target?.health,29);assert.match(entry[0].lines.join(' '),/상대 영웅.*방어도 −2.*체력 피해 1/);
   assert.equal(advanceImpactHistory(after,after,entry,catalog,name),entry);assert.deepEqual(advanceImpactHistory(null,after,entry,catalog,name),[]);assert.deepEqual(advanceImpactHistory(before,{...after,code:'NEW'},entry,catalog,name),[]);
-  assert.deepEqual(advanceImpactHistory(before,{...after,state:{...after.state!,revision:after.state!.revision+3}},entry,catalog,name),[]);
+  assert.deepEqual(advanceImpactHistory(before,{...after,state:{...after.state!,revision:after.state!.revision+3}},entry,catalog,name),entry);
   const secret={...after,animation:{kind:'secret' as const,actor:1 as const,revision:after.state!.revision,cardId:'hidden-card',events:[]},state:{...before.state!,revision:after.state!.revision}};
-  assert.equal(advanceImpactHistory(before,secret,entry,catalog,name),entry);
+  assert.equal(advanceImpactHistory(before,secret,entry,catalog,name)[0].lines[0],'비밀 설치');
+  assert.doesNotMatch(JSON.stringify(advanceImpactHistory(before,secret,entry,catalog,name)[0]),/hidden-card/);
   const blocked={...secret,animation:{...secret.animation,kind:'attack' as const,blocked:true}};assert.deepEqual(advanceImpactHistory(before,blocked,[],catalog,name)[0].lines,['공격 차단']);
-  const capped=advanceImpactHistory(before,after,Array.from({length:6},(_,i)=>({...entry[0],revision:i})),catalog,name);assert.equal(capped.length,5);
+  const capped=advanceImpactHistory(before,after,Array.from({length:6},(_,i)=>({...entry[0],revision:i})),catalog,name);assert.equal(capped.length,7);
 });
 test('impact history disambiguates duplicate units by pre/post-action slots and reports actual buff and transform changes',()=>{
   for(const seat of [0,1] as const){const enemy=seat===0?1:0,s=ready(),unit=(instanceId:string)=>({cardId:'wolf',instanceId,attack:3,health:3,maxHealth:3,attacksRemaining:1});s.players[enemy].board=[unit('first'),unit('second'),unit('third')];

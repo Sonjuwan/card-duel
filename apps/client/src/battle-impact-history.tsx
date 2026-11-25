@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {LocalCardArt,LocalHeroArt} from './local-art.tsx';
 import {Sigil} from './battle-pieces.tsx';
 import type {Card,Catalog} from '../../../packages/engine/src/index.ts';
@@ -7,10 +7,10 @@ import {advanceImpactHistory} from './battle-impact-history-model.ts';
 import type {ImpactHistoryEntry,ImpactPortrait} from './battle-impact-history-model.ts';
 export function useImpactHistory(room:RoomView,connected:boolean,catalog:Catalog,name:(card:Card)=>string){
   const key=`${room.code}:${room.seat}`,before=useRef<RoomView|null>(null),[history,setHistory]=useState<{key:string;entries:ImpactHistoryEntry[]}>({key,entries:[]});
-  useEffect(()=>{if(!connected||!room.state){before.current=null;setHistory({key,entries:[]});return;}
+  useEffect(()=>{if(!connected||!room.state)return;
     const prior=before.current;before.current=room;setHistory(old=>({key,entries:advanceImpactHistory(prior,room,old.key===key?old.entries:[],catalog,name)}));
   },[room.code,room.seat,room.state?.revision,connected]);
-  return connected&&history.key===key?history.entries:[];
+  return history.key===key?history.entries:[];
 }
 const actionLabel={summon:'소환',attack:'공격',heroAttack:'영웅 공격',spell:'주문',weapon:'무기',secret:'비밀',coin:'동전',power:'영웅 능력',turn:'턴 변경',choice:'카드 선택'};
 
@@ -34,7 +34,23 @@ export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntr
   const [selected,setSelected]=useState<number|null>(null);
   const [hovered,setHovered]=useState<number|null>(null);
   const [focused,setFocused]=useState<number|null>(null);
-  return <div className="impact-rail" aria-label="최근 행동">
+  const scroller=useRef<HTMLDivElement>(null);
+  const prior=useRef<{revision:number|undefined;height:number}>({revision:undefined,height:0});
+  const atLatest=useRef(true);
+  const [following,setFollowing]=useState(true);
+  const revision=hovered??focused??selected;
+  const preview=entries.find(entry=>entry.revision===revision);
+  useLayoutEffect(()=>{
+    const element=scroller.current;if(!element)return;
+    if(prior.current.revision!==entries[0]?.revision){
+      element.scrollTop=atLatest.current?0:element.scrollTop+Math.max(0,element.scrollHeight-prior.current.height);
+    }
+    prior.current={revision:entries[0]?.revision,height:element.scrollHeight};
+  },[entries]);
+  return <div className="impact-rail-shell">
+    <div className="impact-rail" aria-label="최근 행동" ref={scroller} onScroll={event=>{
+      atLatest.current=event.currentTarget.scrollTop<=2;setFollowing(atLatest.current);setHovered(null);
+    }}>
     {entries.map(entry=>{
       const portrait=entry.source??entry.effects[0]??entry.target;
       const open=(hovered??focused??selected)===entry.revision;
@@ -46,9 +62,12 @@ export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntr
           {portrait?<Portrait item={portrait} catalog={catalog}/>:<Sigil kind={entry.kind==='secret'?'secret':'spell'}/>}
           <span className="impact-kind" aria-hidden="true">{entry.kind==='attack'||entry.kind==='heroAttack'?'⚔':entry.kind==='summon'?'+':entry.kind==='spell'?'✦':'•'}</span>
         </button>
-        <div className="impact-preview" id={previewId} data-open={open}><ImpactDetail entry={entry} catalog={catalog}/></div>
+
       </div>;
     })}
+    </div>
+    {!following&&<button type="button" className="impact-latest secondary" aria-label="최신 행동으로 이동" onClick={()=>{if(scroller.current)scroller.current.scrollTop=0;setSelected(null);}}>↑</button>}
+    {preview&&<div className="impact-preview" id={`impact-preview-${preview.revision}`} data-open="true"><ImpactDetail entry={preview} catalog={catalog}/></div>}
   </div>;
 }
 

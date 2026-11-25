@@ -114,6 +114,11 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const from=center(caster)??boardCenter;
     const intended=a.target?center(elementFor(arena,a.target,seat)):undefined;
     const impacts=impactChanges(cue.before.state,cue.after.state,seat,a.events);
+    const spellEffects=card?.kind==='spell'?(card.choices?.[a.choice??-1]?.effects??card.effects??[]):[];
+    const areaSpell=spellEffects.some(effect=>effect.kind==='damageSplash'||effect.kind==='brawl'||
+      'target' in effect&&/(?:Minions|Characters)$|adjacent/i.test(effect.target));
+    const anchoredSpell=a.kind==='spell'&&!areaSpell&&(['holy','nature'].includes(theme)||
+      impacts.some(event=>event.kind==='buff')&&!impacts.some(event=>event.kind==='damage'));
     const summons=summonVisuals(cue.before.state,cue.after.state,seat,catalog);
     const summonPosition=(id:string):FxAnchor|undefined=>{
       const visual=summons.get(id);if(!visual)return undefined;
@@ -289,7 +294,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
         refreshScrolledAnchors();
         ctx.clearRect(0,0,rect.width,rect.height);
         if(!reduced&&!spatialInvalid&&elapsed<cue.impact){
-          if(a.kind==='power'&&!powerProjectile){
+          if(anchoredSpell||a.kind==='power'&&!powerProjectile){
             radial(ctx,to,18+30*p,FX_COLORS[theme],.55*(1-p));
             ring(ctx,to,14+36*p,FX_COLORS[theme][1],p*.7,3);
             if(powerSummon)ring(ctx,to,12+32*p,FX_COLORS[theme][0],p*.75,2,.45);
@@ -301,7 +306,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
           }else if(a.kind==='spell'||a.kind==='power'){
             radial(ctx,from,28+20*p,FX_COLORS[theme],.5*(1-p));
             const travel=clamp((p-.24)/.76);
-            if(affected.length>=3){
+            if(affected.length&&(areaSpell||affected.length>=3)){
               const middle={x:affected.reduce((n,v)=>n+v.x,0)/affected.length,y:affected.reduce((n,v)=>n+v.y,0)/affected.length};
               ring(ctx,middle,35+120*travel,FX_COLORS[theme][1],travel*.8,4,.58);
               for(const q of affected)radial(ctx,q,12+35*travel,FX_COLORS[theme],travel*.7);
@@ -315,8 +320,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
                 ctx.moveTo(-9,-4);ctx.lineTo(0,0);ctx.lineTo(-9,4);ctx.stroke();ctx.restore();
               }else bolt(ctx,from,to,travel,theme,!!a.heavy,budget.particleDensity);
             }
-          }else if(attack&&p>.65)bolt(ctx,point(from,to,p-.16),to,clamp((p-.65)/.35),'steel',false,budget.particleDensity);
-          else if(a.kind==='summon'){ring(ctx,destination,20+45*p,FX_COLORS[theme][1],p*.65,2,.38);radial(ctx,destination,12+25*p,FX_COLORS[theme],p*.32);}
+          }else if(a.kind==='summon'){ring(ctx,destination,20+45*p,FX_COLORS[theme][1],p*.65,2,.38);radial(ctx,destination,12+25*p,FX_COLORS[theme],p*.32);}
         }
         if(elapsed>=cue.impact){
           resolveNewPositions();

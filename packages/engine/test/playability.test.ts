@@ -49,3 +49,13 @@ test('healing totem restores friendly minions only and stops when silenced', () 
     assert.equal(next.players[1].board.find(m=>m.instanceId===enemy.instanceId)?.health,1);
   }
 });
+
+test('Wrath of Air adds exactly one spell damage until silenced or removed',()=>{
+  for(const state of ['live','silenced','removed'] as const){
+    const s=ready('shaman');
+    if(state!=='removed')onBoard(s,0,'__magic_totem',{silenced:state==='silenced'});
+    const spell=hand(s,'flame_sphere');
+    const after=applyAction(s,0,{type:'playCard',instanceId:spell.instanceId,target:{kind:'hero',player:1}});
+    assert.equal(after.players[1].health,state==='live'?23:24);
+  }
+});

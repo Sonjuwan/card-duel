@@ -146,7 +146,7 @@ export function HeroPortrait({player,label,shatter=false,enabled=false,ready=fal
     <span className="hero-label">{label} · {(player.heroForm==='jaraxxus'?'군주 자락서스':className[player.heroClass])}</span>
     {attack>0&&<span className="stat stat-attack hero-attack">{attack}</span>}
     {player.armor>0&&<span className="hero-armor"><Sigil kind="shield"/>{player.armor}</span>}
-    <span className="stat stat-health hero-health">{player.health}</span>
+    <span className={`stat stat-health hero-health${player.health<(player.maxHealth??30)?' damaged':''}`}><Sigil kind="blood"/>{player.health}</span>
     {player.heroFrozenThroughTurn!==undefined&&<span className="hero-freeze">빙결</span>}{player.heroImmuneThisTurn&&<span className="hero-freeze hero-immune">면역</span>}{delta!==0&&<span className={`motion-delta ${delta<0?'damage':'heal'}`} aria-hidden="true">{delta>0?'+':''}{delta}</span>}
   </button>;
 }
@@ -160,7 +160,7 @@ export function WeaponSlot({player,catalog,onInspect}:{player:PublicPlayer;catal
   const classicNames=useContext(ClassicNamesContext);
   const weapon=player.weapon,card=weapon?.cardId?catalog[weapon.cardId]:undefined,name=card?displayCardName(card,classicNames):'장착 무기';
   const info=weapon&&card?{card,weapon}:null,hover=useCardHover(info),inspect=()=>{if(info)onInspect?.(info);};
-  return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{inspect();if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} {...hover.touchProps} onPointerDown={e=>{inspect();hover.touchProps.onPointerDown(e);}} onFocus={e=>{inspect();if(card)hover.start(e.currentTarget);}} onBlur={hover.clear} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack">{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
+  return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{inspect();if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} {...hover.touchProps} onPointerDown={e=>{inspect();hover.touchProps.onPointerDown(e);}} onFocus={e=>{inspect();if(card)hover.start(e.currentTarget);}} onBlur={hover.clear} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack"><Sigil kind="weapon"/>{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
 }
 export function ManaDisplay({player,compact=false}:{player:PublicPlayer;compact?:boolean}){
   const unlocked=Math.max(0,player.maxMana-player.lockedMana),extra=Math.max(0,player.mana-unlocked);
