@@ -25,7 +25,7 @@ test('room acts only as authenticated seat, rejects out-of-turn and stale action
   assert.throws(()=>r.act(second,{revision:2,actor:active,action:{type:'endTurn'}}),/자신의 턴/);
   assert.throws(()=>r.act(first,{revision:2,action:{type:'attack',attackerId:'fake',target:{kind:'hero'}}}),/공격할 수 없는/);
   r.act(first,{revision:2,action:{type:'endTurn'}});assert.equal(r.view(second).state?.revision,3);assert.equal(r.view(second).state?.activePlayer,1-active);
-  assert.deepEqual(r.view(first).animation,{revision:3,actor:active,kind:'turn',events:[]});assert.deepEqual(r.view(second).animation,r.view(first).animation);assert.equal(r.botDelay(a.code),1770);
+  assert.deepEqual(r.view(first).animation,{revision:3,actor:active,kind:'turn',events:[{kind:'draw',side:1-active,burned:false}]});assert.deepEqual(r.view(second).animation,r.view(first).animation);assert.equal(r.botDelay(a.code),1770);
   assert.throws(()=>r.act(first,{revision:2,action:{type:'endTurn'}}),/오래된/);
 });
 test('reconnect restores exact state, rejects invalid token and invalidates old socket',()=>{

@@ -12,11 +12,10 @@ test('keyboard focus remains visible for native and custom controls', () => {
   assert.match(focusRule, /outline:3px solid/);
 });
 
-test('confirmed card use is visible on desktop and has large mobile targets',()=>{
-  const battleCss=readFileSync(new URL('../src/battle.css',import.meta.url),'utf8');
-  assert.match(battleCss,/\.arena-message \.selected-card-use\{display:inline-flex/);
-  assert.match(battleCss,/\.arena-message \.selected-card-use,\.arena-message \.selection-cancel\{min-height:44px/);
-  assert.doesNotMatch(battleCss,/\.selected-card-use\{display:none/);
+test('hand interactions provide a keyboard path without duplicate manual controls',()=>{
+  const source=readFileSync(new URL('../src/Battle.tsx',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/selected-card-use|selected-card-inspect|selection-cancel|<PlacementPicker|<TargetPicker/);
+  assert.match(source,/onClick=\{keyboard=>\{if\(keyboard\)applyIntent\(planCard/);
 });
 
 test('collection text has content-driven height and no clipping; battle-card sizing is unchanged',()=>{

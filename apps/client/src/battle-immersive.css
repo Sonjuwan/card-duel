@@ -420,26 +420,14 @@
     --landscape-card-open-h:clamp(180px,55dvh,245px);
     --landscape-card-open-w:calc(var(--landscape-card-open-h) * .68);
   }
-  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card{
-    transform:translate(calc((var(--landscape-card-w) - var(--landscape-card-open-w)) / 2 + var(--landscape-preview-shift, 0px)),calc(-1 * var(--landscape-hand-h))) scale(1.18)!important;
-    transform-origin:bottom center!important;
-  }
   .game-main .duel-screen.preview-compact .impact-preview{font-size:12px}
 }
 @media (hover:hover) and (pointer:fine) and (orientation:landscape){
-  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
-    transform:scale(1.75)!important;transform-origin:bottom center;
-    z-index:65;
-  }
 }
 @media (orientation:landscape) and (min-width:661px) and (max-width:940px) and (min-height:541px) and (max-height:760px){
   .game-main .duel-screen.preview-compact .arena-field .hand-card-slot{
     --landscape-card-open-h:clamp(200px,48dvh,300px);
     --landscape-card-open-w:calc(var(--landscape-card-open-h) * .68);
-  }
-  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card{
-    transform:translate(calc((var(--landscape-card-w) - var(--landscape-card-open-w)) / 2 + var(--landscape-preview-shift, 0px)),calc(-1 * var(--hand-h))) scale(1.12)!important;
-    transform-origin:bottom center!important;
   }
 }
 
@@ -526,32 +514,15 @@
   .game-main .duel-screen.preview-compact .arena-field .hand-card-slot{
     --duel-hand-open-scale:clamp(1.65,2.2,2.6);
   }
-  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card{
-    transform:translateY(calc(-1 * min(23dvh,110px))) scale(var(--duel-hand-open-scale))!important;
-    transform-origin:bottom center!important;z-index:70!important;
-  }
 }
 @media (hover:hover) and (pointer:fine) and (orientation:landscape){
-  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
-    transform:translateY(calc(-1 * min(23dvh,110px))) scale(clamp(1.65,2.2,2.6))!important;
-    transform-origin:bottom center!important;z-index:70!important;
-  }
 }
 
 /* A pressed touch card must enlarge immediately, not only after selection. */
 @media (orientation:landscape){
-  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot>.battle-card:active{
-    transform:translateY(calc(-1 * min(23dvh,110px))) scale(2.2)!important;
-    transform-origin:bottom center!important;z-index:70!important;
-  }
 }
 @media (orientation:landscape) and (max-height:540px){
   .game-main .duel-screen.preview-compact .arena-field .hand-card-slot{
     --duel-hand-open-scale:1.65;
-  }
-  .game-main .duel-screen.preview-compact .arena-field .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible))>.battle-card,
-  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot>.battle-card:active,
-  .game-main .duel-screen.preview-compact .own-hand .hand-card-slot:is(:hover,:focus-within)>.battle-card{
-    transform:translateY(-9dvh) scale(1.65)!important;
   }
 }

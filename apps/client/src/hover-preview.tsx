@@ -30,7 +30,7 @@ export function CardHoverPanel({preview,example=false}:{preview:CardPreview;exam
     </div>
     <div className="hover-details"><span className="hover-caption">카드 상세 · {cardSetLabel(card)}</span><strong>{name}</strong><span className="hover-class">{factionLabel(card)} · {cardKindLabel[card.kind]} · {rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}</span>
       <div className="hover-description">{cardDescription(card)}{minion?.silenced&&<small>침묵 (원래 카드 효과 제거)</small>}</div>
-      {minion&&<div className="hover-live"><b>전장 능력치</b><span>공격 {minion.attack} · 생명력 {minion.health}/{minion.maxHealth}</span>{minionTags(minion).length>0&&<span>{minionTags(minion).join(' · ')}</span>}</div>}
+      {minion&&<div className="hover-live"><b>전장 능력치</b><span>공격 {minion.attack} · 생명력 {minion.health}/{minion.maxHealth}</span>{card.kind==='minion'&&!minion.silenced&&!!((card.spellDamage??0)+(minion.bonusSpellDamage??0))&&<span>주문 공격력 +{(card.spellDamage??0)+(minion.bonusSpellDamage??0)}</span>}{minionTags(minion).length>0&&<span>{minionTags(minion).join(' · ')}</span>}</div>}
       {weapon&&<div className="hover-live"><b>장착 중인 능력치</b><span>공격 {weapon.attack} · 내구도 {weapon.durability}</span></div>}
       {powers.size>0&&<dl className="hover-keywords">{[...powers].map(k=><div key={k}><dt>{keywords[k]}</dt><dd>{keywordHelp[k]}</dd></div>)}</dl>}
       {reason&&<small className="hover-reason">{reason}</small>}<small className="hover-dismiss">마우스를 떼면 닫힙니다 · Esc</small>

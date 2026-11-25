@@ -12,6 +12,7 @@ export function useImpactHistory(room:RoomView,connected:boolean,catalog:Catalog
   },[room.code,room.seat,room.state?.revision,connected]);
   return history.key===key?history.entries:[];
 }
+const actionMark={summon:'＋',attack:'⚔',heroAttack:'⚔',spell:'✦',weapon:'⚒',secret:'?',coin:'◉',power:'ϟ',turn:'↻',choice:'▣',heal:'✚',death:'☠',draw:'▤'};
 const actionLabel={summon:'소환',attack:'공격',heroAttack:'영웅 공격',spell:'주문',weapon:'무기',secret:'비밀',coin:'동전',power:'영웅 능력',turn:'턴 변경',choice:'카드 선택'};
 
 function Portrait({item,catalog}:{item:ImpactPortrait;catalog:Catalog}){
@@ -31,6 +32,9 @@ function ImpactDetail({entry,catalog}:{entry:ImpactHistoryEntry;catalog:Catalog}
 }
 
 export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
+  const press=useRef<{id:number;x:number;y:number;timer:ReturnType<typeof setTimeout>}|null>(null);
+  const clearPress=()=>{if(press.current)clearTimeout(press.current.timer);press.current=null;};
+  useEffect(()=>()=>{if(press.current)clearTimeout(press.current.timer);},[]);
   const [selected,setSelected]=useState<number|null>(null);
   const [hovered,setHovered]=useState<number|null>(null);
   const [focused,setFocused]=useState<number|null>(null);
@@ -49,7 +53,7 @@ export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntr
   },[entries]);
   return <div className="impact-rail-shell">
     <div className="impact-rail" aria-label="최근 행동" ref={scroller} onScroll={event=>{
-      atLatest.current=event.currentTarget.scrollTop<=2;setFollowing(atLatest.current);setHovered(null);
+      clearPress();atLatest.current=event.currentTarget.scrollTop<=2;setFollowing(atLatest.current);setHovered(null);
     }}>
     {entries.map(entry=>{
       const portrait=entry.source??entry.effects[0]??entry.target;
@@ -58,9 +62,18 @@ export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntr
       return <div className="impact-rail-entry" key={entry.revision} onPointerEnter={event=>{if(event.pointerType==='mouse')setHovered(entry.revision);}} onPointerLeave={()=>setHovered(null)}
         onKeyDown={event=>{if(event.key==='Escape'){setSelected(null);setHovered(null);setFocused(null);}}}>
         <button type="button" className="secondary impact-icon" aria-label={`${entry.actor} ${actionLabel[entry.kind]} · ${entry.source?.label??entry.lines[0]}`} aria-controls={previewId} aria-expanded={open}
-          onFocus={event=>{if(event.currentTarget.matches(':focus-visible'))setFocused(entry.revision);}} onBlur={()=>setFocused(null)} onClick={()=>setSelected(selected===entry.revision?null:entry.revision)}>
+          onFocus={event=>{if(event.currentTarget.matches(':focus-visible'))setFocused(entry.revision);}} onBlur={()=>setFocused(null)}
+          onPointerDown={event=>{
+            if(event.pointerType==='mouse'||!event.isPrimary)return;
+            clearPress();
+            press.current={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>setHovered(entry.revision),300)};
+          }}
+          onPointerMove={event=>{const p=press.current;if(p?.id===event.pointerId&&Math.hypot(p.x-event.clientX,p.y-event.clientY)>8){clearPress();setHovered(null);}}}
+          onPointerUp={event=>{if(event.pointerType!=='mouse'){clearPress();setHovered(null);}}}
+          onPointerCancel={()=>{clearPress();setHovered(null);}}
+          onClick={event=>{if(event.detail===0)setSelected(selected===entry.revision?null:entry.revision);}}>
           {portrait?<Portrait item={portrait} catalog={catalog}/>:<Sigil kind={entry.kind==='secret'?'secret':'spell'}/>}
-          <span className="impact-kind" aria-hidden="true">{entry.kind==='attack'||entry.kind==='heroAttack'?'⚔':entry.kind==='summon'?'+':entry.kind==='spell'?'✦':'•'}</span>
+          <span className="impact-kind" aria-hidden="true">{actionMark[entry.mark??entry.kind]}</span>
         </button>
 
       </div>;

@@ -19,14 +19,10 @@ test('medium landscape keeps turn button accessible and only internal secondary 
   assert.doesNotMatch(mid,/min-height:540px/);
 });
 
-test('middle-width landscape cards are compact until tap/focus, with field-bound preview',()=>{
-  const preview=css.slice(css.indexOf('/* Mid-size landscape screens'));
-  assert.match(preview,/\.hand-card-slot\{[\s\S]+?--landscape-card-open-w:clamp/);
-  assert.match(preview,/\.battle-card\.is-selected/);
-  assert.match(preview,/\.battle-card\.is-preview-expanded/);
-  assert.match(preview,/var\(--landscape-preview-shift, 0px\)/);
-  assert.match(preview,/\.battle\.is-dragging[\s\S]+?transform:translateY/);
+test('middle-width landscape uses an independent card preview and the same folded hand',()=>{
   const code=readFileSync(new URL('../apps/client/src/Battle.tsx',import.meta.url),'utf8');
-  assert.match(code,/\.friendly-minions/);
-  assert.match(code,/y=line-box.top/);
+  const ui=readFileSync(new URL('../apps/client/src/integrated-ui.css',import.meta.url),'utf8');
+  assert.match(ui,/\.own-hand\[data-hand-open=true\] \.battle-hand/);
+  assert.match(code,/<HoverPreviewProvider/);
+  assert.doesNotMatch(code,/landscapeHandPreviewShift|setPeekCardId/);
 });

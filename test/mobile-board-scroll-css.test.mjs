@@ -48,11 +48,10 @@ test('target picker has a reachable close action without cancelling the selected
   assert.match(css, /\.target-picker-close\{grid-column:1\/-1;min-height:44px/);
 });
 
-test('Escape first closes the picker instead of cancelling a held card or attack',()=>{
-  assert.match(battle,/if\(selected&&e\.key==='Escape'\)\{[\s\S]*?\.target-picker\[open\]/);
-  assert.match(battle,/if\(openPicker\)\{e\.preventDefault\(\);e\.stopPropagation\(\);openPicker\.open=false;openPicker\.querySelector<HTMLElement>\('summary'\)\?\.focus\(\);return;\}/);
+test('Escape cancels the current target selection and restores focus',()=>{
+  assert.match(battle,/if\(selected&&e.key==='Escape'\)\{/);
+  assert.match(battle,/setSelected\(null\);cancelActiveTouch\(\);source\?\.focus\(\)/);
 });
-
 test('expanded target picker supports bounded arrow/Home/End keyboard focus without selecting a target',()=>{
   assert.match(pieces,/const navigateTargets=\(event:KeyboardEvent<HTMLDetailsElement>\)=>/);
   assert.match(pieces,/if\(!details\?\.open\|\|event\.altKey\|\|event\.ctrlKey\|\|event\.metaKey\|\|event\.shiftKey\)return/);
@@ -82,13 +81,11 @@ test('target list text includes public shield and immune statuses without exposi
 });
 
 
-test('target overlay identifies the chosen attack/card source without changing the close accessible name',()=>{
-  assert.match(battle,/sourceLabel=\{targetSourceLabel\}/);
-  assert.match(pieces,/aria-label=\{sourceLabel\?`\$\{sourceLabel\} · 합법 대상 목록`/);
-  assert.match(pieces,/className="target-picker-close" onClick=\{closeList\} aria-label="대상 목록 닫기"/);
-  assert.match(css,/\.target-picker-source\{[^}]*text-overflow:ellipsis/s);
+test('battlecry targeting starts at a focusable projected minion',()=>{
+  assert.match(battle,/className="battlecry-anchor" data-action-source="battlecry"/);
+  assert.match(battle,/aimPress.current=e.pointerId/);
+  assert.match(battle,/setPointerCapture\(e.pointerId\)/);
 });
-
 
 test('rapid pointer drag statuses do not repeatedly queue screen reader announcements',()=>{
   assert.match(battle,/role="status" aria-live=\{currentDrag\?"off":"polite"\}/);
@@ -134,12 +131,12 @@ test('landscape touch combat buttons do not collapse to 23-36px hit targets',()=
 });
 
 
-test('landscape full card text identifies the selected own card instead of requiring tiny hand-copy text',()=>{
-  assert.match(battle,/className="landscape-card-detail"><summary title="선택된 카드의 설명과 효과 확인">카드 상세 보기\{selectedCard\?/);
-  assert.match(battle,/displayCardName\(selectedCard,classicNames\)/);
-  assert.match(css,/\.landscape-card-detail summary\{font-size:12px;line-height:1\.35;overflow-wrap:anywhere;white-space:normal\}/);
+test('landscape card text is confined to the dedicated card preview',()=>{
+  assert.doesNotMatch(battle,/landscape-card-detail|onInspectTap|ActionSequence/);
+  const preview=readFileSync(new URL('../apps/client/src/hover-preview.tsx',import.meta.url),'utf8');
+  assert.match(preview,/className="hover-description"/);
+  assert.match(preview,/createPortal\(<CardHoverPanel/);
 });
-
 
 test('mobile emote menu is viewport anchored, has a sticky close action, and consumes Escape without cancelling cards',()=>{
   const dialogue=readFileSync(new URL('../apps/client/src/battle-dialogue-ui.tsx',import.meta.url),'utf8');

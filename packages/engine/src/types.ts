@@ -188,7 +188,9 @@ export type Target = { kind: 'hero'; player?: PlayerId } | { kind: 'minion'; ins
 export type BattleVisualEvent =
   | {kind:'damage';target:Target;side:PlayerId;amount:number;armorAbsorbed?:number}
   | {kind:'heal';target:Target;side:PlayerId;amount:number}
-  | {kind:'shield'|'death';target:Target;side:PlayerId}
+  | {kind:'shield'|'death'|'deathrattle';target:Target;side:PlayerId}
+  | {kind:'draw';side:PlayerId;burned:boolean}
+  | {kind:'fatigue';side:PlayerId;target:Target;amount:number}
   | {kind:'combat';target:Target;side:PlayerId}
   | {kind:'secretTriggered';cardId:string;side:PlayerId};
 export type Action =

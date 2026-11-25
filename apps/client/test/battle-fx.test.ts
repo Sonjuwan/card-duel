@@ -289,7 +289,7 @@ test('accepted attack metadata is public, mirrored on both seats, and uses exact
   const {after,animation}=action(s,{type:'attack',attackerId:'public-wolf',target:{kind:'hero'}});
   assert.deepEqual(animation,{revision:after.revision,actor:0,kind:'attack',attackerId:'public-wolf',target:enemyHero,heavy:true});
   const own=nextPlayback(room(s,0),room(after,0,animation))!,opponent=nextPlayback(room(s,1),room(after,1,animation))!;
-  assert.equal(own.duration,2400);assert.equal(own.impact,1020);assert.equal(opponent.impact,own.impact);
+  assert.equal(own.duration,1300);assert.equal(own.impact,820);assert.equal(opponent.impact,own.impact);
   assert.deepEqual(impactChanges(own.before.state!,own.after.state!,0),[{side:1,target:enemyHero,kind:'damage',amount:5}]);
   assert.deepEqual(impactChanges(opponent.before.state!,opponent.after.state!,1),[{side:1,target:enemyHero,kind:'damage',amount:5}]);
 });
@@ -349,7 +349,7 @@ test('ordinary summons have time to transform and land and retain fast and insta
   assert.equal(nextPlayback(before,{...after,animationSpeed:'fast'})?.duration,1540);
   assert.equal(nextPlayback(before,{...after,animationSpeed:'instant'}),null);
 });
-test('every public battle cue doubles the previously shipped timeline',()=>{
+test('direct strikes use the new cadence while other cues retain doubled timing',()=>{
   const previous={
     attack:[1000,430],heroAttack:[1250,520],spell:[1250,550],summon:[1400,1050],
     weapon:[1050,530],secret:[1050,540],coin:[900,420],power:[1100,500],turn:[800,180],choice:[650,240],
@@ -357,6 +357,11 @@ test('every public battle cue doubles the previously shipped timeline',()=>{
   for(const kind of Object.keys(previous) as (keyof typeof previous)[]){
     const cue:BattleAnimation={kind,actor:0,revision:5};
     const [duration,impact]=previous[kind];
+    if(kind==='attack'||kind==='heroAttack'){
+      assert.deepEqual(battleAnimationTiming(cue),{duration:1300,impact:820});
+      assert.equal(battleAnimationTiming({...cue,events:[{kind:'death',side:1,target:{kind:'minion',instanceId:'victim'}}]}).duration,2520);
+      continue;
+    }
     assert.deepEqual(battleAnimationTiming(cue),{duration:duration*2,impact:impact*2});
     assert.ok(battleAnimationTiming({...cue,heavy:true}).duration>=duration*2);
   }
@@ -374,7 +379,7 @@ test('all spells have a sound and particle theme, including fire, frost and heal
 test('hero attack produces a distinct cue and the correct damage on the public snapshot',()=>{
   const s=ready();s.players[0].weapon={attack:3,durability:2};s.players[0].heroAttacksRemaining=1;
   const {after,animation}=action(s,{type:'heroAttack',target:enemyHero});
-  assert.equal(animation.kind,'heroAttack');assert.equal(battleAnimationTiming(animation).duration,2500);
+  assert.equal(animation.kind,'heroAttack');assert.equal(battleAnimationTiming(animation).duration,1300);
   assert.equal(after.players[1].health,27);
 });
 test('actual engine trace preserves overkill and retaliation, including dead characters, without changing rules',()=>{

@@ -177,17 +177,23 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
       const dx=to.x-from.x,dy=to.y-from.y,at=cue.impact/cue.duration,reach=a.blocked ? .60 : .91;
       const box=caster.getBoundingClientRect(),ghost=caster.cloneNode(true) as HTMLElement;
       ghost.removeAttribute('data-preview-minion');ghost.removeAttribute('data-preview-card');ghost.removeAttribute('data-action-source');
-      ghost.classList.add('fx-actor');ghost.classList.remove('is-ready','is-targeted','is-selected','is-hit','is-entering');
+      ghost.classList.add('fx-actor');ghost.classList.remove('is-ready','is-targeted','is-selected','is-hit','is-entering','is-preparing');
       prepareFxGhost(ghost);layer.parentElement?.append(ghost);ghosts.push(ghost);
       const geometry={left:`${box.left-rect.left}px`,top:`${box.top-rect.top}px`,width:`${box.width}px`,height:`${box.height}px`};
       const dies=a.attackerId&&impacts.some(i=>i.kind==='leave'&&i.target.kind==='minion'&&i.target.instanceId===a.attackerId);
-      const returned=at+(1-at)*(dies ? .48 : .78);
+      const windup=(cue.windup??cue.impact*700/820)/cue.duration;
+      const hold=Math.min(1,at+180*(cue.impact-(cue.windup??cue.impact*700/820))/120/cue.duration);
+      const returned=at+(1-at)*(dies?.48:1);
+      const prepared='translate('+(-dx*.095)+'px,'+(-dy*.095)+'px) scale(1.08)';
+      const collided='translate('+(dx*reach)+'px,'+(dy*reach)+'px) scale(1.13)';
       animations.push(caster.animate([{opacity:0},{opacity:0}],{duration:cue.duration,fill:'none'}));
       animations.push(ghost.animate([
-        {...geometry,transform:'translate(0,0) scale(1)',opacity:1,offset:0},
-        {...geometry,transform:`translate(${-dx*.12}px,${-dy*.12}px) scale(1.10)`,opacity:1,offset:at*.52,easing:'ease-in'},
-        {...geometry,transform:`translate(${dx*reach}px,${dy*reach}px) scale(1.13)`,opacity:1,offset:at,easing:'ease-out'},
-        {...geometry,transform:'translate(0,0) scale(1)',opacity:1,offset:returned,easing:'ease-in'},
+        {...geometry,transform:windup?'translate(0,0) scale(1)':prepared,opacity:1,offset:0},
+        {...geometry,transform:prepared,opacity:1,offset:windup*.38},
+        {...geometry,transform:prepared,opacity:1,offset:windup,easing:'cubic-bezier(.66,0,.9,.55)'},
+        {...geometry,transform:collided,opacity:1,offset:at},
+        {...geometry,transform:collided,opacity:1,offset:hold,easing:'ease-out'},
+        {...geometry,transform:'translate(0,0) scale(1)',opacity:1,offset:returned},
         {...geometry,transform:dies?'translateY(14px) scale(.38) rotate(-12deg)':'translate(0,0) scale(1)',opacity:dies?0:1,offset:1}
       ],{duration:cue.duration,fill:'both'}));
     }
@@ -251,6 +257,27 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     for(const boardRow of rows)boardRow.addEventListener('scroll',onBoardScroll,{passive:true});
     window.addEventListener('resize',onResize);
     const resizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(onResize):undefined;resizeObserver?.observe(arena);
+    if(!reduced){
+      const transferNodes=[...layer.parentElement?.querySelectorAll<HTMLElement>('.fx-deck-transfer')??[]];
+      for(const [index,node] of transferNodes.entries()){
+        const self=Number(node.dataset.side)===seat;
+        const deck=center(arena.querySelector(self?'.arena-right .own-resources .deck-stack':'.arena-right .opponent-resources .deck-stack'));
+        const hand=center(arena.querySelector(self?'.folded-hand':'.hidden-hand'));
+        const home=hand&&hand.x>0?hand:center(arena.querySelector(self?'.battle-hand':'.hidden-hand'));
+        if(!deck||!home)continue;
+        const reverse=node.dataset.direction==='into';
+        const from=reverse?home:deck,to=node.dataset.burned==='true'?{x:deck.x-38,y:deck.y}:reverse?deck:home;
+        const position=(p:Point)=>`translate(${p.x}px,${p.y}px) translate(-50%,-50%)`;
+        const duration=Math.min(840,cue.duration-120);
+        const delay=Math.min(Math.max(0,cue.duration-duration-50),Math.max(0,cue.impact-duration*.62)+index*85);
+        animations.push(node.animate([
+          {transform:position(from)+' scale(.52)',opacity:0},
+          {transform:position(from)+' scale(.82)',opacity:1,offset:.13},
+          {transform:position(to)+' scale(1)',opacity:1,offset:.82},
+          {transform:position(to)+' scale(.55)',opacity:0}
+        ],{duration,delay,easing:'ease-in-out',fill:'both'}));
+      }
+    }
     const start=performance.now(),feedback=impactFeedback(a,impacts);
     const recovery=cue.duration-cue.impact;
     const trace=a.events??[];
@@ -263,9 +290,11 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     playBattleSound(a,theme,'start');
     const impact=()=>{
       if(impacted||document.hidden)return;impacted=true;playBattleSound(a,theme,'impact',feedback);playBattleHaptic(a,feedback,seat);
-      if(feedback.shake>0&&!reduced&&!spatialInvalid&&typeof arena.animate==='function'){
-        const strength=feedback.shake;
-        animations.push(arena.animate([{transform:'translate(0,0)'},{transform:`translate(${-strength}px,${strength*.55}px)`},{transform:`translate(${strength}px,${-strength*.4}px)`},{transform:`translate(${-strength*.5}px,0)`},{transform:'translate(0,0)'}],{duration:620,easing:'ease-out'}));
+      if(feedback.shake>0&&!reduced&&!spatialInvalid){
+        for(const change of impacts.filter(change=>change.kind==='damage'||change.kind==='shield')){
+          const struck=elementFor(arena,change.target,seat)?.querySelector('.minion-medallion,.hero-emblem');
+          struck?.animate([{translate:'0'},{translate:'-5px 2px'},{translate:'4px -2px'},{translate:'0'}],{duration:270,easing:'ease-out'});
+        }
       }
       const departureSound=departureSoundKind(impacts);
       if(departureSound)timeouts.push(setTimeout(()=>playBattleDepartureSound(departureSound),hasDeath?Math.min(recovery*.28,240):0));
@@ -325,6 +354,16 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
         if(elapsed>=cue.impact){
           resolveNewPositions();
           if(!reduced&&!spatialInvalid&&a.kind!=='turn'&&a.kind!=='choice')burst(ctx,to,u,a.blocked||feedback.kind==='armor'?'gold':theme,a.heavy&&feedback.kind!=='armor'?1.65:1.0,a.revision,budget.particleDensity,particlesFor);
+          if(!reduced)for(const [index,event] of trace.entries()){
+            if(event.kind!=='fatigue'&&event.kind!=='deathrattle')continue;
+            const p=event.kind==='deathrattle'?positions.get(targetKey(event.target)):center(elementFor(arena,event.target,seat));
+            const delay=event.kind==='deathrattle'?deathBeat(targetKey(event.target))+250:0;
+            const age=(elapsed-cue.impact-delay)/Math.max(350,recovery-delay);
+            if(!p||age<0||age>=1)continue;
+            ring(ctx,p,20+age*48,'#c580ff',1-age,4);
+            burst(ctx,p,age,'shadow',1.1,a.revision+index,budget.particleDensity,particlesFor);
+            drawImpactLabel(ctx,{x:p.x,y:p.y-14,text:event.kind==='fatigue'?`탈진 ${event.amount}`:'☠',kind:'defense',fontSize:18,maxWidth:120,floatUp:28},age);
+          }
           for(const [i,event] of impacts.entries()){
             const summon=event.kind==='summon'&&event.target.kind==='minion'?summons.get(event.target.instanceId):undefined;
             const pt=impactPosition(event.target);
@@ -337,6 +376,14 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
             if(!reduced&&summon)ring(ctx,pt,20+38*progress,FX_COLORS[col][1],(1-progress)*.75,2,.42);
             if(!reduced&&event.kind==='leave'){const colors=FX_COLORS[departureVisual(event)==='death'?'dust':'arcane'];radial(ctx,pt,40+45*progress,colors,(1-progress)*.6);}
             if(label&&!reduced)ring(ctx,pt,25+35*u,FX_COLORS.gold[1],(1-u)*.9,3);
+            if(event.kind==='shield'&&!reduced&&u<.72){
+              ctx.save();ctx.globalAlpha=1-u/.72;ctx.strokeStyle='#fff2af';ctx.lineWidth=3;
+              for(let shard=0;shard<8;shard++){
+                const angle=shard*Math.PI/4,r=13+u*53,x=pt.x+Math.cos(angle)*r,y=pt.y+Math.sin(angle)*r;
+                ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+9*Math.cos(angle+.6),y+9*Math.sin(angle+.6));ctx.stroke();
+              }
+              ctx.restore();
+            }
           }
           for(const label of labelForFrame(target=>{const p=impactPosition(target);return p?.edge?undefined:p;}))drawImpactLabel(ctx,label,u,reduced);
           if(markersDirty){cachedMarkers=offscreenFxMarkers(impacts,impactPosition);markersDirty=false;}
@@ -362,7 +409,14 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
   },[cue,arenaRef,card,catalog]);
   if(!cue)return null;
   const a=cue.animation,own=a.actor===cue.before.seat,showCard=!!card||a.kind==='secret';
+  const transfers=(a.events??[]).flatMap(event=>event.kind==='draw'?[{side:event.side,burned:event.burned,direction:'out'}]:[]);
+  for(const side of [0,1] as const){
+    const before=side===cue.before.seat?cue.before.state?.self:cue.before.state?.opponent;
+    const after=side===cue.before.seat?cue.after.state?.self:cue.after.state?.opponent;
+    if(before&&after&&after.deckCount>before.deckCount)transfers.push({side,burned:false,direction:'into'});
+  }
   return <div className="battle-fx-layer" inert aria-hidden="true" data-fx-revision={a.revision} data-fx-kind={a.kind} data-fx-side={own?'own':'enemy'} key={a.revision}>
+    {transfers.map((transfer,index)=><span key={index} className="fx-deck-transfer" data-side={transfer.side} data-direction={transfer.direction} data-burned={transfer.burned}><LocalCardBack/></span>)}
     <canvas ref={canvas} className="battle-fx-canvas"/>
     {showCard&&<div className="fx-play-card" ref={cardReveal} data-card-reveal-kind={a.kind}>{card?<><BattleCard card={card}/>{a.kind==='summon'&&<span className="fx-summon-portrait"><LocalCardArt card={card}/></span>}</>:<div className="fx-secret-card"><LocalCardBack/><strong>비밀 설치</strong></div>}</div>}
   </div>;

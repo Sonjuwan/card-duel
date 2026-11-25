@@ -87,7 +87,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
             fixture.view.animation=undefined;
             view.revision+=1;
             for(const [i,side] of [view.self,view.opponent].entries()){
-              side.board=Array.from({length:7},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:['taunt','divineShield']}));
+              side.board=Array.from({length:7},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
               side.handCount=10;
             }
             view.self.hand=Array.from({length:10},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
@@ -159,10 +159,27 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
       return card.contains(document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2));
     }));
     assert.equal(targets.length,10);
+    const resourceGeometry=await page.evaluate(()=>{
+      const rect=el=>el.getBoundingClientRect();
+      const boxes=[...document.querySelectorAll('.battle-mana,.deck-pile,.folded-hand')].map(rect);
+      const cards=[...document.querySelectorAll('.own-hand .battle-card')].map(rect);
+      const overlap=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+      return {cards:cards.every(card=>boxes.every(resource=>!overlap(card,resource))),
+        stats:[...document.querySelectorAll('.battle-minion .minion-statline .stat')].every(el=>{
+          const style=getComputedStyle(el);
+          return style.borderRadius==='50%'&&parseFloat(style.fontSize)>=18&&style.backgroundColor!=='rgba(0, 0, 0, 0)';
+        })};
+    });
+    assert.deepEqual(resourceGeometry,{cards:true,stats:true},String(width));
+    const card=page.locator('.own-hand .battle-card').first();
+    const original=await card.boundingBox();
+    await card.tap({force:true});
+    assert.deepEqual(await card.boundingBox(),original);
+    assert.equal(await page.locator('.selected-card-use,.selection-cancel').count(),0);
     assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
     assert.deepEqual(await board.boundingBox(),before);
     await page.screenshot({path:`ui-evidence/dense-${width}.png`});
-    await page.locator('.friendly-board').tap({position:{x:12,y:9}});
+    await page.locator('.friendly-board').tap({position:{x:65,y:6}});
     assert.equal(await hand.getAttribute('aria-expanded'),'false');
   }
   await context.close();
@@ -203,6 +220,9 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await turn.waitFor();
   await hand.tap();
   const first=page.locator('.own-hand button[data-preview-card="wisp"]');
+  const firstGeometry=await first.boundingBox();
+  await first.tap();
+  assert.deepEqual(await first.boundingBox(),firstGeometry);
   await first.tap();
   await field.tap({position:{x:30,y:10}});
   await first.waitFor({state:'hidden'});
@@ -258,5 +278,117 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await rail.evaluate(el=>{el.scrollTop=el.scrollHeight;});
   await page.getByRole('button',{name:'최신 행동으로 이동'}).click();
   await page.waitForFunction(()=>document.querySelector('.impact-rail').scrollTop===0);
+  await context.close();
+});
+
+test('real worker queues two attacks while a staged battlecry validates its targets',{timeout:90000},async t=>{
+  const server=createSoloAppServer();
+  server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
+  t.after(()=>browser.close());
+  const context=await browser.newContext({viewport:{width:780,height:360},isMobile:true,hasTouch:true});
+  const page=await context.newPage();
+  await page.addInitScript(()=>{
+    window.combatActions=[];
+    const post=Worker.prototype.postMessage;
+    Worker.prototype.postMessage=function(data,...args){
+      if(data?.type==='act')window.combatActions.push(data.action);
+      if(data?.type==='start')data={...data,ranked:false,input:{...data.input,firstPlayer:0,seed:10,animationSpeed:'normal'}};
+      return post.call(this,data,...args);
+    };
+  });
+  await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
+  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
+  await page.getByRole('button',{name:'대전',exact:true}).tap();
+  await page.getByRole('button',{name:'전사',exact:true}).tap();
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
+  await page.locator('.mulligan-confirm').tap();
+  await page.locator('.end-turn.your-turn').waitFor();
+  await page.getByRole('button',{name:'전투 설정'}).tap();
+  await page.getByRole('button',{name:'저장 후 나가기'}).tap();
+  await page.locator('.end-turn').waitFor({state:'detached'});
+  await page.evaluate(async()=>{
+    const db=await new Promise((resolve,reject)=>{
+      const open=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+      open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error);
+    });
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction('matches','readwrite'),store=tx.objectStore('matches'),all=store.getAll();
+        all.onsuccess=()=>{
+          const row=all.result[0],{snapshot}=row,{state}=snapshot;
+          const unit=(cardId,instanceId,attack,health,attacksRemaining,keywords=[])=>({cardId,instanceId,attack,health,maxHealth:health,attacksRemaining,keywords,summonedTurn:0});
+          const [own,enemy]=state.players;
+          own.board=[unit('wind_farseer','test-wind',3,3,2,['windfury']),unit('wolf','test-wolf',2,4,1)];
+          enemy.board=[unit('wolf','test-enemy',2,5,0)];
+          own.hand=[{cardId:'harsh_overseer',instanceId:'test-battlecry'},{cardId:'ice_shard',instanceId:'test-spell'}];
+          own.mana=10;own.maxMana=10;
+          store.put(row);
+        };
+        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+      });
+    }finally{db.close();}
+  });
+  const resume=page.getByRole('button',{name:'이어서 플레이하기'});
+  if(!await resume.isVisible())await page.getByRole('button',{name:'대전',exact:true}).tap();
+  await resume.tap();
+  const wind=page.locator('[data-preview-minion="test-wind"]'),wolf=page.locator('[data-preview-minion="test-wolf"]');
+  const enemyHero=page.locator('.enemy-hero-zone .hero-portrait');
+  const enemyUnit=page.locator('[data-preview-minion="test-enemy"]');
+  const ownBoard=page.locator('.friendly-board');
+  await wind.waitFor();
+  const cdp=await context.newCDPSession(page);
+  const center=async locator=>{
+    const box=await locator.boundingBox();
+    assert.ok(box);
+    return {x:Math.round(box.x+box.width/2),y:Math.round(box.y+box.height/2)};
+  };
+  const touch=(type,touchPoints)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints});
+  const drag=async(source,destination,whileDragging)=>{
+    const a=await center(source),b=await center(destination);
+    await touch('touchStart',[a]);
+    for(let step=1;step<=5;step++)await touch('touchMove',[{x:Math.round(a.x+(b.x-a.x)*step/5),y:Math.round(a.y+(b.y-a.y)*step/5)}]);
+    await whileDragging?.();
+    await touch('touchEnd',[]);
+  };
+  await enemyUnit.tap({force:true});
+  assert.equal(await page.locator('.board-inspect-overlay,[data-hover-preview]').count(),0);
+  await touch('touchStart',[await center(enemyUnit)]);
+  await page.locator('[data-hover-preview]').waitFor();
+  await touch('touchEnd',[]);
+  await page.locator('[data-hover-preview]').waitFor({state:'detached'});
+  await drag(wind,enemyHero);
+  await drag(wind,enemyHero);
+  assert.equal(await wind.evaluate(unit=>unit.classList.contains('is-ready')),false);
+  await drag(wolf,enemyHero);
+  assert.equal(await wolf.evaluate(unit=>unit.classList.contains('is-ready')),false);
+  const hand=page.locator('.folded-hand'),card=page.locator('[data-preview-card="harsh_overseer"].battle-card');
+  await hand.tap();
+  await drag(card,page.locator('.enemy-board'));
+  const anchor=page.locator('.battlecry-anchor');
+  await anchor.waitFor();
+  assert.deepEqual(await ownBoard.locator('.battle-minion').count(),2);
+  assert.equal(await enemyHero.evaluate(el=>el.classList.contains('is-targeted')),false);
+  assert.ok(await enemyUnit.evaluate(el=>el.classList.contains('is-targeted')));
+  assert.ok(await wolf.evaluate(el=>el.classList.contains('is-targeted')));
+  await drag(anchor,enemyHero);
+  await anchor.waitFor({state:'detached'});
+  assert.equal(await page.locator('.own-hand').getAttribute('data-hand-open'),'false');
+  await hand.tap();
+  await drag(card,page.locator('.enemy-board'));
+  await anchor.waitFor();
+  await drag(anchor,enemyUnit,()=>page.locator('.aim-overlay line[visibility="visible"]').waitFor({state:'attached'}));
+  await card.waitFor({state:'detached'});
+  await page.waitForFunction(()=>window.combatActions.some(action=>action.instanceId==='test-battlecry'&&action.target?.instanceId==='test-enemy'));
+  await page.waitForFunction(()=>document.querySelector('[data-preview-minion="test-enemy"] .stat-health')?.textContent==='4');
+  assert.equal(await enemyUnit.locator('.stat-attack').textContent(),'4');
+  assert.equal(await ownBoard.locator('.battle-minion').count(),3);
+  assert.equal(await page.evaluate(()=>window.combatActions.filter(action=>action.type==='attack').length),3);
+  assert.equal(await page.evaluate(()=>window.combatActions.filter(action=>action.instanceId==='test-battlecry').length),1);
+  await hand.tap();
+  await drag(page.locator('.own-hand [data-preview-card="ice_shard"]'),enemyHero);
+  await page.waitForFunction(()=>window.combatActions.some(action=>action.instanceId==='test-spell'&&action.target?.kind==='hero'));
   await context.close();
 });

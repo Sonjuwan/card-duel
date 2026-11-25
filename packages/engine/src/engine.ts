@@ -120,12 +120,14 @@ function draw(s: GameState, id: PlayerId, deferLethal=false,resolver?:Resolver):
   const card = p.deck.shift();
   if (!card) {
     p.fatigue++;
+    emitVisual(s,{kind:'fatigue',side:id,target:{kind:'hero',player:id},amount:p.fatigue});
     log(s,id,`탈진 피해 ${p.fatigue}`);
     damage(s,hero(id),p.fatigue,resolver);
     if (p.health === 0&&!deferLethal) finish(s, other(id), 'fatigue');
     return;
   }
   // Full hand burns the drawn card; no fatigue while deck still has cards.
+  emitVisual(s,{kind:'draw',side:id,burned:p.hand.length>=RULES.maxHand});
   if (p.hand.length < RULES.maxHand) p.hand.push(card);else log(s,id,'손패가 가득 차 카드 1장 소실');return card.cardId;
 }
 function startTurn(s: GameState, id: PlayerId): void {
@@ -220,7 +222,7 @@ function entryOrder(a:Minion,b:Minion):number{return (a.enteredOrder??0)-(b.ente
 type GameEvent={kind:'summon'|'spell'|'spellPlayed'|'death'|'damage'|'heal'|'overload'|'overloadCardPlayed'|'cardPlayed'|'secretPlayed';owner:PlayerId;target?:Character;cardId?:string};
 interface Resolver extends EffectOps {event(event:GameEvent):void}
 function resolution(s:GameState):Resolver {
-  const queue:{owner:PlayerId;effects:Effect[];source:Character;live?:boolean;eventTarget?:Character;eventCardId?:string;eventOwner?:PlayerId;deathSecret?:boolean;weapon?:Weapon}[]=[];
+  const queue:{owner:PlayerId;effects:Effect[];source:Character;live?:boolean;eventTarget?:Character;eventCardId?:string;eventOwner?:PlayerId;deathSecret?:boolean;deathrattle?:boolean;weapon?:Weapon}[]=[];
   const damageQueue:typeof queue=[];
   const heroSecretEvents:{owner:PlayerId;target:Character;amount:number}[]=[];
   const placements=new Map<Minion,DeathPlacement>();
@@ -267,7 +269,7 @@ function resolution(s:GameState):Resolver {
       }).sort((a,b)=>entryOrder(a.m,b.m));
       if(dead.length)changed=true;
       for(const p of s.players)p.board=p.board.filter(m=>m.health>0);
-      for(const {id,m} of dead){const c=s.catalog[m.cardId],source={kind:'minion' as const,player:id,minion:m,deathPlacement:placements.get(m)};if(c)log(s,id,`${c.name} 사망`);emitVisual(s,{kind:'death',target:visualTarget(source),side:id});if(!m.silenced&&c?.kind==='minion'&&c.deathrattle)queue.push({owner:id,effects:c.deathrattle,source});if(m.deathrattleSummons?.length)queue.push({owner:id,effects:m.deathrattleSummons.map(cardId=>({kind:'summon',cardId,count:1})),source});emit({kind:'death',owner:id,target:source});if(id!==s.activePlayer&&s.phase==='playing')queue.push({owner:id,effects:[],source,deathSecret:true});}
+      for(const {id,m} of dead){const c=s.catalog[m.cardId],source={kind:'minion' as const,player:id,minion:m,deathPlacement:placements.get(m)};if(c)log(s,id,`${c.name} 사망`);emitVisual(s,{kind:'death',target:visualTarget(source),side:id});if(!m.silenced&&c?.kind==='minion'&&c.deathrattle)queue.push({owner:id,effects:c.deathrattle,source,deathrattle:true});if(m.deathrattleSummons?.length)queue.push({owner:id,effects:m.deathrattleSummons.map(cardId=>({kind:'summon',cardId,count:1})),source,deathrattle:true});emit({kind:'death',owner:id,target:source});if(id!==s.activePlayer&&s.phase==='playing')queue.push({owner:id,effects:[],source,deathSecret:true});}
     }while(changed);
     if(s.players.some(p=>p.health===0)){
       const winner=s.players[0].health===0?(s.players[1].health===0?null:1):0;
@@ -278,6 +280,7 @@ function resolution(s:GameState):Resolver {
     while(queue.length&&(s as GameState).phase!=='finished'){
       requireRule(--budget>=0,'효과 연쇄 처리 한도를 초과했습니다.');
       const next=queue.shift()!;if(next.weapon&&s.players[next.owner].weapon!==next.weapon)continue;if(next.deathSecret){triggerSecrets(s,next.owner,'friendlyMinionDied',next.source,undefined,undefined,undefined,ops);continue;}if(next.live&&next.source.kind==='minion'&&(!s.players[next.owner].board.includes(next.source.minion)||next.source.minion.silenced))continue;
+      if(next.deathrattle)emitVisual(s,{kind:'deathrattle',side:next.owner,target:visualTarget(next.source)});
       resolveEffects(s,next.effects,{owner:next.owner,source:next.source,eventTarget:next.eventTarget,eventCardId:next.eventCardId,eventOwner:next.eventOwner},ops);
     }
     processing=false;

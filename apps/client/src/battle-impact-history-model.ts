@@ -4,7 +4,7 @@ import {freshAcceptedAnimation} from './battle-playback.ts';
 import {impactChanges,defenseImpactLabel} from './battle-fx-model.ts';
 
 export type ImpactPortrait={label:string;cardId?:string;hero?:HeroClass;heroForm?:'jaraxxus';health?:number;armor?:number};
-export type ImpactHistoryEntry={revision:number;turn:number;actor:string;kind:BattleAnimationKind;source?:ImpactPortrait;target?:ImpactPortrait;effects:ImpactPortrait[];lines:string[]};
+export type ImpactHistoryEntry={revision:number;turn:number;actor:string;kind:BattleAnimationKind;mark?:'heal'|'death'|'draw';source?:ImpactPortrait;target?:ImpactPortrait;effects:ImpactPortrait[];lines:string[]};
 /** Display only consecutive, accepted public results. No hidden cards, no
  * guessed kills, and no replay of an old saved or reconnected animation. */
 export function advanceImpactHistory(before:RoomView|null,after:RoomView,previous:ImpactHistoryEntry[],catalog:Catalog,name:(card:Card)=>string):ImpactHistoryEntry[]{
@@ -51,6 +51,10 @@ export function advanceImpactHistory(before:RoomView|null,after:RoomView,previou
   const lines=[...groups.values()].map(g=>`${g.label} · ${g.hits>1?`${g.hits}연타 · `:''}${g.items.join(' · ')}`);
   if(a.events?.some(e=>e.kind==='secretTriggered'))lines.unshift('비밀 발동');
   if(a.blocked)lines.unshift('공격 차단');
+  if(a.events?.some(event=>event.kind==='deathrattle'))lines.push('죽음의 메아리 발동');
+  const mark=a.kind==='attack'||a.kind==='heroAttack'||a.kind==='summon'?undefined
+    :a.events?.some(event=>event.kind==='heal')?'heal':a.events?.some(event=>event.kind==='death')?'death'
+    :a.events?.some(event=>event.kind==='draw')?'draw':undefined;
   const effects=[...groups.values()].flatMap(group=>group.portrait?[{...group.portrait,label:`${group.label} · ${group.items.join(' · ')}`}]:[]);
   const revealed=a.events?.find(event=>event.kind==='secretTriggered');
   if(revealed&&'cardId' in revealed&&catalog[revealed.cardId]){
@@ -58,5 +62,5 @@ export function advanceImpactHistory(before:RoomView|null,after:RoomView,previou
     effects.unshift({cardId:card.id,label:`${name(card)} · 비밀 발동`});
   }
   if(!lines.length)lines.push(source?.label??(a.kind==='secret'?'비밀 설치':a.kind==='turn'?'턴 변경':'행동 완료'));
-  return [{revision:a.revision,turn:after.state.turn,actor,kind:a.kind,source,target,effects,lines},...previous];
+  return [{revision:a.revision,turn:after.state.turn,actor,kind:a.kind,mark,source,target,effects,lines},...previous];
 }

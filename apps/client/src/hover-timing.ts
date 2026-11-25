@@ -1,4 +1,5 @@
 export const CARD_HOVER_DELAY = 1000;
+export const BATTLE_HOLD_DELAY = 300;
 
 /** A trusted keyboard/assistive click is independent of an interrupted touch.
  * Do not treat a delayed pointer or synthetic detail-zero click as keyboard. */
@@ -8,13 +9,13 @@ export function independentActivation(event:{detail:number;isTrusted:boolean;poi
 
 /** Cards in collections and mulligans can receive synthetic click events after
  * a scroll or a long-press. Preserve the pointer identity until release. */
-export function createTouchPreviewGuard(){
+export function createTouchPreviewGuard(delay=CARD_HOVER_DELAY){
   let press:{id:number;x:number;y:number;at:number;moved:boolean}|null=null,suppressUntil=0;
   const reset=()=>{press=null;suppressUntil=0;};
   return {
     begin(id:number,x:number,y:number,at:number){reset();press={id,x,y,at,moved:false};},
     move(id:number,x:number,y:number){if(!press||press.id!==id)return false;if(Math.hypot(x-press.x,y-press.y)<8&&!press.moved)return false;press.moved=true;return true;},
-    end(id:number,x:number,y:number,at:number){if(!press||press.id!==id)return false;if(press.moved||Math.hypot(x-press.x,y-press.y)>=8||at-press.at>=CARD_HOVER_DELAY)suppressUntil=at+300;press=null;return true;},
+    end(id:number,x:number,y:number,at:number){if(!press||press.id!==id)return false;if(press.moved||Math.hypot(x-press.x,y-press.y)>=8||at-press.at>=delay)suppressUntil=at+300;press=null;return true;},
     cancel(id:number,at:number){if(!press||press.id!==id)return false;press=null;suppressUntil=at+300;return true;},
     suppress(at:number){return at<suppressUntil;},reset,
   };
@@ -27,10 +28,10 @@ export function createHoverTiming<T>(publish:(value:T|null)=>void,clock={set:(fn
     if(key!==undefined&&key!==current)return;
     generation++;if(pending!==undefined)clock.clear(pending);pending=undefined;current=null;reader=null;opened=false;publish(null);
   }
-  function start(key:string,read:()=>T|null){
+  function start(key:string,read:()=>T|null,delay=CARD_HOVER_DELAY){
     if(current===key)return;
     clear();current=key;reader=read;const token=generation;
-    pending=clock.set(()=>{if(token!==generation||current!==key)return;pending=undefined;const value=read();if(value===null){clear(key);return;}opened=true;publish(value);},CARD_HOVER_DELAY);
+    pending=clock.set(()=>{if(token!==generation||current!==key)return;pending=undefined;const value=read();if(value===null){clear(key);return;}opened=true;publish(value);},delay);
   }
   /** Refresh a visible preview in place when the server updates attack/health,
    * without bypassing the original dwell time or exposing removed cards. */

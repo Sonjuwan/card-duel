@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { scaledBattleTiming } from '../../../packages/protocol.ts';
 import type { BattleAnimation, RoomView } from '../../../packages/protocol.ts';
 
-export type PlaybackCue={animation:BattleAnimation;before:RoomView;after:RoomView;duration:number;impact:number};
+export type PlaybackCue={windup?:number;animation:BattleAnimation;before:RoomView;after:RoomView;duration:number;impact:number};
 export function freshAcceptedAnimation(before:RoomView,after:RoomView):BattleAnimation|null{
   if(before.code!==after.code||before.seat!==after.seat||before.state?.phase!=='playing'||!after.state||after.state.revision!==before.state.revision+1||after.animation?.revision!==after.state.revision)return null;
   return after.animation;
@@ -25,8 +25,9 @@ export class PlaybackTimeline {
   private onView:(view:RoomView)=>void;
   private onCue:(cue:PlaybackCue|null)=>void;
   private clock:PlaybackClock;
-  constructor(initial:RoomView,onView:(view:RoomView)=>void,onCue:(cue:PlaybackCue|null)=>void,clock:PlaybackClock=realClock){
-    this.current=initial;this.latest=initial;this.onView=onView;this.onCue=onCue;this.clock=clock;
+  private attackCredit:(animation:BattleAnimation)=>number;
+  constructor(initial:RoomView,onView:(view:RoomView)=>void,onCue:(cue:PlaybackCue|null)=>void,clock:PlaybackClock=realClock,attackCredit:(animation:BattleAnimation)=>number=()=>0){
+    this.current=initial;this.latest=initial;this.onView=onView;this.onCue=onCue;this.clock=clock;this.attackCredit=attackCredit;
   }
   dispose(){for(const t of this.timers)this.clock.cancel(t);this.timers=[];this.pending=[];this.running=false;}
   /** Background tabs may throttle timers. Skip only presentation, not any
@@ -44,6 +45,13 @@ export class PlaybackTimeline {
     const next=this.pending.shift();if(!next)return;
     const playback=nextPlayback(this.current,next);
     if(!playback){this.show(next);this.process();return;}
+    if(playback.animation.kind==='attack'||playback.animation.kind==='heroAttack'){
+      const windup=playback.impact*700/820;
+      const credit=Math.min(windup,this.attackCredit(playback.animation));
+      playback.windup=windup-credit;
+      playback.impact-=credit;
+      playback.duration-=credit;
+    }
     this.running=true;this.onCue(playback);
     this.timers.push(this.clock.schedule(()=>this.show(next),playback.impact));
     this.timers.push(this.clock.schedule(()=>{
@@ -72,10 +80,10 @@ export class PlaybackTimeline {
   }
 }
 /** Preserve authoritative snapshots but display them at their impact beat. */
-export function useBattlePlayback(incoming:RoomView,connected:boolean){
+export function useBattlePlayback(incoming:RoomView,connected:boolean,attackCredit?:(animation:BattleAnimation)=>number){
   const [shown,setShown]=useState(incoming),[cue,setCue]=useState<PlaybackCue|null>(null);
   const timeline=useRef<PlaybackTimeline|null>(null);
-  if(!timeline.current)timeline.current=new PlaybackTimeline(incoming,setShown,setCue);
+  if(!timeline.current)timeline.current=new PlaybackTimeline(incoming,setShown,setCue,realClock,attackCredit);
   useEffect(()=>{timeline.current!.setVisible(!globalThis.document?.hidden);timeline.current!.receive(incoming,connected);},[incoming,connected]);
   useEffect(()=>{const visibility=()=>timeline.current?.setVisible(!globalThis.document?.hidden);document.addEventListener('visibilitychange',visibility);return()=>{document.removeEventListener('visibilitychange',visibility);timeline.current?.dispose();};},[]);
   return {room:shown,cue,playing:!!cue||shown.state?.revision!==incoming.state?.revision};

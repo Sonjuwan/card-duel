@@ -141,14 +141,10 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       await hand.waitFor({state:'hidden'});
     }else{
       await hand.waitFor();
+      const before=await hand.boundingBox();
       await hand.hover();
-      await page.waitForFunction(()=>getComputedStyle(document.querySelector('.own-hand .hand-card-slot .battle-card')).position==='absolute');
-      await page.waitForTimeout(140);
-      const {top,bottom}=await hand.evaluate(card=>({
-        top:card.getBoundingClientRect().top,
-        bottom:Math.max(...['.friendly-board','.friendly-minions'].map(selector=>document.querySelector(selector).getBoundingClientRect().bottom)),
-      }));
-      assert.ok(top>=bottom-1&&top<=bottom+12,label+' hand preview clearance '+(top-bottom));
+      await page.locator('[data-hover-preview]').waitFor();
+      assert.deepEqual(await hand.boundingBox(),before,label+' hover leaves the hand card in place');
     }
     assert.deepEqual(errors,[]);
     await context.close();

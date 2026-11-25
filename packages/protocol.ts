@@ -12,12 +12,14 @@ export function battleAnimationTiming(animation:BattleAnimation):{duration:numbe
   const timing=baseBattleAnimationTiming(animation);
   const events=animation.events??[];
   const recovery=events.some(event=>event.kind==='death')?1700:events.some(event=>event.kind==='secretTriggered')?1500:0;
-  return {duration:Math.max(timing.duration*2,timing.impact*2+recovery),impact:timing.impact*2};
+  const scale=animation.kind==='attack'||animation.kind==='heroAttack'?1:2;
+  const impact=timing.impact*scale;
+  return {duration:Math.max(timing.duration*scale,impact+recovery),impact};
 }
 function baseBattleAnimationTiming(animation:BattleAnimation):{duration:number;impact:number}{
   switch(animation.kind){
-    case 'attack':return {duration:animation.heavy?1200:1000,impact:animation.heavy?510:430};
-    case 'heroAttack':return {duration:1250,impact:520};
+    case 'attack':
+    case 'heroAttack':return {duration:1300,impact:820};
     case 'spell':return {duration:animation.heavy?1900:1250,impact:animation.heavy?850:550};
     case 'summon':return animation.heavy?{duration:1800,impact:1350}:{duration:1400,impact:1050};
     case 'weapon':return {duration:1050,impact:530};

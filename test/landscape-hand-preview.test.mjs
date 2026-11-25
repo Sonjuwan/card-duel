@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {landscapeHandPreviewShift,dismissPeekOnHandFocus} from '../apps/client/src/landscape-hand-preview.ts';
+import {landscapeHandPreviewShift} from '../apps/client/src/landscape-hand-preview.ts';
 const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 
 test('center cards remain centered and edge cards cannot disappear beyond the field',()=>{
@@ -23,23 +23,15 @@ test('oversize split-screen previews center safely instead of drifting offscreen
   assert.equal(landscapeHandPreviewShift(25,0,120,0,90),0);
   assert.equal(landscapeHandPreviewShift(NaN,20,120,0,90),0);
 });
-test('hand previews stay below the friendly row and resize with the arena',()=>{
+test('mobile hand reserves a dedicated strip for mana and retains the battlefield layout',()=>{
   const css=read('../apps/client/src/integrated-ui.css');
+  assert.match(css,/\.own-mana \{ right:max\(55px/);
+  assert.match(css,/\.own-hand \.battle-hand \{ inset-inline-end:max\(121px/);
   const source=read('../apps/client/src/Battle.tsx');
-  assert.match(css,/var\(--hand-preview-y,0px\)/);
-  assert.match(css,/var\(--hand-preview-width,100%\)/);
-  assert.match(source,/ownBoard\?\.getBoundingClientRect\(\).bottom/);
-  assert.match(source,/landscapeHandPreviewShift\(box.left,box.width,width/);
-  assert.match(source,/window.addEventListener\('resize',queue\)/);
-  assert.match(source,/observer\?\.disconnect\(\)/);
+  assert.doesNotMatch(source,/landscapeHandPreviewShift|hand-preview-width|peekCardId/);
 });
-
-test('keyboard hand navigation preserves only the card currently in focus',()=>{
-  assert.equal(dismissPeekOnHandFocus('cardA','card:cardA'),false);
-  assert.equal(dismissPeekOnHandFocus('cardA','card:cardB'),true);
-  assert.equal(dismissPeekOnHandFocus('cardA',undefined),true);
-  assert.equal(dismissPeekOnHandFocus(null,'card:cardB'),false);
-  const source=read('../apps/client/src/Battle.tsx');
-  assert.match(source,/onFocusCapture=\{e=>\{if\(dismissPeekOnHandFocus\(peekCardId/);
-  assert.match(source,/onBlurCapture=\{e=>\{if\(!\(e.relatedTarget instanceof Node\)/);
+test('keyboard hand inspection uses the same focus and blur behavior as other cards',()=>{
+  const source=read('../apps/client/src/battle-pieces.tsx');
+  assert.match(source,/matches\(':focus-visible'\)\)hover.start/);
+  assert.match(source,/onBlur=\{hover.clear\}/);
 });

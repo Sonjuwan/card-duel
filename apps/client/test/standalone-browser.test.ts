@@ -322,7 +322,7 @@ test('desktop native drag shares the mobile placement and rejected-control feedb
     assert.equal(await minions.count(),count+1);
   }finally{await browser.close();}
 });
-test('desktop player can select and confirm a hand card without dragging',{timeout:60000},async()=>{
+test('desktop short click leaves the hand unchanged and offers no manual button',{timeout:60000},async()=>{
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   const page=await browser.newPage({viewport:{width:1280,height:800},offline:true});
   try{
@@ -332,9 +332,10 @@ test('desktop player can select and confirm a hand card without dragging',{timeo
     await page.getByRole('button',{name:/확정/}).click();await page.getByRole('heading',{name:'내 턴',exact:true}).waitFor();
     const card=page.locator('.battle-hand .battle-card[aria-disabled="false"]').first();
     if(await card.count()===0){await page.getByRole('button',{name:'턴 종료',exact:true}).click();await page.getByRole('heading',{name:'AI 턴',exact:true}).waitFor();await page.getByRole('heading',{name:'내 턴',exact:true}).waitFor();}
-    await card.click();const confirm=page.getByRole('button',{name:'선택 카드 내기',exact:true});await confirm.waitFor();assert.equal(await confirm.isVisible(),true);assert.equal(await card.getAttribute('aria-pressed'),'true');
-    await page.getByRole('button',{name:'선택 취소'}).click();await confirm.waitFor({state:'hidden'});
-    await card.click();await confirm.click();await confirm.waitFor({state:'hidden'});
+    const before=await card.boundingBox();
+    await card.click();
+    assert.deepEqual(await card.boundingBox(),before);
+    assert.equal(await page.locator('.selected-card-use,.selection-cancel').count(),0);
   }finally{await browser.close();}
 });
 
@@ -362,7 +363,7 @@ test('mobile targeted hero power can be canceled by pressing its own source agai
     assert.equal(await page.locator('.battle-emote-menu').evaluate(el=>(el as HTMLDetailsElement).open),false);
     assert.equal(await power.getAttribute('aria-pressed'),'true','Escape from an emote is not a global cancel');
     await page.setViewportSize({width:844,height:390});
-    for(const selector of ['.end-turn','.concede-button','.landscape-card-detail summary']){
+    for(const selector of ['.end-turn']){
       const height=await page.locator(selector).evaluate(el=>(el as HTMLElement).getBoundingClientRect().height);
       assert.ok(height>=43.9,`${selector}: landscape minimum touch target 44px`);
     }
@@ -372,30 +373,14 @@ test('mobile targeted hero power can be canceled by pressing its own source agai
     await page.keyboard.press('Escape');assert.equal(await power.evaluate(el=>el===document.activeElement),true);assert.equal(await power.getAttribute('aria-pressed'),'false');
     await power.tap();assert.equal(await power.getAttribute('aria-pressed'),'true');
     await power.tap();assert.equal(await power.getAttribute('aria-pressed'),'false');assert.equal(await page.locator('.is-targeted').count(),0);assert.equal(await power.getAttribute('aria-disabled'),'false');
-    await power.tap();await page.locator('.target-picker summary').tap();assert.match((await page.locator('.target-picker summary').getAttribute('aria-label'))??'',/선택 가능한 대상 [0-9]+개/);const rows=page.locator('.target-picker-row');assert.equal(await rows.count(),await page.locator('.is-targeted').count());
-    assert.ok((await rows.first().boundingBox())!.height>=44);
-    const panel=page.locator('.target-picker-panel'),close=page.locator('.target-picker-close');
-    assert.equal(await close.evaluate(el=>getComputedStyle(el).position),'sticky');
-    await page.locator('.target-picker summary').focus();await page.keyboard.press('ArrowDown');
-    assert.equal(await rows.first().evaluate(el=>el===document.activeElement),true);
-    await page.keyboard.press('End');assert.equal(await rows.last().evaluate(el=>el===document.activeElement),true);
-    await page.keyboard.press('Home');assert.equal(await rows.first().evaluate(el=>el===document.activeElement),true);
-    await page.keyboard.press('PageDown');assert.equal(await rows.last().evaluate(el=>el===document.activeElement),true);
-    await page.keyboard.press('PageUp');assert.equal(await rows.first().evaluate(el=>el===document.activeElement),true);
-    // Force a tiny list viewport: Close must remain reachable after scrolling
-    // to the bottom of a long target list, including landscape phone layouts.
-    await panel.evaluate(el=>{const p=el as HTMLElement;p.style.maxHeight='90px';p.scrollTop=p.scrollHeight;});
-    const closeBounds=(await close.boundingBox())!,panelBounds=(await panel.boundingBox())!;
-    assert.ok(closeBounds.y>=panelBounds.y-2&&closeBounds.y<panelBounds.y+48);
-    await close.tap();assert.equal(await power.getAttribute('aria-pressed'),'true');
-    await page.locator('.target-picker summary').tap();await page.keyboard.press('Escape');
-    assert.equal(await power.getAttribute('aria-pressed'),'true','first Escape only collapses the target picker');
-    await page.locator('.target-picker summary').tap();await rows.first().tap();await page.locator('.target-picker').waitFor({state:'hidden'});
+    await power.tap();
+    assert.equal(await page.locator('.target-picker').count(),0);
+    await page.locator('.is-targeted').first().tap();
     await page.locator('.self-hero-zone .hero-power[aria-disabled="true"]').waitFor();
   }finally{await browser.close();}
 });
 
-test('desktop keyboard navigates hand cards, focuses explicit play, and cancels without spending mana',{timeout:60000},async()=>{
+test('desktop keyboard navigates hand cards and activates a card directly',{timeout:60000},async()=>{
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:900},offline:true});
   try{
     const active=JSON.parse(readFileSync('data/cards/active.json','utf8')) as {file:string},hash=createHash('sha256').update(readFileSync('data/cards/'+active.file,'utf8')).digest('hex');
@@ -403,9 +388,12 @@ test('desktop keyboard navigates hand cards, focuses explicit play, and cancels 
     await page.addInitScript(({hash,ids})=>localStorage.setItem('card-duel-developer-draft-'+hash,JSON.stringify({heroClass:'warrior',cards:ids.flatMap(id=>[id,id])})),{hash,ids});
     await page.goto(new URL('../../../solo-offline.html',import.meta.url).href);await page.getByRole('button',{name:'개발자 모드',exact:true}).click();await page.getByLabel('AI 난이도',{exact:true}).selectOption('3');await page.getByLabel('선공·후공',{exact:true}).selectOption('first');await page.getByRole('button',{name:'AI 대전 시작'}).click();await page.getByRole('button',{name:/확정/}).click();await page.getByRole('heading',{name:'내 턴',exact:true}).waitFor();
     const hand=page.locator('.battle-hand .battle-card'),count=await hand.count();assert.ok(count>1);await hand.first().focus();await page.keyboard.press('End');assert.equal(await hand.last().evaluate(el=>el===document.activeElement),true);await page.keyboard.press('ArrowRight');assert.equal(await hand.first().evaluate(el=>el===document.activeElement),true);
-    const source=page.locator('.battle-hand .battle-card.kind-minion[aria-disabled="false"]').first();await source.waitFor();await source.press('Enter');const confirm=page.locator('.selected-card-use');await confirm.waitFor();assert.equal(await confirm.evaluate(el=>el===document.activeElement),true);assert.equal(await hand.count(),count);assert.equal(await page.locator('.friendly-board .battle-minion').count(),0);
-    await page.keyboard.press('Escape');assert.equal(await source.evaluate(el=>el===document.activeElement),true);assert.equal(await hand.count(),count);assert.equal(await confirm.count(),0);
-    await source.press('Enter');await confirm.press('Enter');await page.locator('.friendly-board .battle-minion').first().waitFor();assert.equal(await hand.count(),count-1);
+    const source=page.locator('.battle-hand .battle-card.kind-minion[aria-disabled="false"]').first();
+    await source.waitFor();
+    await source.press('Enter');
+    await page.locator('.friendly-board .battle-minion').first().waitFor();
+    assert.equal(await hand.count(),count-1);
+    assert.equal(await page.locator('.selected-card-use').count(),0);
     await page.waitForFunction(()=>document.activeElement?.matches('[data-action-source][aria-disabled="false"],.end-turn:not(:disabled)')===true);
   }finally{await browser.close();}
 });

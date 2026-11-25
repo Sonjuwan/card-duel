@@ -5,19 +5,18 @@ const load=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 const battle=load('../apps/client/src/Battle.tsx');
 const pieces=load('../apps/client/src/battle-pieces.tsx');
 
-test('a non-playable hand card is dismissible by Escape regardless of active turn',()=>{
-  const start=battle.indexOf('const targetKeys=');
-  const close=battle.indexOf('setPeekCardId(null);return;',start);
-  const inactive=battle.indexOf('if(!active||currentDrag',start);
-  assert.ok(start>=0&&close>start&&close<inactive);
-  assert.match(battle.slice(start,close),/e\.key==='Escape'&&peekCardId&&!selected/);
-  assert.match(battle.slice(start,close),/e\.target\.closest\('\.battle-hand'\)/);
+const hover=load('../apps/client/src/hover-context.ts');
+const portal=load('../apps/client/src/hover-preview.tsx');
+test('hand and battlefield inspection shares a release-to-close preview',()=>{
+  assert.match(pieces,/useCardHover\(info,BATTLE_HOLD_DELAY\)/);
+  assert.match(hover,/onPointerUp:[^\n]+clear\(\)/);
+  assert.match(hover,/onPointerCancel:[^\n]+clear\(\)/);
+  assert.match(portal,/e.key==='Escape'\)close\(\)/);
 });
-test('clicking off the hand closes only the preview without blocking the game action',()=>{
-  assert.match(battle,/if\(peekCardId&&!e\.target\.closest\('\.own-hand \.hand-card-slot'\)\)setPeekCardId\(null\)/);
-  assert.match(battle,/e\.preventDefault\(\);e\.stopPropagation\(\);return;\}\s*if\(!\(e\.target instanceof Element\)\)return;\s*if\(peekCardId/);
+test('short pointer clicks do not create a hand selection or a board inspector',()=>{
+  assert.doesNotMatch(battle,/peekCardId|onInspectTap|selectHandCard\(/);
+  assert.match(battle,/onClick=\{keyboard=>\{if\(keyboard\)applyIntent/);
 });
-test('the currently enlarged selected card is announced as expanded to assistive technology',()=>{
-  assert.match(pieces,/aria-expanded=\{previewOpen\|\|Boolean\(sourceId\?\.startsWith\('card:'\)&&selected\)\|\|undefined\}/);
-  assert.match(pieces,/aria-disabled=\{!enabled\}/);
+test('the touch hand exposes whether its panel is expanded',()=>{
+  assert.match(battle,/className="folded-hand" aria-expanded=\{handOpen\}/);
 });

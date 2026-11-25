@@ -40,6 +40,7 @@ export interface TableMotion {
   revision:number;
   drawn:ReadonlySet<string>;
   summoned:ReadonlySet<string>;
+  attackChanged:ReadonlySet<string>;
   minionDelta:ReadonlyMap<string,number>;
   ownHeroDelta:number;
   enemyHeroDelta:number;
@@ -49,7 +50,8 @@ export interface TableMotion {
  * hidden cards or guess the impact of a not-yet-approved action. */
 export function deriveTableMotion(previous:PlayerView|undefined,next:PlayerView,seat:PlayerId):TableMotion{
   const drawn=new Set<string>(),summoned=new Set<string>(),minionDelta=new Map<string,number>();
-  const motion:TableMotion={revision:next.revision,drawn,summoned,minionDelta,ownHeroDelta:0,enemyHeroDelta:0,turn:null};
+  const attackChanged=new Set<string>();
+  const motion:TableMotion={revision:next.revision,drawn,attackChanged,summoned,minionDelta,ownHeroDelta:0,enemyHeroDelta:0,turn:null};
   if(!previous||next.revision!==previous.revision+1||previous.phase!=='playing'||next.phase==='mulligan')return motion;
   const oldHand=new Set(previous.self.hand.map(c=>c.instanceId));
   for(const card of next.self.hand)if(!oldHand.has(card.instanceId))drawn.add(card.instanceId);
@@ -57,7 +59,10 @@ export function deriveTableMotion(previous:PlayerView|undefined,next:PlayerView,
   for(const m of [...next.self.board,...next.opponent.board]){
     const old=oldBoard.get(m.instanceId);
     if(!old||old.cardId!==m.cardId)summoned.add(m.instanceId);
-    else if(old.health!==m.health)minionDelta.set(m.instanceId,m.health-old.health);
+    else {
+      if(old.health!==m.health)minionDelta.set(m.instanceId,m.health-old.health);
+      if(old.attack!==m.attack)attackChanged.add(m.instanceId);
+    }
   }
   const heroDelta=(old:PlayerView['opponent'],now:PlayerView['opponent'])=>now.health-old.health+Math.min(0,now.armor-old.armor);
   motion.ownHeroDelta=heroDelta(previous.self,next.self);motion.enemyHeroDelta=heroDelta(previous.opponent,next.opponent);

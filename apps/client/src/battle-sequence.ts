@@ -1,7 +1,6 @@
 import type {PlaybackCue} from './battle-playback.ts';
 
-/** The engine trace is ordered and public. A newly present unit is evidence of
- * a summon, but the trace does not attribute it to a particular deathrattle. */
+/** The engine trace describes the order of publicly visible effects. */
 export function battleSequence(cue:PlaybackCue):string[]{
   const steps=(cue.animation.events??[]).map(event=>{
     switch(event.kind){
@@ -9,6 +8,9 @@ export function battleSequence(cue:PlaybackCue):string[]{
       case 'shield':return '보호막 소모';
       case 'damage':return `피해 ${event.amount}`;
       case 'heal':return `회복 ${event.amount}`;
+      case 'draw':return event.burned?'드로우 카드 소실':'카드 뽑기';
+      case 'fatigue':return `탈진 ${event.amount}`;
+      case 'deathrattle':return '죽음의 메아리';
       case 'death':return '하수인 사망';
       case 'secretTriggered':return '비밀 발동';
     }

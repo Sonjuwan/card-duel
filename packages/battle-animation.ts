@@ -8,7 +8,7 @@ export function describeAcceptedAction(before:GameState,after:GameState,actor:Pl
   const a=action as Record<string,unknown>,p=before.players[actor];
   // Exclude transient objects that were never visible in either snapshot.
   const publicIds=new Set([...before.players,...after.players].flatMap(p=>p.board.map(m=>m.instanceId)));
-  const events=trace?.filter(e=>e.kind==='secretTriggered'||e.target.kind==='hero'||publicIds.has(e.target.instanceId));
+  const events=trace?.filter(e=>!('target' in e)||e.target.kind==='hero'||publicIds.has(e.target.instanceId));
   const base={revision:after.revision,actor,...(events?{events:[...events]}:{})};
   let target:Target|undefined;
   if(a.target&&typeof a.target==='object'){
