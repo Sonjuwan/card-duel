@@ -484,6 +484,18 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     queueEdgePan(e.clientX,e.clientY,next.drag);
     e.preventDefault();
   };
+  const returnTouchCard=(arena:HTMLDivElement,intent:DragIntent)=>{
+    if(intent.kind!=='card'||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const ghost=arena.querySelector('.touch-drag-ghost')?.getBoundingClientRect();
+    const card=arena.querySelector<HTMLElement>(`[data-action-source="card:${CSS.escape(intent.id)}"]`);
+    if(!ghost||!card)return;
+    requestAnimationFrame(()=>{
+      if(!card.isConnected||dragRef.current)return;
+      const home=card.getBoundingClientRect();
+      const x=ghost.left+ghost.width/2-home.left-home.width/2,y=ghost.top+ghost.height/2-home.top-home.height/2;
+      card.animate([{translate:`${x}px ${y}px`},{translate:'0 0'}],{duration:160,easing:'ease-out'});
+    });
+  };
   const touchUp=(e:PointerEvent<HTMLDivElement>)=>{
     if(cancelledPointer.current===e.pointerId){cancelledPointer.current=null;suppressClick.current=Date.now()+250;return;}
     const g=touchRef.current;if(!g||g.pointerId!==e.pointerId)return;
@@ -493,6 +505,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     if(outcome==='cancel'){clearDrag();return;}
     try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}
     const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,g.drag,e.clientY);
+    if(!plan.intent)returnTouchCard(e.currentTarget,g.drag.intent);
     clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));e.preventDefault();
   };
   const stopTouch=(e:PointerEvent<HTMLDivElement>)=>{if(isCaptureHandoff(e.type,e.target!==e.currentTarget,e.currentTarget.hasPointerCapture(e.pointerId)))return;if(cancelledPointer.current===e.pointerId||touchRef.current?.pointerId===e.pointerId){cancelledPointer.current=e.type==='lostpointercapture'?e.pointerId:null;suppressClick.current=Date.now()+250;clearDrag();}};

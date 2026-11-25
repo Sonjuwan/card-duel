@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 import {chromium} from 'playwright';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
+import {loadCatalog} from '../../server/server.ts';
+import {createGrowthBackup,offlineGrowth,readOfflineGrowth} from '../src/offline-growth.ts';
 
 async function previewBrowser(t){
   const server=createSoloAppServer();
@@ -189,5 +191,40 @@ test('all nine class portraits fit the requested landscape viewports',{timeout:9
         assert.ok(tile.width>=.85&&tile.height>=.65&&tile.corner>=8&&tile.corner<=12,context);
       }
     }finally{await context.close();}
+  }
+});
+
+
+test('restored card rewards open each exact collection page without consuming ownership',{timeout:30000},async t=>{
+  const {browser,url}=await previewBrowser(t);
+  const growth=offlineGrowth(loadCatalog());
+  const record=readOfflineGrowth(undefined,growth);
+  const cards=growth.unlocks.filter(item=>!record.profile.ownedCards.includes(item.cardId)).slice(0,2);
+  assert.equal(cards.length,2);
+  record.profile.xp=cards.at(-1).xp;
+  const backup=createGrowthBackup(record,growth);
+  const page=await browser.newPage({viewport:{width:1280,height:800}});
+  page.setDefaultTimeout(9000);
+  await page.goto(url);
+  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
+  const openRewards=()=>page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+  await openRewards();
+  page.once('dialog',dialog=>void dialog.accept());
+  await page.getByLabel('미진행 슬롯에 성장 백업 복원').setInputFiles({
+    name:'growth-fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))
+  });
+  assert.match(await page.locator('.game-error-toast').textContent(),/성장 백업을 복원했습니다/);
+  mkdirSync('ui-evidence',{recursive:true});
+  for(const {cardId} of cards){
+    const reward=page.locator(`.road-stop[data-state="owned"] button[data-preview-card="${cardId}"]`);
+    const count=await reward.count();
+    if(count===0)await page.getByRole('button',{name:'이전 보상 구간'}).click();
+    await reward.click();
+    const highlight=page.locator(`.reward-card-focus [data-preview-card="${cardId}"]`);
+    await highlight.waitFor();
+    assert.equal(await highlight.count(),1);
+    await page.screenshot({path:`ui-evidence/reward-${cardId}.png`});
+    await page.getByRole('button',{name:'메인으로',exact:true}).click();
+    await openRewards();
   }
 });

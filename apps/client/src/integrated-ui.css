@@ -400,8 +400,11 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .self-hero-zone .hero-power[data-action-source=power]{touch-action:none}
 /* Persistent status layers remain separate from numerical stats. */
 .game-main .battle-minion.has-taunt .minion-medallion{border:5px solid #aeb8c3!important;border-radius:20% 20% 42% 42%!important;box-shadow:0 0 0 2px #454b55,inset 0 0 0 2px #edf0f4}
+.game-main .battle-minion .minion-medallion{transition:border-color .18s,border-radius .18s,box-shadow .18s}
+.game-main .battle-minion .minion-medallion>.painted-art{transition:opacity .2s}
 .game-main .battle-minion.has-stealth .minion-medallion>.painted-art{opacity:.48}
-.game-main .battle-minion .stealth-veil{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(155deg,#dce2ed66,transparent 35%,#aab6ca99 65%,transparent);pointer-events:none}
+.game-main .battle-minion .stealth-veil{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(155deg,#dce2ed66,transparent 35%,#aab6ca99 65%,transparent);pointer-events:none;opacity:0;transition:opacity .2s}
+.game-main .battle-minion.has-stealth .stealth-veil{opacity:1}
 .game-main .battle-minion .shield-ring{position:absolute;inset:-5px;border:3px solid #ffe28a;border-radius:50%;background:radial-gradient(ellipse,transparent 45%,#ffe17b44);box-shadow:0 0 8px #ffcf55,inset 0 0 7px #fff0b0;pointer-events:none;z-index:3}
 .game-main .battle-minion.is-frozen .minion-medallion{outline:3px solid #8ce1ff;outline-offset:1px;filter:drop-shadow(0 0 4px #6bcfff)}
 
@@ -437,13 +440,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid transparent;
   border-inline-color:#c6f3ffa3;pointer-events:none;animation:minion-wind 3s linear infinite
 }
-.game-main .battle-minion:is(.has-stealth,.is-frozen) .minion-medallion::before{
-  content:"";position:absolute;inset:0;border-radius:inherit;z-index:1;pointer-events:none
-}
-.game-main .battle-minion.is-frozen .minion-medallion::before{
+.game-main .battle-minion .minion-medallion::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;z-index:1;pointer-events:none;
+  opacity:0;transition:opacity .2s;
   background:conic-gradient(from 35deg,transparent 0 13%,#bbf0ffad 13% 15%,transparent 15% 39%,#81b4eea0 39% 43%,transparent 43% 77%,#d1f9ffb3 77% 80%,transparent 80%);
   box-shadow:inset 0 0 8px #9edcff
 }
+.game-main .battle-minion.is-frozen .minion-medallion::before{opacity:1}
 .game-main .battle-minion .shield-ring{animation:shield-form .24s ease-out both}
 @keyframes minion-wind{to{transform:rotate(1turn)}}
 @keyframes shield-form{from{opacity:.3;transform:scale(.84)}to{opacity:1;transform:scale(1)}}
@@ -455,4 +458,9 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .lobby-main.preview-lobby .preview-hero-choice{
     padding-inline:max(80px,calc(env(safe-area-inset-left) + 64px)) max(80px,calc(env(safe-area-inset-right) + 64px))
   }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .game-main .battle-minion :is(.minion-medallion,.painted-art,.stealth-veil),
+  .game-main .battle-minion .minion-medallion::before{transition:none}
 }

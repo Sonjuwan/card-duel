@@ -287,8 +287,26 @@ test('desktop native drag shares the mobile placement and rejected-control feedb
   const address=server.address();
   assert.ok(address&&typeof address!=='string');
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:900}});
-  try{await page.goto(`http://127.0.0.1:${address.port}/`);await page.getByRole('button',{name:'개발자 모드',exact:true}).click();await page.getByLabel('AI 난이도',{exact:true}).selectOption('3');await page.getByLabel('선공·후공',{exact:true}).selectOption('first');await page.getByRole('button',{name:'AI 대전 시작'}).click();await page.getByRole('button',{name:/확정/}).click();await page.getByRole('heading',{name:'내 턴',exact:true}).waitFor();
+  page.setDefaultTimeout(8000);
+  try{
+    await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.getByRole('button',{name:'대전',exact:true}).click();
+    await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기',exact:true}).click();
+    const slots=page.getByRole('dialog',{name:'슬롯 · 성장 · 저장 경기',exact:true});
+    await slots.getByRole('button',{name:'개발자 모드',exact:true}).click();
+    await slots.getByRole('button',{name:'닫기',exact:true}).click();
+    await page.getByRole('button',{name:'AI 연습 대전',exact:true}).click();
+    await page.getByRole('dialog',{name:'AI 연습 대전'}).locator('label').filter({hasText:'선공·후공'}).locator('select').selectOption('first');
+    await page.getByRole('button',{name:'AI 대전 시작'}).click();
+    await page.getByRole('button',{name:/확정/}).click();
+    const turn=page.locator('.end-turn.your-turn');
+    await turn.waitFor();
     const card=page.locator('.battle-hand .battle-card.kind-minion[aria-disabled="false"]').first();
+    for(let round=0;round<3&&await card.count()===0;round++){
+      await turn.click();
+      await turn.waitFor({state:'hidden'});
+      await turn.waitFor({timeout:20000});
+    }
     await card.waitFor();
     const minions=page.locator('.friendly-minions .battle-minion'),count=await minions.count();
     await card.dragTo(page.locator('.self-hero-zone .hero-power'));

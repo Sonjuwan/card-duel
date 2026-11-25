@@ -94,6 +94,8 @@ jobs:
         run: node --test apps/client/test/slot-first-browser.test.mjs
       - name: Verify integrated selection, audio and saved battle across viewports
         run: node --test apps/client/test/integrated-ui-browser.test.mjs
+      - name: Verify real drag and card-to-minion transition
+        run: node --test --test-name-pattern 'desktop native drag' apps/client/test/standalone-browser.test.ts
       - name: Upload visual PC and tablet screenshots
         if: always()
         uses: actions/upload-artifact@v4

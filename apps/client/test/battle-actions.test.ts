@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { applyAction, createCatalog, createGame, getPlayerView, practiceDeck, publicCardReason } from '../../../packages/engine/src/index.ts';
+import { applyAction, createCatalog, createGame, getHeroPower, getPlayerView, HERO_CLASSES, practiceDeck, publicCardReason } from '../../../packages/engine/src/index.ts';
 import type { Action, Card, GameState, HeroClass, Minion, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import { planAttack, planCard, planPower, resolveDrop, repositionSelection, placementOptions, toggleActionSelection, selectHandCard, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from '../src/battle-actions.ts';
 import type { DragIntent, Intent, Selection } from '../src/battle-actions.ts';
@@ -126,4 +126,22 @@ test('hero power drag respects target requirements and stale revisions',()=>{
  assert.equal(pointerDrop(warrior,0,catalog,drag(warrior),{field:true,hand:true},0).intent,null);
  assert.deepEqual(pointerDrop(warrior,0,catalog,drag(warrior),{field:true,ownBoard:true},0).intent,{action:{type:'heroPower'}});
  assert.deepEqual(pointerDrop(mage,0,catalog,drag(mage),{field:true,hero:'enemy'},0).intent,{action:{type:'heroPower',target:enemyHero}});
+});
+
+
+test('all nine power controls resolve the same accepted action by click or drag',()=>{
+  for(const hero of HERO_CLASSES){
+    const state=ready(hero),view=getPlayerView(state,0),intent=drag({kind:'power'},state);
+    const power=getHeroPower(view.self),click=planPower(view,0,state.catalog);
+    const target=power.targetRule?enemyHero:undefined;
+    const action=target?targetAction(view,0,state.catalog,click?.selection??null,target):click?.action;
+    assert.ok(action,hero);
+    const hit=target?{field:true,hero:'enemy' as const}:{field:true,ownBoard:true};
+    assert.deepEqual(pointerDrop(view,0,state.catalog,intent,hit,0).intent?.action,action,hero);
+    const next=applyAction(state,0,action);
+    assert.equal(next.players[0].mana,state.players[0].mana-2,hero);
+    assert.equal(next.players[0].heroPowerUsed,true,hero);
+    const spent=getPlayerView(next,0);
+    assert.equal(pointerDrop(spent,0,next.catalog,drag({kind:'power'},next),hit,0).intent,null,hero);
+  }
 });

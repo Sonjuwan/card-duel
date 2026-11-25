@@ -24,10 +24,10 @@ export function PreviewRank({profile,growth}:{profile?:AccountProfile;growth?:Gr
   </section>;
 }
 
-export function PreviewRewards({profile,growth}:{profile?:AccountProfile;growth?:GrowthView}){
-  return profile&&growth?<RewardRoad profile={profile} growth={growth}/>:<section className="preview-progress">성장 기록을 불러오는 중입니다.</section>;
+export function PreviewRewards({profile,growth,onCatalog}:{profile?:AccountProfile;growth?:GrowthView;onCatalog?:(id:string)=>void}){
+  return profile&&growth?<RewardRoad profile={profile} growth={growth} onCatalog={onCatalog}/>:<section className="preview-progress">성장 기록을 불러오는 중입니다.</section>;
 }
-function RewardRoad({profile,growth}:{profile:AccountProfile;growth:GrowthView}){
+function RewardRoad({profile,growth,onCatalog}:{profile:AccountProfile;growth:GrowthView;onCatalog?:(id:string)=>void}){
   const owned=new Set(profile.ownedCards);
   const rewards=growth.unlocks.filter(item=>!!catalog[item.cardId]);
   const next=rewards.findIndex(item=>!owned.has(item.cardId));
@@ -54,7 +54,7 @@ function RewardRoad({profile,growth}:{profile:AccountProfile;growth:GrowthView})
       {rewards.slice(start,start+perPage).map((item,i)=>{
         const acquired=owned.has(item.cardId);
         return <div key={item.cardId} className="road-stop" data-state={acquired?'owned':start+i===next?'next':'locked'}>
-          <BattleCard card={catalog[item.cardId]}/>
+          <BattleCard card={catalog[item.cardId]} enabled={acquired&&!!onCatalog} onClick={acquired&&onCatalog?()=>onCatalog(item.cardId):undefined}/>
           <span className="road-marker" aria-label={acquired?'획득 완료':start+i===next?'다음 보상':'잠김'}>{acquired?'✓':start+i===next?'◆':'·'}</span>
           <small>{item.xp.toLocaleString('ko-KR')} XP</small>
         </div>;
