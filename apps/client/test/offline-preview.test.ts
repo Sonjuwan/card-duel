@@ -10,7 +10,7 @@ const preview=readFileSync('interface-preview.html','utf8'),gallery=readFileSync
 const quick=readFileSync('interface-quick.html','utf8');
 test('animation lab bundles all local images and a syntactically valid offline playback script',()=>{
   const demo=readFileSync('animation-preview.html','utf8'),css=demo.match(/<style>([\s\S]*?)<\/style>/)?.[1];assert.ok(css);
-  assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,427);
+  assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458);
   assert.ok(!/url\(["']?(?:https?:|\/\/|\.\/assets)/.test(css));
   const script=demo.slice(demo.indexOf('<script>')+8,demo.lastIndexOf('</script>'));
   assert.doesNotThrow(()=>new Script(script));assert.match(script,/전투 연출 체험장/);assert.match(script,/상대 행동/);assert.match(script,/하수인 공격·사망/);
@@ -59,11 +59,11 @@ function runtime(){
   const emit=(event:string,target:FakeNode,rest:Partial<Parameters<Handler>[0]>={})=>{for(const handler of listeners.get(event)??[])handler({target,...rest});};
   return{FakeNode,views,tick,emit,popup:()=>popup};
 }
-test('offline HTML embeds all 427 locally generated images once, and gallery shows all 443 definitions',()=>{
+test('offline HTML embeds all locally generated images once, and gallery shows all 443 definitions',()=>{
   for(const html of [preview,gallery]){
     const css=html.match(/<style>([\s\S]*?)<\/style>/)?.[1];assert.ok(css);
     const images=[...css.matchAll(/\.painted-art\.art-([a-z-]+)\{background-image:url\("data:image\/webp;base64,([A-Za-z0-9+/=]+)"\)\}/g)];
-    assert.equal(images.length,427);
+    assert.equal(images.length,458);
     for(const [_,name,base64] of images)assert.deepEqual(Buffer.from(base64,'base64'),readFileSync('apps/client/src/assets/illustrations/'+name+'.webp'));
     assert.ok(!/url\(["']?(?:https?:|\/\/|\.\/assets)/.test(css));
   }
@@ -106,7 +106,7 @@ test('offline gallery is globally mana-sorted and combines set, class, rarity an
   reset.listeners.click();assert.equal(count.textContent,'443종 표시');
   set.value='token';set.listeners.change();assert.equal(count.textContent,'61종 표시');
 });
-test('built game server delivers all 427 WebP illustrations with image MIME and same-origin policy',async()=>{
+test('built game server delivers all WebP illustrations with image MIME and same-origin policy',async()=>{
   const files=readdirSync('dist/client/assets').filter(f=>f.endsWith('.webp'));assert.equal(files.length,PAINTED_ASSETS.length);
   const {http,io}=createDuelServer(loadCatalog());http.listen(0,'127.0.0.1');await once(http,'listening');
   const address=http.address();assert.ok(address&&typeof address==='object');

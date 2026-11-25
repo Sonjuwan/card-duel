@@ -1,6 +1,6 @@
 .battle-fx-layer{position:absolute;inset:0;pointer-events:none;z-index:22;overflow:visible}
 .battle-fx-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:26}
-.battle-fx-layer .fx-play-card{position:absolute;left:15%;top:35%;width:clamp(104px,11vw,170px);aspect-ratio:5/8;filter:drop-shadow(0 8px 13px #0d0905c9);transform-origin:center;pointer-events:none;z-index:27}
+.battle-fx-layer .fx-play-card{position:absolute;left:50%;top:48%;translate:-50% -50%;width:min(clamp(104px,14vw,190px),30dvh);aspect-ratio:1/1.55;filter:drop-shadow(0 8px 13px #0d0905c9);transform-origin:center;pointer-events:none;z-index:27}
 .fx-play-card .battle-card{width:100%;height:100%;max-width:none;min-height:0;max-height:none;opacity:1;filter:none;pointer-events:none}
 .fx-play-card .fx-secret-card{width:100%;height:100%;border:3px solid #a58a61;border-radius:12px;overflow:hidden;background:#35214c;position:relative;color:#fff5d4;text-align:center}
 .fx-secret-card .local-card-back-art{width:100%;height:100%}.fx-secret-card strong{position:absolute;inset:auto 0 10%;padding:8px;background:#1d112bc9;font-size:14px}
@@ -168,10 +168,8 @@
   .battle-emote-menu[open] .battle-emote-options{position:fixed;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;max-height:min(60dvh,420px);overscroll-behavior:contain;touch-action:pan-y;z-index:70}
 }
 
-.battle-fx-layer[data-fx-kind="summon"] .fx-play-card{
-  left:50%;top:48%;margin-left:calc(-1 * clamp(60px,8vw,115px));margin-top:calc(-1 * clamp(80px,14dvh,175px));
-  width:clamp(120px,16vw,230px);height:min(43dvh,340px);aspect-ratio:auto
-}
+.fx-summon-portrait{position:absolute;left:13%;top:16%;width:74%;aspect-ratio:1;opacity:0;border:3px solid #e7c692;border-radius:50%;overflow:hidden}
+.fx-summon-portrait .painted-art{width:100%;height:100%;border-radius:inherit}
 
 .board-segment{position:relative}
 .intent-badge{position:absolute;top:3px;right:3px;z-index:12;pointer-events:none;min-width:20px;text-align:center;border-radius:8px;border:1px dashed #ffe7ad;background:#30263c;color:#fff5da;font-weight:800}

@@ -101,7 +101,7 @@ export function pointerDrop(view:PlayerView,seat:PlayerId,catalog:Catalog,drag:D
   if(!drag||drag.revision!==view.revision||hit.hand||hit.control||!hit.field&&!hit.ownBoard&&!hit.minionId&&!hit.hero)return {intent:null,feedback:'cancel'};
   const d=drag.intent,card=d.kind==='card'?catalog[view.self.hand.find(h=>h.instanceId===d.id)?.cardId??'']:undefined;
   if(card?.kind==='minion'&&hit.ownBoard&&hit.slot===undefined)return {intent:null,feedback:'invalid'};
-  for(const location of touchDropLocations(hit,seat,position,d.kind==='power'||!!card&&card.kind!=='minion')){
+  for(const location of touchDropLocations(hit,seat,position,!!card&&card.kind!=='minion')){
     const intent=resolveDrop(view,seat,catalog,drag,location);if(!intent)continue;
     return {intent,feedback:intent.action?'action':intent.selection?.kind==='cardChoice'?'choice':'target'};
   }

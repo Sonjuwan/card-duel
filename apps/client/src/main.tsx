@@ -1,4 +1,3 @@
-import {stopMusic} from './music.ts';
 
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
@@ -21,7 +20,7 @@ import { unlockBattleSound } from './battle-sound.ts';
 window.addEventListener('pointerdown',unlockBattleSound,{passive:true});
 window.addEventListener('click',unlockBattleSound,{passive:true});
 window.addEventListener('keydown',unlockBattleSound);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopMusic();else unlockBattleSound();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)unlockBattleSound();});
 const root=createRoot(document.getElementById('root')!);
 let loading=false;
 async function start(){

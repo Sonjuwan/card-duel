@@ -8,8 +8,8 @@ import type {LocalRequest,LocalResponse} from '../src/local-duel.ts';
 const html=readFileSync('solo-offline.html','utf8');
 const js=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 const css=html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
-test('standalone embeds the app, all 427 illustrations and no external HTML resources',()=>{
-  assert.ok(js&&css);assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,427);
+test('standalone embeds the app, all registered illustrations and no external HTML resources',()=>{
+  assert.ok(js&&css);assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458);
   assert.ok(html.includes(`<title>Card Duel v${JSON.parse(readFileSync('package.json','utf8')).version} · 오프라인 솔로</title>`));
   assert.doesNotMatch(css,/url\(["']?(?:https?:|\/\/|\.\/assets)/);
   assert.doesNotMatch(html.slice(0,html.indexOf('<script type="module">')),/<(?:link|script)\b[^>]*(?:src|href)=/);

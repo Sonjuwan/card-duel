@@ -1,7 +1,6 @@
 import {ToastNotice} from './ToastNotice.tsx';
 import {OfflineStatus} from './OfflineStatus.tsx';
 import {AudioMixer} from './AudioMixer.tsx';
-import {chooseMusic} from './music.ts';
 import {LobbyDialog} from './lobby-dialog.tsx';
 import { deckManaCurveLabel } from './deck-curve-label.ts';
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -278,10 +277,6 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     return()=>{stopped=true;close();};
   },[saveProbe]);
   const [lobbyView,setLobbyView]=useState<LobbyView>(initialLobbyView);
-  useEffect(()=>{
-    const scene=room?'battle':lobbyView==='catalog'?'library':lobbyView==='decks'?'deck':lobbyView==='rank'||lobbyView==='rewards'?'progress':lobbyView==='play'?'prepare':'home';
-    chooseMusic(scene,room?.code);
-  },[room?.code,lobbyView]);
   const [toast,setToast]=useState<{text:string;kind:'success'|'info'}|null>(null);
   useEffect(()=>{
     if(!toast)return;

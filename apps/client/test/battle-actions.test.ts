@@ -122,4 +122,8 @@ test('hero power drag respects target requirements and stale revisions',()=>{
  assert.equal(resolveDrop(mage,0,catalog,drag(mage),{kind:'board',position:0}),null);
  assert.deepEqual(resolveDrop(warrior,0,catalog,drag(warrior),{kind:'board',position:0}),{action:{type:'heroPower'}});
  assert.equal(resolveDrop(warrior,0,catalog,{...drag(warrior),revision:warrior.revision-1},{kind:'board',position:0}),null);
+ assert.equal(pointerDrop(warrior,0,catalog,drag(warrior),{field:true,hero:'enemy'},0).intent,null);
+ assert.equal(pointerDrop(warrior,0,catalog,drag(warrior),{field:true,hand:true},0).intent,null);
+ assert.deepEqual(pointerDrop(warrior,0,catalog,drag(warrior),{field:true,ownBoard:true},0).intent,{action:{type:'heroPower'}});
+ assert.deepEqual(pointerDrop(mage,0,catalog,drag(mage),{field:true,hero:'enemy'},0).intent,{action:{type:'heroPower',target:enemyHero}});
 });

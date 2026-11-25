@@ -1,4 +1,3 @@
-import {duckMusic} from './music.ts';
 import {approvedVoiceBytes,findVoiceClip} from './voice-clips.ts';
 import {playEmbeddedVoice} from './battle-sound.ts';
 import type {DialogueLine} from './battle-dialogue.ts';
@@ -31,7 +30,7 @@ const priority=(line:DialogueLine)=>(line.cardId?0:4)+({emote:4,play:3,death:2,a
 let clipToken:object|null=null, stopClip:(()=>void)|undefined;
 let waiting:Item[]=[],current:SpeechSynthesisUtterance|null=null,watchdog:ReturnType<typeof setTimeout>|undefined;
 export function stopDialogueVoice(){
-  duckMusic(false);
+
   clipToken=null;stopClip?.();stopClip=undefined;
   waiting=[];if(watchdog)clearTimeout(watchdog);watchdog=undefined;
   if(current){current=null;try{globalThis.speechSynthesis?.cancel();}catch{}}
@@ -48,7 +47,7 @@ function drain():boolean{
   const active=()=>clipToken===token&&Date.now()<item.expires&&!globalThis.document?.hidden;
   const finish=(fallback:boolean)=>{
     if(clipToken!==token)return;
-    duckMusic(false);
+
   clipToken=null;stopClip=undefined;
     if(fallback&&item.expires>Date.now()&&speakItem(item))return;
     drain();
@@ -58,7 +57,7 @@ function drain():boolean{
     const stop=bytes?await playEmbeddedVoice(bytes,active,()=>finish(false)):undefined;
     if(clipToken!==token){stop?.();return;}
     if(!stop){finish(true);return;}
-    stopClip=stop;duckMusic(true);
+    stopClip=stop;
   }).catch(()=>finish(true));
   return true;
 }
@@ -70,10 +69,10 @@ function speakItem(item:Item):boolean{
     utterance.voice=voice;utterance.lang=voice.lang;utterance.pitch=item.line.pitch;utterance.rate=item.line.rate;
     utterance.volume=dialogueOutput();
     current=utterance;
-    const done=()=>{if(current!==utterance)return;if(watchdog)clearTimeout(watchdog);watchdog=undefined;current=null;duckMusic(false);drain();};
+    const done=()=>{if(current!==utterance)return;if(watchdog)clearTimeout(watchdog);watchdog=undefined;current=null;drain();};
     utterance.onend=done;utterance.onerror=done;
-    watchdog=setTimeout(()=>{if(current===utterance){current=null;try{synth.cancel();}catch{}duckMusic(false);drain();}},4500);
-    synth.speak(utterance);duckMusic(true);return true;
+    watchdog=setTimeout(()=>{if(current===utterance){current=null;try{synth.cancel();}catch{}drain();}},4500);
+    synth.speak(utterance);return true;
   }catch{stopDialogueVoice();return false;}
 }
 /** Short, bounded queue. Area attacks show all captions but never queue a

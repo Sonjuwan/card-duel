@@ -20,3 +20,32 @@ test('battlecry may be played without target if no legal minion exists',()=>{con
 test('current cost and blocked mana reflect public aura, hand discount and live weapon',()=>{const s=ready();s.players[0].mana=2;onBoard(s,0,'venture_merc');const c=hand(s,'snow_brute',1),v=getPlayerView(s,0);assert.equal(publicCardCost(v,0,s.catalog.snow_brute,s.catalog,1),6);assert.match(publicCardReason(v,0,c,s.catalog)!,/마나/);assert.throws(()=>applyAction(s,0,{type:'playCard',instanceId:c.instanceId}),/마나/);});
 test('duplicate installed secret is disabled even when first-secret discount is active',()=>{const s=ready('mage');s.players[0].secrets.push({cardId:'ice_barrier',instanceId:'secret0'});s.players[0].nextSecretFree=true;agreesBlocked(s,'ice_barrier');});
 test('frozen or naturally unable minions and frozen heroes never show attack-ready',()=>{const s=ready(),m=onBoard(s,0,'ancient_watcher');assert.equal(canAttackMinion(m,s.catalog),false);m.silenced=true;assert.equal(canAttackMinion(m,s.catalog),true);m.frozenThroughTurn=s.turn;assert.equal(canAttackMinion(m,s.catalog),false);s.players[0].weapon={attack:2,durability:1};assert.equal(canAttackHero(getPlayerView(s,0).self),true);s.players[0].heroFrozenThroughTurn=s.turn;assert.equal(canAttackHero(getPlayerView(s,0).self),false);});
+
+test('shaman power spends two mana and summons the sole missing basic totem', () => {
+  const state=ready('shaman');
+  for(const id of ['__stone_totem','__flame_totem','__healing_totem'])onBoard(state,0,id);
+  onBoard(state,1,'__magic_totem');
+  const next=applyAction(state,0,{type:'heroPower'});
+  assert.equal(next.players[0].mana,8);
+  assert.equal(next.players[0].board.at(-1)?.cardId,'__magic_totem');
+  assert.equal(next.players[0].board.at(-1)?.health,2);
+  const totem=next.catalog.__magic_totem;
+  assert.ok(totem.kind==='minion');
+  assert.equal(totem.collectible,false);
+  assert.equal(totem.spellDamage,1);
+});
+
+test('healing totem restores friendly minions only and stops when silenced', () => {
+  for(const silenced of [false,true]){
+    const state=ready('shaman');
+    const totem=onBoard(state,0,'__healing_totem',{health:1,silenced});
+    const friendly=onBoard(state,0,'wolf',{health:1});
+    const enemy=onBoard(state,1,'wolf',{health:1});
+    state.players[0].health=25;
+    const next=applyAction(state,0,{type:'endTurn'});
+    assert.equal(next.players[0].health,25);
+    assert.equal(next.players[0].board.find(m=>m.instanceId===totem.instanceId)?.health,silenced?1:2);
+    assert.equal(next.players[0].board.find(m=>m.instanceId===friendly.instanceId)?.health,silenced?1:2);
+    assert.equal(next.players[1].board.find(m=>m.instanceId===enemy.instanceId)?.health,1);
+  }
+});

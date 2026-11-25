@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import { BattleCard } from './battle-pieces.tsx';
-import { LocalCardBack } from './local-art.tsx';
+import { LocalCardArt, LocalCardBack } from './local-art.tsx';
 import type { PlaybackCue } from './battle-playback.ts';
 import { animationTheme, FX_COLORS, impactChanges, impactFeedback, defenseImpactLabel, fxRenderBudget,fxFramePressure,fxAutoAdaptation,fxCanvasGeometryChanged,fxNeedsCanvasAnimation,departureVisual,departureSoundKind,summonVisuals,projectedSummonX,clipBoardFxAnchor,offscreenFxMarkers,fxEdgeMarkerBounds,fxEdgeMarkerLabel,createImpactLabelCache,createParticleCache,fxRandom } from './battle-fx-model.ts';
 import type { FxTheme,FxLabel,FxAnchor,FxEdgeMarker } from './battle-fx-model.ts';
@@ -106,8 +106,9 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const row=arena.querySelector(side==='self'?'.friendly-minions':'.enemy-board .minion-row');
     const boardCenter=center(row)??{x:rect.width*.5,y:rect.height*.5};
     const heroTarget:Target={kind:'hero',player:a.actor};
-    const actorClass=a.actor===seat?cue.before.state.self.heroClass:cue.before.state.opponent.heroClass;
-    const theme=animationTheme(a,card,actorClass);
+    const actor=a.actor===seat?cue.before.state.self:cue.before.state.opponent;
+    const actorClass=actor.heroClass;
+    const theme=a.kind==='power'&&actor.shadowformLevel?'shadow':animationTheme(a,card,actorClass);
     const attack=a.kind==='attack'||a.kind==='heroAttack';
     const caster=attack&&a.attackerId?elementFor(arena,{kind:'minion',instanceId:a.attackerId},seat):a.kind==='power'?arena.querySelector<HTMLElement>(side==='self'?'.self-hero-zone .hero-power':'.enemy-hero-zone .hero-power'):elementFor(arena,heroTarget,seat);
     const from=center(caster)??boardCenter;
@@ -153,8 +154,10 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const ownHeroPoint=center(elementFor(arena,heroTarget,seat))??from;
     const powerSummon=a.kind==='power'?afterBoard.find(m=>!beforeBoard.some(n=>n.instanceId===m.instanceId)):undefined;
     const weaponPoint=actorClass==='rogue'?center(arena.querySelector(side==='self'?'.self-hero-zone .weapon-slot':'.enemy-hero-zone .weapon-slot')):undefined;
-    const powerTarget=a.kind==='power'?(intended??hitPoint??protectionPoint??weaponPoint??(powerSummon?summonPosition(powerSummon.instanceId):undefined)??ownHeroPoint):undefined;
-    const powerProjectile=a.kind==='power'&&(actorClass==='mage'||actorClass==='hunter'||(actorClass==='priest'&&!!hitPoint));
+    const hunterTarget=actorClass==='hunter'&&actor.heroForm!=='jaraxxus'
+      ?center(elementFor(arena,{kind:'hero',player:a.actor===0?1:0},seat)):undefined;
+    const powerTarget=a.kind==='power'?(intended??hunterTarget??hitPoint??protectionPoint??weaponPoint??(powerSummon?summonPosition(powerSummon.instanceId):undefined)??ownHeroPoint):undefined;
+    const powerProjectile=a.kind==='power'&&actor.heroForm!=='jaraxxus'&&(actorClass==='mage'||actorClass==='hunter'||!!actor.shadowformLevel);
     const to=powerTarget??(attack?(intended??hitPoint??boardCenter):a.kind==='summon'?destination:intended??hitPoint??protectionPoint??(a.kind==='weapon'||a.kind==='coin'||a.kind==='secret'?from:boardCenter));
     const affected=[...new Map(impacts.filter(i=>i.kind==='damage'||i.kind==='heal'||i.kind==='freeze'||i.kind==='leave'||!!defenseImpactLabel(i)).flatMap(i=>{
       const p=positions.get(targetKey(i.target));return p&&!p.edge?[[targetKey(i.target),p] as const]:[];
@@ -184,15 +187,27 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     }
     const reveal=cardReveal.current;
     const summon=a.kind==='summon';
+    const summonPortrait=reveal?.querySelector<HTMLElement>('.fx-summon-portrait');
     if(reveal&&typeof reveal.animate==='function'&&!reduced){
       const r=center(reveal)??boardCenter,hand=arena.querySelector(side==='self'?'.own-hand':'.hidden-hand');
       const source=center(hand)??from;
       const end=a.kind==='summon'?destination:a.kind==='weapon'?(center(arena.querySelector(side==='self'?'.self-hero-zone .weapon-slot':'.enemy-hero-zone .weapon-slot'))??from):a.kind==='secret'||a.kind==='coin'?from:to;
-      animations.push(reveal.animate([
+      if(summonPortrait&&typeof summonPortrait.animate==='function'){
+        const target=destination;
+        animations.push(summonPortrait.animate([
+          {opacity:0,transform:'scale(.96)',offset:0},
+          {opacity:0,transform:'scale(.96)',offset:.5},
+          {opacity:1,transform:'scale(.72)',offset:.59},
+          {opacity:1,transform:`translate(${target.x-r.x}px,${target.y-r.y}px) scale(.40)`,offset:cue.impact/cue.duration},
+          {opacity:0,transform:`translate(${target.x-r.x}px,${target.y-r.y}px) scale(.38)`,offset:1},
+        ],{duration:cue.duration,fill:'both'}));
+      }
+      const fullCard=reveal.querySelector<HTMLElement>('.battle-card,.fx-secret-card')??reveal;
+      animations.push(fullCard.animate([
         {opacity:.1,transform:`translate(${source.x-r.x}px,${source.y-r.y}px) scale(.38) rotate(${side==='self'?9:-9}deg)`,offset:0},
         {opacity:1,transform:'translate(0,0) scale(1) rotate(0)',offset:summon?.15:.23,easing:'ease-in-out'},
         {opacity:1,transform:'translate(0,0) scale(1)',offset:summon?.52:Math.max(.25,cue.impact/cue.duration-.12)},
-        {opacity:.1,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.28)`,offset:summon?.80:Math.min(.85,cue.impact/cue.duration+.13)},
+        {opacity:0,transform:summon?'scale(.72)':`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.28)`,offset:summon?.63:Math.min(.85,cue.impact/cue.duration+.13)},
         {opacity:0,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.2)`,offset:1},
       ],{duration:cue.duration,fill:'both'}));
     }
@@ -267,6 +282,12 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
           if(a.kind==='power'&&!powerProjectile){
             radial(ctx,to,18+30*p,FX_COLORS[theme],.55*(1-p));
             ring(ctx,to,14+36*p,FX_COLORS[theme][1],p*.7,3);
+            if(powerSummon)ring(ctx,to,12+32*p,FX_COLORS[theme][0],p*.75,2,.45);
+            if(actorClass==='druid'){
+              ctx.save();ctx.translate(to.x,to.y);ctx.strokeStyle=FX_COLORS.nature[0];ctx.globalAlpha=p*.8;ctx.lineWidth=3;
+              for(const x of [-8,0,8]){ctx.beginPath();ctx.moveTo(x-9,15);ctx.quadraticCurveTo(x+9,-2,x+13,-17);ctx.stroke();}
+              ctx.restore();
+            }
           }else if(a.kind==='spell'||a.kind==='power'){
             radial(ctx,from,28+20*p,FX_COLORS[theme],.5*(1-p));
             const travel=clamp((p-.24)/.76);
@@ -276,7 +297,13 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
               for(const q of affected)radial(ctx,q,12+35*travel,FX_COLORS[theme],travel*.7);
             }else if(travel>0){
               if(affected.length>1)for(const q of affected)bolt(ctx,from,q,travel,theme,!!a.heavy,budget.particleDensity);
-              else bolt(ctx,from,to,travel,theme,!!a.heavy,budget.particleDensity);
+              else if(a.kind==='power'&&actorClass==='hunter'){
+                const tip=point(from,to,travel),tail=point(from,to,Math.max(0,travel-.09));
+                ctx.save();ctx.translate(tip.x,tip.y);ctx.rotate(Math.atan2(to.y-from.y,to.x-from.x));
+                ctx.strokeStyle=FX_COLORS.nature[0];ctx.lineWidth=3;ctx.beginPath();
+                ctx.moveTo(-Math.max(16,Math.hypot(tip.x-tail.x,tip.y-tail.y)),0);ctx.lineTo(0,0);
+                ctx.moveTo(-9,-4);ctx.lineTo(0,0);ctx.lineTo(-9,4);ctx.stroke();ctx.restore();
+              }else bolt(ctx,from,to,travel,theme,!!a.heavy,budget.particleDensity);
             }
           }else if(attack&&p>.65)bolt(ctx,point(from,to,p-.16),to,clamp((p-.65)/.35),'steel',false,budget.particleDensity);
           else if(a.kind==='summon'){ring(ctx,destination,20+45*p,FX_COLORS[theme][1],p*.65,2,.38);radial(ctx,destination,12+25*p,FX_COLORS[theme],p*.32);}
@@ -320,6 +347,6 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
   const a=cue.animation,own=a.actor===cue.before.seat,showCard=!!card||a.kind==='secret';
   return <div className="battle-fx-layer" inert aria-hidden="true" data-fx-revision={a.revision} data-fx-kind={a.kind} data-fx-side={own?'own':'enemy'} key={a.revision}>
     <canvas ref={canvas} className="battle-fx-canvas"/>
-    {showCard&&<div className="fx-play-card" ref={cardReveal} data-card-reveal-kind={a.kind}>{card?<BattleCard card={card}/>:<div className="fx-secret-card"><LocalCardBack/><strong>비밀 설치</strong></div>}</div>}
+    {showCard&&<div className="fx-play-card" ref={cardReveal} data-card-reveal-kind={a.kind}>{card?<><BattleCard card={card}/>{a.kind==='summon'&&<span className="fx-summon-portrait"><LocalCardArt card={card}/></span>}</>:<div className="fx-secret-card"><LocalCardBack/><strong>비밀 설치</strong></div>}</div>}
   </div>;
 }

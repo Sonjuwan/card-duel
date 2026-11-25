@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {loadCatalog} from '../../server/server.ts';
-import {HERO_CLASSES} from '../../../packages/engine/src/index.ts';
+import {HERO_CLASSES,HERO_TOKENS} from '../../../packages/engine/src/index.ts';
 import {PAINTED_ASSETS,paintedCardAsset,paintedHeroAsset,paintedPowerAsset} from '../src/painted-art-model.ts';
 const dir='apps/client/src/assets/illustrations';
 const catalog=loadCatalog();
@@ -22,8 +22,8 @@ test('artwork dimensions preserve square 300px card and 400px hero crops',()=>{
   }
 });
 test('every declared illustration exists locally as a WebP, with matching CSS and no remote URL',()=>{
-  const css=readFileSync('apps/client/src/painted-art.css','utf8');assert.equal(PAINTED_ASSETS.length,427);assert.equal(new Set(PAINTED_ASSETS).size,427);
-  assert.equal(readdirSync(dir).length,427);
+  const css=readFileSync('apps/client/src/painted-art.css','utf8');assert.equal(PAINTED_ASSETS.length,458);assert.equal(new Set(PAINTED_ASSETS).size,458);
+  assert.equal(readdirSync(dir).length,PAINTED_ASSETS.length);
   for(const asset of PAINTED_ASSETS){const b=readFileSync(dir+'/'+asset+'.webp');assert.equal(b.toString('ascii',0,4),'RIFF');assert.equal(b.toString('ascii',8,12),'WEBP');assert.ok(b.length>10000,asset);assert.ok(css.includes(`art-${asset}{background-image:url("./assets/illustrations/${asset}.webp")}`));}
   assert.ok(!/https?:\/\//.test(css));
 });
@@ -46,13 +46,17 @@ test('the 38 epic cards and 50 individually repainted classic cards have distinc
   assert.equal(new Set([...epic,...classic].map(c=>paintedCardAsset(c))).size,88);
 });
 
-test('every collectible card has a dedicated nonidentical illustration file',()=>{
- const collectible=Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false);
- assert.equal(collectible.length,382);
- const mapping=collectible.map(c=>paintedCardAsset(c));
- assert.equal(new Set(mapping).size,382);
- const hashes=mapping.map(a=>createHash('sha256').update(readFileSync(dir+'/'+a+'.webp')).digest('hex'));
- assert.equal(new Set(hashes).size,382);
+test('every card and generated hero token has a distinct local illustration',()=>{
+  const cards=[...Object.values(catalog),...HERO_TOKENS.filter(card=>!catalog[card.id])];
+  const assets=new Map<string,string>(),hashes=new Map<string,string>();
+  for(const card of cards){
+    const asset=paintedCardAsset(card);
+    assert.equal(assets.get(asset),undefined,`${card.id} shares ${asset} with ${assets.get(asset)}`);
+    assets.set(asset,card.id);
+    const hash=createHash('sha256').update(readFileSync(dir+'/'+asset+'.webp')).digest('hex');
+    assert.equal(hashes.get(hash),undefined,`${card.id} has identical artwork to ${hashes.get(hash)}`);
+    hashes.set(hash,card.id);
+  }
 });
 test('square card artwork uses proportional cover fitting, with proportional frame sizes in every full-card context',()=>{
   const frame=readFileSync('apps/client/src/local-cards.css','utf8');

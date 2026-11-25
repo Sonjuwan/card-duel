@@ -13,7 +13,7 @@ export function battleAnimationTiming(animation:BattleAnimation):{duration:numbe
     case 'attack':return {duration:animation.heavy?1200:1000,impact:animation.heavy?510:430};
     case 'heroAttack':return {duration:1250,impact:520};
     case 'spell':return {duration:animation.heavy?1900:1250,impact:animation.heavy?850:550};
-    case 'summon':return {duration:2000,impact:1600};
+    case 'summon':return animation.heavy?{duration:1800,impact:1350}:{duration:1400,impact:1050};
     case 'weapon':return {duration:1050,impact:530};
     case 'secret':return {duration:1050,impact:540};
     case 'coin':return {duration:900,impact:420};

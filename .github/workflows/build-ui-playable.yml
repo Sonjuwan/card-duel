@@ -92,6 +92,8 @@ jobs:
         run: node --test apps/client/test/preview-isolation-browser.test.mjs
       - name: Verify slot-first navigation and slot-owned deck isolation
         run: node --test apps/client/test/slot-first-browser.test.mjs
+      - name: Verify integrated selection, audio and saved battle across viewports
+        run: node --test apps/client/test/integrated-ui-browser.test.mjs
       - name: Upload visual PC and tablet screenshots
         if: always()
         uses: actions/upload-artifact@v4

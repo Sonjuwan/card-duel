@@ -39,7 +39,7 @@ export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onSt
   </section>;
   if(!hero)return <HeroChoice onChoose={choose}/>;
   const entries=readDecks(storage).filter(item=>item.deck.heroClass===hero);
-  return <section className="preview-deck-select" aria-label={`${className[hero]} 덱 선택`}>
+  return <section className={`preview-deck-select faction-${hero}`} aria-label={`${className[hero]} 덱 선택`}>
     <div className="preview-flow-heading"><button type="button" className="secondary" onClick={()=>{setHero(null);setSelectedName(null);}}>← 직업 변경</button><strong>{className[hero]} · 사용할 덱 선택</strong></div>
     <div className="preview-deck-grid">
       {entries.map(item=><button type="button" key={item.name} className={`preview-deck-tile${selectedName===item.name?' chosen':''}`} aria-pressed={selectedName===item.name} onClick={()=>{setSelectedName(item.name);onDeck(structuredClone(item.deck));setMessage('');}}><strong>{item.name}</strong><small>{item.deck.cards.length}/30장</small></button>)}

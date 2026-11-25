@@ -1,8 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
-import {readFileSync} from 'node:fs';
+import {mkdirSync,readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {createServer} from 'node:http';
 
 test('stalled local command remains locked, accepts a late acknowledgement or recovers only after confirmation',{timeout:60000},async()=>{
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
@@ -278,10 +279,29 @@ test('offline solo full React application works with internet disabled on a phon
   }finally{await browser.close();}
 });
 
-test('desktop native drag shares the mobile placement and rejected-control feedback',{timeout:60000},async()=>{
-  const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:900},offline:true});
-  try{await page.goto(new URL('../../../solo-offline.html',import.meta.url).href);await page.getByRole('button',{name:'개발자 모드',exact:true}).click();await page.getByLabel('AI 난이도',{exact:true}).selectOption('3');await page.getByLabel('선공·후공',{exact:true}).selectOption('first');await page.getByRole('button',{name:'AI 대전 시작'}).click();await page.getByRole('button',{name:/확정/}).click();await page.getByRole('heading',{name:'내 턴',exact:true}).waitFor();
-    const card=page.locator('.battle-hand .battle-card.kind-minion[aria-disabled="false"]').first();await card.waitFor();const count=await page.locator('.friendly-minions .battle-minion').count();await card.dragTo(page.locator('.self-hero-zone .hero-power'));assert.equal(await page.locator('.friendly-minions .battle-minion').count(),count);await card.dragTo(page.locator('.friendly-board .position-slot[data-drop-position="0"]'));await page.locator('.friendly-minions .battle-minion').nth(count).waitFor();assert.equal(await page.locator('.friendly-minions .battle-minion').count(),count+1);
+test('desktop native drag shares the mobile placement and rejected-control feedback',{timeout:60000},async t=>{
+  const html=readFileSync(new URL('../../../solo-offline.html',import.meta.url));
+  const server=createServer((_req,res)=>res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'}).end(html));
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise<void>(resolve=>server.close(()=>resolve())));
+  const address=server.address();
+  assert.ok(address&&typeof address!=='string');
+  const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:900}});
+  try{await page.goto(`http://127.0.0.1:${address.port}/`);await page.getByRole('button',{name:'개발자 모드',exact:true}).click();await page.getByLabel('AI 난이도',{exact:true}).selectOption('3');await page.getByLabel('선공·후공',{exact:true}).selectOption('first');await page.getByRole('button',{name:'AI 대전 시작'}).click();await page.getByRole('button',{name:/확정/}).click();await page.getByRole('heading',{name:'내 턴',exact:true}).waitFor();
+    const card=page.locator('.battle-hand .battle-card.kind-minion[aria-disabled="false"]').first();
+    await card.waitFor();
+    const minions=page.locator('.friendly-minions .battle-minion'),count=await minions.count();
+    await card.dragTo(page.locator('.self-hero-zone .hero-power'));
+    assert.equal(await minions.count(),count);
+    const stage=page.locator('.fx-play-card[data-card-reveal-kind="summon"]');
+    await card.dragTo(page.locator('.friendly-board .position-slot[data-drop-position="0"]'));
+    await stage.waitFor();
+    assert.equal(await stage.locator('.battle-card').count(),1);
+    assert.equal(await stage.locator('.fx-summon-portrait').count(),1);
+    mkdirSync('ui-evidence',{recursive:true});
+    await page.screenshot({path:'ui-evidence/summon-transition.png'});
+    await minions.nth(count).waitFor();
+    assert.equal(await minions.count(),count+1);
   }finally{await browser.close();}
 });
 test('desktop player can select and confirm a hand card without dragging',{timeout:60000},async()=>{

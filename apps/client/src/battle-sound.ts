@@ -1,4 +1,3 @@
-import {beginMusic,setMusicMix,duckMusicForCelebration} from './music.ts';
 import type { BattleAnimation } from '../../../packages/protocol.ts';
 import type {GameState,PlayerId} from '../../../packages/engine/src/index.ts';
 import type { FxTheme,ImpactFeedback } from './battle-fx-model.ts';
@@ -23,21 +22,17 @@ export function normalSoundVolume(raw:unknown){
   if(typeof raw!=='number'&&(typeof raw!=='string'||raw.trim()===''))return 100;
   const value=Number(raw);return Number.isFinite(value)?Math.round(Math.max(0,Math.min(100,value))):100;
 }
-let volume=75,masterVolume=100,musicVolume=40,voiceBus:GainNode|undefined,voiceVolume=90;
+let volume=75,masterVolume=100,voiceBus:GainNode|undefined,voiceVolume=90;
 function storedVolume(key:string,fallback:number){
   try{const value=globalThis.localStorage?.getItem(key);return value==null?fallback:normalSoundVolume(value);}catch{return fallback;}
 }
 try{muted=globalThis.localStorage?.getItem('card-duel-sound')==='off';}catch{}
 volume=storedVolume('card-duel-sound-volume',75);
 masterVolume=storedVolume('card-duel-master-volume',100);
-musicVolume=storedVolume('card-duel-music-volume',40);
 voiceVolume=storedVolume('card-duel-dialogue-volume',90);
-setMusicMix(musicVolume,masterVolume,muted);
 export const overallSoundVolume=()=>masterVolume;
-export const backgroundMusicVolume=()=>musicVolume;
 export const dialogueOutput=()=>muted?0:.8*masterVolume*voiceVolume/10000;
 export function setOverallSoundVolume(value:number){masterVolume=normalSoundVolume(value);storeVolume('card-duel-master-volume',masterVolume);updateGain();}
-export function setBackgroundMusicVolume(value:number){musicVolume=normalSoundVolume(value);storeVolume('card-duel-music-volume',musicVolume);updateGain();}
 export function setDialogueOutput(value:number){voiceVolume=normalSoundVolume(value);updateGain();}
 function storeVolume(key:string,value:number){try{localStorage.setItem(key,String(value));}catch{}}
 const muteListeners=new Set<()=>void>();
@@ -57,7 +52,6 @@ export function resultSoundTransition(previous:ResultSoundState|null,current:Res
 }
 const gainForSettings=()=>muted?0:.32*volume*masterVolume/10000;
 function updateGain(){
-  setMusicMix(musicVolume,masterVolume,muted);
   if(master&&context&&context.state!=='closed')try{
     master.gain.setTargetAtTime(gainForSettings(),context.currentTime,.025);
     voiceBus?.gain.setTargetAtTime(dialogueOutput(),context.currentTime,.025);
@@ -81,8 +75,7 @@ export function unlockBattleSound(event?:Event){
     if(!context){context=new Constructor();master=context.createGain();const compressor=context.createDynamicsCompressor();compressor.threshold.value=-18;compressor.ratio.value=6;master.gain.value=gainForSettings();master.connect(compressor);voiceBus=context.createGain();voiceBus.gain.value=dialogueOutput();voiceBus.connect(compressor);compressor.connect(context.destination);}
     // Some mobile browsers defer a pointerdown resume until click/touch release.
     // A promise left pending must not block a later genuine user activation.
-    if(context.state!=='running'&&(!resuming||event?.type==='click'||Date.now()-resumeStartedAt>=1000)){const pending=context.resume();resuming=pending;resumeStartedAt=Date.now();void pending.then(()=>{if(context)beginMusic(context);}).catch(()=>{}).finally(()=>{if(resuming===pending)resuming=undefined;});}
-    if(context.state==='running')beginMusic(context);
+    if(context.state!=='running'&&(!resuming||event?.type==='click'||Date.now()-resumeStartedAt>=1000)){const pending=context.resume();resuming=pending;resumeStartedAt=Date.now();void pending.catch(()=>{}).finally(()=>{if(resuming===pending)resuming=undefined;});}
   }catch{/* Sound is optional and must never interrupt gameplay. */}
 }
 function tone(from:number,to:number,time:number,volume:number,type:OscillatorType='sine',delay=0){
@@ -206,7 +199,6 @@ export function playCinematicSound(kind:'xp'|'card'|'rare'|'rank'|'tier'|'shatte
     const patterns={xp:[523,659,784],card:[523,659,784,1047],rare:[392,587,698,880,1175],rank:[392,523,659,784,1047],tier:[262,392,523,659,784,1047,1319]};
     const step={xp:.09,card:.19,rare:.25,rank:.35,tier:.43}[kind];
     const melody=patterns[kind];
-    duckMusicForCelebration((melody.length+1.1)*step*1000);
     melody.forEach((pitch,i)=>{
       tone(pitch,pitch,step*2.1,.19,'sine',step*i);
       tone(pitch*2,pitch*1.997,step*1.4,.055,'triangle',step*i);

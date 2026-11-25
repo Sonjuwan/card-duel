@@ -1,4 +1,3 @@
-import {drawMusicTrack} from '../src/music.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -340,13 +339,13 @@ test('duplication, skipped revisions, initial connection and mismatched events c
   assert.equal(nextPlayback(before,{...next,state:{...next.state!,revision:next.state!.revision+2}}),null);
   assert.equal(nextPlayback(before,{...next,code:'OTHER1'}),null);
 });
-test('ordinary summons last two seconds and retain fast and instant modes',()=>{
+test('ordinary summons have time to transform and land and retain fast and instant modes',()=>{
   const summon={kind:'summon',actor:0,revision:1} as const;
-  assert.deepEqual(battleAnimationTiming(summon),{duration:2000,impact:1600});
+  assert.deepEqual(battleAnimationTiming(summon),{duration:1400,impact:1050});
   const before=room(ready(),0);
   const after={...before,state:{...before.state!,revision:before.state!.revision+1},animation:{...summon,revision:before.state!.revision+1}};
-  assert.equal(nextPlayback(before,after)?.duration,2000);
-  assert.equal(nextPlayback(before,{...after,animationSpeed:'fast'})?.duration,1100);
+  assert.equal(nextPlayback(before,after)?.duration,1400);
+  assert.equal(nextPlayback(before,{...after,animationSpeed:'fast'})?.duration,770);
   assert.equal(nextPlayback(before,{...after,animationSpeed:'instant'}),null);
 });
 test('every action timing has a visible buildup and recovery; heavy spells last 1.9 seconds',()=>{
@@ -503,18 +502,4 @@ test('embedded voice requires approval and a matching checksum and maps by publi
   assert.deepEqual(Buffer.from((await approvedVoiceBytes(clip))!),fixture);
   assert.equal(await approvedVoiceBytes({...clip,sha256:'0'.repeat(64)}),undefined);
   assert.equal(await approvedVoiceBytes({...clip,license:''}),undefined);
-});
-
-
-test('battle music uses every track before reshuffling and avoids consecutive repeats',()=>{
-  const pool=['one','two','three','four','five'];
-  let remaining:string[]=[],last='';
-  const played:string[]=[];
-  for(let i=0;i<15;i++){
-    const pick=drawMusicTrack(pool,remaining,last,()=>.23);
-    assert.ok(pick.track);
-    assert.notEqual(pick.track,last);
-    remaining=pick.remaining;last=pick.track;played.push(last);
-  }
-  for(let i=0;i<15;i+=5)assert.deepEqual(played.slice(i,i+5).sort(),[...pool].sort());
 });

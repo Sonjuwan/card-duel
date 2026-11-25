@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import {stopMusic} from './music.ts';
 import {createRoot} from 'react-dom/client';
 import {App} from './App.tsx';
 import {showOfflineBootFailure} from './offline-startup.ts';
@@ -25,7 +24,7 @@ declare const __OFFLINE_PROFILE__:PublicAiProfile;
 window.addEventListener('pointerdown',unlockBattleSound,{passive:true});
 window.addEventListener('click',unlockBattleSound,{passive:true});
 window.addEventListener('keydown',unlockBattleSound);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopMusic();else unlockBattleSound();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)unlockBattleSound();});
 try{
   // Validate the exact bundled catalog before rendering. A failed validation
   // must be visible and recoverable rather than a blank standalone/PWA screen.
