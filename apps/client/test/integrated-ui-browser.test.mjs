@@ -127,29 +127,25 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.locator('.mulligan-cards[data-exchange=reveal] .mulligan-card-back').first().waitFor();
     const hand=page.locator('.own-hand .hand-card-slot .battle-card').first();
     assert.equal(await page.locator('.compact-home-trigger').count(),0);
-    await hand.waitFor();
     if(hasTouch){
-      const point=await hand.evaluate(card=>{
-        const box=card.getBoundingClientRect();
-        const x=box.left+box.width/2;
-        for(let y=Math.max(1,box.top+4);y<Math.min(innerHeight,box.bottom);y+=4){
-          if(card.contains(document.elementFromPoint(x,y)))return {x,y};
-        }
-        return null;
-      });
-      assert.ok(point,label+' hand card has a visible touch target');
-      await page.touchscreen.tap(point.x,point.y);
+      const folded=page.locator('.folded-hand');
+      await folded.waitFor();
+      await hand.waitFor({state:'hidden'});
+      const board=page.locator('.friendly-board');
+      const before=await board.boundingBox();
+      await folded.tap();
+      await hand.waitFor();
+      assert.deepEqual(await board.boundingBox(),before,label+' hand does not reflow the board');
+      await page.screenshot({path:'ui-evidence/hand-'+label+'.png'});
+      await folded.tap();
+      await hand.waitFor({state:'hidden'});
+    }else{
+      await hand.waitFor();
+      await hand.hover();
+      await page.waitForFunction(()=>getComputedStyle(document.querySelector('.own-hand .hand-card-slot .battle-card')).position==='absolute');
+      const {top,bottom}=await hand.evaluate(card=>({top:card.getBoundingClientRect().top,bottom:document.querySelector('.friendly-board').getBoundingClientRect().bottom}));
+      assert.ok(top>=bottom-1&&top<=bottom+12,label+' hand preview clearance '+(top-bottom));
     }
-    else await hand.hover();
-    await page.waitForFunction(()=>getComputedStyle(document.querySelector('.own-hand .hand-card-slot .battle-card')).position==='absolute');
-    await page.waitForTimeout(120);
-    const {top,bottom}=await hand.evaluate(card=>({
-      top:card.getBoundingClientRect().top,
-      bottom:document.querySelector('.friendly-board').getBoundingClientRect().bottom,
-    }));
-    assert.ok(top>=bottom-1&&top<=bottom+12,label+' hand preview clearance '+(top-bottom));
-    await page.screenshot({path:'ui-evidence/hand-'+label+'.png'});
-    t.diagnostic(label+' reward='+reward.width+'×'+reward.height+' hand clearance='+(top-bottom).toFixed(1)+'px');
     assert.deepEqual(errors,[]);
     await context.close();
   }

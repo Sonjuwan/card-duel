@@ -21,7 +21,7 @@
 @media(pointer:coarse) and (orientation:landscape) and (max-height:540px) and (min-width:661px){.landscape-card-detail{display:block;margin:4px 0;padding:6px;border:1px solid #8c6d49;border-radius:8px;background:#342924;color:#f1d7ae}.landscape-card-detail summary{cursor:pointer;font-weight:700;padding:4px;min-height:28px}.landscape-card-detail .card-inspector{margin-top:5px}.landscape-card-detail .inspect-sigil{width:56px;height:56px}}
 @media(prefers-reduced-motion:reduce){.battle-fx-layer .fx-play-card{display:none}}
 @keyframes result-reveal{from{opacity:.25;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-@media(prefers-reduced-motion:no-preference){.battle:not([data-animation-speed="instant"]) .result-window{animation:result-reveal .32s ease-out both}}
+@media(prefers-reduced-motion:no-preference){.battle:not([data-animation-speed="instant"]) .result-window{animation:result-reveal .64s ease-out both}}
 
 /* Battle dialogue is a non-interactive caption channel. Never intercept a
    card drop or target click, and never resize the fixed battlefield rows. */
@@ -59,7 +59,7 @@
   .battle-emote-menu summary{min-height:44px;font-size:11px}
   .dialogue-settings summary{font-size:12px;min-height:44px;padding:4px 8px}.dialogue-settings[open]{flex:1 1 100%;min-width:0}.dialogue-settings-panel{position:static;width:100%;max-height:50vh;max-height:50dvh;overflow:auto;box-shadow:none;margin-top:4px}.dialogue-settings-panel label select,.dialogue-settings-panel label input,.dialogue-settings-panel button{min-height:44px}
 }
-@media(prefers-reduced-motion:no-preference){.battle-dialogue-line{animation:dialogue-appear .16s ease-out}@keyframes dialogue-appear{from{opacity:0}to{opacity:1}}}
+@media(prefers-reduced-motion:no-preference){.battle-dialogue-line{animation:dialogue-appear .32s ease-out}@keyframes dialogue-appear{from{opacity:0}to{opacity:1}}}
 
 /* Drag feedback must not move the board beneath the pointer. A narrow
    insertion slot has a generous touch hit region and a paint-only halo. */

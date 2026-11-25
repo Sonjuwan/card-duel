@@ -1,6 +1,6 @@
 import type {PlayerView} from '../../../packages/engine/src/index.ts';
 
-export const heroShatterMs=1720;
+export const heroShatterMs=3440;
 export function lethalPortraits(before:PlayerView|undefined,after:PlayerView|undefined){
   if(before?.phase!=='playing'||after?.phase!=='finished')return {own:false,enemy:false};
   return {own:before.self.health>0&&after.self.health<=0,enemy:before.opponent.health>0&&after.opponent.health<=0};

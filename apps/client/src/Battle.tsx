@@ -129,6 +129,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [peekCardId,setPeekCardId]=useState<string|null>(null);
   const [drag,setDrag]=useState<DragState|null>(null),dragRef=useRef<DragState|null>(null);
   const touchRef=useRef<TouchGesture|null>(null),cancelledPointer=useRef<number|null>(null),suppressClick=useRef(0);
+  const [handOpen,setHandOpen]=useState(false);
   const [touchGhost,setTouchGhost]=useState<string|null>(null);
   const [touchSlot,setTouchSlot]=useState<number|undefined>(undefined);
   const [dropTarget,setDropTarget]=useState<Target|undefined>(undefined);
@@ -146,7 +147,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [exchange,setExchange]=useState<{before:PlayerView;marked:string[]}|null>(null);
   const exchangeAccepted=!!exchange&&!!s?.self.mulliganDone;
   const [exchangeRevealed,setExchangeRevealed]=useState(false);
-  useEffect(()=>{if(!exchange)return;const t=setTimeout(()=>setExchangeRevealed(true),430);return()=>{clearTimeout(t);setExchangeRevealed(false);};},[exchange]);
+  useEffect(()=>{if(!exchange)return;const t=setTimeout(()=>setExchangeRevealed(true),860);return()=>{clearTimeout(t);setExchangeRevealed(false);};},[exchange]);
   const showExchangeFaces=exchangeAccepted&&exchangeRevealed;
   useEffect(()=>{
     if(!exchange)return;
@@ -155,7 +156,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
       return;
     }
     if(!exchangeRevealed)return;
-    const delay=850+exchange.marked.length*65;
+    const delay=1700+exchange.marked.length*130;
     const timer=setTimeout(()=>setExchange(null),delay);
     return()=>clearTimeout(timer);
   },[exchange,exchangeAccepted,exchangeRevealed,busy,connected]);
@@ -243,8 +244,10 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const opponentReady=room.mode==='bot'||room.opponentConnected;
   const previousView=useRef<PlayerView|undefined>(undefined);
   const [motion,setMotion]=useState<TableMotion|null>(null);
-  useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),1000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
+  useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),2000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
   const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision&&(!room.animation||cue?.animation.revision===motion?.revision)?motion:null;
+  useEffect(()=>{setHandOpen(false);},[s?.turn,s?.phase,room.code]);
+  useEffect(()=>{if(cue?.animation.actor===seat&&cue.animation.cardId)setHandOpen(false);},[cue,seat]);
   const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!inputBlocked;
   const ownChoiceOpen=!!s&&s.phase==='playing'&&!playing&&((!!s.choicePending&&!!s.self.pendingChoice?.length&&connected&&opponentReady)||(active&&selected?.kind==='cardChoice'));
   // End-of-match results are a genuine modal. The next/new game controls
@@ -318,7 +321,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   // pointer capture or queued board edge-pan alive across input locking.
   useEffect(()=>{if(!active){setSelected(null);cancelActiveTouch();}},[active]);
   useEffect(()=>{const listener=(e:KeyboardEvent)=>{if(e.key==='Escape'){setSelected(null);cancelActiveTouch();}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener);},[]);
-  const perform=(action:Action,keyboard=false)=>{actionFocus.current=keyboard&&s?{source:keyboardActionSource(action),trigger:document.activeElement,code:room.code,revision:s.revision}:null;setSelected(null);clearDrag();send(action);};
+  const perform=(action:Action,keyboard=false)=>{actionFocus.current=keyboard&&s?{source:keyboardActionSource(action),trigger:document.activeElement,code:room.code,revision:s.revision}:null;setSelected(null);if(action.type==='playCard'||action.type==='endTurn')setHandOpen(false);clearDrag();send(action);};
   const copyRoom=async()=>{try{await navigator.clipboard.writeText(room.code);setRoomCopied(true);}catch{window.prompt('방 코드 복사',room.code);}};
   if(!s)return <section className="panel waiting waiting-arena"><span className="waiting-sigil"><Sigil kind="deck"/></span><p className="eyebrow">{room.ownedPvp?'ACCOUNT PVP':'PRIVATE MATCH'}</p><h2>{room.ownedPvp?'다른 유저를 기다리는 중':'친구를 기다리는 중'}</h2><strong className="room-code">{room.code}</strong><p>{room.ownedPvp?'상대가 참가하면 보유 카드 대전이 시작됩니다. 친구에게 계정 대전 코드를 공유할 수도 있습니다.':'친구에게 방 코드를 알려주세요. 참가하면 자동으로 대전이 시작됩니다.'}</p><div className="waiting-actions"><button onClick={copyRoom}>{roomCopied?'코드 복사됨':'방 코드 복사'}</button><button className="secondary" onClick={leave}>방 나가기</button></div></section>;
   const report=formatBattleReport(room,catalog,catalogHash);
@@ -509,7 +512,14 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));e.preventDefault();
   };
   const stopTouch=(e:PointerEvent<HTMLDivElement>)=>{if(isCaptureHandoff(e.type,e.target!==e.currentTarget,e.currentTarget.hasPointerCapture(e.pointerId)))return;if(cancelledPointer.current===e.pointerId||touchRef.current?.pointerId===e.pointerId){cancelledPointer.current=e.type==='lostpointercapture'?e.pointerId:null;suppressClick.current=Date.now()+250;clearDrag();}};
-  const guardClick=(e:MouseEvent<HTMLDivElement>)=>{if(Date.now()<suppressClick.current&&!independentActivation(e.nativeEvent)){e.preventDefault();e.stopPropagation();return;}if(peekCardId&&e.target instanceof Element&&!e.target.closest('.own-hand .hand-card-slot'))setPeekCardId(null);};
+  const guardClick=(e:MouseEvent<HTMLDivElement>)=>{
+    if(Date.now()<suppressClick.current&&!independentActivation(e.nativeEvent)){e.preventDefault();e.stopPropagation();return;}
+    if(!(e.target instanceof Element))return;
+    if(peekCardId&&!e.target.closest('.own-hand .hand-card-slot'))setPeekCardId(null);
+    if(handOpen&&e.target.closest('.arena-field')&&!e.target.closest('button,.own-hand,.hero-zone')){
+      setSelected(null);setHandOpen(false);
+    }
+  };
   const label=s.phase==='finished'?(s.winner===null?'무승부':s.winner===seat?'승리!':'패배'):s.phase==='mulligan'?'시작 카드 선택':s.activePlayer===seat?'내 턴':room.mode==='bot'?'AI 턴':'상대 턴';
   const dropRow=currentDrag&&dropTarget?targetPickerRows(s,seat,[dropTarget])[0]:undefined;
   const dropLabel=dropRow?targetRowText(dropRow,catalog,classicNames).compact:undefined;
@@ -566,7 +576,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
       </section>
     </div>;
   if(s.phase==='mulligan'||exchange)return <section className={`battle duel-screen phase-mulligan${compactUi?' preview-compact':''}`}>{title}{homeControl}<div className="mulligan-arena classic-mulligan" inert={!!inspectedOverlay}><TableDecor/><div className="mulligan-opponent"><HiddenHand count={s.opponent.handCount}/><HeroPortrait player={s.opponent} label={enemyLabel}/></div><div className="mulligan-heading"><span className="mulligan-order">{s.firstPlayer===seat?'선공':'후공'}</span><h3>첫 손패를 선택하세요</h3><p>{!opponentReady?pauseMessage:s.self.mulliganDone?'상대의 선택을 기다리는 중입니다.':'바꾸고 싶은 카드를 클릭한 후 확정하세요.'}</p>{!compactUi&&mulliganInspectable&&<div className="mulligan-inspection-controls"><label>설명할 카드<select aria-label="설명을 확인할 첫 손패 카드" value={mulliganInspectable.instanceId} onChange={e=>setMulliganInspectId(e.target.value)}>{s.self.hand.map(c=><option key={c.instanceId} value={c.instanceId}>{displayCardName(catalog[c.cardId],classicNames)}</option>)}</select></label><button type="button" className="secondary mulligan-inspection-open" onClick={()=>inspectBoardMinion({card:catalog[mulliganInspectable.cardId],cost:publicCardCost(s,seat,catalog[mulliganInspectable.cardId],catalog,mulliganInspectable.costDiscount)})}>카드 설명 확대</button></div>}</div><div className="mulligan-cards" data-exchange={exchange?(showExchangeFaces?'reveal':'return'):undefined}>
-    {(exchange?mulliganSlots(exchange.before.self.hand,showExchangeFaces?s.self.hand:exchange.before.self.hand,exchange.marked):s.self.hand.map(card=>({key:card.instanceId,card,swapping:false}))).map(({key,card:c,swapping},index)=><div key={key} className="mulligan-card-frame" data-replaced={swapping||undefined} style={{'--exchange-delay':`${index*65}ms`} as React.CSSProperties}>
+    {(exchange?mulliganSlots(exchange.before.self.hand,showExchangeFaces?s.self.hand:exchange.before.self.hand,exchange.marked):s.self.hand.map(card=>({key:card.instanceId,card,swapping:false}))).map(({key,card:c,swapping},index)=><div key={key} className="mulligan-card-frame" data-replaced={swapping||undefined} style={{'--exchange-delay':`${index*130}ms`} as React.CSSProperties}>
       <BattleCard card={catalog[c.cardId]} mulligan selected={!exchange&&replace.includes(c.instanceId)} enabled={!exchange&&!s.self.mulliganDone&&connected&&opponentReady&&!busy} onClick={()=>{setMulliganInspectId(c.instanceId);setReplace(old=>old.includes(c.instanceId)?old.filter(x=>x!==c.instanceId):[...old,c.instanceId]);}}/>
       {swapping&&showExchangeFaces&&<span className="mulligan-card-back" aria-hidden="true"><Sigil kind="deck"/></span>}
     </div>)}
@@ -596,7 +606,13 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
           {Array.from({length:s.self.board.length+1},(_,i)=>{const m=s.self.board[i];const target:Target|undefined=m?{kind:'minion',instanceId:m.instanceId}:undefined;const attackReady=!!m&&canAttack(m.instanceId);const targetReady=!!target&&canTarget(target);const isSource=!!m&&highlight?.kind==='attack'&&highlight.id===m.instanceId;return <div className="board-segment" key={m?.instanceId??'last-gap'}><button type="button" className={`position-slot${boardPosition===i?' chosen':''}${draggedMinion?' dropping':''}${draggedMinion&&touchSlot===i?' touch-drop-hover':''}`} data-drop-position={i} disabled={!active||s.self.board.length>=7} aria-label={`하수인 배치 위치 ${i+1}`} aria-pressed={boardPosition===i} title={`하수인을 ${i+1}번 위치에 배치`} onClick={()=>choosePosition(i)}><span>+</span></button>{m&&target&&<BattleMinion turn={s.turn} entering={visual?.summoned.has(m.instanceId)} delta={visual?.minionDelta.get(m.instanceId)} sourceId={`minion:${m.instanceId}`} card={catalog[m.cardId]} minion={m} catalog={catalog} ownTurn={s.activePlayer===seat} enabled={targetReady||attackReady&&(!highlight||highlight.kind==='attack'||highlight.kind==='heroAttack')} ready={attackReady&&!highlight&&!currentDrag} selected={isSource} targeted={targetReady} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,target)} onInspect={cardInspect} onInspectTap={()=>inspectBoardMinion({card:catalog[m.cardId],minion:m})} onClick={keyboard=>{if(targetReady)choose(target,keyboard);else if(attackReady)setSelected(old=>toggleActionSelection(old,planAttack(s,seat,catalog,m.instanceId)));}} onDragStart={attackReady?e=>beginDrag(e,{kind:'attack',id:m.instanceId}):undefined} onDragEnd={nativeDragEnd}/>} {m&&reservationBadge('attack',m.instanceId)}</div>;})}{!s.self.board.length&&<div className="empty-board own-empty">{currentDrag?.kind==='card'?'여기에 카드를 놓으세요':'손패에서 하수인을 내보세요'}</div>}</div>
         </div>
         <div className="hero-zone self-hero-zone"><DialogueCaptions captions={dialogue.captions} side={seat} mode={captionMode} catalog={catalog} hero={s.self.heroClass} heroForm={s.self.heroForm}/><WeaponSlot player={s.self} catalog={catalog} onInspect={cardInspect}/><div className="hero-center"><Secrets count={s.self.secretCount} names={s.self.secrets.map(c=>displayCardName(catalog[c.cardId],classicNames))} cards={s.self.secrets.map(c=>catalog[c.cardId])}/><HeroPortrait shatter={shattered.own} delta={visual?.ownHeroDelta} sourceId="hero" player={s.self} label="나" enabled={canTarget(ownHeroTarget)||canAttack()&&(!highlight||highlight.kind==='heroAttack')} ready={canAttack()&&!highlight&&!currentDrag} selected={highlight?.kind==='heroAttack'} targeted={canTarget(ownHeroTarget)} dropTarget={!!currentDrag&&!!dropTarget&&sameTarget(dropTarget,ownHeroTarget)} onClick={keyboard=>{if(canTarget(ownHeroTarget))choose(ownHeroTarget,keyboard);else if(canAttack())setSelected(old=>toggleActionSelection(old,planAttack(s,seat,catalog)));}} onDragStart={canAttack()?e=>beginDrag(e,{kind:'heroAttack'}):undefined} onDragEnd={nativeDragEnd}/></div><HeroPower sourceId="power" player={s.self} enabled={!!power} ready={!!power&&!highlight&&!currentDrag} selected={highlight?.kind==='power'} reason={powerReason} onClick={keyboard=>applyIntent(power,keyboard)} onDragStart={power?e=>beginDrag(e,{kind:'power'}):undefined} onDragEnd={nativeDragEnd}/></div>
-        <div className="own-hand"><div className="hand-heading"><span>내 손패 <b>{s.self.handCount}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={s.self.hand.length}
+        <div className="own-hand" data-hand-open={handOpen}>
+          <button type="button" className="folded-hand" aria-expanded={handOpen} aria-label={`내 손패 ${s.self.handCount}장 ${handOpen?'접기':'펼치기'}`}
+            data-playable={s.self.hand.some(c=>handReady(c.instanceId))}
+            onClick={()=>{if(handOpen){setSelected(null);setPeekCardId(null);}setHandOpen(!handOpen);}}>
+            <span className="folded-cards" aria-hidden="true">{Array.from({length:Math.min(3,s.self.handCount)},(_,i)=><i key={i}/>)}</span>
+            <b>{s.self.handCount}</b>
+          </button><div className="hand-heading"><span>내 손패 <b>{s.self.handCount}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={s.self.hand.length} style={{'--hand-count':Math.max(1,s.self.hand.length)} as React.CSSProperties}
           onFocusCapture={e=>{if(dismissPeekOnHandFocus(peekCardId,(e.target as HTMLElement).dataset.actionSource))setPeekCardId(null);}}
           onBlurCapture={e=>{if(!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget))setPeekCardId(null);}}>{s.self.hand.map((c,i)=>{const reason=active?publicCardReason(s,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,s.self.hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId} data-drag-origin={currentDrag?.kind==='card'&&currentDrag.id===c.instanceId||undefined}><BattleCard sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(s,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} previewOpen={peekCardId===c.instanceId} onBlocked={()=>setPeekCardId(previous=>previous===c.instanceId?null:c.instanceId)} selected={(highlight?.kind==='held'||highlight?.kind==='card'||highlight?.kind==='cardChoice')&&highlight.id===c.instanceId||currentDrag?.kind==='card'&&currentDrag.id===c.instanceId} onClick={keyboard=>{setPeekCardId(null);const next=selectHandCard(s,seat,catalog,c.instanceId,selected);if(next&&!playing)playCardPickup();if(keyboard&&next?.kind==='held')focusRequest.current='held';setSelected(next);}} onInspect={cardInspect} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/>{reservationBadge('playCard',c.instanceId)}</div>;})}{!s.self.hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
       </div>

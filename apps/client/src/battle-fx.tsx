@@ -166,7 +166,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     const animations:Animation[]=[],timeouts:ReturnType<typeof setTimeout>[]=[],ghosts:HTMLElement[]=[];
     const departures=reduced?[]:impacts.filter(i=>i.kind==='leave').flatMap(i=>{
       const el=elementFor(arena,i.target,seat);
-      return el&&typeof el.animate==='function'&&center(el)?.fullyVisible?[{ghost:el.cloneNode(true) as HTMLElement,box:el.getBoundingClientRect(),death:departureVisual(i)==='death',isAttacker:i.target.kind==='minion'&&i.target.instanceId===a.attackerId}]:[];
+      return el&&typeof el.animate==='function'&&center(el)?.fullyVisible?[{ghost:el.cloneNode(true) as HTMLElement,box:el.getBoundingClientRect(),death:departureVisual(i)==='death',isAttacker:i.target.kind==='minion'&&i.target.instanceId===a.attackerId,key:targetKey(i.target)}]:[];
     });
     if(attack&&caster&&center(caster)?.fullyVisible&&!reduced&&typeof caster.animate==='function'){
       const dx=to.x-from.x,dy=to.y-from.y,at=cue.impact/cue.duration,reach=a.blocked ? .60 : .91;
@@ -186,7 +186,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
       ],{duration:cue.duration,fill:'both'}));
     }
     const reveal=cardReveal.current;
-    const summon=a.kind==='summon';
+    const summon=a.kind==='summon',impactOffset=cue.impact/cue.duration;
     const summonPortrait=reveal?.querySelector<HTMLElement>('.fx-summon-portrait');
     if(reveal&&typeof reveal.animate==='function'&&!reduced){
       const r=center(reveal)??boardCenter,hand=arena.querySelector(side==='self'?'.own-hand':'.hidden-hand');
@@ -196,8 +196,8 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
         const target=destination;
         animations.push(summonPortrait.animate([
           {opacity:0,transform:'scale(.96)',offset:0},
-          {opacity:0,transform:'scale(.96)',offset:.5},
-          {opacity:1,transform:'scale(.72)',offset:.59},
+          {opacity:0,transform:'scale(.96)',offset:impactOffset*.62},
+          {opacity:1,transform:'scale(.72)',offset:impactOffset*.74},
           {opacity:1,transform:`translate(${target.x-r.x}px,${target.y-r.y}px) scale(.40)`,offset:cue.impact/cue.duration},
           {opacity:0,transform:`translate(${target.x-r.x}px,${target.y-r.y}px) scale(.38)`,offset:1},
         ],{duration:cue.duration,fill:'both'}));
@@ -206,8 +206,8 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
       animations.push(fullCard.animate([
         {opacity:.1,transform:`translate(${source.x-r.x}px,${source.y-r.y}px) scale(.38) rotate(${side==='self'?9:-9}deg)`,offset:0},
         {opacity:1,transform:'translate(0,0) scale(1) rotate(0)',offset:summon?.15:.23,easing:'ease-in-out'},
-        {opacity:1,transform:'translate(0,0) scale(1)',offset:summon?.52:Math.max(.25,cue.impact/cue.duration-.12)},
-        {opacity:0,transform:summon?'scale(.72)':`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.28)`,offset:summon?.63:Math.min(.85,cue.impact/cue.duration+.13)},
+        {opacity:1,transform:'translate(0,0) scale(1)',offset:summon?impactOffset*.65:Math.max(.25,cue.impact/cue.duration-.12)},
+        {opacity:0,transform:summon?'scale(.72)':`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.28)`,offset:summon?impactOffset*.79:Math.min(.85,cue.impact/cue.duration+.13)},
         {opacity:0,transform:`translate(${end.x-r.x}px,${end.y-r.y}px) scale(.2)`,offset:1},
       ],{duration:cue.duration,fill:'both'}));
     }
@@ -246,15 +246,24 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     window.addEventListener('resize',onResize);
     const resizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(onResize):undefined;resizeObserver?.observe(arena);
     const start=performance.now(),feedback=impactFeedback(a,impacts);
+    const recovery=cue.duration-cue.impact;
+    const trace=a.events??[];
+    const deathBeat=(key:string)=>{
+      const index=trace.findIndex(event=>event.kind==='death'&&targetKey(event.target)===key);
+      return Math.min(recovery*.28,240+Math.max(0,index)*55);
+    };
+    const hasDeath=trace.some(event=>event.kind==='death');
+    const secretBeat=Math.max(0,trace.findIndex(event=>event.kind==='secretTriggered'))*35;
     playBattleSound(a,theme,'start');
     const impact=()=>{
       if(impacted||document.hidden)return;impacted=true;playBattleSound(a,theme,'impact',feedback);playBattleHaptic(a,feedback,seat);
       if(feedback.shake>0&&!reduced&&!spatialInvalid&&typeof arena.animate==='function'){
         const strength=feedback.shake;
-        animations.push(arena.animate([{transform:'translate(0,0)'},{transform:`translate(${-strength}px,${strength*.55}px)`},{transform:`translate(${strength}px,${-strength*.4}px)`},{transform:`translate(${-strength*.5}px,0)`},{transform:'translate(0,0)'}],{duration:310,easing:'ease-out'}));
+        animations.push(arena.animate([{transform:'translate(0,0)'},{transform:`translate(${-strength}px,${strength*.55}px)`},{transform:`translate(${strength}px,${-strength*.4}px)`},{transform:`translate(${-strength*.5}px,0)`},{transform:'translate(0,0)'}],{duration:620,easing:'ease-out'}));
       }
-      playBattleDepartureSound(departureSoundKind(impacts));
-      if(!reduced&&!spatialInvalid&&layer.parentElement)for(const {ghost,box,death,isAttacker} of departures){
+      const departureSound=departureSoundKind(impacts);
+      if(departureSound)timeouts.push(setTimeout(()=>playBattleDepartureSound(departureSound),hasDeath?Math.min(recovery*.28,240):0));
+      if(!reduced&&!spatialInvalid&&layer.parentElement)for(const {ghost,box,death,isAttacker,key} of departures){
         if(isAttacker)continue;
         ghost.removeAttribute('data-preview-minion');ghost.removeAttribute('data-preview-card');ghost.removeAttribute('data-action-source');
         prepareFxGhost(ghost);ghost.classList.add('fx-departure');ghost.classList.remove('is-ready','is-targeted','is-selected');
@@ -265,7 +274,7 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
             {...geometry,opacity:1,transform:'scale(1)',filter:death?'brightness(1.8)':'none'},
             {...geometry,opacity:.8,transform:'scale(1.09) rotate(7deg)',filter:'brightness(1.18)'},
             {...geometry,opacity:0,transform:death?'translateY(15px) scale(.38) rotate(-12deg)':'translateY(-55px) scale(.34)',filter:death?'grayscale(1)':'none'},
-          ],{duration:Math.min(600,cue.duration-cue.impact),fill:'both'}));
+          ],{delay:death?deathBeat(key):0,duration:Math.min(1200,recovery-(death?deathBeat(key):0)),fill:'both'}));
         }
       }
     };
@@ -315,16 +324,19 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
             const summon=event.kind==='summon'&&event.target.kind==='minion'?summons.get(event.target.instanceId):undefined;
             const pt=impactPosition(event.target);
             if(!pt||pt.edge)continue;
+            const delay=event.kind==='leave'&&event.death?deathBeat(targetKey(event.target)):event.kind==='summon'&&hasDeath?recovery*.38:0;
+            if(elapsed-cue.impact<delay)continue;
+            const progress=clamp((elapsed-cue.impact-delay)/Math.max(1,recovery-delay));
             const label=defenseImpactLabel(event),col:FxTheme=summon?.theme??(event.kind==='heal'?'nature':event.kind==='freeze'?'ice':label?'gold':event.kind==='leave'?(departureVisual(event)==='death'?'dust':'arcane'):theme);
-            if(!reduced&&(spatialInvalid||Math.hypot(pt.x-to.x,pt.y-to.y)>20))burst(ctx,pt,u,col,event.kind==='leave'?1.15:.72,a.revision+i*11,budget.particleDensity,particlesFor);
-            if(!reduced&&summon)ring(ctx,pt,20+38*u,FX_COLORS[col][1],(1-u)*.75,2,.42);
-            if(!reduced&&event.kind==='leave'){const colors=FX_COLORS[departureVisual(event)==='death'?'dust':'arcane'];radial(ctx,pt,40+45*u,colors,(1-u)*.6);}
+            if(!reduced&&(spatialInvalid||Math.hypot(pt.x-to.x,pt.y-to.y)>20))burst(ctx,pt,progress,col,event.kind==='leave'?1.15:.72,a.revision+i*11,budget.particleDensity,particlesFor);
+            if(!reduced&&summon)ring(ctx,pt,20+38*progress,FX_COLORS[col][1],(1-progress)*.75,2,.42);
+            if(!reduced&&event.kind==='leave'){const colors=FX_COLORS[departureVisual(event)==='death'?'dust':'arcane'];radial(ctx,pt,40+45*progress,colors,(1-progress)*.6);}
             if(label&&!reduced)ring(ctx,pt,25+35*u,FX_COLORS.gold[1],(1-u)*.9,3);
           }
           for(const label of labelForFrame(target=>{const p=impactPosition(target);return p?.edge?undefined:p;}))drawImpactLabel(ctx,label,u,reduced);
           if(markersDirty){cachedMarkers=offscreenFxMarkers(impacts,impactPosition);markersDirty=false;}
           for(const marker of cachedMarkers)drawEdgeMarker(ctx,marker,u,rect.width,rect.height,seat);
-          if(a.blocked||a.events?.some(e=>e.kind==='secretTriggered')){
+          if(a.blocked||elapsed-cue.impact>=secretBeat&&trace.some(e=>e.kind==='secretTriggered')){
             ctx.save();ctx.globalAlpha=1-u;ctx.font='900 25px system-ui,sans-serif';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#25112c';ctx.fillStyle='#f4c2ff';
             const label=a.events?.some(e=>e.kind==='secretTriggered')?'비밀 발동!':'공격 차단',p=spatialInvalid?boardCenter:to;ctx.strokeText(label,p.x,p.y-70);ctx.fillText(label,p.x,p.y-70);ctx.restore();
           }

@@ -14,8 +14,8 @@ test('a non-playable hand card is dismissible by Escape regardless of active tur
   assert.match(battle.slice(start,close),/e\.target\.closest\('\.battle-hand'\)/);
 });
 test('clicking off the hand closes only the preview without blocking the game action',()=>{
-  assert.match(battle,/if\(peekCardId&&e\.target instanceof Element&&!e\.target\.closest\('\.own-hand \.hand-card-slot'\)\)setPeekCardId\(null\)/);
-  assert.match(battle,/e\.preventDefault\(\);e\.stopPropagation\(\);return;\}if\(peekCardId/);
+  assert.match(battle,/if\(peekCardId&&!e\.target\.closest\('\.own-hand \.hand-card-slot'\)\)setPeekCardId\(null\)/);
+  assert.match(battle,/e\.preventDefault\(\);e\.stopPropagation\(\);return;\}\s*if\(!\(e\.target instanceof Element\)\)return;\s*if\(peekCardId/);
 });
 test('the currently enlarged selected card is announced as expanded to assistive technology',()=>{
   assert.match(pieces,/aria-expanded=\{previewOpen\|\|Boolean\(sourceId\?\.startsWith\('card:'\)&&selected\)\|\|undefined\}/);

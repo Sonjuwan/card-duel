@@ -5,7 +5,7 @@ import {chromium} from 'playwright';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 
 test('phone/tablet combat uses entire available height instead of three redundant header rows',{timeout:120000},async t=>{
-  const server=createSoloAppServer();
+  const server=createSoloAppServer(process.env.CARD_DUEL_GEOMETRY_BASELINE);
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});
   t.after(()=>new Promise(resolve=>server.close(resolve)));
   const addr=server.address();assert.ok(addr&&typeof addr==='object');
@@ -16,7 +16,8 @@ test('phone/tablet combat uses entire available height instead of three redundan
     ['phone-844',844,390,true],
     ['phone-780',780,360,true],
     ['tablet-1024',1024,768,true],
-    ['desktop-1280',1280,720,false],
+    ['desktop-1366',1366,768,false],
+    ['desktop-1920',1920,1080,false],
   ]){
     const context=await browser.newContext({viewport:{width,height},isMobile,hasTouch:isMobile,deviceScaleFactor:1});
     const page=await context.newPage();
@@ -40,11 +41,12 @@ test('phone/tablet combat uses entire available height instead of three redundan
         headerDisplay:style('.game-main>.app-header').display,
         titlePosition:style(title).position,
         messagePosition:style(message).position,
-        arenaTop:arena?.top,arenaHeight:arena?.height,mainTop:main?.top,mainHeight:main?.height,
+        boardHeight:rect('.enemy-board').height+rect('.friendly-board').height,arenaTop:arena?.top,arenaHeight:arena?.height,mainTop:main?.top,mainHeight:main?.height,
         leaveTouch:button?.height??0,endTurnTouch:turn?.height??0,
         statusVisible:style(message+'>span:nth-child(2)').clipPath,
       };
     });
+    t.diagnostic(label+' board rows '+result.boardHeight.toFixed(1)+'px / '+height+'px');
     assert.equal(result.headerDisplay,'none',label+' hides brand/header');
     assert.equal(result.titlePosition,'absolute',label+' title floating');
     assert.equal(result.messagePosition,'absolute',label+' hint floating');
@@ -58,4 +60,101 @@ test('phone/tablet combat uses entire available height instead of three redundan
     assert.deepEqual(errors,[],label+' no browser exceptions');
     await context.close();
   }
+});
+
+test('mobile fullscreen stays enter-only and dense combat fits seven units and ten cards',{timeout:120000},async t=>{
+  const server=createSoloAppServer();
+  server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
+  t.after(()=>browser.close());
+  const context=await browser.newContext({viewport:{width:780,height:360},isMobile:true,hasTouch:true});
+  const page=await context.newPage();
+  // Exercise the real worker/React path, then supply a display-only snapshot.
+  // The injected snapshot is never sent to the worker or written to storage.
+  await page.addInitScript(()=>{
+    const NativeWorker=window.Worker;
+    window.Worker=class extends NativeWorker{
+      set onmessage(handler){
+        super.onmessage=event=>{
+          const data=event.data;
+          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=()=>{
+            const fixture=structuredClone(data),view=fixture.view.state;
+            fixture.view.animation=undefined;
+            view.revision+=1;
+            for(const [i,side] of [view.self,view.opponent].entries()){
+              side.board=Array.from({length:7},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:['taunt','divineShield']}));
+              side.handCount=10;
+            }
+            view.self.hand=Array.from({length:10},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
+            handler.call(this,new MessageEvent('message',{data:fixture}));
+          };
+          handler?.call(this,event);
+        };
+      }
+    };
+  });
+  await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
+  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
+  const menu=page.locator('.lobby-home .landscape-menu-button');
+  assert.match(await menu.textContent(),/가로 전체화면/);
+  await page.setViewportSize({width:360,height:780});
+  const portraitButton=page.getByRole('dialog',{name:'가로 화면 안내'}).getByRole('button',{name:'가로 전체화면',exact:true});
+  await portraitButton.tap();
+  await page.waitForFunction(()=>document.fullscreenElement!==null||document.querySelector('.rotate-device-status')?.textContent.includes('가로'));
+  const enteredFullscreen=await page.evaluate(()=>!!document.fullscreenElement);
+  await page.setViewportSize({width:780,height:360});
+  await portraitButton.waitFor({state:'hidden'});
+  assert.match(await menu.textContent(),/가로 전체화면/);
+  await page.getByRole('button',{name:'대전',exact:true}).tap();
+  await page.getByRole('button',{name:'전사',exact:true}).tap();
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
+  if(enteredFullscreen)assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true);
+  t.diagnostic(enteredFullscreen?'Chromium Fullscreen API entered and persisted':'Chromium showed manual rotation guidance');
+  await page.locator('.mulligan-confirm').tap();
+  await page.waitForFunction(()=>Boolean(window.denseBoard));
+  await page.evaluate(()=>window.denseBoard());
+  await page.locator('.enemy-board .battle-minion').nth(6).waitFor();
+  await page.locator('.friendly-board .battle-minion').nth(6).waitFor();
+  for(const width of [640,780,844,1024]){
+    await page.setViewportSize({width,height:width===1024?768:360});
+    const dimensions=await page.evaluate(()=>{
+      const box=selector=>document.querySelector(selector).getBoundingClientRect().toJSON();
+      const rows=['.enemy-board','.friendly-board'].map(selector=>{
+        const row=box(selector),units=[...document.querySelectorAll(selector+' .battle-minion')].map(el=>el.getBoundingClientRect().toJSON());
+        return {row,units};
+      });
+      return {rows,arena:box('.battle-arena'),width:innerWidth,height:innerHeight,
+        scroll:[document.documentElement.scrollWidth,document.documentElement.scrollHeight],
+        rail:getComputedStyle(document.querySelector('.arena-right')).display};
+    });
+    assert.equal(dimensions.rail,'contents');
+    assert.deepEqual(dimensions.scroll,[dimensions.width,dimensions.height]);
+    for(const {row,units} of dimensions.rows){
+      assert.equal(units.length,7);
+      for(const [i,unit] of units.entries()){
+        assert.ok(unit.x>=row.x&&unit.right<=row.right&&unit.top>=row.top-1&&unit.bottom<=row.bottom+1,JSON.stringify({width,row,unit}));
+        if(i)assert.ok(units[i-1].right<=unit.left,JSON.stringify({width,units}));
+      }
+    }
+    const share=dimensions.rows.reduce((sum,{row})=>sum+row.height,0)/dimensions.height;
+    t.diagnostic(width+'px board share '+(share*100).toFixed(1)+'%');
+    assert.ok(share>=.63, String(share));
+    const hand=page.locator('.folded-hand');
+    const board=page.locator('.friendly-board');
+    const before=await board.boundingBox();
+    await hand.tap();
+    const targets=await page.locator('.own-hand .battle-card').evaluateAll(cards=>cards.map(card=>{
+      const rect=card.getBoundingClientRect();
+      return card.contains(document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2));
+    }));
+    assert.equal(targets.length,10);
+    assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
+    assert.deepEqual(await board.boundingBox(),before);
+    await page.screenshot({path:`ui-evidence/dense-${width}.png`});
+    await page.locator('.friendly-board').tap({position:{x:12,y:9}});
+    assert.equal(await hand.getAttribute('aria-expanded'),'false');
+  }
+  await context.close();
 });

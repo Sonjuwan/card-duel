@@ -288,7 +288,7 @@ test('accepted attack metadata is public, mirrored on both seats, and uses exact
   const {after,animation}=action(s,{type:'attack',attackerId:'public-wolf',target:{kind:'hero'}});
   assert.deepEqual(animation,{revision:after.revision,actor:0,kind:'attack',attackerId:'public-wolf',target:enemyHero,heavy:true});
   const own=nextPlayback(room(s,0),room(after,0,animation))!,opponent=nextPlayback(room(s,1),room(after,1,animation))!;
-  assert.equal(own.duration,1200);assert.equal(own.impact,510);assert.equal(opponent.impact,own.impact);
+  assert.equal(own.duration,2400);assert.equal(own.impact,1020);assert.equal(opponent.impact,own.impact);
   assert.deepEqual(impactChanges(own.before.state!,own.after.state!,0),[{side:1,target:enemyHero,kind:'damage',amount:5}]);
   assert.deepEqual(impactChanges(opponent.before.state!,opponent.after.state!,1),[{side:1,target:enemyHero,kind:'damage',amount:5}]);
 });
@@ -341,19 +341,25 @@ test('duplication, skipped revisions, initial connection and mismatched events c
 });
 test('ordinary summons have time to transform and land and retain fast and instant modes',()=>{
   const summon={kind:'summon',actor:0,revision:1} as const;
-  assert.deepEqual(battleAnimationTiming(summon),{duration:1400,impact:1050});
+  assert.deepEqual(battleAnimationTiming(summon),{duration:2800,impact:2100});
   const before=room(ready(),0);
   const after={...before,state:{...before.state!,revision:before.state!.revision+1},animation:{...summon,revision:before.state!.revision+1}};
-  assert.equal(nextPlayback(before,after)?.duration,1400);
-  assert.equal(nextPlayback(before,{...after,animationSpeed:'fast'})?.duration,770);
+  assert.equal(nextPlayback(before,after)?.duration,2800);
+  assert.equal(nextPlayback(before,{...after,animationSpeed:'fast'})?.duration,1540);
   assert.equal(nextPlayback(before,{...after,animationSpeed:'instant'}),null);
 });
-test('every action timing has a visible buildup and recovery; heavy spells last 1.9 seconds',()=>{
-  for(const kind of ['attack','heroAttack','summon','spell','weapon','secret','coin','power','turn','choice'] as const){
-    const a:BattleAnimation={kind,actor:0,revision:5};const t=battleAnimationTiming(a);assert.ok(t.duration>=650&&t.impact>0&&t.impact<t.duration);
-    assert.ok(battleAnimationTiming({...a,heavy:true}).duration>=t.duration);
+test('every public battle cue doubles the previously shipped timeline',()=>{
+  const previous={
+    attack:[1000,430],heroAttack:[1250,520],spell:[1250,550],summon:[1400,1050],
+    weapon:[1050,530],secret:[1050,540],coin:[900,420],power:[1100,500],turn:[800,180],choice:[650,240],
+  } as const;
+  for(const kind of Object.keys(previous) as (keyof typeof previous)[]){
+    const cue:BattleAnimation={kind,actor:0,revision:5};
+    const [duration,impact]=previous[kind];
+    assert.deepEqual(battleAnimationTiming(cue),{duration:duration*2,impact:impact*2});
+    assert.ok(battleAnimationTiming({...cue,heavy:true}).duration>=duration*2);
   }
-  assert.deepEqual(battleAnimationTiming({kind:'spell',actor:0,revision:9,heavy:true}),{duration:1900,impact:850});
+  assert.deepEqual(battleAnimationTiming({kind:'spell',actor:0,revision:9,heavy:true}),{duration:3800,impact:1700});
 });
 test('all spells have a sound and particle theme, including fire, frost and healing',()=>{
   const all=Object.values(catalog).filter(c=>c.kind==='spell');
@@ -367,7 +373,7 @@ test('all spells have a sound and particle theme, including fire, frost and heal
 test('hero attack produces a distinct cue and the correct damage on the public snapshot',()=>{
   const s=ready();s.players[0].weapon={attack:3,durability:2};s.players[0].heroAttacksRemaining=1;
   const {after,animation}=action(s,{type:'heroAttack',target:enemyHero});
-  assert.equal(animation.kind,'heroAttack');assert.equal(battleAnimationTiming(animation).duration,1250);
+  assert.equal(animation.kind,'heroAttack');assert.equal(battleAnimationTiming(animation).duration,2500);
   assert.equal(after.players[1].health,27);
 });
 test('actual engine trace preserves overkill and retaliation, including dead characters, without changing rules',()=>{
@@ -408,9 +414,9 @@ test('playback waits until impact, serializes rapid opponent updates, and ignore
   const timeline=new PlaybackTimeline(before,v=>{visible=v.state!.revision;},cue=>{if(cue)cues.push(cue.animation.revision);},clock);
   timeline.receive(one,true);timeline.receive(one,true);timeline.receive(two,true);
   assert.deepEqual(cues,[first.after.revision]);assert.equal(visible,s.revision);
-  advance(179);assert.equal(visible,s.revision);advance(1);assert.equal(visible,first.after.revision);
-  advance(620);assert.deepEqual(cues,[first.after.revision,second.after.revision]);assert.equal(visible,first.after.revision);
-  advance(180);assert.equal(visible,second.after.revision);
+  advance(359);assert.equal(visible,s.revision);advance(1);assert.equal(visible,first.after.revision);
+  advance(1240);assert.deepEqual(cues,[first.after.revision,second.after.revision]);assert.equal(visible,first.after.revision);
+  advance(360);assert.equal(visible,second.after.revision);
   timeline.receive(two,false);assert.equal(timers.size,0);timeline.dispose();
 });
 test('all 22 offline animation demonstrations use legal actions and produce matching accepted cues',()=>{
