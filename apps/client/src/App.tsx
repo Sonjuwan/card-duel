@@ -39,7 +39,8 @@ import type {AccountPlayMode} from './AccountPanel.tsx';
 import type {AccountView} from '../../../packages/account-protocol.ts';
 import type {AccountProfile} from '../../../packages/account-protocol.ts';
 import {offlineGrowth} from './offline-growth.ts';
-import {DeveloperFreePlay} from './DeveloperFreePlay.tsx';
+import type {FreeMatchSelection} from './DeveloperFreePlay.tsx';
+import {DeveloperFreePlay,resolveFreeDeck} from './DeveloperFreePlay.tsx';
 import {OfflineGrowthPanel,OfflineDeveloperPanel} from './OfflineGrowthPanel.tsx';
 import {backupDeckLibrary,restoreDeckLibrary,readDecks,saveNamedDeck,deleteNamedDeck,withDeckLibraryLock,deckLibraryAfterWriteFailure,checkedDeckLibrary} from './named-decks.ts';
 import {watchDeckLibraryChanges} from './deck-library-sync.ts';
@@ -263,6 +264,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [updatePending,setUpdatePending]=useState(false),[updateBlocked,setUpdateBlocked]=useState(false);
   const [accountSync,setAccountSync]=useState(0),[growthSync,setGrowthSync]=useState(0);const [roomSync,setRoomSync]=useState(0);const [maintenance,setMaintenance]=useState(false);
   const [deck,setDeck]=useState<Deck>(()=>standalone&&initialOfflineMode==='developer'?readDeveloperDraft(catalog,catalogHash,storage):readDraft(catalog,catalogHash,storage));
+  const [freeSelection,setFreeSelection]=useState<FreeMatchSelection>(()=>({player:deck.heroClass,opponent:'random',playerDeck:'recommended',opponentDeck:'recommended'}));
   const [undoDecks,setUndoDecks]=useState<Deck[]>([]),[draftStored,setDraftStored]=useState(true);
   const editDeck=(next:Deck)=>{if(next.heroClass===deck.heroClass&&next.cards.length===deck.cards.length&&next.cards.every((id,i)=>id===deck.cards[i]))return;setUndoDecks(old=>[...old.slice(-19),deck]);setDeck(next);};
   const undo=()=>{const last=undoDecks.at(-1);if(last){setDeck(last);setUndoDecks(old=>old.slice(0,-1));}};
@@ -488,7 +490,8 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
         }};worker.onerror=()=>finish('성장 백업 작업을 완료하지 못했습니다.');timer=setTimeout(()=>finish('성장 저장소 응답이 지연되었습니다. 다시 확인하세요.'),10000);worker.postMessage(payload);
     }catch(e){finish(e instanceof Error?e.message:'성장 백업 파일을 열 수 없습니다.');}
   };
-  const beginLocal=(config:ResolvedSolo,matchDeck:Deck,ranked=false,developerRank?:number,developerExperiment=false,developerFree=false)=>{
+  const beginLocal=(config:ResolvedSolo,matchDeck:Deck,ranked=false,developerRank?:number,developerExperiment=false,developerOpponentDeck?:Deck)=>{
+    const developerFree=developerOpponentDeck!==undefined;
     if(developerFree&&(!standalone||offlineMode!=='developer'||ranked||developerRank!==undefined))return;
     const saved=developerFree?freeSave?.save:savedMatch;
     const available=developerFree?freeSave?.available:saveAvailable;
@@ -500,13 +503,18 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     if(saved&&saved.phase!=='finished'&&!window.confirm('새 대전을 시작하면 저장된 진행 중인 경기가 교체됩니다. 새 대전을 시작할까요?'))return;
     startLocalWorker(worker=>{void (initialAiProfile?Promise.resolve(initialAiProfile):localAiProfile(catalogHash)).then(profile=>{
         if(workerRef.current!==worker)return;
-        const request:LocalRequest={type:'start',replaceSave:saved,ranked,developerRank,...(developerExperiment?{developerExperiment:true}:{}),input:{catalog,catalogHash,...(developerFree?{developerFree:true as const}:{}),deck:structuredClone(matchDeck),heroClass:config.heroClass,difficulty:config.difficulty,seed:config.seed,code:newLocalCode(),style:config.style,firstPlayer:config.firstPlayer,deckSeed:config.deckSeed,weights:profile.weights,generation:profile.generation,deviceMode:config.deviceMode,animationSpeed:config.animationSpeed,device:deviceInfo()}};
+        const request:LocalRequest={type:'start',replaceSave:saved,ranked,developerRank,...(developerExperiment?{developerExperiment:true}:{}),input:{catalog,catalogHash,...(developerFree?{developerFree:true as const,developerOpponentDeck}:{}),deck:structuredClone(matchDeck),heroClass:config.heroClass,difficulty:config.difficulty,seed:config.seed,code:newLocalCode(),style:config.style,firstPlayer:config.firstPlayer,deckSeed:config.deckSeed,weights:profile.weights,generation:profile.generation,deviceMode:config.deviceMode,animationSpeed:config.animationSpeed,device:deviceInfo()}};
         worker.postMessage(request);
       }).catch(()=>{if(workerRef.current===worker)recoverLocalWorker('기기 AI를 시작하지 못했습니다.');});},developerFree);
   };
-  const beginDeveloperFree=(player:HeroClass,opponent:SoloClass)=>{
-    const config=resolveSolo({...soloSettings,heroClass:opponent,style:'practice'},random32());
-    beginLocal(config,practiceDeck(catalog,player),false,undefined,false,true);
+  const beginDeveloperFree=()=>{
+    const config=resolveSolo({...soloSettings,heroClass:freeSelection.opponent,style:'practice'},random32());
+    const saved=readDecks(developerDeckStorage);
+    try{
+      const player=resolveFreeDeck(catalog,freeSelection.player,freeSelection.playerDeck,saved,deck,config.seed);
+      const opponent=resolveFreeDeck(catalog,config.heroClass,freeSelection.opponentDeck,saved,deck,config.deckSeed);
+      beginLocal({...config,style:opponent.style},player.deck,false,undefined,false,opponent.deck);
+    }catch(error){setError(error instanceof Error?error.message:'시험 덱을 시작하지 못했습니다.');}
   };
   const resumeDeveloperFree=()=>{
     const save=freeSave?.save;
@@ -572,7 +580,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     :lobbyView==='rank'&&lossOnExit?<PreviewRank profile={offlineProfile} growth={localGrowth}/>
     :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
     :lobbyView==='rewards'&&lossOnExit?<><PreviewRewards profile={offlineProfile} growth={localGrowth} onCatalog={id=>openLobbyView('catalog',true,id)}/><div className="preview-reward-backups"><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup()}>성장 기록 백업</button><button className="secondary" disabled={busy||!growthReady} onClick={()=>void growthBackup(undefined,true)}>성장+덱 통합 백업</button><BackupFilePicker label="미진행 슬롯에 성장 백업 복원" disabled={busy||!growthReady||offlineProfile?.revision!==0} onFile={file=>void growthBackup(file)} onError={setError}/></div></>
-    :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button><DeveloperFreePlay initialHero={deck.heroClass} busy={busy} ready={freeSave?.available} onStart={beginDeveloperFree} onResume={freeSave?.save&&freeSave.save.phase!=='finished'?resumeDeveloperFree:undefined}/>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setPreviewEditHero(null);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
+    :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button><DeveloperFreePlay selection={freeSelection} onSelection={setFreeSelection} saved={readDecks(developerDeckStorage)} draft={deck} catalog={catalog} onEdit={hero=>{setPreviewEditHero(hero);openLobbyView('decks',true);}} busy={busy} ready={freeSave?.available} onStart={beginDeveloperFree} onResume={freeSave?.save&&freeSave.save.phase!=='finished'?resumeDeveloperFree:undefined}/>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setPreviewEditHero(null);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
     :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} developer={standalone&&offlineMode==='developer'} unreadIds={lossOnExit&&offlineMode==='player'?unreadCards:[]} onViewed={lossOnExit&&offlineMode==='player'?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace key={previewEditHero??'choose'} previewSimple={lossOnExit} developer={standalone&&offlineMode==='developer'} initialClass={previewEditHero??undefined} initialScreen={lossOnExit?(previewEditHero?'saved':'classes'):'classes'} storage={standalone&&offlineMode==='developer'?developerDeckStorage:storage} onPlay={()=>openLobbyView(practiceLobby,true)} deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored} ownedCards={standalone?(offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>:null}
     </>}
     </div>

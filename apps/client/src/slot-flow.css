@@ -637,3 +637,9 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
 #solo-game-update button:disabled{background:#493b2c;color:#d5c4a9}
 #solo-update-progress{width:100%;accent-color:#f1c755}
 #solo-update-progress[hidden]{display:none}
+
+.developer-free-decks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.developer-free-decks .account-row{align-items:stretch}
+.developer-free-decks label{min-width:0;flex:1 1 110px}
+.developer-free-decks select{width:100%}
+@media(max-width:600px){.developer-free-decks{grid-template-columns:minmax(0,1fr)}}

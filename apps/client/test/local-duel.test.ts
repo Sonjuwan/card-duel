@@ -23,6 +23,19 @@ const catalog={...createCatalog(JSON.parse(readFileSync(new URL('../../../data/c
 const input:LocalDuelInput={catalog,deck:practiceDeck(catalog,'mage'),heroClass:'warrior',difficulty:3,seed:729,code:'LOCAL-TEST',style:'aggression',generation:4};
 const hash='a'.repeat(64),savedInput={...input,catalogHash:hash,firstPlayer:0 as const};
 
+test('developer free battles use the exact selected deck and reject class mismatches',()=>{
+  const opponent=practiceDeck(catalog,'warrior');
+  const duel=new LocalDuel({...savedInput,developerFree:true,developerOpponentDeck:opponent});
+  const snapshot=duel.checkpoint()!;
+  const cards=[...snapshot.state.players[1].deck,...snapshot.state.players[1].hand].map(card=>card.cardId);
+  assert.deepEqual(cards.sort(),[...opponent.cards].sort());
+  const restored=LocalDuel.restore(snapshot,catalog,hash);
+  restored.forfeit();
+  assert.deepEqual(restored.rematch('free-rematch',144).checkpoint()!.input.developerOpponentDeck,opponent);
+  assert.throws(()=>new LocalDuel({...savedInput,developerFree:true,developerOpponentDeck:savedInput.deck}),/상대 AI 직업/);
+  assert.throws(()=>new LocalDuel({...savedInput,developerOpponentDeck:opponent}),/상대 AI 직업/);
+});
+
 test('rank progress reports wins and XP independently without changing stored growth',()=>{
   const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth),threshold=rankInfo(2,growth.ranks).minimumXp??0;
   const profile={...initial.profile,rankWins:1,xp:Math.max(0,threshold-15)},before=structuredClone(profile),progress=offlineRankProgress(profile,growth);assert.equal(progress.complete,false);if(progress.complete)throw Error('unexpected maximum rank');

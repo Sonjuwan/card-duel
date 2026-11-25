@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
 import {chromium} from 'playwright';
-import {createCatalog,HERO_CLASSES,HERO_TOKENS,maxCardCopies} from '../../../packages/engine/src/index.ts';
+import {createCatalog,HERO_CLASSES,HERO_TOKENS,maxCardCopies,strategicDeck} from '../../../packages/engine/src/index.ts';
 import {recommendedOwnedDeck} from '../../../packages/progression.ts';
 import {offlineGrowth,readOfflineGrowth} from '../src/offline-growth.ts';
 import {loadSoloRelease} from '../../cli/serve-solo-app.mjs';
@@ -31,13 +31,18 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
     {name:'슬롯1 마법사',deck:recommendedOwnedDeck(catalog,growth,'mage',profile,117)},
     {name:'슬롯2 전사',deck:recommendedOwnedDeck(catalog,growth,'warrior',profile,117)},
   ];
+  const trialDecks=[
+    {name:'도적 플레이어 시험 덱',deck:strategicDeck(catalog,'rogue','aggression',101)},
+    {name:'도적 AI 시험 덱',deck:strategicDeck(catalog,'rogue','control',102)}
+  ];
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});
-  await context.addInitScript(({entries})=>{
+  await context.addInitScript(({entries,trialDecks})=>{
     localStorage.setItem('card-duel-ui-preview-slot-1:card-duel-saved-decks',JSON.stringify([entries[0],...Array.from({length:9},(_,i)=>({...entries[0],name:'마법사 시험덱 '+(i+2)}))]));
     localStorage.setItem('card-duel-ui-preview-slot-2:card-duel-saved-decks',JSON.stringify([entries[1]]));
-  },{entries});
+    localStorage.setItem('card-duel-ui-preview-slot-1:developer:card-duel-saved-decks',JSON.stringify(trialDecks));
+  },{entries,trialDecks});
   const page=await context.newPage();
   const errors=[];page.on('pageerror',err=>errors.push(err.message));page.on('dialog',d=>d.accept());
   await page.goto('http://127.0.0.1:'+a.port+'/ui-preview/');
@@ -158,6 +163,16 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   });
   await playerHero.selectOption('rogue');
   await opponentHero.selectOption('rogue');
+  const playerDeck=freePlay.getByLabel('플레이어 덱');
+  const opponentDeck=freePlay.getByLabel('상대 AI 덱');
+  await playerDeck.selectOption('saved:'+trialDecks[0].name);
+  await opponentDeck.selectOption('saved:'+trialDecks[1].name);
+  await freePlay.getByRole('button',{name:'플레이어 덱 편집'}).click();
+  await page.getByRole('heading',{name:'도적 · 내 덱'}).waitFor();
+  await page.getByRole('button',{name:'메인으로'}).click();
+  await page.getByRole('button',{name:'대전',exact:true}).click();
+  assert.equal(await playerDeck.inputValue(),'saved:'+trialDecks[0].name);
+  assert.equal(await opponentDeck.inputValue(),'saved:'+trialDecks[1].name);
   await freePlay.getByRole('button',{name:'자유 대전 시작',exact:true}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.locator('.mulligan-confirm').click();
@@ -168,6 +183,8 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   assert.equal(mirror.summary.opponent,'rogue');
   assert.equal(mirror.summary.developerFree,true);
   assert.equal(mirror.summary.rank,undefined);
+  assert.deepEqual(mirror.input.deck,trialDecks[0].deck);
+  assert.deepEqual(mirror.input.developerOpponentDeck,trialDecks[1].deck);
   await page.getByRole('button',{name:'전투 설정'}).click();
   await page.getByRole('button',{name:'저장 후 나가기'}).click();
   await freePlay.getByRole('button',{name:'자유 대전 이어하기'}).click();
@@ -179,11 +196,16 @@ test('UI preview chooses a save slot first, then uses only that slot cards, deck
   await page.getByRole('button',{name:'대전 준비로 돌아가기',exact:true}).click();
   await playerHero.selectOption('shaman');
   await opponentHero.selectOption('random');
+  await playerDeck.selectOption('style:control');
+  await opponentDeck.selectOption('random');
   await freePlay.getByRole('button',{name:'자유 대전 시작',exact:true}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   const random=await checkpoint();
   assert.equal(random.summary.heroClass,'shaman');
   assert.ok(HERO_CLASSES.includes(random.summary.opponent));
+  assert.equal(random.input.developerOpponentDeck.heroClass,random.summary.opponent);
+  assert.equal(random.input.developerOpponentDeck.cards.length,30);
+  assert.deepEqual(random.input.deck,strategicDeck(catalog,'shaman','control',random.input.seed));
   await page.getByRole('button',{name:'전투 설정'}).click();
   await page.getByRole('button',{name:'저장 후 나가기'}).click();
   await freePlay.waitFor();
