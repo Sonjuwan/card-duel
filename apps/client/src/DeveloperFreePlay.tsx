@@ -1,15 +1,41 @@
-import {DECK_STYLES,HERO_CLASSES,strategicDeck,validateDeck} from '../../../packages/engine/src/index.ts';
-import type {Catalog,Deck,HeroClass} from '../../../packages/engine/src/index.ts';
+import {BOT_DIFFICULTIES,BOT_DIFFICULTY_NAMES,DECK_STYLES,HERO_CLASSES,isBotDifficulty,strategicDeck,validateDeck} from '../../../packages/engine/src/index.ts';
+import type {BotDifficulty,Catalog,Deck,HeroClass} from '../../../packages/engine/src/index.ts';
 import {className} from './data.ts';
 import type {NamedDeck} from './named-decks.ts';
-import {DECK_STYLE_LABELS} from './solo-settings.ts';
+import {DECK_STYLE_LABELS,DEFAULT_SOLO_SETTINGS} from './solo-settings.ts';
 import type {SoloClass} from './solo-settings.ts';
+import type {SlotStorage} from './solo-slots.ts';
 
 export interface FreeMatchSelection{
   player:HeroClass;
   opponent:SoloClass;
   playerDeck:string;
   opponentDeck:string;
+  difficulty:BotDifficulty;
+}
+
+const settingsKey='card-duel-free-match-v1';
+function parseDeckChoice(value:unknown,allowRandom:boolean){
+  if(value==='draft'||allowRandom&&value==='random'||typeof value==='string'&&(
+    DECK_STYLES.some(style=>value===`style:${style}`)||value.startsWith('saved:')&&value.length>6&&value.length<=46
+  ))return value as string;
+  return 'recommended';
+}
+
+export function readFreeMatchSelection(storage:SlotStorage,initialHero:HeroClass):FreeMatchSelection{
+  let value;
+  try{value=JSON.parse(storage.getItem(settingsKey)??'null');}catch{}
+  return {
+    player:HERO_CLASSES.includes(value?.player)?value.player:initialHero,
+    opponent:HERO_CLASSES.includes(value?.opponent)?value.opponent:'random',
+    playerDeck:parseDeckChoice(value?.playerDeck,false),
+    opponentDeck:parseDeckChoice(value?.opponentDeck,true),
+    difficulty:isBotDifficulty(value?.difficulty)?value.difficulty:DEFAULT_SOLO_SETTINGS.difficulty,
+  };
+}
+
+export function rememberFreeMatchSelection(storage:SlotStorage,value:FreeMatchSelection):boolean{
+  try{storage.setItem(settingsKey,JSON.stringify(value));return true;}catch{return false;}
 }
 
 function draftForHero(draft:Deck,hero:SoloClass,catalog:Catalog){
@@ -71,6 +97,14 @@ export function DeveloperFreePlay({selection,onSelection,saved,draft,catalog,bus
         <button type="button" className="secondary" disabled={opponent==='random'} onClick={()=>{if(opponent!=='random')onEdit(opponent);}}>상대 AI 덱 편집</button>
       </div>
     </div>
+    <label className="developer-free-difficulty">AI 난이도
+      <select value={selection.difficulty} onChange={event=>{
+        const difficulty=Number(event.target.value);
+        if(isBotDifficulty(difficulty))onSelection({...selection,difficulty});
+      }}>
+        {BOT_DIFFICULTIES.map(level=><option key={level} value={level}>{level}단계 · {BOT_DIFFICULTY_NAMES[level]}</option>)}
+      </select>
+    </label>
     {!valid&&<p role="status">변경된 시험 덱을 다시 선택하세요.</p>}
     <button type="button" disabled={busy||!ready||!valid} onClick={onStart}>자유 대전 시작</button>
     {onResume&&<button type="button" className="secondary" disabled={busy||!ready} onClick={onResume}>자유 대전 이어하기</button>}
