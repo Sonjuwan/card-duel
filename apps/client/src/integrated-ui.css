@@ -805,6 +805,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .arena-field .hero-zone .hero-portrait {
     --combat-hero-size:clamp(55px,18.7dvh,120px);
     width:var(--combat-hero-size)!important;height:var(--combat-hero-size)!important;
+    min-height:var(--combat-hero-size)!important;max-height:none!important;flex:none;
     border-radius:42%;overflow:visible;
   }
   .game-main .duel-screen .arena-field .enemy-hero-zone .hero-portrait { translate:0 7px }

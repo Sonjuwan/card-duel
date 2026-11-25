@@ -151,6 +151,10 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const share=dimensions.rows.reduce((sum,{row})=>sum+row.height,0)/dimensions.height;
     t.diagnostic(width+'px board share '+(share*100).toFixed(1)+'%');
     assert.ok(share>=.65, String(share));
+    assert.ok(await page.locator('.arena-field .hero-portrait').evaluateAll(heroes=>heroes.every(hero=>{
+      const {width,height}=hero.getBoundingClientRect();
+      return Math.abs(width-height)<3;
+    })), 'combat hero frames are not squashed');
     const hand=page.locator('.folded-hand');
     const board=page.locator('.friendly-board');
     const before=await board.boundingBox();
