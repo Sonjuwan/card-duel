@@ -10,7 +10,7 @@ test('the home menu opens each independent screen with focus restoration',()=>{
   assert.match(app,/data-lobby-tab=\{lobbyView\}/);
 });
 test('navigation from unmounted panels returns focus to the matching persistent tab',()=>{
-  assert.match(app,/const openLobbyView=\(next:Exclude<LobbyView,'home'>,restoreFocus=false\)=>\{/);
+  assert.match(app,/const openLobbyView=\(next:Exclude<LobbyView,'home'>,restoreFocus=false,cardId\?:string\)=>\{/);
   assert.match(app,/if\(restoreFocus\)requestAnimationFrame\(\(\)=>screenScrollRef\.current\?\.querySelector<HTMLButtonElement>/);
   assert.match(app,/onEdit=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/onPlay=\{\(\)=>openLobbyView\('play',true\)\}/);
