@@ -814,3 +814,9 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
 }
 .game-main .duel-screen .effect-choices button { touch-action:manipulation;display:grid;place-items:center;text-align:center }
+@media (pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
+  .game-main .duel-screen .arena-field>.hero-zone { z-index:4;overflow:visible!important }
+  .game-main .duel-screen .enemy-hero-zone .battle-dialogue-captions {
+    left:auto;right:max(53px,calc(env(safe-area-inset-right) + 48px));width:clamp(108px,23vw,170px);
+  }
+}
