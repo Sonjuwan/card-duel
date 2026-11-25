@@ -13,10 +13,11 @@ export function useCardName(card:Card):string{return displayCardName(card,useCon
 // Search both names regardless of the display preference, and accept words in any order.
 const normalizeSearch=(text:string)=>text.normalize('NFKC').toLocaleLowerCase().trim();
 export function cardSearchTerms(query:string):string[]{return normalizeSearch(query).split(/\s+/u).filter(Boolean);}
+export const coinDescription='이번 턴에 마나 1을 얻습니다.';
 export function matchesCardSearch(card:Card,terms:readonly string[]):boolean{
   if(!terms.length)return true;
   const fields=[card.id,card.name,displayCardName(card,true)];
-  if(card.kind!=='coin')fields.push(card.description);
+  fields.push(card.kind==='coin'?coinDescription:card.description);
   if(card.kind==='minion'){
     fields.push(tribes[card.tribe],...((card.keywords??[]).map(k=>keywords[k])));
     if(card.battlecry?.length)fields.push('전투의 함성');

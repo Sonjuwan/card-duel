@@ -609,3 +609,7 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
 .lobby-main.preview-lobby .preview-workspace>[data-deck-screen=build]>.deck-builder{
   height:100%;min-height:0;overflow:auto;
 }
+
+.lobby-main .developer-catalog-count{
+  display:grid;gap:3px;color:#ffdfa0;
+}

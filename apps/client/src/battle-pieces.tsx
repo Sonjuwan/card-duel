@@ -5,7 +5,7 @@ import { canAttackMinion, getHeroPower } from '../../../packages/engine/src/inde
 import type { Card, Catalog, HeroClass, Minion, PlayerId, PlayerView, PublicPlayer, Rarity, Target } from '../../../packages/engine/src/index.ts';
 import { className, heroPowerDescription, keywords, tribes } from './data.ts';
 import { LocalCardArt, LocalHeroArt, LocalPowerArt, LocalCardBack } from './local-art.tsx';
-import { useCardName, ClassicNamesContext, displayCardName } from './card-names.ts';
+import { useCardName, ClassicNamesContext, coinDescription, displayCardName } from './card-names.ts';
 import { fanSlot } from './table-visuals.ts';
 import { useCardHover } from './hover-context.ts';
 import {targetPickerRows,placementOptions,keyboardTargetIndex} from './battle-actions.ts';
@@ -77,7 +77,7 @@ const glyphs:Record<Glyph,ReactNode>={
 export function Sigil({kind,className:extra=''}:{kind:Glyph;className?:string}){
   return <svg className={`sigil sigil-${kind} ${extra}`} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{glyphs[kind]}</svg>;
 }
-export function cardDescription(card:Card){return card.kind==='coin'?'이번 턴에 마나 1을 얻습니다.':card.description||'효과 없음';}
+export function cardDescription(card:Card){return card.kind==='coin'?coinDescription:card.description||'효과 없음';}
 export const cardKindLabel:Record<Card['kind'],string>={coin:'동전',minion:'하수인',spell:'주문',weapon:'무기',secret:'비밀'};
 const rarityLabel:Record<Rarity,string>={basic:'기본',common:'일반',rare:'희귀',epic:'영웅',legendary:'전설'};
 function printedCardTags(card:Card):string[]{
