@@ -636,7 +636,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .arena-field .weapon-medallion .stat-attack {
   position:relative;isolation:isolate;display:grid;place-items:center;
   width:clamp(22px,5.7dvh,44px);height:clamp(22px,5.7dvh,44px);
-  font-size:clamp(17px,4.7dvh,34px);font-weight:950;color:#fff;
+  font-size:clamp(19px,5.3dvh,38px);font-weight:950;color:#fff;
   background:none;box-shadow:none;border:0;text-shadow:0 2px 2px #000;
   -webkit-text-stroke:2px #181019;paint-order:stroke fill;
 }
@@ -658,16 +658,16 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .spell-cast-anchor[data-tone="warlock"] { border-color:#eea5ff;box-shadow:0 0 15px #a33fc1 }
 .touch-drag-ghost,.touch-drag-ghost *,.battle-fx-layer,.battle-fx-layer * { pointer-events:none!important }
 .impact-rail-shell { position:relative;--impact-size:clamp(25px,5.6dvh,54px);--impact-count:4 }
-.impact-rail-shell .impact-rail {
+.game-main .duel-screen .impact-rail-shell .impact-rail {
   max-height:calc(var(--impact-count) * (var(--impact-size) + 2px) - 2px);
   overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;
-  overflow-anchor:none;scrollbar-width:none;gap:2px!important;justify-items:start;
+  overflow-anchor:none;scrollbar-width:none;gap:2px!important;justify-items:start;display:grid;align-content:start;
 }
 .impact-rail-shell .impact-rail .impact-icon.secondary { width:var(--impact-size)!important;min-width:0!important;min-height:0!important;height:var(--impact-size)!important }
 .impact-rail-shell>.impact-preview { left:calc(var(--impact-size) + 5px)!important;top:0!important;bottom:auto!important }
 .impact-latest.secondary { width:var(--impact-size);min-width:0;min-height:24px;padding:0 }
 @media(min-height:540px) { .impact-rail-shell { --impact-count:5 } }
 @media(pointer:coarse) and (orientation:landscape) and (max-width:1100px) {
-  .game-main .duel-screen .battle-arena.classic-table>.arena-left { width:27px!important }
-  .impact-rail-shell { --impact-size:25px }
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left { width:35px!important }
+  .impact-rail-shell { --impact-size:32px }
 }

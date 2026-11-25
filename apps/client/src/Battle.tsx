@@ -467,7 +467,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   };
   const pointerSlotAt=(hit:Element|null,x:number,intent:DragIntent):number|undefined=>{
     if(intent.kind!=='card'||catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']?.kind!=='minion')return undefined;
-    if(!hit?.closest('.friendly-board,.enemy-board'))return undefined;
+    if(!hit?.closest('.friendly-board,.enemy-board,.battle-divider'))return undefined;
     const board=arenaRef.current?.querySelector('.friendly-board');if(!board)return undefined;
     const row=board.querySelector('.friendly-minions');if(!row)return undefined;
     const bounds=row.getBoundingClientRect(),outer=board.getBoundingClientRect();
@@ -482,7 +482,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   };
   const pointerDescription=(hit:Element|null,x:number,intent:DragIntent,touchY?:number):TouchHit=>{
     const minionId=hit?.closest<HTMLElement>('[data-preview-minion]')?.dataset.previewMinion,hero=hit?.closest('.hero-portrait')?(hit.closest('.enemy-hero-zone')?'enemy':'self'):undefined,slot=pointerSlotAt(hit,x,intent);
-    const description:TouchHit={minionId,hero,slot,ownBoard:!!hit?.closest('.friendly-board'),enemyBoard:!!hit?.closest('.enemy-board'),field:!!hit?.closest('.arena-field'),hand:!!hit?.closest('.own-hand,.hidden-hand'),control:!!hit?.closest('button,input,select,textarea,summary,[role="button"]')&&!minionId&&!hero&&slot===undefined};
+    const description:TouchHit={minionId,hero,slot,ownBoard:!!hit?.closest('.friendly-board'),enemyBoard:!!hit?.closest('.enemy-board,.battle-divider'),field:!!hit?.closest('.arena-field'),hand:!!hit?.closest('.own-hand,.hidden-hand'),control:!!hit?.closest('button,input,select,textarea,summary,[role="button"]')&&!minionId&&!hero&&slot===undefined};
     // Only physical touch drags of attacks/targeted spells get a small
     // tolerance. Native mouse drops, exact targets, controls and minion
     // insertion retain their original semantics.
