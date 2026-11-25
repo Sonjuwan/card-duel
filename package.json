@@ -1,6 +1,6 @@
 {
   "name": "card-duel",
-  "version": "0.310.0",
+  "version": "0.311.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -29,7 +29,7 @@
     "build:offline": "vite build --config apps/client/vite.offline.config.ts && node apps/client/test/build-offline.mjs",
     "build:solo-app": "npm run build:offline && node apps/client/test/build-solo-app.mjs",
     "test:solo-app": "npm run build:solo-app && node --test apps/client/test/solo-app.test.mjs",
-    "test:solo-app-browser": "npm run build:solo-app && node --test apps/client/test/solo-app-browser.test.mjs",
+    "test:solo-app-browser": "npm run build:solo-app && node --test apps/client/test/solo-app-browser.test.mjs apps/client/test/update-browser.test.mjs",
     "test:landscape-browser": "node --test apps/client/test/landscape-solo-browser.test.mjs",
     "solo:serve": "node apps/cli/serve-solo-app.mjs",
     "android:prepare": "npm run build:offline && node apps/cli/build-android.mjs --prepare",

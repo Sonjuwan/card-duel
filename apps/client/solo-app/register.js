@@ -54,6 +54,23 @@ if(window.isSecureContext&&!standaloneMode()){
     installNotice('홈 화면에 설치됨 · Card Duel 아이콘으로 실행하면 주소창 없이 플레이할 수 있어요.');
   });
 }
+const buildVersion=document.querySelector?.('meta[name="card-duel-build"]')?.content;
+let updateDialog;
+if(/^\d+\.\d+\.\d+$/.test(buildVersion)){
+  document.body.insertAdjacentHTML('beforeend',`<dialog id="solo-game-update" aria-labelledby="solo-update-title">
+  <h2 id="solo-update-title">게임 업데이트</h2>
+  <p>현재 실행 버전 <strong>v${buildVersion}</strong> · 최신 공개 버전 <strong id="solo-update-latest">확인 전</strong></p>
+  <p id="solo-update-status" role="status">공개 버전을 확인하고 있습니다.</p>
+  <progress id="solo-update-progress" aria-label="업데이트 다운로드 진행률" hidden></progress>
+  <button id="solo-update-check" type="button">업데이트 확인</button>
+  <button id="solo-update-apply" type="button" disabled>최신 버전 적용</button>
+  <form method="dialog"><button type="submit">닫기</button></form>
+</dialog>`);
+  updateDialog=document.getElementById('solo-game-update');
+}
+window.addEventListener?.('card-duel-update-open',()=>{
+  if(updateDialog&&!updateDialog.open)updateDialog.showModal();
+});
 // Registration is optional: the same game still renders without a service worker.
 if ('serviceWorker' in navigator && window.isSecureContext) {
   const storageStatus=document.getElementById('solo-storage-status');
@@ -100,7 +117,7 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
     if(banner)banner.hidden=quietStartup||statusDismissed;
   };
   navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'}).then(registration => {
-    const updateMessage = () => announce('새 버전 준비 완료 · 진행 중 경기를 저장하고 모든 게임 창을 닫은 뒤 다시 실행하세요.');
+    const updateMessage = () => {if(updateDialog)return;announce('새 버전 준비 완료 · 진행 중 경기를 저장하고 모든 게임 창을 닫은 뒤 다시 실행하세요.');};
     const updateButton=document.getElementById('solo-app-check-update');
     let checking=false,lastCheck=0,updateObserved=false,observedWorker=null;
     if (registration.waiting && navigator.serviceWorker.controller) updateMessage();
@@ -154,6 +171,11 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
       catch{if(manual)announce('패치 확인 실패 · 현재 버전으로 계속 플레이할 수 있습니다.');}
       finally{checking=false;if(updateButton)updateButton.disabled=false;}
     };
+    if(updateDialog){
+      connectGameUpdate(registration,updateDialog);
+      if(updateButton){updateButton.hidden=false;updateButton.addEventListener('click',()=>updateDialog.showModal());}
+      return;
+    }
     if(updateButton){updateButton.hidden=false;updateButton.addEventListener('click',()=>void check(true));}
     window.addEventListener?.('focus',()=>void check());window.addEventListener?.('online',()=>void check());
     // Installed mobile PWAs commonly resume with visibilitychange but no
@@ -161,11 +183,163 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
     // hidden app, so returning to play can discover a queued patch safely.
     document.addEventListener?.('visibilitychange',()=>{if(!document.hidden)void check();});
     void check();
-  }).catch(() => announce('오프라인 앱 준비 실패 · 현재 화면에서는 플레이 가능하지만 브라우저 설치 기능은 보장되지 않습니다.'));
+  }).catch(() => {
+    const status=document.getElementById('solo-update-status');
+    if(status)status.textContent='업데이트 기능에 연결하지 못했습니다. 연결을 확인하고 앱을 다시 여세요.';
+    announce('오프라인 앱 준비 실패 · 현재 화면에서는 플레이 가능하지만 브라우저 설치 기능은 보장되지 않습니다.');
+  });
 }else{
+  const updateStatus=document.getElementById('solo-update-status');
+  if(updateStatus)updateStatus.textContent='이 브라우저는 설치 앱 업데이트를 지원하지 않습니다.';
   // A browser without secure service workers may still run the local game,
   // but must not look like a completed offline installation.
   const status=document.getElementById('solo-app-status'),banner=document.getElementById('solo-app-banner');
   if(status&&!window.__cardDuelAssetFailed)status.textContent='브라우저 오프라인 설치 미지원 · 게임 플레이는 가능하지만 오프라인 재실행은 보장되지 않습니다.';
   if(banner)banner.hidden=false;
+}
+
+function workerCall(worker,data,timeout=4500){
+  if(!worker)return Promise.resolve(null);
+  return new Promise((resolve,reject)=>{
+    const {port1,port2}=new MessageChannel();
+    const finish=(error,value)=>{clearTimeout(timer);port1.close();error?reject(error):resolve(value);};
+    const timer=setTimeout(()=>finish(Error('게임 창과 연결되지 않았습니다.')),timeout);
+    port1.onmessage=event=>finish(null,event.data);
+    try{worker.postMessage(data,[port2]);}catch(error){finish(error);}
+  });
+}
+
+function connectGameUpdate(registration,dialog){
+  const workers=navigator.serviceWorker;
+  const latest=document.getElementById('solo-update-latest');
+  const status=document.getElementById('solo-update-status');
+  const progress=document.getElementById('solo-update-progress');
+  const checkButton=document.getElementById('solo-update-check');
+  const applyButton=document.getElementById('solo-update-apply');
+  const root=document.getElementById('root');
+  const build=buildVersion;
+  let reloading=false;
+  const sessionKey='card-duel-update:'+registration.scope;
+  let published,ready,checking=false,lastCheck=0,lock,applying=false;
+  let downloadFailed=false;
+  const identity=async worker=>(await workerCall(worker,{type:'card-duel-release'}))?.release;
+  const render=(message,download=false)=>{
+    status.textContent=message;
+    progress.hidden=!download;
+    checkButton.disabled=checking||applying;
+    applyButton.disabled=!ready||applying;
+  };
+  const refresh=async()=>{
+    if(!published||applying)return;
+    const target=published;
+    try{
+      const current=await identity(workers.controller??registration.active);
+      const waiting=registration.waiting;
+      const matches=waiting&&await identity(waiting)===target.release;
+      if(target!==published||applying)return;
+      ready=matches?waiting:undefined;
+      if(ready){progress.value=progress.max;render('다운로드 및 파일 검증 완료 · 적용할 수 있습니다.',true);}
+      else if(current===target.release&&build===target.version)render('최신 버전 사용 중');
+      else if(downloadFailed)render('다운로드 또는 파일 검증에 실패했습니다. 현재 버전으로 계속 플레이할 수 있습니다.');
+      else if(registration.installing){render('업데이트 다운로드 및 파일 검증 중…',true);}
+      else render('공개 버전을 발견했습니다. 다운로드가 준비되면 적용할 수 있습니다.');
+    }catch{if(target===published&&!applying){ready=undefined;render('게임 버전 상태를 확인할 수 없습니다. 다시 확인하세요.');}}
+  };
+  const observe=()=>{
+    const worker=registration.installing;
+    if(!worker)return;
+    downloadFailed=false;
+    if(published){progress.removeAttribute('value');render('업데이트 다운로드 및 파일 검증 중…',true);}
+    worker.addEventListener('statechange',()=>{
+      if(worker.state==='redundant')downloadFailed=true;
+      if(worker.state==='installed'||worker.state==='redundant'||worker.state==='activated')void refresh();
+    });
+  };
+  const check=async(manual=false,force=false)=>{
+    if(checking||applying||lock||!manual&&(document.hidden||!force&&Date.now()-lastCheck<60000))return;
+    checking=true;lastCheck=Date.now();ready=undefined;downloadFailed=false;
+    render('공개 버전 확인 중…');
+    const abort=new AbortController();
+    const timeout=setTimeout(()=>abort.abort(),8000);
+    try{
+      const address=new URL('version.json',registration.scope);
+      address.searchParams.set('check',String(lastCheck));
+      const response=await fetch(address,{cache:'no-store',redirect:'error',signal:abort.signal});
+      if(!response.ok)throw Error('release unavailable');
+      const data=await response.json();
+      if(!/^\d+\.\d+\.\d+$/.test(data?.version)||!/^[a-f0-9]{64}$/.test(data?.release))throw Error('invalid release');
+      published=data;latest.textContent='v'+data.version;
+    }catch{
+      published=undefined;latest.textContent='확인 불가';checking=false;
+      render('공개 버전을 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도하세요.');
+      return;
+    }finally{clearTimeout(timeout);}
+    try{
+      if(!registration.installing&&(!registration.waiting||await identity(registration.waiting)!==published.release)&&
+        await identity(workers.controller??registration.active)!==published.release)await registration.update();
+    }catch{downloadFailed=true;}
+    checking=false;
+    await refresh();
+  };
+  const unlock=()=>{
+    if(!lock)return;
+    clearTimeout(lock.timer);lock=undefined;root.inert=false;
+  };
+  workers.addEventListener('message',event=>{
+    const data=event.data;
+    if(data?.type==='card-duel-cache-progress'&&event.source===registration.installing&&data.release===published?.release&&
+      Number.isInteger(data.done)&&Number.isInteger(data.all)&&data.done>0&&data.done<=data.all&&data.all<=64){
+      progress.max=data.all;progress.value=data.done;
+      render(`업데이트 다운로드 및 파일 검증 중 · ${data.done}/${data.all} 파일`,true);
+    }
+    if(data?.type==='card-duel-cancel-update'&&event.source===lock?.worker&&data.token===lock?.token)unlock();
+    if(data?.type!=='card-duel-prepare-update'||event.source!==registration.waiting||!event.ports[0])return;
+    let reason=root.querySelector(':scope > .slot-entry')?null:'다른 게임 창의 상태를 확인할 수 없습니다.';
+    if(lock)reason='다른 업데이트가 적용 중입니다.';
+    else{
+      window.dispatchEvent(new CustomEvent('card-duel-update-safety',{detail:{respond:value=>{reason=value;}}}));
+      if(reason===null){
+        root.inert=true;
+        lock={worker:event.source,token:data.token,release:data.release,version:data.version,timer:setTimeout(unlock,14000)};
+      }
+    }
+    event.ports[0].postMessage({token:data.token,reason});
+  });
+  workers.addEventListener('controllerchange',async()=>{
+    if(!lock||reloading)return;
+    const expected={release:lock.release,version:lock.version};
+    try{
+      if(await identity(workers.controller)!==expected.release){unlock();return;}
+      reloading=true;
+      try{sessionStorage.setItem(sessionKey,JSON.stringify(expected));}catch{}
+      location.reload();
+    }catch{unlock();applying=false;render('새 버전 전환을 확인할 수 없습니다. 메인 메뉴에서 다시 확인하세요.');}
+  });
+  workers.ready.then(async()=>{
+    let expected;
+    try{expected=JSON.parse(sessionStorage.getItem(sessionKey));if(expected)sessionStorage.removeItem(sessionKey);}catch{}
+    const confirmed=!expected||build===expected.version&&await identity(workers.controller??registration.active)===expected.release;
+    await check();
+    if(!confirmed)render('업데이트 전환 후 실행 버전이 일치하지 않습니다. 다시 확인하세요.');
+  }).catch(()=>render('설치 상태를 확인할 수 없습니다.'));
+  registration.addEventListener('updatefound',observe);observe();
+  checkButton.addEventListener('click',()=>void check(true));
+  applyButton.addEventListener('click',async()=>{
+    if(!ready||!published||applying)return;
+    applying=true;render('다른 게임 창과 저장 상태 확인 중…');
+    try{
+      const result=await workerCall(ready,{type:'card-duel-apply-update',release:published.release},7000);
+      if(result?.ok){
+        render('검증한 버전을 적용하고 있습니다…');
+        setTimeout(()=>{if(applying){applying=false;unlock();ready=undefined;render('버전 전환을 확인하지 못했습니다. 업데이트를 다시 확인하세요.');}},15000);
+        return;
+      }
+      throw Error(result?.reason??'게임 창과 연결되지 않았습니다.');
+    }catch(error){applying=false;unlock();render(error.message);}
+  });
+  window.addEventListener('card-duel-update-home',()=>void check());
+  window.addEventListener('focus',()=>void check());
+  window.addEventListener('online',()=>void check(false,true));
+  document.addEventListener('visibilitychange',()=>void check());
+  void check();
 }

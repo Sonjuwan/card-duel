@@ -94,3 +94,54 @@ self.addEventListener('fetch',event=>{
     }catch{return new Response('Offline app cache missing. Reopen while connected.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});}
   })());
 });
+
+// A waiting worker can only be promoted by a user request from a controlled
+// game window. Each game window must freeze its lobby and acknowledge first.
+let applying=false;
+async function gameWindows(){
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  return windows.filter(client=>{
+    const address=new URL(client.url);address.search='';address.hash='';
+    return address.href===root||address.href===app;
+  });
+}
+function checkWindow(client,token){
+  return new Promise(resolve=>{
+    const {port1,port2}=new MessageChannel();
+    const finish=result=>{clearTimeout(timer);port1.close();resolve(result);};
+    const timer=setTimeout(()=>finish('다른 게임 창의 상태를 확인할 수 없습니다.'),3000);
+    port1.onmessage=event=>finish(event.data?.token===token?event.data.reason:'다른 게임 창의 상태를 확인할 수 없습니다.');
+    try{client.postMessage({type:'card-duel-prepare-update',release:release.id,version:release.version,token},[port2]);}
+    catch{finish('다른 게임 창의 상태를 확인할 수 없습니다.');}
+  });
+}
+self.addEventListener('message',event=>{
+  const port=event.ports[0],data=event.data;
+  if(!port)return;
+  if(data?.type==='card-duel-release'){
+    port.postMessage({release:release.id,version:release.version});
+    return;
+  }
+  if(data?.type!=='card-duel-apply-update'||data.release!==release.id||applying||
+    self.registration.waiting?.state!=='installed')return;
+  applying=true;
+  event.waitUntil((async()=>{
+    const token=crypto.randomUUID();
+    let windows=[];
+    try{
+      windows=await gameWindows();
+      if(!windows.some(client=>client.id===event.source?.id))throw Error('이 게임 창에서 다시 시도하세요.');
+      const reasons=await Promise.all(windows.map(client=>checkWindow(client,token)));
+      const reason=reasons.find(value=>value!==null);
+      if(reason!==undefined)throw Error(typeof reason==='string'?reason:'게임 저장 상태를 확인할 수 없습니다.');
+      const confirmed=await gameWindows();
+      if(confirmed.some(client=>!windows.some(known=>known.id===client.id)))throw Error('새 게임 창이 열렸습니다. 잠시 후 다시 시도하세요.');
+      // Locks prevent new actions in the verified windows up to controllerchange.
+      port.postMessage({ok:true});
+      await self.skipWaiting();
+    }catch(error){
+      for(const client of windows)client.postMessage({type:'card-duel-cancel-update',token});
+      port.postMessage({reason:error.message});
+    }finally{applying=false;}
+  })());
+});

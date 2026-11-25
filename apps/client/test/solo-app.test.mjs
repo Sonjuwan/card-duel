@@ -23,8 +23,8 @@ test('install package embeds actual game and includes content-checked manifest r
   const standaloneStyle=standalone.match(/<style>([\s\S]*?)<\/style>/);
   assert.match(html,/rel="manifest" href="manifest.webmanifest"/);
   assert.match(html,/src="register.js" defer/);
-  assert.match(html,/<script type="module" src="game\.js"><\/script>/);
-  assert.match(html,/<link rel="stylesheet" href="game\.css">/);
+  assert.match(html,/<script type="module" src="game\.js" integrity="sha256-[^"]+"><\/script>/);
+  assert.match(html,/<link rel="stylesheet" href="game\.css" integrity="sha256-[^"]+">/);
   assert.match(html,/<script id="solo-asset-watch">/);
   assert.ok(html.indexOf('id="solo-asset-watch"')<html.indexOf('href="game.css"'),'resource errors must be observed before art CSS loads');
   assert.ok(html.length<6000,'installable document stays under 6 KB and excludes bundled game/card art');
@@ -40,8 +40,12 @@ test('install package embeds actual game and includes content-checked manifest r
   assert.deepEqual(manifest.icons.map(icon=>icon.sizes),['192x192','512x512']);
   assert.deepEqual(Object.keys(release.files).sort(),[...musicAssets,'index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'].sort());
   for(const [name,digest] of Object.entries(release.files))assert.equal(hash(read(name)),digest);
+  for(const name of ['game.js','game.css','register.js']){
+    assert.ok(html.includes(`integrity="sha256-${Buffer.from(release.files[name],'hex').toString('base64')}"`));
+  }
   for(const icon of manifest.icons){const png=read(icon.src),size=Number(icon.sizes.split('x')[0]);assert.equal(png.readUInt32BE(16),size);assert.equal(png.readUInt32BE(20),size);}
   assert.match(release.id,/^[a-f0-9]{64}$/);
+  assert.deepEqual(JSON.parse(read('version.json')),{version:release.version,release:release.id});
 });
 
 function fakeWorker({corrupt=false,offline=false,script=worker,readAsset=read,sharedStorage,seedOld=true,seedPointer=true}={}){
@@ -299,6 +303,7 @@ test('local-only launcher serves fixed app assets and denies unrelated paths and
     assert.equal(hash(Buffer.from(await resource.arrayBuffer())),release.files[name]);
   }
   assert.equal((await fetch(origin+'/index.html',{method:'HEAD'})).status,200);
+  assert.deepEqual(await (await fetch(origin+'/version.json?check=1')).json(),{version:release.version,release:release.id});
   assert.equal((await fetch(origin+'/README.md')).status,404);assert.equal((await fetch(origin+'/sw.js',{method:'POST'})).status,405);
   const invalidHost=await new Promise((resolve,reject)=>{get(origin+'/',{headers:{Host:'untrusted.invalid'}},response=>{response.resume();resolve(response.statusCode);}).on('error',reject);});
   assert.equal(invalidHost,403);

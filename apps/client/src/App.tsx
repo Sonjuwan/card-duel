@@ -3,7 +3,7 @@ import {OfflineStatus} from './OfflineStatus.tsx';
 import {AudioMixer} from './AudioMixer.tsx';
 import {LobbyDialog} from './lobby-dialog.tsx';
 import { deckManaCurveLabel } from './deck-curve-label.ts';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { HERO_CLASSES,HERO_POWERS,DECK_STYLES,deckCards,practiceDeck,strategicDeck,completePracticeDeck,validateDeck,repairDeck,manaCurve,exportDeckCode,importDeckCode,maxCardCopies } from '../../../packages/engine/src/index.ts';
@@ -265,7 +265,12 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [undoDecks,setUndoDecks]=useState<Deck[]>([]),[draftStored,setDraftStored]=useState(true);
   const editDeck=(next:Deck)=>{if(next.heroClass===deck.heroClass&&next.cards.length===deck.cards.length&&next.cards.every((id,i)=>id===deck.cards[i]))return;setUndoDecks(old=>[...old.slice(-19),deck]);setDeck(next);};
   const undo=()=>{const last=undoDecks.at(-1);if(last){setDeck(last);setUndoDecks(old=>old.slice(0,-1));}};
-  useEffect(()=>{setDraftStored(standalone&&offlineMode==='developer'?saveDeveloperDraft(deck,catalogHash,storage):saveDraft(deck,catalogHash,storage));},[deck,offlineMode]);
+  const persistedDraft=useRef<{deck:Deck;mode:OfflineMode}|undefined>(undefined);
+  useEffect(()=>{
+    const stored=standalone&&offlineMode==='developer'?saveDeveloperDraft(deck,catalogHash,storage):saveDraft(deck,catalogHash,storage);
+    persistedDraft.current=stored?{deck,mode:offlineMode}:undefined;
+    setDraftStored(stored);
+  },[deck,offlineMode,standalone,storage]);
   const [soloSettings,setSoloSettings]=useState<SoloSettings>(()=>{const s=readSoloSettings(storage);return standalone?{...s,engine:'device'}:s;});
   const setSolo=<K extends keyof SoloSettings>(key:K,value:SoloSettings[K])=>setSoloSettings(old=>({...old,[key]:value}));
   const {heroClass:botClass,difficulty,engine:botEngine,deviceMode,style:botStyle,first,animationSpeed}=soloSettings;
@@ -279,7 +284,8 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const growthReady=saveAvailable===undefined?undefined:saveAvailable&&oldRankedPending!==undefined;
   const startSaveProbe=()=>{setSaveAvailable(undefined);setOldRankedPending(undefined);setSaveProbe(n=>n+1);};
   const recheckSave=()=>{if(workerRef.current||busy||saveAvailable===undefined)return;startSaveProbe();};
-  useEffect(()=>{saveSoloSettings(soloSettings,storage);},[soloSettings]);
+  const persistedSettings=useRef<SoloSettings|undefined>(undefined);
+  useEffect(()=>{persistedSettings.current=saveSoloSettings(soloSettings,storage)?soloSettings:undefined;},[soloSettings,storage]);
   useEffect(()=>{if(room){const result=resultFromRoom(room,catalogHash);if(result)setSoloHistory(old=>recordSoloResult(result,storage,old));}},[room?.code,room?.state?.phase]);
   useEffect(()=>{let stopped=false,probe:Worker|undefined,timer:ReturnType<typeof setTimeout>|undefined;
     const close=()=>{if(timer!==undefined)clearTimeout(timer);probe?.terminate();};
@@ -307,6 +313,22 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
 
   const [landscapeMenu,setLandscapeMenu]=useState<HTMLElement|null>(null);
   const screenScrollRef=useRef<HTMLDivElement|null>(null);
+  useLayoutEffect(()=>{
+    if(!standalone)return;
+    const safety=(event:Event)=>{
+      const {respond}=(event as CustomEvent<{respond:(reason:string|null)=>void}>).detail;
+      respond(room||workerRef.current||busyRef.current?'진행 중인 대전을 저장하고 메인 메뉴로 돌아오세요.':
+        lobbyView!=='home'?'다른 게임 화면의 작업을 저장하고 메인 메뉴로 돌아오세요.':
+        saveRetryable||!draftStored||saveAvailable!==true||
+          persistedDraft.current?.deck!==deck||persistedDraft.current.mode!==offlineMode||
+          persistedSettings.current!==soloSettings?'저장 상태를 확인할 수 없습니다. 저장을 확인한 뒤 다시 시도하세요.':null);
+    };
+    window.addEventListener('card-duel-update-safety',safety);
+    return ()=>window.removeEventListener('card-duel-update-safety',safety);
+  },[standalone,room,saveRetryable,draftStored,saveAvailable,lobbyView,offlineMode,deck,soloSettings]);
+  useEffect(()=>{
+    if(standalone&&lobbyView==='home'&&!room)window.dispatchEvent(new Event('card-duel-update-home'));
+  },[standalone,lobbyView,room]);
   const openLobbyView=(next:Exclude<LobbyView,'home'>,restoreFocus=false,cardId?:string)=>{
     setCatalogFocus(cardId);
     setLobbyView(next);screenScrollRef.current?.scrollTo(0,0);
@@ -476,6 +498,8 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
       {standalone&&<nav className="lobby-tabs" aria-label="오프라인 게임 모드"><button className={offlineMode==='player'?'chosen':''} aria-pressed={offlineMode==='player'} disabled={busy} onClick={()=>switchOfflineMode('player')}>유저 모드</button><button className={offlineMode==='developer'?'chosen':''} aria-pressed={offlineMode==='developer'} disabled={busy} onClick={()=>switchOfflineMode('developer')}>개발자 모드</button></nav>}
       {standalone&&localGrowth&&(lossOnExit?lobbyView==='slots':lobbyView==='play')&&(offlineMode==='player'?<OfflineGrowthPanel profile={offlineProfile} growth={localGrowth} deck={deck} busy={busy} ready={growthReady} rankBlocked={oldRankedPending} onDeck={editDeck} onStart={()=>beginLocal(resolveSolo(soloSettings,random32()),deck,true)} onBackup={()=>void growthBackup()} onCombinedBackup={()=>void growthBackup(undefined,true)} onRestore={file=>void growthBackup(file)} onRestoreError={setError}/>:<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>)}
 <div className="saved-duel-panel" aria-label="저장된 솔로 대전">{savedMatch?<><div><strong>{savedMatch.phase==='finished'?'지난 대전 결과':savedMatch.rank!==undefined?'진행 중인 랭크 대전':savedMatch.testRank!==undefined?(savedMatch.testExperiment?'진행 중인 실험 AI 시험':'진행 중인 개발자 시험'):'진행 중인 솔로 대전'}</strong><p>{className[savedMatch.heroClass]} vs {className[savedMatch.opponent]} · {savedMatch.difficulty}단계 · {savedMatch.turn}턴 · {new Date(savedMatch.savedAt).toLocaleString('ko-KR')}</p>{savedMatchConfidence(saveAvailable)&&<small role="status" className="warn">{savedMatchConfidence(saveAvailable)}</small>}</div>{!lossOnExit&&<button disabled={busy||saveAvailable===undefined} onClick={resumeLocal}>{saveAvailable===false?'이어하기 재시도':savedMatch.phase==='finished'?'결과 보기':'이어하기'}</button>}<button disabled={busy||saveAvailable!==true||savedMatch.rank!==undefined&&savedMatch.phase!=='finished'} className="secondary" onClick={discardSaved}>저장 경기 제거</button></>:<small>{saveAvailable===undefined?'저장 경기 확인 중…':saveAvailable?'기기 AI 대전은 자동으로 저장됩니다.':'경기 저장소에 접근할 수 없습니다.'}</small>}{workerFactory&&saveAvailable!==undefined&&(savedMatch||!saveAvailable||standalone&&oldRankedPending===undefined)&&<button type="button" className="secondary" disabled={busy} onClick={recheckSave}>저장소 다시 확인</button>}</div></>;
+  const gameUpdateMenu=standalone&&typeof document!=='undefined'&&document.querySelector('meta[name="card-duel-build"]')&&
+    <button type="button" className="game-update-menu" onClick={()=>window.dispatchEvent(new Event('card-duel-update-open'))}>게임 업데이트</button>;
   return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><h1>Card Duel</h1></div></div><div className="connection">{onReturnToSlots&&!room&&lobbyView==='slots'&&<button type="button" className="secondary slot-return" disabled={busy} onClick={onReturnToSlots}>슬롯 {slot} 변경</button>}<span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
     <div className="screen-content" id="card-duel-screen" ref={screenScrollRef}>
     {!room&&<div className="lobby-settings-entry"><LobbyDialog label="설정" icon="⚙"><AudioMixer/>{standalone&&<OfflineStatus/>}<small>Card Duel v{project.version}</small></LobbyDialog></div>}
@@ -493,7 +517,8 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     <button type="button" data-lobby-tab="quests" onClick={()=>openLobbyView('quests',true)}>📜 퀘스트</button>
     <button type="button" data-lobby-tab="rewards" onClick={()=>openLobbyView('rewards',true)}>🎁 경험치 · 카드 획득</button>
     <button type="button" data-lobby-tab="developer" onClick={()=>openLobbyView('developer',true)}>⚙ 개발자 모드</button>
-  </nav>:<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴"><button type="button" data-lobby-tab="play" onClick={()=>openLobbyView('play',true)}><Sigil kind="warrior"/>대전</button><button type="button" data-lobby-tab="decks" onClick={()=>openLobbyView('decks',true)}><Sigil kind="deck"/>덱 만들기</button><button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button></nav>:<nav className="lobby-page-nav floating-home" aria-label="현재 화면"><button type="button" className="secondary" data-lobby-tab={lobbyView} onClick={()=>{setLobbyView('home');requestAnimationFrame(()=>screenScrollRef.current?.querySelector<HTMLButtonElement>(`[data-lobby-tab="${lobbyView}"]`)?.focus());}} aria-label="메인으로">{lossOnExit?'⌂':'메인으로'}</button>{!lossOnExit&&<strong>{lobbyView==='play'?'대전':lobbyView==='decks'?'덱 만들기':lobbyView==='slots'?'슬롯 · 성장 · 기록':'카드 도감'}</strong>}</nav>}
+    {gameUpdateMenu}
+  </nav>:<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴"><button type="button" data-lobby-tab="play" onClick={()=>openLobbyView('play',true)}><Sigil kind="warrior"/>대전</button><button type="button" data-lobby-tab="decks" onClick={()=>openLobbyView('decks',true)}><Sigil kind="deck"/>덱 만들기</button><button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>{gameUpdateMenu}</nav>:<nav className="lobby-page-nav floating-home" aria-label="현재 화면"><button type="button" className="secondary" data-lobby-tab={lobbyView} onClick={()=>{setLobbyView('home');requestAnimationFrame(()=>screenScrollRef.current?.querySelector<HTMLButtonElement>(`[data-lobby-tab="${lobbyView}"]`)?.focus());}} aria-label="메인으로">{lossOnExit?'⌂':'메인으로'}</button>{!lossOnExit&&<strong>{lobbyView==='play'?'대전':lobbyView==='decks'?'덱 만들기':lobbyView==='slots'?'슬롯 · 성장 · 기록':'카드 도감'}</strong>}</nav>}
       <div className="lobby-account" hidden={lobbyView!=='play'}>{!standalone&&!updateBlocked&&<LobbyDialog label="계정"><AccountPanel deck={deck} onLoad={editDeck} onAuthChange={reconnect} connected={connected&&!busy} maintenance={maintenance} syncEpoch={accountSync} growthEpoch={growthSync} roomEpoch={roomSync} onPlay={begin} onAccount={setAccount}/></LobbyDialog>}</div>
       {lobbyView==='play'&&lossOnExit?<PreviewPlay storage={storage} profile={offlineProfile} deck={deck} ready={growthReady} blocked={oldRankedPending} busy={busy} onDeck={editDeck} onStart={()=>beginLocal(resolveSolo(soloSettings,random32()),deck,true)} onBuild={hero=>{setPreviewEditHero(hero);openLobbyView('decks',true);}} savedMatch={savedMatch} saveAvailable={saveAvailable} onResume={resumeLocal} onForfeitSaved={forfeitSaved}/>:lobbyView==='play'?<div className="play-hub"><div className="play-support">
       {lossOnExit&&offlineMode==='player'&&<SlotDeckLaunch slot={slot} storage={storage} profile={offlineProfile} deck={deck} ready={growthReady} blocked={oldRankedPending} busy={busy} onDeck={editDeck} onManage={()=>openLobbyView('decks',true)} onStart={()=>beginLocal(resolveSolo(soloSettings,random32()),deck,true)}/>}

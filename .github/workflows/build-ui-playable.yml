@@ -153,7 +153,7 @@ jobs:
           mkdir -p pages/ui-preview
           rm -f pages/ui-preview/music-*.mp3
           rm -f pages/ui-preview/index.html pages/ui-preview/game.js pages/ui-preview/game.css pages/ui-preview/register.js pages/ui-preview/sw.js pages/ui-preview/manifest.webmanifest pages/ui-preview/icon-192.png pages/ui-preview/icon-512.png
-          cp candidate/solo-app/{index.html,game.js,game.css,register.js,sw.js,manifest.webmanifest,icon-192.png,icon-512.png} pages/ui-preview/
+          cp candidate/solo-app/{index.html,game.js,game.css,register.js,sw.js,manifest.webmanifest,icon-192.png,icon-512.png,version.json} pages/ui-preview/
           cat > pages/ui-preview/SAFETY.txt <<'TXT'
           Card Duel UI preview uses game code based on v0.297.
           The original live root index.html is v0.298 and remains untouched.

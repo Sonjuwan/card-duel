@@ -9,7 +9,7 @@ const packageDirectory=fileURLToPath(new URL('../../dist/solo-app/',import.meta.
 // Prior published previews bundled these assets and still need integrity verification.
 const legacyMusicAssets=['home','prepare','library','deck','battle-1','battle-2','battle-3','battle-4','battle-5','battle-6','progress','win','loss']
   .map(name=>`music-${name}.mp3`);
-const types={...Object.fromEntries(legacyMusicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','manifest.webmanifest':'application/manifest+json','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','icon-192.png':'image/png','icon-512.png':'image/png'};
+const types={...Object.fromEntries(legacyMusicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','manifest.webmanifest':'application/manifest+json','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','version.json':'application/json; charset=utf-8','icon-192.png':'image/png','icon-512.png':'image/png'};
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function loadSoloRelease(directory=packageDirectory){
   const worker=readFileSync(resolve(directory,'sw.js')).toString('utf8');
@@ -30,6 +30,15 @@ export function loadSoloRelease(directory=packageDirectory){
   for(const name of expected)if(!Object.hasOwn(release.files,name)||sha256(files.get(name))!==release.files[name])throw Error(`Release asset integrity mismatch: ${name}`);
   const template=worker.replace(marker,'const release = __CACHE_SPEC__;');
   if(sha256(JSON.stringify(release.files)+template)!==release.id)throw Error('Release worker integrity mismatch: sw.js');
+  let metadata;
+  try{metadata=readFileSync(resolve(directory,'version.json'));}catch(error){if(error.code!=='ENOENT')throw error;}
+  if(!metadata&&release.version!==undefined)throw Error('Missing published release metadata');
+  if(metadata){
+    const published=JSON.parse(metadata);
+    if(published.release!==release.id||published.version!==release.version||!/^\d+\.\d+\.\d+$/.test(published.version)||
+      !files.get('index.html').includes(`name="card-duel-build" content="${published.version}"`))throw Error('Invalid published release metadata');
+    files.set('version.json',metadata);
+  }
   return {id:release.id,files};
 }
 export function createSoloAppServer(directory=packageDirectory){
@@ -43,7 +52,8 @@ export function createSoloAppServer(directory=packageDirectory){
     const address=server.address();
     if(typeof address!=='object'||!address||req.headers.host!==`127.0.0.1:${address.port}`){res.writeHead(403).end('Local app only');return;}
     if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405,{Allow:'GET, HEAD'}).end();return;}
-    const name=req.url==='/'?'index.html':req.url?.slice(1);
+    const pathname=new URL(req.url,'http://127.0.0.1').pathname;
+    const name=pathname==='/'?'index.html':pathname.slice(1);
     if(!name||!Object.hasOwn(types,name)||!files.has(name)){res.writeHead(404).end('Not found');return;}
     const body=files.get(name);
     res.writeHead(200,{'Content-Type':types[name],'Content-Length':body.length});

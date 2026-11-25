@@ -9,7 +9,7 @@ const standalone=readFileSync('solo-offline.html','utf8');
 const version=JSON.parse(readFileSync('package.json','utf8')).version;
 if(typeof version!=='string'||!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid release version');
 
-const head='<meta name="theme-color" content="#211b19"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png">';
+const head=`<meta name="card-duel-build" content="${version}"><meta name="theme-color" content="#211b19"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png">`;
 const banner=`<aside id="solo-app-banner" hidden role="region" aria-label="오프라인 설치와 업데이트 상태" style="font:12px/1.45 system-ui,sans-serif;color:#e1ca98;background:#31281ff2;margin:0"><strong>Card Duel v${version}</strong> · <span id="solo-app-status" role="status"></span> <button id="solo-app-check-update" type="button" hidden>패치 확인</button> <button id="solo-app-install" type="button" hidden>앱 설치</button> <button id="solo-app-install-help" type="button" hidden>설치 방법</button> · <span id="solo-storage-status" role="status"></span> <button id="solo-storage-protect" type="button" hidden>기기 저장 보호 요청</button> <button id="solo-app-dismiss" type="button" aria-label="상태 알림 닫기">✕</button></aside>`;
 // Status is an overlay, NOT a full-width layout row: otherwise the PWA
 // banner adds height to a 100dvh game and re-enables document scrolling.
@@ -81,15 +81,22 @@ const assetWatch=`<script id="solo-asset-watch">(function(){
 const viewport=standalone.match(/<meta name="viewport" content="([^"]+)"\s*\/>/);
 if(!viewport)throw Error('Could not locate standalone viewport meta');
 const immersiveViewport='<meta name="viewport" content="'+(viewport[1].includes('viewport-fit=cover')?viewport[1]:viewport[1]+',viewport-fit=cover')+'"/>';
-const html=standalone.replace(viewport[0],immersiveViewport).replace(script[0],'<script type="module" src="game.js"></script>').replace(style[0],assetWatch+'<link rel="stylesheet" href="game.css">').replace('</head>',head+shellStyle+'</head>').replace('<div id="root">',banner+'<div id="root">').replace('</body>','<script src="register.js" defer></script></body>');
-if(html===standalone||!html.includes(banner)||!html.includes('game.js')||!html.includes('game.css')||!html.includes('register.js'))throw Error('Could not package standalone game');
 const score=splitSoloMusic(script[1],name=>readFileSync(resolve('apps/client/src/assets/music',name)));
-const files={...score.files,'index.html':Buffer.from(html),'game.js':Buffer.from(score.script),'game.css':Buffer.from(style[1]),'manifest.webmanifest':Buffer.from(JSON.stringify(manifest,null,2)), 'register.js':readFileSync(resolve(source,'register.js')),'icon-192.png':readFileSync(resolve(source,'icon-192.png')),'icon-512.png':readFileSync(resolve(source,'icon-512.png'))};
+const files={...score.files,'game.js':Buffer.from(score.script),'game.css':Buffer.from(style[1]),'manifest.webmanifest':Buffer.from(JSON.stringify(manifest,null,2)), 'register.js':readFileSync(resolve(source,'register.js')),'icon-192.png':readFileSync(resolve(source,'icon-192.png')),'icon-512.png':readFileSync(resolve(source,'icon-512.png'))};
+const integrity=name=>'sha256-'+createHash('sha256').update(files[name]).digest('base64');
+const html=standalone.replace(viewport[0],immersiveViewport)
+  .replace(script[0],`<script type="module" src="game.js" integrity="${integrity('game.js')}"></script>`)
+  .replace(style[0],assetWatch+`<link rel="stylesheet" href="game.css" integrity="${integrity('game.css')}">`)
+  .replace('</head>',head+shellStyle+'</head>').replace('<div id="root">',banner+'<div id="root">')
+  .replace('</body>',`<script src="register.js" defer integrity="${integrity('register.js')}"></script></body>`);
+if(html===standalone||!html.includes(banner)||!html.includes('game.js')||!html.includes('game.css')||!html.includes('register.js'))throw Error('Could not package standalone game');
+files['index.html']=Buffer.from(html);
 const template=readFileSync(resolve(source,'sw-template.js'),'utf8');
 const hashes=Object.fromEntries(Object.entries(files).map(([path,bytes])=>[path,digest(bytes)]));
-const release={id:digest(JSON.stringify(hashes)+template),files:hashes};
+const release={id:digest(JSON.stringify(hashes)+template),version,files:hashes};
 const worker=template.replace('__CACHE_SPEC__',JSON.stringify(release));
 mkdirSync(destination,{recursive:true});
 for(const [name,bytes] of Object.entries(files))writeFileSync(resolve(destination,name),bytes);
 writeFileSync(resolve(destination,'sw.js'),worker);
 console.log(`Offline install package: dist/solo-app (release ${release.id.slice(0,12)})`);
+writeFileSync(resolve(destination,'version.json'),JSON.stringify({version,release:release.id})+'\n');
