@@ -307,10 +307,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .mulligan-card-frame,.mulligan-card-back,.hero-portrait[data-shattered=true],.hero-shard,.hero-crack,.hero-break>i,.reward-reveal>*{animation:none!important}
   .hero-portrait[data-shattered=true]>.hero-emblem,.hero-break{visibility:hidden}
 }
-.game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:has(>.battle-card:is(.is-selected,.is-preview-expanded,:focus-visible)){transform:none!important}
-@media(hover:hover) and (pointer:fine){
-  .game-main .battle:not(.is-dragging) .own-hand .hand-card-slot:hover{transform:none!important}
-}
 .road-cards{position:relative}
 .road-progress{position:absolute;left:10%;right:10%;bottom:27px;height:4px;border-radius:4px;background:linear-gradient(90deg,#e8bc62 var(--road-progress),#786451 var(--road-progress));pointer-events:none}
 .road-marker::before{display:none}
@@ -733,3 +729,5 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .mulligan-deck { position:absolute;right:max(6px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));pointer-events:none }
 .mulligan-deck .deck-stack { width:clamp(17px,5dvh,36px);height:clamp(23px,7dvh,51px) }
 .mulligan-deck .deck-pile { min-height:0 }
+
+.game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card { transform:none!important }

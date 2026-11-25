@@ -47,15 +47,10 @@ test('battle, deck maker and card catalog are actual switched game screens',()=>
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
-test('tapping an unplayable hand card expands its text without committing a card action',()=>{
+test('press-and-hold displays an unplayable hand card without a manual play button',()=>{
   const battle=load('Battle.tsx'),pieces=load('battle-pieces.tsx');
-  assert.match(battle,/const \[peekCardId,setPeekCardId\]=useState<string\|null>\(null\)/);
-  assert.match(battle,/onBlocked=\{\(\)=>setPeekCardId\(previous=>previous===c\.instanceId\?null:c\.instanceId\)\}/);
-  assert.match(battle,/onClick=\{keyboard=>\{setPeekCardId\(null\);const next=selectHandCard/);
-  assert.match(battle,/useEffect\(\(\)=>setPeekCardId\(null\),\[room\.code,s\?\.revision\]\)/);
-  assert.match(pieces,/previewOpen\?' is-preview-expanded'/);
-  assert.match(pieces,/aria-expanded=\{previewOpen\|\|Boolean\(sourceId\?\.startsWith\('card:'\)&&selected\)\|\|undefined\}/);
-  assert.match(shell,/\.hand-card-slot:has\(>\.battle-card\.is-preview-expanded\)>\.battle-card \.card-copy/);
+  assert.doesNotMatch(battle,/setPeekCardId|selected-card-use|selected-card-inspect/);
+  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY/);
 });
 test('battle setup uses a single canvas with secondary records in a dialog',()=>{
   assert.match(app,/lobbyView==='play'&&lossOnExit\?<PreviewPlay/);
