@@ -1,8 +1,8 @@
-# v0.306.0 활성 카탈로그 메커니즘 검사
+# 활성 카탈로그 메커니즘 검사
 
 카탈로그 `v0.23.0.json` 및 엔진 토큰 총 438종. 한 카드가 여러 분류에 포함될 수 있습니다.
 
-선택형과 대상 지정 카드의 개별 회귀 결과는 `node --test packages/engine/test/target-mechanisms.test.ts`에서 카드 ID별로 출력합니다. 해당 검사는 공통 공개 대상 목록, 실제 명령 실행, 마나 부족, 전장 포화, 잘못된 대상, 예약 실행 직전의 대상 소멸 및 AI 후보를 검사합니다. 대표 카드 브라우저 검사는 이와 별도로 실행합니다.
+목록은 `node scripts/report-card-mechanisms.mjs`로 다시 생성합니다. 카드별 대상 지정·선택형 회귀 검사는 `node --test packages/engine/test/target-mechanisms.test.ts`에서 실행합니다.
 
 ## 선택형 · 10종
 
@@ -59,4 +59,3 @@
 ## 기타 구현 카드 · 35종
 
 방벽 구축 (`shield_wall`) · 생명의 기운 (`wild_growth`) · 뿌리 개화 (`root_bloom`) · 사념의 메아리 (`thought_echo`) · 최후의 함성 (`final_stand`) · 칼날 연마 (`weapon_hone`) · 별빛 탄막 (`starlight_barrage`) · 매복의 화살 (`hidden_arrow`) · 마도 연구서 (`arcane_notes`) · 가름 베기 (`twin_cleave`) · 용사의 일격 (`champion_strike`) · 정화의 영역 (`hallowed_ground`) · 가시 발톱 (`thorn_claw`) · 넘치는 생기 (`overflow_bloom`) · 숲의 포효 (`forest_roar`) · 마음의 조각 (`mental_glimpse`) · 정신 파동 (`mind_burst`) · 성광의 물결 (`radiant_wave`) · 밤의 습격 (`night_strike`) · 신속한 임무 (`rapid_mission`) · 쌍발 사격 (`double_volley`) · 흔적 추적 (`tracking_trail`) · 전장의 격노 (`battle_rage`) · 무기 개량 (`weapon_upgrade`) · 맹수의 이빨 (`fanged_bite`) · 칼날 폭발 (`blade_burst`) · 갈래 번개 (`forked_bolt`) · 악마 탐색 (`demon_seek`) · 신의 은총 (`divine_favor`) · 난투 (`brawl`) · 천리안 (`far_sight`) · 마음가짐 (`preparation`) · 응징의 격노 (`avenging_wrath`) · 어둠의 형상 (`shadowform`) · 동전 (`__coin`)
-
