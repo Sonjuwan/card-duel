@@ -754,7 +754,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .hero-emblem .art-hero-warrior { --hero-crop-size:112% auto;--hero-crop-position:50% 8% }
 .game-main .hero-emblem .art-hero-shaman  { --hero-crop-size:114% auto;--hero-crop-position:73% 0% }
 .game-main .hero-emblem .art-hero-rogue   { --hero-crop-size:107% auto;--hero-crop-position:48% 45% }
-.game-main .hero-emblem .art-hero-paladin { --hero-crop-size:111% auto;--hero-crop-position:69% 0% }
+.game-main .hero-emblem .art-hero-paladin { --hero-crop-size:117% auto;--hero-crop-position:65% 0% }
 .game-main .hero-emblem .art-hero-hunter  { --hero-crop-size:130% auto;--hero-crop-position:70% 4% }
 .game-main .hero-emblem .art-hero-druid   { --hero-crop-size:118% auto;--hero-crop-position:56% 0% }
 .game-main .hero-emblem .art-hero-warlock { --hero-crop-size:129% auto;--hero-crop-position:100% 2% }
