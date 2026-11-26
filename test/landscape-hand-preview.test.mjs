@@ -33,5 +33,5 @@ test('mobile hand reserves a dedicated strip for mana and retains the battlefiel
 test('keyboard hand inspection uses the same focus and blur behavior as other cards',()=>{
   const source=read('../apps/client/src/battle-pieces.tsx');
   assert.match(source,/matches\(':focus-visible'\)\)hover.start/);
-  assert.match(source,/onBlur=\{hover.clear\}/);
+  assert.match(source,/onBlur=\{hover.leave\}/);
 });
