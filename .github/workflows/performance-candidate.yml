@@ -29,6 +29,7 @@ jobs:
       - run: npm test
       - run: npm run test:render
       - run: node scripts/performance-touch-geometry.mjs
+      - run: node apps/client/test/build-solo-app.mjs
       - run: npm run test:package-pwa
   browser:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
