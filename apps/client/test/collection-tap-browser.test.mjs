@@ -17,7 +17,7 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'카드 도감',exact:true}).tap();
-  const sizes=[[640,300],[700,320],[780,360],[844,390],[1024,600],[1024,768]];
+  const sizes=[[640,300],[700,320],[780,360],[844,390],[1024,600],[1024,768],[1920,850]];
   mkdirSync('ui-evidence',{recursive:true});
   async function checkWorkspace(mode,width,height){
     await page.locator('.game-toast').waitFor({state:'detached'});
@@ -59,6 +59,8 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
     const msg=JSON.stringify({mode,width,height,...geometry});
     await page.screenshot({path:'ui-evidence/'+mode+'-'+width+'x'+height+'.png'});
     assert.equal(geometry.count,8,msg);assert.ok(geometry.book.height>100,msg);
+    assert.ok(Math.max(...geometry.cardRects.map(r=>r.width))-Math.min(...geometry.cardRects.map(r=>r.width))<2,msg);
+    assert.ok(geometry.cardRects.every(r=>r.height/r.width>1.5&&r.height/r.width<1.6),msg);
     assert.deepEqual(geometry.badMana,[],msg);assert.equal(geometry.pageStatusVisible,true,msg);assert.equal(geometry.saveTextFits,true,msg);
     assert.deepEqual(geometry.badCards,[],msg);assert.deepEqual(geometry.badTabs,[],msg);assert.deepEqual(geometry.badEdges,[],msg);assert.deepEqual(geometry.badControls,[],msg);
     assert.equal(geometry.overlap,false,msg);assert.equal(geometry.toolbarAbove,true,msg);assert.equal(geometry.order,true,msg);assert.equal(geometry.duplicateCount,false,msg);

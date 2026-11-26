@@ -1038,3 +1038,28 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .arena-field .hero-zone .hero-center{min-height:0}
   .game-main .duel-screen .arena-field .hero-zone .hero-label{display:none}
 }
+
+@media (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen .arena-field>.battle-divider{
+    position:absolute!important;top:37%!important;left:12%!important;right:16%!important;
+    height:8px!important;min-height:8px!important;transform:translateY(-50%);pointer-events:auto;z-index:2;
+    opacity:.7;
+  }
+  .game-main .duel-screen .arena-field>.battle-divider>*{pointer-events:none}
+  .game-main .duel-screen .own-hand .battle-hand{
+    inset:auto max(72px,calc(env(safe-area-inset-right) + 70px)) 0 max(80px,calc(env(safe-area-inset-left) + 78px))!important;
+    width:auto!important;box-sizing:border-box;
+  }
+  .game-main .duel-screen .arena-right>.resource-block{width:54px!important;max-width:54px;min-width:0;right:3px!important;box-sizing:border-box}
+  .game-main .duel-screen .arena-right>.resource-block .deck-pile{max-width:100%;min-width:0;padding:0!important}
+  .game-main .duel-screen .own-mana{top:23dvh!important}
+  .game-main .duel-screen .own-mana .mana-crystal{width:3.6dvh;height:3.6dvh}
+  .game-main .duel-screen .arena-field .own-hand .battle-hand .hand-card-slot{width:100%!important;min-width:0!important;height:auto!important;max-height:calc(25dvh - 6px)!important;box-sizing:border-box}
+  .game-main .duel-screen .arena-field .own-hand .battle-hand .hand-card-slot>.battle-card{box-sizing:border-box;max-width:100%!important;max-height:100%!important}
+}
+@media (orientation:landscape) and (min-height:541px){
+  .game-main .duel-screen .arena-field>.battle-divider{height:100%;min-height:0;pointer-events:auto}
+  .game-main .duel-screen .arena-field>.battle-divider>*{pointer-events:none}
+  .game-main .duel-screen .arena-field .hand-heading{display:none!important}
+  .game-main .duel-screen .arena-field .own-hand .battle-hand{max-width:none!important}
+}

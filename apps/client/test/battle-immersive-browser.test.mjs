@@ -195,7 +195,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     assert.equal(targets.length,10);
     const resourceGeometry=await page.evaluate(()=>{
       const rect=el=>el.getBoundingClientRect();
-      const boxes=[...document.querySelectorAll('.battle-mana,.deck-pile,.folded-hand')].map(rect);
+      const boxes=[...document.querySelectorAll('.battle-mana,.deck-pile,.folded-hand')].filter(el=>el.getClientRects().length).map(rect);
       const cards=[...document.querySelectorAll('.own-hand .battle-card')].map(rect);
       const overlap=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
       return {cards:cards.every(card=>boxes.every(resource=>!overlap(card,resource))),
@@ -530,7 +530,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await pinned.waitFor();
   await page.waitForTimeout(1200);
   assert.equal(await pinned.isVisible(),true,'touch inspection must survive pointer release');
-  await page.locator('.battle-divider').tap({force:true});
+  await page.locator('.battle-divider').tap({position:{x:12,y:3}});
   await pinned.waitFor({state:'detached'});
   if(profileCombat){
     await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
@@ -597,7 +597,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   const shieldCard=page.locator('[data-action-source="card:shield-card"]');
   await drag(shieldCard,page.locator('.enemy-board'));
   await anchor.waitFor();
-  await drag(anchor,wolf);
+  await wolf.tap();
   await page.waitForFunction(()=>document.querySelector('[data-preview-minion="test-wolf"]')?.classList.contains('has-shield'));
   const chosenSpell=page.getByRole('button',{name:'주문 대상 지정',exact:true});
   for(const [index,id] of ['wrath-3','wrath-1'].entries()){
@@ -605,7 +605,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
     const choice=page.getByRole('dialog',{name:'카드 효과 선택'});
     await choice.getByRole('button',{name:index===0?'피해 3':'피해 1 + 드로우',exact:true}).tap();
     await chosenSpell.waitFor();
-    await drag(chosenSpell,enemyUnit);
+    if(index===0)await enemyUnit.tap();else await drag(chosenSpell,enemyUnit);
     await page.waitForFunction(({id,index})=>window.combatActions.some(action=>action.instanceId===id&&action.choice===index),{id,index});
   }
   await page.waitForFunction(()=>!document.querySelector('[data-preview-minion="test-enemy"]'));

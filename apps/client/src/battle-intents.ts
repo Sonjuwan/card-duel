@@ -76,7 +76,8 @@ export function projectBattleIntents(base:PlayerView,seat:PlayerId,catalog:Catal
     if(effect.condition)return;
     if(effect.kind==='heroAttack')self.heroAttack+=effect.amount;
     if(effect.kind==='armor')self.armor+=effect.amount;
-    if(effect.kind==='equip'){self.weapon={attack:effect.attack,durability:effect.durability,cardId:effect.cardId};self.heroAttacksRemaining=Math.max(0,1-(self.heroAttacksMadeThisTurn??0));}
+    if(effect.kind==='equip'){const w=effect.cardId?catalog[effect.cardId]:undefined;self.weapon={attack:w?.kind==='weapon'?w.attack:effect.attack,durability:w?.kind==='weapon'?w.durability:effect.durability,...(effect.cardId?{cardId:effect.cardId}:{})};self.heroAttacksRemaining=Math.min(self.heroAttacksRemaining,Math.max(0,(w?.kind==='weapon'&&w.windfury?2:1)-(self.heroAttacksMadeThisTurn??0)));}
+    if(effect.kind==='buffWeapon'){if(self.weapon)self.weapon={...self.weapon,attack:self.weapon.attack+effect.attack,durability:self.weapon.durability+effect.durability};else if(effect.equipIfMissing)self.weapon={...effect.equipIfMissing};}
   };
   for(const action of actions){
     if(validateBattleIntent(projected,seat,catalog,action))continue;
