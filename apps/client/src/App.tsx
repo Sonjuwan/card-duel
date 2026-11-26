@@ -141,7 +141,8 @@ function PageControls({page,pages,onPage}:{page:number;pages:number;onPage:(page
   </div>;
 }
 
-function CardBrowser({initialClass='all',focusCardId,unreadIds=[],onViewed,ownedCards,developer=false}:{focusCardId?:string;initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;ownedCards?:readonly string[];developer?:boolean}){
+const EMPTY_UNREAD_IDS:readonly string[]=[];
+function CardBrowser({initialClass='all',focusCardId,unreadIds=EMPTY_UNREAD_IDS,onViewed,ownedCards,developer=false}:{focusCardId?:string;initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;ownedCards?:readonly string[];developer?:boolean}){
   const classic=useContext(ClassicNamesContext),[scope,setScope]=useState(initialClass),[set,setSet]=useState<CardSetFilter|'token'>('all'),[query,setQuery]=useState(''),[rarity,setRarity]=useState('all'),[kind,setKind]=useState('all'),[cost,setCost]=useState('all'),[newOnly,setNewOnly]=useState(false),[page,setPage]=useState(0),[inspected,setInspected]=useState<Inspectable|null>(null);
   const detailDialog=useRef<HTMLDialogElement>(null);
   const openDetail=(card:Card)=>{
@@ -149,17 +150,19 @@ function CardBrowser({initialClass='all',focusCardId,unreadIds=[],onViewed,owned
     onViewed?.(card.id);
     showCollectionDetail(detailDialog.current,null);
   };
-  const all=useMemo(()=>{const owned=ownedCards?new Set(ownedCards):null;return sortCardsForDisplay(Object.values(catalog).filter(c=>developer||maxCardCopies(c)>0&&(!owned||owned.has(c.id))),classic).sort((a,b)=>Number(unreadIds.includes(b.id))-Number(unreadIds.includes(a.id)));},[classic,ownedCards,unreadIds,developer]);
+  const unread=useMemo(()=>new Set(unreadIds),[unreadIds]);
+  const all=useMemo(()=>{const owned=ownedCards?new Set(ownedCards):null;return sortCardsForDisplay(Object.values(catalog).filter(c=>developer||maxCardCopies(c)>0&&(!owned||owned.has(c.id))),classic).sort((a,b)=>Number(unread.has(b.id))-Number(unread.has(a.id)));},[classic,ownedCards,unread,developer]);
   const [tribe,setTribe]=useState('all');
-  const tribes=[...new Set(all.flatMap(c=>c.kind==='minion'&&c.tribe!=='none'?[c.tribe]:[]))];
-  const shown=useMemo(()=>{const terms=cardSearchTerms(query);return all.filter(c=>matchesCardSet(c,set)&&(rarity==='all'||(c.kind==='coin'?'basic':c.rarity)===rarity)&&(kind==='all'||c.kind===kind)&&(tribe==='all'||c.kind==='minion'&&c.tribe===tribe)&&(cost==='all'||(cost==='10plus'?c.cost>=10:c.cost===Number(cost)))&&(!newOnly||unreadIds.includes(c.id))&&matchesCardSearch(c,terms));},[all,set,rarity,kind,tribe,cost,query,newOnly,unreadIds]);
+  const tribes=useMemo(()=>[...new Set(all.flatMap(c=>c.kind==='minion'&&c.tribe!=='none'?[c.tribe]:[]))],[all]);
+  const shown=useMemo(()=>{const terms=cardSearchTerms(query);return all.filter(c=>matchesCardSet(c,set)&&(rarity==='all'||(c.kind==='coin'?'basic':c.rarity)===rarity)&&(kind==='all'||c.kind===kind)&&(tribe==='all'||c.kind==='minion'&&c.tribe===tribe)&&(cost==='all'||(cost==='10plus'?c.cost>=10:c.cost===Number(cost)))&&(!newOnly||unread.has(c.id))&&matchesCardSearch(c,terms));},[all,set,rarity,kind,tribe,cost,query,newOnly,unread]);
   const size=useBookSize();
-  const groups=bookClasses.map(key=>({key,items:shown.filter(card=>(card.kind==='coin'?'neutral':card.class)===key)}));
-  const collectibleCount=all.filter(card=>maxCardCopies(card)>0).length;
+  const groups=useMemo(()=>bookClasses.map(key=>({key,items:shown.filter(card=>(card.kind==='coin'?'neutral':card.class)===key)})),[shown]);
+  const collectibleCount=useMemo(()=>all.filter(card=>maxCardCopies(card)>0).length,[all]);
   const filteredCount=scope==='all'?shown.length:groups.find(group=>group.key===scope)?.items.length??0;
-  const spread=groupedCollection(groups,0,size);
+  const spread=useMemo(()=>groupedCollection(groups,0,size),[groups,size]);
   const first=scope==='all'?0:spread.spreads.findIndex(item=>item.key===scope);
-  const result=groupedCollection(groups,Math.max(0,first)+page,size);
+  const selectedPage=collectionPage(spread.spreads,Math.max(0,first)+page,1);
+  const result={page:selectedPage.page,pages:selectedPage.pages,spreads:spread.spreads,current:spread.spreads[selectedPage.page]};
   const active=scope==='all'?(result.current?.key??'warrior'):scope;
   const focused=useRef<string|undefined>(undefined);
   useEffect(()=>{if(!focusCardId||focused.current===focusCardId)return;const target=spread.spreads.findIndex(p=>p.items.some(c=>c.id===focusCardId));if(target<0)return;focused.current=focusCardId;setScope('all');setPage(target);},[focusCardId,spread]);
@@ -291,7 +294,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   useEffect(()=>{persistedSettings.current=saveSoloSettings(soloSettings,storage)?soloSettings:undefined;},[soloSettings,storage]);
   useEffect(()=>{if(room){const result=resultFromRoom(room,catalogHash);if(result)setSoloHistory(old=>recordSoloResult(result,storage,old));}},[room?.code,room?.state?.phase]);
   useEffect(()=>{let stopped=false,probe:Worker|undefined,timer:ReturnType<typeof setTimeout>|undefined;
-    const close=()=>{if(timer!==undefined)clearTimeout(timer);probe?.terminate();};
+    const close=()=>{if(timer!==undefined){clearTimeout(timer);timer=undefined;}if(probe){probe.onmessage=null;probe.onerror=null;probe.terminate();probe=undefined;}};
     const finish=(data?:Extract<LocalResponse,{type:'saveInfo'}>)=>{if(stopped)return;stopped=true;close();if(workerRef.current)return;setSaveAvailable(data?.available??false);setSavedMatch(old=>reconcileSaveProbe(old,data));if(standalone){if(data?.profile)setOfflineProfile(old=>!old||data.profile!.revision>=old.revision?data.profile:old);setOldRankedPending(data?.otherActiveRanked);}};
     try{if(!workerFactory)throw Error('Missing worker factory');probe=workerFactory();probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{if(data.type==='saveInfo')finish(data);else if(data.type==='error')finish();};probe.onerror=()=>finish();timer=setTimeout(()=>finish(),5000);probe.postMessage({type:'inspectSave',catalogHash,...(standalone?{catalog}:{}),} satisfies LocalRequest);}catch{finish();}
     return()=>{stopped=true;close();};
