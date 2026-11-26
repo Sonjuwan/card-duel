@@ -1,0 +1,126 @@
+name: Publish verified Card Duel v0.325.0
+on:
+  pull_request:
+    branches: [ui/followup-20261125]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: card-duel-pages-release-v0325
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release/v0.325.0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '9afed8991578a36bd17f91d26d1a8b5882cfc6ac'
+          path: previous-pages
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Validate previous public release
+        run: |
+          node apps/cli/serve-solo-app.mjs --verify previous-pages/ui-preview
+          node --input-type=module -e 'import assert from "node:assert/strict";import {readFileSync} from "node:fs";assert.equal(JSON.parse(readFileSync("previous-pages/ui-preview/version.json")).version,"0.324.0");'
+      - name: Install browser dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Full release gate with actual previous public PWA
+        env:
+          CARD_DUEL_PREVIOUS_PWA: ${{ github.workspace }}/previous-pages/ui-preview
+        run: npm run build:playable-local -- "$RUNNER_TEMP/playable-release"
+      - name: Additional active combat and unused binding checks
+        run: |
+          node scripts/performance-source-audit.mjs --strict
+          node scripts/performance-collection-ui.ts
+          node --test apps/client/test/battle-immersive-browser.test.mjs apps/client/test/collection-tap-browser.test.mjs
+          node apps/cli/serve-solo-app.mjs --verify dist/solo-app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-v0.325.0-pwa
+          path: dist/solo-app/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-v0.325.0-installers
+          path: ${{ runner.temp }}/playable-release/
+          if-no-files-found: error
+          retention-days: 30
+  publish:
+    needs: verify
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release/v0.325.0'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: '9afed8991578a36bd17f91d26d1a8b5882cfc6ac'
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-v0.325.0-pwa
+          path: ${{ runner.temp }}/verified-app
+      - name: Publish only verified assets at existing installed-app path
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='9afed8991578a36bd17f91d26d1a8b5882cfc6ac'
+          test "$(git ls-remote origin refs/heads/gh-pages | cut -f1)" = "$expected"
+          test "$(git rev-parse HEAD)" = "$expected"
+          node --input-type=module -e '
+            import {readFileSync,readdirSync} from "node:fs";
+            import {join} from "node:path";
+            import {createHash} from "node:crypto";
+            import assert from "node:assert/strict";
+            const dir=process.env.RUNNER_TEMP+"/verified-app";
+            const read=n=>readFileSync(join(dir,n));
+            const sw=read("sw.js").toString();
+            const marker=/^const release = (.+);$/m;
+            const spec=JSON.parse(sw.match(marker)[1]);
+            const meta=JSON.parse(read("version.json"));
+            assert.equal(meta.version,"0.325.0");assert.equal(spec.version,meta.version);assert.equal(spec.id,meta.release);
+            const hash=b=>createHash("sha256").update(b).digest("hex");
+            assert.equal(hash(JSON.stringify(spec.files)+sw.replace(marker,"const release = __CACHE_SPEC__;")),spec.id);
+            const names=Object.keys(spec.files);
+            assert.deepEqual(readdirSync(dir).sort(),[...names,"sw.js","version.json"].sort());
+            for(const name of names){assert.match(name,/^[a-zA-Z0-9._-]+$/);assert.equal(hash(read(name)),spec.files[name]);}
+            assert.ok(read("index.html").includes("name=\"card-duel-build\" content=\"0.325.0\""));
+            console.log("Verified immutable release",meta.release);
+          '
+          cp -a "$RUNNER_TEMP/verified-app/." ui-preview/
+          git add -- ui-preview/
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Publish verified Card Duel v0.325.0 optimization release at /ui-preview/'
+          git push origin HEAD:refs/heads/gh-pages
+          echo "Published Pages branch commit: $(git rev-parse HEAD)"
+          cat ui-preview/version.json
+      - name: Verify public site has received the exact release
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(cat ui-preview/version.json)"
+          for attempt in $(seq 1 36); do
+            actual="$(curl -fsS --max-time 15 "https://sonjuwan.github.io/card-duel/ui-preview/version.json?release-check=$(date +%s)" || true)"
+            if [ "$actual" = "$expected" ]; then
+              curl -fsS --max-time 20 "https://sonjuwan.github.io/card-duel/ui-preview/sw.js?release-check=$(date +%s)" -o "$RUNNER_TEMP/public-sw.js"
+              if cmp "$RUNNER_TEMP/public-sw.js" ui-preview/sw.js; then echo "Public site verified: $actual"; exit 0; fi
+            fi
+            sleep 10
+          done
+          echo "::error::Pages branch updated but public CDN has not confirmed this release. Do not report public deployment complete."
+          exit 1
