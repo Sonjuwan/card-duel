@@ -26,13 +26,14 @@ jobs:
       - run: npm run verify:release-baseline
       - run: npm run typecheck
       - run: npm run build:offline
+      - run: node scripts/performance-source-audit.mjs
+      - run: node --test test/game-styles.test.mjs
       - run: npm test
       - run: npm run test:render
-      - run: node --test test/game-styles.test.mjs
-      - run: node scripts/performance-source-audit.mjs
       - run: node scripts/performance-touch-geometry.mjs
       - run: node apps/client/test/build-solo-app.mjs
       - run: npm run test:package-pwa
+      - run: node --test apps/client/test/solo-app.test.mjs
   browser:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
     runs-on: ubuntu-latest
@@ -232,7 +233,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: '60c64b9567ee5a28ffcb8136ab3cf67f0b7f1d89'
+          ref: 'b6d1f305caa333fda4150882ec8216543a8c362b'
           path: perf-drag
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -244,14 +245,14 @@ jobs:
         working-directory: perf-drag
       - run: npx playwright install --with-deps chromium
       - name: Verify scoped overlay positions and input commands
-        run: CARD_DUEL_SOLO_APP_DIST_DIR="$PWD/perf-drag/dist/solo-app" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+        run: CARD_DUEL_SOLO_APP_DIST_DIR="$PWD/dist/solo-app" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
       - name: Compare local drag writes under repeated active combat
         shell: bash
         run: |
           for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
             for kind in $order; do
               dist="$PWD/dist/solo-app"
-              if [ "$kind" = candidate ]; then dist="$PWD/perf-drag/dist/solo-app"; fi
+              if [ "$kind" = baseline ]; then dist="$PWD/perf-drag/dist/solo-app"; fi
               echo "DRAG SCOPE $kind"
               CARD_DUEL_PROFILE_COMBAT=1 CARD_DUEL_SOLO_APP_DIST_DIR="$dist" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
             done
