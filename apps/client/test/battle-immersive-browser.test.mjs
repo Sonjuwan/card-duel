@@ -268,6 +268,12 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   const cards=JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8'));
   await page.addInitScript(deck=>{
     window.touchActions=[];
+    window.dragHitReads=null;
+    const elementFromPoint=document.elementFromPoint.bind(document);
+    document.elementFromPoint=(x,y)=>{
+      if(window.dragHitReads!==null)window.dragHitReads++;
+      return elementFromPoint(x,y);
+    };
     const post=Worker.prototype.postMessage;
     Worker.prototype.postMessage=function(data,...rest){
       if(data?.type==='act')window.touchActions.push(data.action.type);
@@ -311,7 +317,16 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   };
   await hand.tap();
   const enemyBoard=page.locator('.enemy-board');
-  await drag(first,enemyBoard);
+  await page.evaluate(()=>{window.dragHitReads=0;});
+  await drag(first,enemyBoard,async()=>{
+    const reads=await page.evaluate(()=>{
+      const count=window.dragHitReads;
+      window.dragHitReads=null;
+      return count;
+    });
+    assert.ok(reads>0&&reads<=5,'each delivered drag move needs at most one hit test');
+    t.diagnostic('Hit tests across five minion drag moves: '+reads);
+  });
   const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
   await summon.waitFor();
   assert.equal(await hand.getAttribute('aria-expanded'),'true');

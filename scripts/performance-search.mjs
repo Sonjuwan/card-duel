@@ -6,7 +6,9 @@ const root=resolve(process.argv[2]??'.');
 const source=pathToFileURL(root+'/apps/client/src/');
 const data=await import(new URL('data.ts',source));
 const {matchesCardSearch,cardSearchTerms}=await import(new URL('card-names.ts',source));
-data.loadPublicCatalog(JSON.parse(readFileSync(root+'/data/cards/v0.23.0.json','utf8')),'a'.repeat(64));
+const catalogDirectory=pathToFileURL(root+'/data/cards/');
+const {file}=JSON.parse(readFileSync(new URL('active.json',catalogDirectory),'utf8'));
+data.loadPublicCatalog(JSON.parse(readFileSync(new URL(file,catalogDirectory),'utf8')),'a'.repeat(64));
 const cards=Object.values(data.catalog);
 const queries=['도발','전투의 함성','피해 2','죽음의 메아리','마나','fire-ball','토템'].map(cardSearchTerms);
 

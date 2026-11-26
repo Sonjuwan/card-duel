@@ -482,7 +482,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     const projectedIndex=right?rules.self.board.findIndex(unit=>unit.instanceId===right.instanceId):-1;
     return projectedIndex>=0?projectedIndex:Math.min(nearest,rules.self.board.length);
   };
-  const pointerDescription=(hit:Element|null,x:number,intent:DragIntent,touchY?:number):TouchHit=>{
+  const pointerDescription=(hit:Element|null,x:number,intent:DragIntent,plan:Intent|null,touchY?:number):TouchHit=>{
     const minionId=hit?.closest<HTMLElement>('[data-preview-minion]')?.dataset.previewMinion,hero=hit?.closest('.hero-portrait')?(hit.closest('.enemy-hero-zone')?'enemy':'self'):undefined,slot=pointerSlotAt(hit,x,intent);
     const description:TouchHit={minionId,hero,slot,ownBoard:!!hit?.closest('.friendly-board'),enemyBoard:!!hit?.closest('.enemy-board,.battle-divider'),field:!!hit?.closest('.arena-field'),hand:!!hit?.closest('.own-hand,.hidden-hand'),control:!!hit?.closest('button,input,select,textarea,summary,[role="button"]')&&!minionId&&!hero&&slot===undefined};
     // Only physical touch drags of attacks/targeted spells get a small
@@ -490,7 +490,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     // insertion retain their original semantics.
     const card=intent.kind==='card'?catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']:undefined;
     if(touchY===undefined||!description.field||description.hand||description.control||minionId||hero||slot!==undefined||intent.kind==='card'&&card?.kind!=='spell')return description;
-    const plan=planDrag(rules,seat,catalog,intent,boardPosition),legal=targetsFor(rules,seat,catalog,plan?.selection??null),field=hit?.closest('.arena-field');
+    const legal=targetsFor(rules,seat,catalog,plan?.selection??null),field=hit?.closest('.arena-field');
     if(!legal.length||!field)return description;
     const fieldRect=field.getBoundingClientRect(),target=nearestTouchTarget(x,touchY,[...field.querySelectorAll<HTMLElement>('.battle-minion,.hero-portrait')].flatMap(el=>{
       const id=el.dataset.previewMinion,zone=el.closest('.minion-row,.hero-zone');if(!zone)return [];
@@ -501,8 +501,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     return target?.kind==='minion'?{...description,minionId:target.instanceId}:target?.kind==='hero'?{...description,hero:target.player===seat?'self':'enemy'}:description;
   };
   const pointerPlan=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{
-    const description=pointerDescription(hit,x,d.intent,touchY);
     const plan=planDrag(rules,seat,catalog,d.intent,boardPosition);
+    const description=pointerDescription(hit,x,d.intent,plan,touchY);
     const spell=plan?.selection?.kind==='card'&&selectionCard(rules,catalog,plan.selection)?.kind==='spell';
     const result=spell&&!castRef.current
       ?{intent:null,feedback:'cancel' as const}
@@ -512,12 +512,13 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   };
   const updatePointerFeedback=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{const plan=pointerPlan(hit,x,d,touchY);setTouchSlot(plan.slot);setDropTarget(old=>old&&plan.target&&sameTarget(old,plan.target)?old:plan.target);setDropFeedback(plan.feedback);return plan;};
   const edgeDelta=(row:HTMLElement,x:number,y:number,elapsed=16)=>{
-    const rect=row.getBoundingClientRect();if(row.dataset.scrollable!=='true'||y<Math.max(0,rect.top)||y>Math.min(document.documentElement.clientHeight,rect.bottom))return 0;
+    if(row.dataset.scrollable!=='true')return 0;
+    const rect=row.getBoundingClientRect();if(y<Math.max(0,rect.top)||y>Math.min(document.documentElement.clientHeight,rect.bottom))return 0;
     return boardEdgePanDelta(x,Math.max(0,rect.left),Math.min(document.documentElement.clientWidth,rect.right),row.scrollLeft,row.scrollWidth-row.clientWidth,elapsed);
   };
-  const queueEdgePan=(x:number,y:number,d:DragState)=>{
+  const queueEdgePan=(x:number,y:number,d:DragState,hit:Element|null)=>{
     const intent=d.intent,card=intent.kind==='card'?catalog[s.self.hand.find(c=>c.instanceId===intent.id)?.cardId??'']:undefined;
-    const row=card?.kind==='minion'?document.elementFromPoint(x,y)?.closest<HTMLElement>('.friendly-minions'):undefined;
+    const row=card?.kind==='minion'?hit?.closest<HTMLElement>('.friendly-minions'):undefined;
     const direction=row?Math.sign(edgeDelta(row,x,y)):0;if(!row||!direction){stopEdgePan();return;}
     const live=edgePanRef.current;
     if(live&&live.row===row&&live.drag===d&&live.direction===direction){live.x=x;live.y=y;live.refresh=()=>updatePointerFeedback(document.elementFromPoint(live.x,live.y),live.x,d,live.y);return;}
@@ -548,8 +549,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
       if(next.drag.intent.kind==='card')setTouchGhost(next.drag.intent.id);
     }
     dragPointer(e.clientX,e.clientY,next.drag);
-    updatePointerFeedback(document.elementFromPoint(e.clientX,e.clientY),e.clientX,next.drag,e.clientY);
-    queueEdgePan(e.clientX,e.clientY,next.drag);
+    const hit=document.elementFromPoint(e.clientX,e.clientY);
+    updatePointerFeedback(hit,e.clientX,next.drag,e.clientY);
+    queueEdgePan(e.clientX,e.clientY,next.drag,hit);
     e.preventDefault();
   };
   const returnTouchCard=(arena:HTMLDivElement,intent:DragIntent)=>{
