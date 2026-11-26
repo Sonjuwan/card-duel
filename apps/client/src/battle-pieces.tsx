@@ -164,18 +164,18 @@ export function WeaponSlot({player,catalog,onInspect}:{player:PublicPlayer;catal
   const info=weapon&&card?{card,weapon}:null,hover=useCardHover(info),inspect=()=>{if(info)onInspect?.(info);};
   return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{inspect();if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.leave} {...hover.touchProps} onPointerDown={e=>{inspect();hover.touchProps.onPointerDown(e);}} onFocus={e=>{inspect();if(card)hover.start(e.currentTarget);}} onBlur={hover.leave} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack">{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
 }
-export function ManaDisplay({player,compact=false,charging=false}:{player:PublicPlayer;compact?:boolean;charging?:boolean}){
-  return <ManaReadout mana={player.mana} maxMana={player.maxMana} lockedMana={player.lockedMana} pendingOverload={player.pendingOverload} compact={compact} charging={charging}/>;
+export function ManaDisplay({player,compact=false,charging=false,previewCost}:{player:PublicPlayer;compact?:boolean;charging?:boolean;previewCost?:number}){
+  return <ManaReadout mana={player.mana} maxMana={player.maxMana} lockedMana={player.lockedMana} pendingOverload={player.pendingOverload} compact={compact} charging={charging} previewCost={previewCost}/>;
 }
-const ManaReadout=memo(function ManaReadout({mana,maxMana,lockedMana,pendingOverload,compact,charging}:Pick<PublicPlayer,'mana'|'maxMana'|'lockedMana'|'pendingOverload'>&{compact:boolean;charging:boolean}){
+const ManaReadout=memo(function ManaReadout({mana,maxMana,lockedMana,pendingOverload,compact,charging,previewCost}:Pick<PublicPlayer,'mana'|'maxMana'|'lockedMana'|'pendingOverload'>&{compact:boolean;charging:boolean;previewCost?:number}){
   const unlocked=Math.max(0,maxMana-lockedMana),extra=Math.max(0,mana-unlocked);
   const slots=Math.min(10,Math.max(0,maxMana+extra));
   const gem=(i:number)=>i>=slots?'future':i>=unlocked&&i<maxMana?'locked':i<Math.min(mana,unlocked)||i>=maxMana&&i<maxMana+extra?'filled':'spent';
   const spent=Math.max(0,unlocked-Math.min(mana,unlocked));
   const resourceLabel=`마나 ${mana}/${maxMana}, 사용한 마나 ${spent}${lockedMana?`, 잠긴 마나 ${lockedMana}`:''}${extra?`, 추가 마나 ${extra}`:''}${pendingOverload?`, 다음 턴 과부하 ${pendingOverload}`:''}`;
-  return <div className={`mana-display${compact?' compact':''}`} data-charging={charging||undefined} role="group" aria-label={resourceLabel} title={resourceLabel}>
-    <span className="mana-number"><span className="mana-jewel" aria-hidden="true"/>{mana}<small>/{maxMana}</small></span>
-    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=>{const state=gem(i);return <span key={i} className={`mana-crystal ${state}`}>{state==='locked'?'🔒':''}</span>;})}</span>
+  return <div className={`mana-display${compact?' compact':''}`} data-charging={charging||undefined} data-preview-insufficient={previewCost!==undefined&&previewCost>mana||undefined} role="group" aria-label={resourceLabel} title={resourceLabel}>
+    <span className="mana-number"><span className="mana-jewel" aria-hidden="true"/>{previewCost!==undefined&&previewCost<=mana?mana-previewCost:mana}<small>/{maxMana}</small></span>
+    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=>{const state=gem(i);return <span key={i} className={`mana-crystal ${state}${previewCost!==undefined&&previewCost<=mana&&state==='filled'&&i>=mana-previewCost?' preview-spend':''}`}>{state==='locked'?'🔒':''}</span>;})}</span>
     {(pendingOverload>0||lockedMana>0)&&<span className="mana-warning">{lockedMana>0?`🔒 ${lockedMana}`:''}{lockedMana>0&&pendingOverload>0?' · ':''}{pendingOverload>0?`다음 과부하 ${pendingOverload}`:''}</span>}
   </div>;
 });

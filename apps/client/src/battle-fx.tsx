@@ -279,6 +279,7 @@ export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{c
       }
     }
     const start=performance.now(),feedback=impactFeedback(a,impacts);
+    if(a.kind==='attack'||a.kind==='heroAttack'){const actor=a.actor===seat?before.self:before.opponent;feedback.attackPower=a.kind==='heroAttack'?actor.heroAttack+(actor.weapon?.attack??0):actor.board.find(m=>m.instanceId===a.attackerId)?.attack;}
     const recovery=cue.duration-cue.impact;
     const trace=a.events??[];
     const deathBeat=(key:string)=>{

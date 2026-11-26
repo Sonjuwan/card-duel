@@ -2,7 +2,7 @@ import type { BattleAnimation } from '../../../packages/protocol.ts';
 import type {GameState,PlayerId} from '../../../packages/engine/src/index.ts';
 import type { FxTheme,ImpactFeedback } from './battle-fx-model.ts';
 let context:AudioContext|undefined,master:GainNode|undefined,muted=false,engineNoise:AudioBuffer|undefined,resuming:Promise<void>|undefined,resumeStartedAt=0;
-export const MAX_BATTLE_SOUND_SOURCES=32;
+export const MAX_BATTLE_SOUND_SOURCES=96;
 const activeSources=new Map<AudioScheduledSourceNode,()=>void>();
 function cancelSource(source:AudioScheduledSourceNode){
   const release=activeSources.get(source);if(!release)return;
@@ -11,7 +11,7 @@ function cancelSource(source:AudioScheduledSourceNode){
 /** Disconnect the entire per-source graph, even if a suspended context
  * defers the ended event. Bound concurrent voices during burst effects. */
 function trackSource(source:AudioScheduledSourceNode,nodes:readonly AudioNode[]){
-  while(activeSources.size>=MAX_BATTLE_SOUND_SOURCES){const oldest=activeSources.keys().next().value;if(!oldest)break;cancelSource(oldest);}
+  // Existing effects finish naturally; normal action cadence bounds live sources.
   const release=()=>{if(!activeSources.delete(source))return;source.onended=null;for(const node of nodes)try{node.disconnect();}catch{}};
   activeSources.set(source,release);source.onended=release;
 }
@@ -155,6 +155,12 @@ export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'lu
       // Low body + abrasive transient + a short metallic ring.
       const intensity=feedback?.kind==='damage'?feedback.strength:a.kind==='weapon'?1:.7;
       const variant=a.revision%3;
+      const attack=Math.max(1,feedback?.attackPower??1);
+      const weight=Math.min(1.8,.65+attack*.105);
+      tone(82,31,.25+Math.min(attack,12)*.035,.36*weight,'sine');
+      noise(.18+Math.min(attack,12)*.022,1650,85,.32*weight,0,'lowpass');
+      if(attack>=5){noise(.6+Math.min(attack,12)*.06,850,340,.12*weight,.08,'bandpass');tone(103,62,.65,.10*weight,'triangle',.12);}
+      if(attack>=9){noise(1.15,1600,450,.17,.16,'bandpass');tone(61,26,.82,.32,'sine',.04);}
       tone(122+variant*18,48,.20,.42*intensity,'sine');
       tone(205+variant*34,87,.145,.18*intensity,'triangle');
       noise(.096,2300+variant*560,540,.34*intensity);
@@ -210,4 +216,9 @@ export function playCinematicSound(kind:'xp'|'card'|'rare'|'rank'|'tier'|'shatte
       tone(pitch*2,pitch*1.997,step*1.4,.055,'triangle',step*i);
     });
   }catch{/* A closed audio device leaves presentation available. */}
+}
+
+export function playTurnReadySound(){
+  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  try{tone(440,660,.18,.17,'triangle');tone(659,880,.26,.13,'sine',.10);tone(1047,1047,.32,.08,'sine',.19);}catch{}
 }
