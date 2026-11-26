@@ -332,7 +332,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   // pointer capture or queued board edge-pan alive across input locking.
 
   useEffect(()=>{const listener=(e:KeyboardEvent)=>{if(e.key==='Escape'){setSelected(null);cancelActiveTouch();}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener);},[]);
-  const perform=(action:Action,keyboard=false)=>{if(action.type==='playCard')setHandOpen(false);actionFocus.current=keyboard&&s?{source:keyboardActionSource(action),trigger:document.activeElement,code:room.code,revision:s.revision}:null;setSelected(null);if(action.type==='endTurn')setHandOpen(false);clearDrag();send(action);};
+  const perform=(action:Action,keyboard=false)=>{actionFocus.current=keyboard&&s?{source:keyboardActionSource(action),trigger:document.activeElement,code:room.code,revision:s.revision}:null;setSelected(null);if(action.type==='endTurn')setHandOpen(false);clearDrag();send(action);};
   const copyRoom=async()=>{try{await navigator.clipboard.writeText(room.code);setRoomCopied(true);}catch{window.prompt('방 코드 복사',room.code);}};
   useLayoutEffect(()=>{
     if(!dragRef.current||!pointerPoint.current)return;

@@ -208,3 +208,16 @@
   .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs{grid-auto-rows:clamp(22px,calc((100dvh - 110px)/14.5),39px);gap:9px}
   .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs button[aria-pressed=true]{transform:scale(1.4)}
 }
+
+@media (orientation:landscape){
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item{
+    box-sizing:border-box;grid-template-columns:minmax(0,1fr);padding:0!important;
+    justify-content:center;align-content:center;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card,
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.collection-set-label{
+    grid-column:1;justify-self:center!important;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card{grid-row:1}
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.collection-set-label{grid-row:2;position:static!important;transform:none!important}
+}

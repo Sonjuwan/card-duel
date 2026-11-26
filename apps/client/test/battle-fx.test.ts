@@ -119,8 +119,9 @@ test('battle sound volume preserves mute preference, clamps input and recreates 
     page.hidden=true;stopBattleSound();assert.equal(oscillators[0].stops.length,2);assert.equal(oscillators[0].disconnects,1);assert.equal(gainNodes.at(-1)?.disconnects,1);assert.equal(oscillators[0].onended,null);stopBattleSound();assert.equal(oscillators[0].stops.length,2);
     playBattleSound(turn,'gold','impact');playBattleResultSound('win');assert.equal(oscillators.length,1);assert.equal(battleSoundEnabled(),true);page.hidden=false;playBattleSound(turn,'gold','impact');assert.equal(oscillators.length,2);
     const ended=oscillators[1];ended.onended?.();assert.equal(ended.disconnects,1);assert.equal(ended.stops.length,1);
-    for(let i=0;i<40;i++)playBattleSound(turn,'gold','impact');
-    assert.equal(oscillators.filter(o=>o.disconnects===0).length,32);
+    for(let i=0;i<120;i++)playBattleSound(turn,'gold','impact');
+    assert.equal(oscillators.filter(o=>o.disconnects===0).length,96);
+    assert.equal(oscillators[2].stops.length,1,'the oldest playing source finishes naturally rather than being interrupted');
     setBattleSound(false);assert.equal(oscillators.filter(o=>o.disconnects===0).length,0);assert.equal(ended.stops.length,1);
     setBattleSound(true);playBattleSound(turn,'gold','impact');const latest=oscillators.at(-1)!;setBattleSoundVolume(0);assert.equal(latest.disconnects,1);assert.equal(gainNodes.at(-1)?.disconnects,1);
   }finally{page.hidden=false;stopBattleSound();setBattleSoundVolume(100);setBattleSound(true);if(storage)Object.defineProperty(globalThis,'localStorage',storage);else Reflect.deleteProperty(globalThis,'localStorage');if(audio)Object.defineProperty(globalThis,'AudioContext',audio);else Reflect.deleteProperty(globalThis,'AudioContext');if(doc)Object.defineProperty(globalThis,'document',doc);else Reflect.deleteProperty(globalThis,'document');}

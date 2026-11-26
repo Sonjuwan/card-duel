@@ -1001,3 +1001,40 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .duel-screen .own-hand .battle-hand{height:100%!important;max-height:100%!important}
 .game-main .duel-screen .arena-field .arena-board{padding-inline:max(54px,8dvw) max(90px,12dvw)!important}
 }
+
+/* Keep percentage heights resolvable for friendly board segments. The phone
+   dedicates a separate bottom strip to cards even when the hand is folded. */
+@media (orientation:landscape){
+  .game-main .duel-screen .arena-field .minion-row .board-segment{position:relative;height:100%;max-height:100%;align-items:center}
+  .game-main .duel-screen .arena-field .minion-row{min-width:0;box-sizing:border-box}
+}
+@media (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen .battle-arena.classic-table>.arena-field{
+    grid-template-rows:17% 20% 20% 17% 26%!important;grid-template-columns:minmax(0,1fr)!important;
+  }
+  .game-main .duel-screen .arena-field>.battle-divider{top:37%}
+  .game-main .duel-screen .arena-field .hero-zone .hero-portrait{
+    --combat-hero-size:calc(16dvh - 4px);width:calc(var(--combat-hero-size)*1.12)!important;height:var(--combat-hero-size)!important;
+  }
+  .game-main .duel-screen .arena-field .hero-zone :is(.weapon-medallion,.power-medallion){width:12.5dvh!important;height:12.5dvh!important}
+  .game-main .duel-screen .arena-field .minion-row{--unit:min(12cqw,15.1dvh);--gap:clamp(2px,.45dvw,6px)}
+  .game-main .duel-screen .arena-field .minion-row .battle-minion{height:calc(19dvh - 4px)!important}
+  .game-main .duel-screen .arena-field>.own-hand{grid-row:5;position:relative!important;inset:auto!important;height:100%!important;max-height:100%!important}
+  .game-main .duel-screen .arena-field .hero-zone .hero-center{min-height:0;flex:none}
+  .game-main .duel-screen .arena-field>.hidden-hand .card-back-row{max-width:100%;padding:0}
+  .game-main .duel-screen .arena-field .hidden-hand .opponent-card-slot{flex:0 1 10dvh;margin-left:-6dvh!important}
+  .game-main .duel-screen .arena-field .hidden-hand .opponent-card-slot:first-child{margin-left:0!important}
+  .game-main .duel-screen .arena-field .minion-row .position-slot{height:100%}
+  .game-main .duel-screen .arena-field .hero-zone .hero-health,.game-main .duel-screen .arena-field .hero-zone .hero-attack{bottom:0}
+  .game-main .duel-screen .own-hand .battle-hand{max-width:calc(var(--hand-count)*((25dvh - 5px)/1.55 + 2px))}
+}
+@media (orientation:landscape) and (min-height:541px){
+  .game-main .duel-screen .arena-field>.enemy-hero-zone{grid-row:2}
+  .game-main .duel-screen .arena-field>.enemy-board{grid-row:3}
+  .game-main .duel-screen .arena-field>.battle-divider{grid-row:4}
+  .game-main .duel-screen .arena-field>.friendly-board{grid-row:5}
+  .game-main .duel-screen .arena-field>.self-hero-zone{grid-row:6}
+  .game-main .duel-screen .arena-field .minion-row{--unit:min(12cqw,14.5dvh)}
+  .game-main .duel-screen .arena-field .hero-zone .hero-center{min-height:0}
+  .game-main .duel-screen .arena-field .hero-zone .hero-label{display:none}
+}
