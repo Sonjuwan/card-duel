@@ -11,7 +11,7 @@
     "pagesCommit": "c0463c0"
   },
   "localCandidate": {
-    "version": "0.323.0",
+    "version": "0.325.0",
     "ref": "refs/heads/perf/runtime-20261126"
   },
   "completed": {
@@ -26,10 +26,13 @@
     "PERF-F01": "same-seed Chromium frame baseline recorded",
     "PERF-E01": "public battle history projection measured and tested",
     "PERF-I02": "inline PWA image inventory measured",
-    "PERF-J01": "24 Chromium save and resume cycles measured"
+    "PERF-J01": "24 Chromium save and resume cycles measured",
+    "PERF-I03": "isolated experiment be6dc6e; first install regression",
+    "PERF-F02": "effect anchor lookups measured and tested",
+    "PERF-J02": "60 Chromium save and resume cycles measured"
   },
   "inProgress": null,
-  "next": "PROFILE-ACTIVE-COMBAT-AND-HEAP",
+  "next": "PROFILE-HEAP-RETAINERS",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"

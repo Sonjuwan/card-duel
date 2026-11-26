@@ -409,6 +409,21 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   const page=await context.newPage();
   await page.addInitScript(()=>{
     window.combatActions=[];
+    window.combatAnchorLookups={all:0,scanned:0,exact:0};
+    const all=Element.prototype.querySelectorAll,one=Element.prototype.querySelector;
+    Element.prototype.querySelectorAll=function(selector){
+      const result=all.call(this,selector);
+      if(selector==='[data-preview-minion]'){
+        window.combatAnchorLookups.all++;
+        window.combatAnchorLookups.scanned+=result.length;
+      }
+      return result;
+    };
+    Element.prototype.querySelector=function(selector){
+      if(selector.startsWith('[data-preview-minion="'))window.combatAnchorLookups.exact++;
+      return one.call(this,selector);
+    };
+
     const post=Worker.prototype.postMessage;
     Worker.prototype.postMessage=function(data,...args){
       if(data?.type==='act')window.combatActions.push(data.action);
@@ -523,6 +538,9 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   }
   await page.waitForFunction(()=>!document.querySelector('[data-preview-minion="test-enemy"]'));
   assert.equal(await page.locator('.own-hand .battle-card').count(),1);
+  const lookups=await page.evaluate(()=>window.combatAnchorLookups);
+  t.diagnostic('Combat DOM anchor queries: '+JSON.stringify(lookups));
+
 
   await context.close();
 });

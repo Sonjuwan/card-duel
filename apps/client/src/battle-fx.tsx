@@ -20,7 +20,7 @@ const point=(a:Point,b:Point,t:number):Point=>({x:lerp(a.x,b.x,t),y:lerp(a.y,b.y
 const targetKey=(target:Target)=>target.kind==='hero'?'hero:'+target.player:'minion:'+target.instanceId;
 function elementFor(arena:HTMLElement,target:Target,seat:PlayerId):HTMLElement|undefined{
   if(target.kind==='hero')return arena.querySelector<HTMLElement>(target.player===seat?'.self-hero-zone .hero-portrait':'.enemy-hero-zone .hero-portrait')??undefined;
-  return [...arena.querySelectorAll<HTMLElement>('[data-preview-minion]')].find(el=>el.dataset.previewMinion===target.instanceId);
+  return arena.querySelector<HTMLElement>(`[data-preview-minion="${CSS.escape(target.instanceId)}"]`)??undefined;
 }
 function radial(ctx:CanvasRenderingContext2D,p:Point,r:number,colors:readonly string[],opacity:number){
   ctx.save();ctx.globalAlpha=opacity;const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,Math.max(1,r));

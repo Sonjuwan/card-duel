@@ -5,6 +5,9 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright';
 
 const root=resolve(process.argv[2]??'.');
+const cycles=Number(process.argv[3]??24);
+if(!Number.isSafeInteger(cycles)||cycles<1)throw Error('Cycle count must be a positive integer.');
+const sampleInterval=Math.ceil(cycles/4);
 const {createSoloAppServer}=await import(pathToFileURL(root+'/apps/cli/serve-solo-app.mjs'));
 const server=createSoloAppServer(root+'/dist/solo-app');
 server.listen(0,'127.0.0.1');
@@ -33,7 +36,7 @@ try{
   await menu.waitFor();
   await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
   const results=[await sample(0)];
-  for(let cycle=1;cycle<=24;cycle++){
+  for(let cycle=1;cycle<=cycles;cycle++){
     await openRecords();
     if(cycle===1)await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
     else await records.getByRole('button',{name:'이어하기',exact:true}).click();
@@ -42,7 +45,7 @@ try{
     await page.getByRole('button',{name:'저장 후 나가기'}).click();
     await recordsButton.waitFor();
     await page.waitForFunction(()=>!document.querySelector('.duel-screen'));
-    if(cycle%6===0)results.push(await sample(cycle));
+    if(cycle%sampleInterval===0||cycle===cycles)results.push(await sample(cycle));
   }
   console.log(JSON.stringify(results));
 }finally{
