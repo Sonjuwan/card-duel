@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState} from 'react';
+import {memo,useEffect,useRef,useState} from 'react';
 import type {Card,Catalog,HeroClass,PlayerId} from '../../../packages/engine/src/index.ts';
 import type {RoomView} from '../../../packages/protocol.ts';
 import type {PlaybackCue} from './battle-playback.ts';
@@ -84,10 +84,10 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
   };
   return {captions,emote,emoteCooldown:!!cue||emoteCooldown};
 }
-export function DialogueCaptions({captions,side,catalog,hero,heroForm,mode='all'}:{captions:readonly Caption[];side:PlayerId;catalog:Catalog;hero:HeroClass;heroForm?:'jaraxxus';mode?:CaptionMode}){
+export const DialogueCaptions=memo(function DialogueCaptions({captions,side,catalog,hero,heroForm,mode='all'}:{captions:readonly Caption[];side:PlayerId;catalog:Catalog;hero:HeroClass;heroForm?:'jaraxxus';mode?:CaptionMode}){
   const lines=filterCaptions(captions,side,mode),visible=lines.slice(-3);
   return <div className="battle-dialogue-captions" aria-live="polite" aria-relevant="additions" aria-atomic="false">{visible.map(c=>{const card=c.cardId?catalog[c.cardId]:undefined,isHero=!c.cardId&&c.speaker===className[hero];return <div key={c.key} className={`battle-dialogue-line line-${c.kind}`}><span className="dialogue-portrait" aria-hidden="true">{card?<LocalCardArt card={card}/>:isHero?<LocalHeroArt heroClass={hero} heroForm={heroForm}/>:<span className="dialogue-portrait-placeholder">{c.speaker==='비밀'?'?':'✦'}</span>}</span><span className="dialogue-copy"><small>{c.speaker} · {kindLabel[c.kind]}</small><span>{c.text}</span></span></div>;})}{lines.length>3&&<small className="dialogue-overflow">외 {lines.length-3}개 대사</small>}</div>;
-}
+});
 export function DialogueSettings({hero,mode,onMode,disabled,flat=false}:{hero:HeroClass;mode:CaptionMode;onMode:(mode:CaptionMode)=>void;disabled:boolean;flat?:boolean}){
   const [voice,setVoice]=useState(dialogueVoiceEnabled);
   const [voiceCount,setVoiceCount]=useState(installedKoreanVoiceCount),[message,setMessage]=useState('');

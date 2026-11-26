@@ -27,9 +27,11 @@ export function readOfflineGrowth(raw:unknown,growth:GrowthView):OfflineGrowthRe
   if(raw===undefined)return {schema:1,profile:syncOwned({revision:0,decks:[],xp:0,rank:1,rankWins:0,questGames:0,ownedCards:[]},growth),settledMatchIds:[]};
   if(!raw||typeof raw!=='object')throw Error('오프라인 성장 기록이 손상되었습니다.');
   const value=raw as OfflineGrowthRecord;
-  if(value.schema!==1||!Array.isArray(value.settledMatchIds)||value.settledMatchIds.some(id=>typeof id!=='string'||!id||id.length>128)||new Set(value.settledMatchIds).size!==value.settledMatchIds.length)throw Error('오프라인 성장 기록이 손상되었습니다.');
+  if(value.schema!==1||!Array.isArray(value.settledMatchIds)||value.settledMatchIds.some(id=>typeof id!=='string'||!id||id.length>128))throw Error('오프라인 성장 기록이 손상되었습니다.');
+  const settled=new Set(value.settledMatchIds);
+  if(settled.size!==value.settledMatchIds.length)throw Error('오프라인 성장 기록이 손상되었습니다.');
   const profile=decodeAccountProfile(value.profile);
-  if(profile.recentMatches?.some(m=>!value.settledMatchIds.includes(m.matchId)))throw Error('오프라인 경기 원장이 손상되었습니다.');
+  if(profile.recentMatches?.some(m=>!settled.has(m.matchId)))throw Error('오프라인 경기 원장이 손상되었습니다.');
   const ranked=profile.matchStats?.ranked,total=(ranked?.wins??0)+(ranked?.losses??0)+(ranked?.draws??0);
   if(profile.revision!==value.settledMatchIds.length||total!==value.settledMatchIds.length||profile.recentMatches?.some(m=>m.mode!=='ranked'))throw Error('오프라인 전적과 성장 원장이 일치하지 않습니다.');
   return {schema:1,profile:syncOwned(profile,growth),settledMatchIds:[...value.settledMatchIds]};

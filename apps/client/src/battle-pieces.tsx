@@ -1,5 +1,5 @@
 import {BATTLE_HOLD_DELAY} from './hover-timing.ts';
-import { useContext, useRef } from 'react';
+import { memo, useContext, useRef } from 'react';
 import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { canAttackMinion, getHeroPower } from '../../../packages/engine/src/index.ts';
 import type { Card, Catalog, HeroClass, Minion, PlayerId, PlayerView, PublicPlayer, Rarity, Target } from '../../../packages/engine/src/index.ts';
@@ -74,9 +74,9 @@ const glyphs:Record<Glyph,ReactNode>={
   shield:<path d="M32 5 55 14v19c0 12-12 21-23 27C21 54 9 45 9 33V14Z"/>,
   mana:<path d="M32 3 54 19v26L32 61 10 45V19Z M32 3v58M10 19l22 13 22-13M10 45l22-13 22 13"/>,
 };
-export function Sigil({kind,className:extra=''}:{kind:Glyph;className?:string}){
+export const Sigil=memo(function Sigil({kind,className:extra=''}:{kind:Glyph;className?:string}){
   return <svg className={`sigil sigil-${kind} ${extra}`} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{glyphs[kind]}</svg>;
-}
+});
 export function cardDescription(card:Card){return card.kind==='coin'?coinDescription:card.description||'효과 없음';}
 export const cardKindLabel:Record<Card['kind'],string>={coin:'동전',minion:'하수인',spell:'주문',weapon:'무기',secret:'비밀'};
 const rarityLabel:Record<Rarity,string>={basic:'기본',common:'일반',rare:'희귀',epic:'영웅',legendary:'전설'};
@@ -165,23 +165,29 @@ export function WeaponSlot({player,catalog,onInspect}:{player:PublicPlayer;catal
   return <div className={`weapon-slot${weapon?' equipped':''}`} aria-label={weapon?`${name}, 공격력 ${weapon.attack}, 내구도 ${weapon.durability}`:'장착한 무기가 없습니다'} tabIndex={card?0:undefined} onPointerEnter={e=>{inspect();if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} {...hover.touchProps} onPointerDown={e=>{inspect();hover.touchProps.onPointerDown(e);}} onFocus={e=>{inspect();if(card)hover.start(e.currentTarget);}} onBlur={hover.clear} title={weapon?`${name} · ${weapon.attack}/${weapon.durability}`:'장착한 무기가 없습니다'}><span className="weapon-medallion">{card?<LocalCardArt card={card}/>:<Sigil kind="weapon"/>}{weapon&&<><span className="stat stat-attack">{weapon.attack}</span><span className="stat stat-health">{weapon.durability}</span></>}</span><span className="weapon-label">{weapon?name:'무기 없음'}</span></div>;
 }
 export function ManaDisplay({player,compact=false,charging=false}:{player:PublicPlayer;compact?:boolean;charging?:boolean}){
-  const unlocked=Math.max(0,player.maxMana-player.lockedMana),extra=Math.max(0,player.mana-unlocked);
-  const slots=Math.min(10,Math.max(0,player.maxMana+extra));
-  const gem=(i:number)=>i>=slots?'future':i>=unlocked&&i<player.maxMana?'locked':i<Math.min(player.mana,unlocked)||i>=player.maxMana&&i<player.maxMana+extra?'filled':'spent';
-  const spent=Math.max(0,unlocked-Math.min(player.mana,unlocked));
-  const resourceLabel=`마나 ${player.mana}/${player.maxMana}, 사용한 마나 ${spent}${player.lockedMana?`, 잠긴 마나 ${player.lockedMana}`:''}${extra?`, 추가 마나 ${extra}`:''}${player.pendingOverload?`, 다음 턴 과부하 ${player.pendingOverload}`:''}`;
+  return <ManaReadout mana={player.mana} maxMana={player.maxMana} lockedMana={player.lockedMana} pendingOverload={player.pendingOverload} compact={compact} charging={charging}/>;
+}
+const ManaReadout=memo(function ManaReadout({mana,maxMana,lockedMana,pendingOverload,compact,charging}:Pick<PublicPlayer,'mana'|'maxMana'|'lockedMana'|'pendingOverload'>&{compact:boolean;charging:boolean}){
+  const unlocked=Math.max(0,maxMana-lockedMana),extra=Math.max(0,mana-unlocked);
+  const slots=Math.min(10,Math.max(0,maxMana+extra));
+  const gem=(i:number)=>i>=slots?'future':i>=unlocked&&i<maxMana?'locked':i<Math.min(mana,unlocked)||i>=maxMana&&i<maxMana+extra?'filled':'spent';
+  const spent=Math.max(0,unlocked-Math.min(mana,unlocked));
+  const resourceLabel=`마나 ${mana}/${maxMana}, 사용한 마나 ${spent}${lockedMana?`, 잠긴 마나 ${lockedMana}`:''}${extra?`, 추가 마나 ${extra}`:''}${pendingOverload?`, 다음 턴 과부하 ${pendingOverload}`:''}`;
   return <div className={`mana-display${compact?' compact':''}`} data-charging={charging||undefined} role="group" aria-label={resourceLabel} title={resourceLabel}>
-    <span className="mana-number"><span className="mana-jewel" aria-hidden="true"/>{player.mana}<small>/{player.maxMana}</small></span>
-    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=><span key={i} className={`mana-crystal ${gem(i)}`}>{gem(i)==='locked'?'🔒':''}</span>)}</span>
-    {(player.pendingOverload>0||player.lockedMana>0)&&<span className="mana-warning">{player.lockedMana>0?`🔒 ${player.lockedMana}`:''}{player.lockedMana>0&&player.pendingOverload>0?' · ':''}{player.pendingOverload>0?`다음 과부하 ${player.pendingOverload}`:''}</span>}
+    <span className="mana-number"><span className="mana-jewel" aria-hidden="true"/>{mana}<small>/{maxMana}</small></span>
+    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=>{const state=gem(i);return <span key={i} className={`mana-crystal ${state}`}>{state==='locked'?'🔒':''}</span>;})}</span>
+    {(pendingOverload>0||lockedMana>0)&&<span className="mana-warning">{lockedMana>0?`🔒 ${lockedMana}`:''}{lockedMana>0&&pendingOverload>0?' · ':''}{pendingOverload>0?`다음 과부하 ${pendingOverload}`:''}</span>}
   </div>;
-}
-export function HiddenHand({count}:{count:number}){
+});
+export const HiddenHand=memo(function HiddenHand({count}:{count:number}){
   return <div className="hidden-hand" aria-label={`상대 손패 ${count}장`}><div className="card-back-row" aria-hidden="true">{Array.from({length:Math.max(0,Math.min(10,count))},(_,i)=><span key={i} className={`opponent-card-slot ${fanSlot(i,Math.min(10,count))}`}><span className="card-back"><LocalCardBack/></span></span>)}</div><span className="hand-count">손패 {count}/10</span></div>;
-}
+});
 export function DeckPile({player,label}:{player:PublicPlayer;label:string}){
-  return <div className={`deck-pile${!player.deckCount?' empty':''}`} aria-label={`${label} 덱 ${player.deckCount}장${player.fatigue?`, 탈진 ${player.fatigue}`:''}`} title={`${label} 덱 ${player.deckCount}장${player.fatigue?` · 탈진 ${player.fatigue}`:''}`}><span className="deck-stack" aria-hidden="true" style={{'--deck-depth':Math.min(9,Math.ceil(player.deckCount/4)) + 'px'} as React.CSSProperties}>{player.deckCount>0&&<LocalCardBack/>}</span><span className="deck-number">{player.deckCount}</span><small>{player.fatigue?`탈진 ${player.fatigue}`:`${label} 덱`}</small></div>;
+  return <DeckReadout deckCount={player.deckCount} fatigue={player.fatigue} label={label}/>;
 }
+const DeckReadout=memo(function DeckReadout({deckCount,fatigue,label}:Pick<PublicPlayer,'deckCount'|'fatigue'>&{label:string}){
+  return <div className={`deck-pile${!deckCount?' empty':''}`} aria-label={`${label} 덱 ${deckCount}장${fatigue?`, 탈진 ${fatigue}`:''}`} title={`${label} 덱 ${deckCount}장${fatigue?` · 탈진 ${fatigue}`:''}`}><span className="deck-stack" aria-hidden="true" style={{'--deck-depth':Math.min(9,Math.ceil(deckCount/4)) + 'px'} as React.CSSProperties}>{deckCount>0&&<LocalCardBack/>}</span><span className="deck-number">{deckCount}</span><small>{fatigue?`탈진 ${fatigue}`:`${label} 덱`}</small></div>;
+});
 function SecretGem({card,name}:{card?:Card;name?:string}){
   const hover=useCardHover(card?{card}:null);
   return <span className="secret-gem" title={name??'비공개 비밀'} tabIndex={card?0:undefined} onPointerEnter={e=>{if(card&&e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.clear} onPointerCancel={hover.clear} onFocus={e=>{if(card)hover.start(e.currentTarget);}} onBlur={hover.clear}>?</span>;

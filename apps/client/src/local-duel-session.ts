@@ -15,7 +15,8 @@ let initialClaimRetryable=false,initialClaimExpected:SaveVersion|null=null;
 const clear=()=>{timerEpoch++;if(botTimer!==undefined)clearTimeout(botTimer);if(turnTimer!==undefined)clearTimeout(turnTimer);botTimer=undefined;turnTimer=undefined;};
 async function refresh(hash:string){try{const saved=await store.read(hash);lastSaved=saved?publicSaveSummary(saved,hash):null;return true;}catch{return false;}}
 async function persist(claim=false,expected?:SaveVersion|null){
-  const snapshot=duel?.checkpoint();if(!snapshot||!saveAvailable&&!ownsSave&&!initialClaimRetryable)return false;
+  if(!duel||!saveAvailable&&!ownsSave&&!initialClaimRetryable)return false;
+  const snapshot=duel.checkpoint();if(!snapshot)return false;
   // A claim of an unchanged game must still create a distinct save version,
   // even if both tabs act within the same millisecond.
   const prior=expected??lastSaved;if(prior&&Date.parse(snapshot.summary.savedAt)<=Date.parse(prior.savedAt))snapshot.summary.savedAt=new Date(Date.parse(prior.savedAt)+1).toISOString();
@@ -23,12 +24,16 @@ async function persist(claim=false,expected?:SaveVersion|null){
     const ranked=snapshot.input.ranked;
     if(ranked&&(!growth||!store.readGrowth))throw Error('오프라인 성장 저장소가 필요합니다.');
     const freshClaim=!ownsSave&&initialClaimRetryable;
-    if(!await store.write(snapshot,owner,claim||freshClaim,freshClaim?initialClaimExpected:expected,ranked?{growth:growth!,award:duel?.rankedAward()}:undefined)){
+    const claimSave=claim||freshClaim,expectedSave=freshClaim?initialClaimExpected:expected;
+    const rankedWrite=ranked?{growth:growth!,award:duel.rankedAward()}:undefined;
+    const committedProfile=rankedWrite&&store.writeRanked?await store.writeRanked(snapshot,owner,claimSave,expectedSave,rankedWrite):undefined;
+    const written=committedProfile!==undefined?committedProfile!==null:await store.write(snapshot,owner,claimSave,expectedSave,rankedWrite);
+    if(!written){
       ownsSave=false;saveAvailable=false;initialClaimRetryable=false;
       await refresh(snapshot.catalogHash);return false;
     }
     ownsSave=true;initialClaimRetryable=false;lastSaved=snapshot.summary;
-    if(ranked)profile=(await store.readGrowth!(growth!)).profile;
+    if(ranked)profile=committedProfile??(await store.readGrowth!(growth!)).profile;
     saveAvailable=true;return true;
   }catch{
     saveAvailable=false;

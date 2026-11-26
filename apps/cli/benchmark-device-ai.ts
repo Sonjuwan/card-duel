@@ -1,4 +1,5 @@
 import {availableParallelism,cpus,totalmem} from 'node:os';
+import {createHash} from 'node:crypto';
 import {CardStore} from '../server/card-store.ts';
 import {aiCatalogHash,readChampion,aiWeightFingerprint} from '../server/ai-profile-store.ts';
 import {applyAction,BOT_DIFFICULTIES,createGame,getPlayerView,HERO_CLASSES,rankBotActions,RuleError,strategicDeck,DEFAULT_BOT_WEIGHTS} from '../../packages/engine/src/index.ts';
@@ -7,6 +8,7 @@ import {deviceBudget} from '../client/src/device-budget.ts';
 import type {DeviceMode,DeviceInfo} from '../client/src/device-budget.ts';
 const {version,catalog}=new CardStore().read();
 const positions:GameState[]=[];
+const fixedNodes=process.env.CARD_DUEL_FIXED_NODES==='1';
 const count=Math.max(1,Math.min(9,Number(process.argv[2]??9)||9));
 const level=(Number(process.argv[3])||0);
 const modes:DeviceMode[]=process.argv[4]==='all'?['fast','auto','strong']:['auto'];
@@ -30,15 +32,19 @@ console.log(JSON.stringify({catalog:version,positions:positions.length,cpu:cpus(
 const percentile=(xs:number[],p:number)=>xs[Math.min(xs.length-1,Math.ceil(xs.length*p)-1)];
 for(const mode of modes)for(const difficulty of BOT_DIFFICULTIES.filter(d=>!level||d===level)){
   const times:number[]=[];let fallbacks=0,passes=0,overBudget=0;
+  const rankedDigest=createHash('sha256'),acceptedDigest=createHash('sha256');
   const budget=deviceBudget(difficulty,mode,device);
+  const options={...budget,deadlineMs:fixedNodes?undefined:budget.deadlineMs,weights,policyVersion:difficulty===25?2 as const:1 as const};
   for(const s of positions){
-    const actor=s.activePlayer,start=performance.now(),actions=rankBotActions(getPlayerView(s,actor),s.catalog,actor,difficulty,{...budget,weights,policyVersion:difficulty===25?2:1}),elapsed=performance.now()-start;
-    times.push(elapsed);if(elapsed>budget.deadlineMs)overBudget++;
+    const actor=s.activePlayer,start=performance.now(),actions=rankBotActions(getPlayerView(s,actor),s.catalog,actor,difficulty,options),elapsed=performance.now()-start;
+    if(fixedNodes)rankedDigest.update(JSON.stringify(actions)+'\n');
+    times.push(elapsed);if(!fixedNodes&&elapsed>budget.deadlineMs)overBudget++;
     let accepted:Action|undefined;
     for(const [i,action] of actions.entries())try{applyAction(s,actor,action);accepted=action;if(i)fallbacks++;break;}catch(e){if(!(e instanceof RuleError))throw e;}
     if(!accepted)throw Error(`No legal benchmark action at difficulty ${difficulty}`);
+    if(fixedNodes)acceptedDigest.update(JSON.stringify(accepted)+'\n');
     if(accepted.type==='endTurn')passes++;
   }
   times.sort((a,b)=>a-b);
-  console.log(JSON.stringify({mode,difficulty,positions:times.length,nodeBudget:budget.nodeLimit,targetMs:budget.deadlineMs,medianMs:Math.round(percentile(times,.5)),p95Ms:Math.round(percentile(times,.95)),maxMs:Math.round(times.at(-1)!),overBudget,fallbacks,passes}));
+  console.log(JSON.stringify({mode,difficulty,positions:times.length,nodeBudget:budget.nodeLimit,targetMs:budget.deadlineMs,medianMs:Math.round(percentile(times,.5)),p95Ms:Math.round(percentile(times,.95)),maxMs:Math.round(times.at(-1)!),overBudget,fallbacks,passes,...(fixedNodes?{fixedNodes:true,wallClockDeadlineDisabled:true,rankedActionSha256:rankedDigest.digest('hex'),acceptedActionSha256:acceptedDigest.digest('hex')}: {})}));
 }

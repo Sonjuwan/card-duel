@@ -74,11 +74,11 @@ test('slot overview is read-only, distinguishes existing/old-version saves and n
   const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth),checkpoint=new LocalDuel(savedInput).checkpoint()!,entry:Entry={hash,owner:'test',snapshot:checkpoint};
   const preview=slotOverview(initial,entry,2,hash,growth);assert.equal(preview.initialized,true);assert.equal(preview.rank,1);assert.equal(preview.otherSaves,1);assert.deepEqual(preview.save,checkpoint.summary);assert.equal('state' in preview,false);assert.equal('state' in preview.save!,false);
   assert.equal(slotOverview(undefined,undefined,0,hash,growth).initialized,false);assert.equal(slotOverview(undefined,undefined,1,hash,growth).otherSaves,1);assert.throws(()=>slotOverview(undefined,entry,0,hash,growth));assert.throws(()=>slotOverview({schema:99},undefined,0,hash,growth));
-  const original=Object.getOwnPropertyDescriptor(globalThis,'indexedDB'),modes:string[]=[],names:string[]=[];
+  const original=Object.getOwnPropertyDescriptor(globalThis,'indexedDB'),modes:string[]=[],names:string[]=[],matchReads:string[]=[];
   const oldHash='c'.repeat(64),oldEntry={...entry,hash:oldHash,snapshot:new LocalDuel({...savedInput,catalogHash:oldHash}).checkpoint()!};
   const records=new Map<string,{record:unknown;entry?:Entry;entries:Entry[]}>([['card-duel-solo-saves-v1',{record:initial,entry,entries:[entry,oldEntry]}],['card-duel-solo-saves-v1-slot-2',{record:undefined,entries:[]}]]);
-  Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(name:string){names.push(name);const data=records.get(name)!;const request={onsuccess:()=>{},result:{transaction(_stores:unknown,mode:string){modes.push(mode);const tx={oncomplete:()=>{},objectStore(store:string){return store==='matches'?{get:()=>({result:data.entry}),getAll:()=>({result:data.entries})}:{get:()=>({result:data.record})};}};queueMicrotask(()=>tx.oncomplete());return tx;}}};queueMicrotask(()=>request.onsuccess());return request;}}});
-  try{assert.deepEqual(await new IndexedLocalSaveStore(1).inspectSlot(hash,growth),preview);assert.deepEqual(await new IndexedLocalSaveStore(2).inspectSlot(hash,growth),slotOverview(undefined,undefined,0,hash,growth));assert.deepEqual(names,['card-duel-solo-saves-v1','card-duel-solo-saves-v1-slot-2']);assert.deepEqual(modes,['readonly','readonly']);}finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
+  Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(name:string){names.push(name);const data=records.get(name)!;const request={onsuccess:()=>{},result:{transaction(_stores:unknown,mode:string){modes.push(mode);const tx={oncomplete:()=>{},objectStore(store:string){return store==='matches'?{get:()=>{matchReads.push('get');return {result:data.entry};},getAll:()=>{matchReads.push('getAll');return {result:data.entries};}}:{get:()=>({result:data.record})};}};queueMicrotask(()=>tx.oncomplete());return tx;}}};queueMicrotask(()=>request.onsuccess());return request;}}});
+  try{assert.deepEqual(await new IndexedLocalSaveStore(1).inspectSlot(hash,growth),preview);assert.deepEqual(await new IndexedLocalSaveStore(2).inspectSlot(hash,growth),slotOverview(undefined,undefined,0,hash,growth));assert.deepEqual(names,['card-duel-solo-saves-v1','card-duel-solo-saves-v1-slot-2']);assert.deepEqual(modes,['readonly','readonly']);assert.deepEqual(matchReads,['getAll','getAll']);}finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
 });
 
 test('IndexedDB retries a failed or blocked open and closes superseded connections',async()=>{
@@ -211,14 +211,16 @@ test('144 synthetic offline ranked results reach the complete ladder, cycle nine
   assert.equal(settleOfflineRanked(record,growth,first!,{matchId:'full-growth-0',rank:1,heroClass:'warrior',mode:'ranked',outcome:'win',eligible:true}),record);
 });
 
-test('offline ranked worker saves results with checkpoint and cannot grant the same early concession twice',async t=>{
-  let entry:Entry|undefined,record:OfflineGrowthRecord|undefined;
-  const store:LocalSaveStore={async read(){return structuredClone(entry?.snapshot??null);},async readGrowth(growth){return readOfflineGrowth(structuredClone(record),growth);},async write(snapshot,owner,claim,expected,ranked){if(!saveWriteAllowed(entry,owner,claim,expected)||!canReplaceRankedSave(entry,snapshot))return false;if(ranked){record=readOfflineGrowth(record,ranked.growth);if(ranked.award)record=settleOfflineRanked(record,ranked.growth,snapshot.input.ranked!,ranked.award);}entry={hash,owner,snapshot:structuredClone(snapshot)};return true;},async remove(_,owner,expected){if(!saveRemoveAllowed(entry,owner,expected)||activeRankedSave(entry))return false;entry=undefined;return true;}};
+for(const atomic of [false,true])test('offline ranked worker saves results with checkpoint and cannot grant the same early concession twice (atomic profile '+atomic+')',async t=>{
+  let entry:Entry|undefined,record:OfflineGrowthRecord|undefined,reads=0;
+  const store:LocalSaveStore={async read(){return structuredClone(entry?.snapshot??null);},async readGrowth(growth){reads++;return readOfflineGrowth(structuredClone(record),growth);},async write(snapshot,owner,claim,expected,ranked){if(!saveWriteAllowed(entry,owner,claim,expected)||!canReplaceRankedSave(entry,snapshot))return false;if(ranked){record=readOfflineGrowth(record,ranked.growth);if(ranked.award)record=settleOfflineRanked(record,ranked.growth,snapshot.input.ranked!,ranked.award);}entry={hash,owner,snapshot:structuredClone(snapshot)};return true;},async remove(_,owner,expected){if(!saveRemoveAllowed(entry,owner,expected)||activeRankedSave(entry))return false;entry=undefined;return true;}};
+  if(atomic)store.writeRanked=async(snapshot,owner,claim,expected,ranked)=>await store.write(snapshot,owner,claim,expected,ranked)?structuredClone(record!.profile):null;
   const tab=(owner:string)=>{let receive:(m:LocalResponse)=>void=()=>{};const scope:LocalDuelScope={postMessage:m=>receive(m),onmessage:()=>{}};t.after(attachLocalDuel(scope,store,owner));return {send:(data:LocalRequest)=>new Promise<LocalResponse>((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('Worker command timeout')),3000);receive=m=>{clearTimeout(timeout);resolve(m);};scope.onmessage({data});})};};
   const a=tab('ranked-a'),b=tab('ranked-b');const started=await a.send({type:'start',input:savedInput,ranked:true});assert.equal(started.type,'view');assert.equal(started.view.ranked?.rank,1);assert.equal(started.save?.rank,1);
   const forbidden=await b.send({type:'start',input:{...savedInput,code:'forbidden'},ranked:true,developerExperiment:true});assert.equal(forbidden.type,'error');
   const blocked=await b.send({type:'start',input:{...savedInput,code:'other'},ranked:true,replaceSave:started.save});assert.equal(blocked.type,'error');
-  const result=await a.send({type:'act',requestId:1,revision:0,action:{type:'concede'}});assert.equal(result.type,'view');assert.equal(result.view.ranked?.reward,'notEligible');assert.equal(result.profile?.xp,0);assert.equal(result.profile?.matchStats?.ranked.losses,1);assert.equal(record?.settledMatchIds.length,1);
+  const readsBefore=reads;
+  const result=await a.send({type:'act',requestId:1,revision:0,action:{type:'concede'}});assert.equal(result.type,'view');assert.equal(result.view.ranked?.reward,'notEligible');assert.equal(result.profile?.xp,0);assert.equal(result.profile?.matchStats?.ranked.losses,1);assert.equal(record?.settledMatchIds.length,1);assert.equal(reads-readsBefore,atomic?0:1);
   const resumed=await b.send({type:'resume',catalog,catalogHash:hash});assert.equal(resumed.type,'view');assert.equal(resumed.view.ranked?.reward,'notEligible');assert.equal(resumed.profile?.matchStats?.ranked.losses,1);assert.equal(record?.settledMatchIds.length,1);
 });
 
@@ -508,4 +510,46 @@ test('exit while playing records a loss, and app relaunch settles an abandoned r
   assert.equal(record?.profile.matchStats?.ranked.losses,2);
   const check=await reboot.send({type:'inspectSave',catalogHash:hash,catalog,settleAbandoned:true});assert.equal(check.type,'saveInfo');
   assert.equal(record?.profile.matchStats?.ranked.losses,2,'restart must not count a second loss');
+});
+
+
+test('long growth ledger retains every match ID and rejects duplicate or missing recent IDs',()=>{
+  const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth);
+  const ranked=createOfflineRankedInput(savedInput,initial,growth);
+  const record=settleOfflineRanked(initial,growth,ranked.ranked!,{matchId:ranked.code,rank:1,heroClass:'mage',opponentClass:'warrior',mode:'ranked',outcome:'win',eligible:true,completedAt:10,turns:12});
+  const ids=[...Array.from({length:10000},(_,i)=>'historical-'+i),ranked.code];
+  const long:OfflineGrowthRecord={...record,settledMatchIds:ids,profile:{...record.profile,revision:ids.length,matchStats:{...record.profile.matchStats!,ranked:{wins:1,losses:10000,draws:0}}}};
+  const result=readOfflineGrowth(long,growth);
+  assert.deepEqual(result.settledMatchIds,ids);assert.notEqual(result.settledMatchIds,ids);
+  assert.throws(()=>readOfflineGrowth({...long,settledMatchIds:[...ids.slice(0,-1),ids[0]]},growth),/손상/);
+  assert.throws(()=>readOfflineGrowth({...long,settledMatchIds:[...ids.slice(0,-1),'missing-recent']},growth),/원장/);
+});
+
+
+test('ordinary ranked saves validate growth without rewriting an unchanged ledger',async()=>{
+  const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth);
+  const duel=new LocalDuel(createOfflineRankedInput({...savedInput,code:'write-dedup'},initial,growth)),snapshot=duel.checkpoint()!;
+  let current:Entry|undefined={hash,owner:'one',snapshot},record:OfflineGrowthRecord=structuredClone(initial),matchWrites=0,growthWrites=0;
+  const original=Object.getOwnPropertyDescriptor(globalThis,'indexedDB');
+  const request=(result:unknown)=>{const r={result,onsuccess:()=>{}};queueMicrotask(()=>r.onsuccess());return r;};
+  Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(){const r={onsuccess:()=>{},result:{transaction(_stores:unknown,mode:string){assert.equal(mode,'readwrite');const tx={oncomplete:()=>{},objectStore(name:string){return name==='matches'?{get:()=>request(current),put:(value:Entry)=>{matchWrites++;current=value;}}:{get:()=>request(record),put:(value:OfflineGrowthRecord)=>{growthWrites++;record=value;}};}};setImmediate(()=>tx.oncomplete());return tx;}}};queueMicrotask(()=>r.onsuccess());return r;}}});
+  try{
+    const store=new IndexedLocalSaveStore(1);
+    assert.deepEqual(await store.writeRanked(snapshot,'one',false,undefined,{growth}),initial.profile);
+    assert.equal(matchWrites,1);assert.equal(growthWrites,0);
+    assert.deepEqual(record,initial);
+    assert.equal(await store.writeRanked(snapshot,'old-owner',false,undefined,{growth}),null);
+    assert.equal(matchWrites,1);assert.equal(growthWrites,0);
+    record={...initial,profile:{...initial.profile,ownedCards:[]}};
+    assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
+    assert.equal(matchWrites,2);assert.equal(growthWrites,1);assert.deepEqual(record,initial);
+    assert.equal(await store.write(snapshot,'two',true,snapshot.summary,{growth}),true);
+    assert.equal(matchWrites,3);assert.equal(growthWrites,2);
+    duel.act(duel.view().state!.revision,{type:'concede'});
+    const completed=duel.checkpoint()!;
+    const committed=await store.writeRanked(completed,'two',false,undefined,{growth,award:duel.rankedAward()});
+    assert.deepEqual(committed,record.profile);
+    assert.equal(matchWrites,4);assert.equal(growthWrites,3);
+    assert.equal(record.settledMatchIds.length,1);
+  }finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
 });
