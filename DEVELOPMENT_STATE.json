@@ -1,11 +1,31 @@
 {
   "phase": "PERF-20261126",
   "branch": "perf/runtime-20261126",
-  "baseline": {"version": "0.319.0", "commit": "0283a83"},
-  "lastPublished": {"version": "0.319.0", "commit": "0283a83"},
-  "localCandidate": {"version": "0.320.0", "ref": "refs/heads/perf/runtime-20261126"},
-  "completed": {"PERF-H01": "fdd10b7", "PERF-I01": "bde780d", "PERF-C01": "5782245", "PERF-D01": "localCandidate"},
-  "inProgress": "PERF-A02",
-  "next": "PERF-G01",
-  "resumeAfter": ["docs/ROADMAP.md", "docs/AI_V2_PLAN.md"]
+  "baseline": {
+    "version": "0.319.0",
+    "commit": "0283a83"
+  },
+  "lastPublished": {
+    "version": "0.319.0",
+    "commit": "0283a83"
+  },
+  "localCandidate": {
+    "version": "0.320.0",
+    "ref": "refs/heads/perf/runtime-20261126",
+    "codeCommit": "e5dac43"
+  },
+  "completed": {
+    "PERF-H01": "fdd10b7",
+    "PERF-I01": "bde780d",
+    "PERF-C01": "5782245",
+    "PERF-D01": "e5dac43",
+    "PERF-G01": "measured; no storage changes",
+    "PERF-A02": "recorded in PERFORMANCE_HISTORY.md"
+  },
+  "inProgress": null,
+  "next": "PERF-A03",
+  "resumeAfter": [
+    "docs/ROADMAP.md",
+    "docs/AI_V2_PLAN.md"
+  ]
 }

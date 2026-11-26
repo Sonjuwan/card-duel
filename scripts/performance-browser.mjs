@@ -21,10 +21,9 @@ async function sample(mobile){
   });
   try{
     const page=await context.newPage();
-    if(throttle>1){
-      const cdp=await context.newCDPSession(page);
-      await cdp.send('Emulation.setCPUThrottlingRate',{rate:throttle});
-    }
+    const cdp=await context.newCDPSession(page);
+    if(throttle>1)await cdp.send('Emulation.setCPUThrottlingRate',{rate:throttle});
+    await cdp.send('Performance.enable');
     await page.addInitScript(()=>{
       window.longTasks=[];
       new PerformanceObserver(list=>{
@@ -43,6 +42,10 @@ async function sample(mobile){
     await page.goto(url,{waitUntil:'domcontentloaded'});
     await home.waitFor();
     const cold=await metrics();
+    const {metrics:devToolsMetrics}=await cdp.send('Performance.getMetrics');
+    cold.cpuMs=Object.fromEntries(devToolsMetrics
+      .filter(entry=>['ScriptDuration','TaskDuration','RecalcStyleDuration','LayoutDuration'].includes(entry.name))
+      .map(entry=>[entry.name,entry.value*1000]));
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
     await context.setOffline(true);
     await page.reload({waitUntil:'domcontentloaded'});
