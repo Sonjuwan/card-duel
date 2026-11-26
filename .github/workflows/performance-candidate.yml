@@ -26,7 +26,7 @@ jobs:
       - run: npm run verify:release-baseline
       - run: npm run typecheck
       - run: npm run build:offline
-      - run: node scripts/performance-source-audit.mjs
+      - run: node scripts/performance-source-audit.mjs --strict
       - run: node --test test/game-styles.test.mjs
       - run: npm test
       - run: npm run test:render
@@ -268,7 +268,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: '2bdc7a9685ce2986ba7356c44211d4105f72b5c3'
+          ref: '499dc3eb3ce140fca4af2b67ca9707fce37bc7d4'
           path: perf-storage
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -279,17 +279,17 @@ jobs:
       - run: npm ci && npm run typecheck && node --test apps/client/test/local-duel.test.ts apps/client/test/battle-clock.test.ts && npm run build:solo-app
         working-directory: perf-storage
       - name: Inventory lossless asset optimization opportunities
-        run: node perf-storage/scripts/performance-art-audit.mjs dist/solo-app/game.css
+        run: node scripts/performance-art-audit.mjs dist/solo-app/game.css
       - run: npx playwright install --with-deps chromium
       - name: Compare actual growth and match writes in alternating-order trials
         shell: bash
         run: |
           for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
             for kind in $order; do
-              root=.
-              if [ "$kind" = candidate ]; then root=perf-storage; fi
+              root=perf-storage
+              if [ "$kind" = candidate ]; then root=.; fi
               echo "STORAGE AND CLOCK $kind"
-              node perf-storage/scripts/performance-storage.mjs "$root" | tee -a "/tmp/storage-$kind.jsonl"
+              node scripts/performance-storage.mjs "$root" | tee -a "/tmp/storage-$kind.jsonl"
             done
           done
           node --input-type=module -e '
@@ -307,4 +307,20 @@ jobs:
             }
           '
       - name: Validate actual combat in experiment
-        run: CARD_DUEL_SOLO_APP_DIST_DIR="$PWD/perf-storage/dist/solo-app" node --test apps/client/test/battle-immersive-browser.test.mjs
+        run: CARD_DUEL_SOLO_APP_DIST_DIR="$PWD/dist/solo-app" node --test apps/client/test/battle-immersive-browser.test.mjs
+
+  art_lossless_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: sudo apt-get update && sudo apt-get install -y webp
+      - run: node scripts/performance-art-lossless-study.mjs dist/solo-app/game.css 24
