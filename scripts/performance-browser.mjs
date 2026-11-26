@@ -61,6 +61,7 @@ async function sample(mobile){
       .filter(entry=>['ScriptDuration','TaskDuration','RecalcStyleDuration','LayoutDuration'].includes(entry.name))
       .map(entry=>[entry.name,entry.value*1000]));
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+    const installReadyMs=await page.evaluate(()=>performance.now());
     await context.setOffline(true);
     await page.reload({waitUntil:'domcontentloaded'});
     await home.waitFor();
@@ -86,7 +87,19 @@ async function sample(mobile){
       }
       requestAnimationFrame(frame);
     }));
-    return {mobile,throttle,cold,offline,frames};
+    const art=await page.evaluate(async()=>{
+      const entries=[...document.querySelectorAll('.painted-art')].map(el=>({name:el.className,background:getComputedStyle(el).backgroundImage}));
+      const unique=new Map(entries.map(item=>[item.name,item.background]));
+      const results=[];
+      for(const [name,background] of [...unique].sort((a,b)=>a[0].localeCompare(b[0]))){
+        if(!background.includes('data:image/webp;base64,'))throw Error('Missing painted background: '+name);
+        const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(background));
+        results.push({name,hash:[...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join('')});
+      }
+      if(!results.length)throw Error('No offline battle art rendered');
+      return results;
+    });
+    return {mobile,throttle,cold,offline,installReadyMs,frames,art};
   }finally{await context.close();}
 }
 
