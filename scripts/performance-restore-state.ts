@@ -12,7 +12,7 @@ const growth=offlineGrowth(catalog),profile=readOfflineGrowth(undefined,growth);
 const fixtures:LocalDuelCheckpoint[]=[];
 for(const [i,heroClass] of HERO_CLASSES.entries()){
   const input={catalog,deck:practiceDeck(catalog,heroClass),heroClass,difficulty:25 as const,seed:51+i,deckSeed:93+i,code:'restore-'+i,catalogHash:hash,animationSpeed:'instant' as const};
-  const duel=new LocalDuel(i%2===0?input:createOfflineRankedInput({...input,deck:recommendedOwnedDeck(catalog,growth,heroClass,profile,i+1)},profile,growth));
+  const duel=new LocalDuel(i%2===0?input:createOfflineRankedInput({...input,deck:recommendedOwnedDeck(catalog,growth,heroClass,profile.profile,i+1)},profile,growth));
   const snapshot=duel.checkpoint(now)!;
   // Opaque instance IDs deliberately differ between processes; normalize
   // fixture IDs before comparing exact checkpoint digests.
