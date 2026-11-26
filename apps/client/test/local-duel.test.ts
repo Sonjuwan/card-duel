@@ -533,10 +533,10 @@ test('ordinary ranked saves validate growth without rewriting an unchanged ledge
   Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(){const r={onsuccess:()=>{},result:{transaction(_stores:unknown,mode:string){assert.equal(mode,'readwrite');const tx={oncomplete:()=>{},objectStore(name:string){return name==='matches'?{get:()=>request(current),put:(value:Entry)=>{matchWrites++;current=value;}}:{get:()=>request(record),put:(value:OfflineGrowthRecord)=>{growthWrites++;record=value;}};}};setImmediate(()=>tx.oncomplete());return tx;}}};queueMicrotask(()=>r.onsuccess());return r;}}});
   try{
     const store=new IndexedLocalSaveStore(1);
-    assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
+    assert.deepEqual(await store.writeRanked(snapshot,'one',false,undefined,{growth}),initial.profile);
     assert.equal(matchWrites,1);assert.equal(growthWrites,0);
     assert.deepEqual(record,initial);
-    assert.equal(await store.write(snapshot,'old-owner',false,undefined,{growth}),false);
+    assert.equal(await store.writeRanked(snapshot,'old-owner',false,undefined,{growth}),null);
     assert.equal(matchWrites,1);assert.equal(growthWrites,0);
     record={...initial,profile:{...initial.profile,ownedCards:[]}};
     assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
@@ -545,7 +545,8 @@ test('ordinary ranked saves validate growth without rewriting an unchanged ledge
     assert.equal(matchWrites,3);assert.equal(growthWrites,2);
     duel.act(duel.view().state!.revision,{type:'concede'});
     const completed=duel.checkpoint()!;
-    assert.equal(await store.write(completed,'two',false,undefined,{growth,award:duel.rankedAward()}),true);
+    const committed=await store.writeRanked(completed,'two',false,undefined,{growth,award:duel.rankedAward()});
+    assert.deepEqual(committed,record.profile);
     assert.equal(matchWrites,4);assert.equal(growthWrites,3);
     assert.equal(record.settledMatchIds.length,1);
   }finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
