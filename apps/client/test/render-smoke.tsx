@@ -35,7 +35,7 @@ const legalMageCount=Math.min(8,Object.values(catalog).filter(c=>c.kind!=='coin'
 
 test('deck builder renders the live deck count next to unabridged collection descriptions',()=>{
   const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
-  assert.match(html,/class="panel deck-panel deck-builder"/);
+  assert.match(html,/class="panel deck-panel deck-builder collection-workspace"/);
   assert.match(html,/내 덱 <span class="deck-live-count">2\/30<\/span>/);
   assert.equal((html.match(/class="card-copy"/g)??[]).length,legalMageCount);
 });
