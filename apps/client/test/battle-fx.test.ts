@@ -552,3 +552,30 @@ test('Cruel Taskmaster uses the same valid minion targets on either side',()=>{
   for(const player of empty.players)player.board=[];
   assert.equal(action(empty,{type:'playCard',instanceId:'taskmaster-hand',position:0}).after.players[0].board[0].cardId,'harsh_overseer');
 });
+
+
+test('single-pass impact feedback matches v0.323 reference for mixed events',()=>{
+  function reference(animation:BattleAnimation,impacts:readonly FxImpact[]){
+  const hits=impacts.filter(i=>i.kind==='damage'&&(i.amount??0)>0),peak=Math.max(0,...hits.map(i=>i.amount??0));
+  const armor=impacts.filter(i=>i.kind==='armorHit'&&(i.amount??0)>0),extraHits=Math.min(3,Math.max(0,...[...hits,...armor].map(i=>(i.hitCount??1)-1)));
+  if(peak>0){const strength=Math.min(1.45,.65+peak*.055+Math.min(3,hits.length-1)*.10);return {kind:'damage',strength,shake:Math.min(10,Math.round(2+peak*.65+Math.min(3,hits.length-1))),...(armor.length?{armor:true}:{}),...(extraHits?{extraHits}:{})};}
+  if(armor.length){const peakArmor=Math.max(...armor.map(i=>i.amount??0));return {kind:'armor',strength:Math.min(1.1,.55+peakArmor*.045),shake:Math.min(4,1+Math.ceil(peakArmor/5)),...(extraHits?{extraHits}:{})};}
+  if(animation.blocked)return {kind:'blocked',strength:.65,shake:2};
+  if(impacts.some(i=>i.kind==='shield'))return {kind:'shield',strength:.75,shake:0};
+  if(impacts.some(i=>i.kind==='heal'))return {kind:'heal',strength:.8,shake:0};
+  if(impacts.some(i=>i.kind==='shieldGain'||i.kind==='armorGain'))return {kind:'protect',strength:.75,shake:0};
+  return {kind:'neutral',strength:1,shake:impacts.some(i=>i.kind==='leave'&&i.death)?4:0};
+}
+  let seed=827311;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  const kinds:FxImpact['kind'][]=['damage','armorHit','heal','shield','shieldGain','armorGain','leave','summon','freeze'];
+  const amounts=[undefined,NaN,Infinity,-Infinity,-3,0,.5,1,2,5,20,100];
+  for(let i=0;i<30000;i++){
+    const animation:BattleAnimation={kind:'spell',actor:0,revision:i,blocked:random()<.2};
+    const impacts:FxImpact[]=Array.from({length:Math.floor(random()*24)},()=>({
+      target:{kind:'hero',player:1},side:1,kind:kinds[Math.floor(random()*kinds.length)],
+      amount:amounts[Math.floor(random()*amounts.length)],hitCount:amounts[Math.floor(random()*amounts.length)],death:random()<.4
+    }));
+    assert.deepEqual(impactFeedback(animation,impacts),reference(animation,impacts),'seeded case '+i);
+  }
+});
