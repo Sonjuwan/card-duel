@@ -53,7 +53,7 @@ function fakeWorker({corrupt=false,offline=false,script=worker,readAsset=read,sh
   const prefix=`card-duel-solo-app:${scope}:`,pointer=prefix+'active-pointer',pointerKey=scope+'__card-duel-active-release__';
   const listeners=new Map(),storage=sharedStorage??new Map(),other=`card-duel-solo-app:https://other.invalid/:old`,old=prefix+'a'.repeat(64),name=prefix+config.id;
   if(seedOld){storage.set(other,new Map());storage.set(old,new Map());if(seedPointer)storage.set(pointer,new Map([[pointerKey,new Response(old)]]));}
-  let claimed=0;const progress=[],fetched=[];
+  let claimed=0,digests=0;const progress=[],fetched=[];
   // Real CacheStorage stores immutable response bytes. Do not retain a stream
   // Response object in the mock: Node 22 can mark a cloned stream consumed
   // after several verification reads, unlike the browser Cache API.
@@ -70,10 +70,11 @@ function fakeWorker({corrupt=false,offline=false,script=worker,readAsset=read,sh
   }};
   const fetch=async url=>{if(offline)throw Error('No connection');const path=new URL(url).pathname.split('/').at(-1);fetched.push(path);return new Response(corrupt&&path==='register.js'?'corrupt':readAsset(path));};
   const self={registration:{scope},clients:{claim:async()=>{claimed++;},matchAll:async()=>[{postMessage:data=>progress.push(data)}]},addEventListener:(type,callback)=>listeners.set(type,callback)};
-  runInNewContext(script,{self,caches,fetch,URL,Response,crypto:webcrypto,Uint8Array,Map,Object,Array,Error});
+  const crypto={subtle:{digest:(...args)=>{digests++;return webcrypto.subtle.digest(...args);}}};
+  runInNewContext(script,{self,caches,fetch,URL,Response,crypto,Uint8Array,Map,Object,Array,Error});
   const event=type=>{let promise;listeners.get(type)({waitUntil:value=>{promise=value;}});return promise;};
   const request=(url,method='GET')=>{let promise;listeners.get('fetch')({request:{url,method},respondWith:value=>{promise=value;}});return promise;};
-  return {storage,old,other,name,pointer,pointerKey,event,request,progress,fetched,claimed:()=>claimed,setOffline:value=>{offline=value;},setCorrupt:value=>{corrupt=value;},setAssetReader:value=>{readAsset=value;}};
+  return {storage,old,other,name,pointer,pointerKey,event,request,progress,fetched,digests:()=>digests,claimed:()=>claimed,setOffline:value=>{offline=value;},setCorrupt:value=>{corrupt=value;},setAssetReader:value=>{readAsset=value;}};
 }
 test('candidate downloads only missing, modified or damaged active-release assets',async()=>{
   const app=fakeWorker();
@@ -128,6 +129,17 @@ test('an exact cached release can reinstall offline and a partial repair never d
   assert.equal(hash(Buffer.from(await (await repair.request(scope)).arrayBuffer())),release.files['index.html']);
   repair.setOffline(false);await repair.event('install');assert.equal(repair.storage.get(repair.name).size,assetCount);
 });
+test('the installing worker reuses verified bytes but a restarted worker rechecks them',async()=>{
+  const first=fakeWorker();await first.event('install');await first.event('activate');
+  first.setOffline(true);
+  const installedDigests=first.digests();
+  assert.equal((await first.request(scope+'game.css')).status,200);
+  assert.equal(first.digests(),installedDigests);
+  const restarted=fakeWorker({sharedStorage:first.storage,seedOld:false,offline:true});
+  assert.equal((await restarted.request(scope+'game.css')).status,200);
+  assert.equal(restarted.digests(),1);
+});
+
 test('a corrupted cached game or stylesheet is never served, but the exact release can repair it',async()=>{
   const first=fakeWorker();await first.event('install');await first.event('activate');
   const files=['game.js','game.css','index.html'];

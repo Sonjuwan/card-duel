@@ -6,8 +6,8 @@ const url = path => new URL(path, self.registration.scope).href;
 const assets = new Map(Object.entries(release.files).map(([path,hash])=>[url(path),hash]));
 const app = url('index.html');
 const root = url('./');
-// A worker process checks each cached response at first use. Further reads in
-// that process reuse the verified result without rehashing 14 MB of card art.
+// Verification lasts only for this worker process. A restarted worker checks
+// each cached response on first use before serving it.
 const checkedCache=new Set();
 const pointerCache=prefix+'active-pointer';
 const pointerKey=url('__card-duel-active-release__');
@@ -68,6 +68,9 @@ self.addEventListener('install', event => {
         await cache.put(path,reused??await verifiedResponse(path,hash));
         await reportInstall(++done);
       }
+      // Installation just verified every response placed in this release.
+      // A restarted worker has an empty set and still checks on first use.
+      for(const path of assets.keys())checkedCache.add(path);
     } catch (error) { if(!existed)await caches.delete(cacheName); throw error; }
     // No skipWaiting: do not replace the version beneath an active game.
   })());
@@ -104,9 +107,9 @@ self.addEventListener('fetch',event=>{
       }
       // Cache Storage may contain an incomplete or damaged asset after a
       // crash. Never serve it or silently borrow bytes from an older patch.
-      checkedCache.delete(address);
       await cache.delete(address);
     }
+    checkedCache.delete(address);
     // Browser cache eviction is recoverable only using the exact same release.
     try{
       const recovered=await verifiedResponse(address,assets.get(address));

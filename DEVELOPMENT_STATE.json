@@ -10,9 +10,8 @@
     "commit": "0283a83"
   },
   "localCandidate": {
-    "version": "0.320.0",
-    "ref": "refs/heads/perf/runtime-20261126",
-    "codeCommit": "e5dac43"
+    "version": "0.321.0",
+    "ref": "refs/heads/perf/runtime-20261126"
   },
   "completed": {
     "PERF-H01": "fdd10b7",
@@ -20,10 +19,11 @@
     "PERF-C01": "5782245",
     "PERF-D01": "e5dac43",
     "PERF-G01": "measured; no storage changes",
-    "PERF-A02": "recorded in PERFORMANCE_HISTORY.md"
+    "PERF-A02": "recorded in PERFORMANCE_HISTORY.md",
+    "PERF-A03": "same-worker offline reload"
   },
-  "inProgress": null,
-  "next": "PERF-A03",
+  "inProgress": "PERF-C02",
+  "next": "PERF-F01",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"
