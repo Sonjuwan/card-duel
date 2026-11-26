@@ -68,15 +68,29 @@ export type ImpactFeedback={kind:'damage'|'armor'|'blocked'|'shield'|'protect'|'
 /** Use the accepted public outcomes, not the printed attack value, for impact
  * feedback. A shielded or canceled hit should never sound like full damage. */
 export function impactFeedback(animation:BattleAnimation,impacts:readonly FxImpact[]):ImpactFeedback{
-  const hits=impacts.filter(i=>i.kind==='damage'&&(i.amount??0)>0),peak=Math.max(0,...hits.map(i=>i.amount??0));
-  const armor=impacts.filter(i=>i.kind==='armorHit'&&(i.amount??0)>0),extraHits=Math.min(3,Math.max(0,...[...hits,...armor].map(i=>(i.hitCount??1)-1)));
-  if(peak>0){const strength=Math.min(1.45,.65+peak*.055+Math.min(3,hits.length-1)*.10);return {kind:'damage',strength,shake:Math.min(10,Math.round(2+peak*.65+Math.min(3,hits.length-1))),...(armor.length?{armor:true}:{}),...(extraHits?{extraHits}:{})};}
-  if(armor.length){const peakArmor=Math.max(...armor.map(i=>i.amount??0));return {kind:'armor',strength:Math.min(1.1,.55+peakArmor*.045),shake:Math.min(4,1+Math.ceil(peakArmor/5)),...(extraHits?{extraHits}:{})};}
+  // Aggregate the public hit outcomes without temporary filter/map arrays.
+  let hits=0,peak=0,armor=0,peakArmor=0,extraHits=0;
+  let shield=false,heal=false,protect=false,death=false;
+  for(const i of impacts){
+    const amount=i.amount??0;
+    if(i.kind==='damage'&&amount>0){
+      hits++;peak=Math.max(peak,amount);extraHits=Math.max(extraHits,(i.hitCount??1)-1);
+    }else if(i.kind==='armorHit'&&amount>0){
+      armor++;peakArmor=Math.max(peakArmor,amount);extraHits=Math.max(extraHits,(i.hitCount??1)-1);
+    }
+    if(i.kind==='shield')shield=true;
+    if(i.kind==='heal')heal=true;
+    if(i.kind==='shieldGain'||i.kind==='armorGain')protect=true;
+    if(i.kind==='leave'&&i.death)death=true;
+  }
+  extraHits=Math.min(3,extraHits);
+  if(peak>0){const strength=Math.min(1.45,.65+peak*.055+Math.min(3,hits-1)*.10);return {kind:'damage',strength,shake:Math.min(10,Math.round(2+peak*.65+Math.min(3,hits-1))),...(armor?{armor:true}:{}),...(extraHits?{extraHits}:{})};}
+  if(armor)return {kind:'armor',strength:Math.min(1.1,.55+peakArmor*.045),shake:Math.min(4,1+Math.ceil(peakArmor/5)),...(extraHits?{extraHits}:{})};
   if(animation.blocked)return {kind:'blocked',strength:.65,shake:2};
-  if(impacts.some(i=>i.kind==='shield'))return {kind:'shield',strength:.75,shake:0};
-  if(impacts.some(i=>i.kind==='heal'))return {kind:'heal',strength:.8,shake:0};
-  if(impacts.some(i=>i.kind==='shieldGain'||i.kind==='armorGain'))return {kind:'protect',strength:.75,shake:0};
-  return {kind:'neutral',strength:1,shake:impacts.some(i=>i.kind==='leave'&&i.death)?4:0};
+  if(shield)return {kind:'shield',strength:.75,shake:0};
+  if(heal)return {kind:'heal',strength:.8,shake:0};
+  if(protect)return {kind:'protect',strength:.75,shake:0};
+  return {kind:'neutral',strength:1,shake:death?4:0};
 }
 export function defenseImpactLabel(impact:FxImpact):string|null{
   if(impact.kind==='armorHit')return `방어도 −${impact.amount??0}`;
