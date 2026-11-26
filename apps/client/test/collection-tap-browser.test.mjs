@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
+import {mkdirSync} from 'node:fs';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 
 test('mobile catalog and deck builder keep eight-card pages and read-only inspection distinct from addition',{timeout:120000},async t=>{
@@ -10,15 +11,57 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   t.after(()=>{server.closeAllConnections();server.close();});
   const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
   t.after(()=>browser.close());
-  const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});
+  const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,deviceScaleFactor:2,reducedMotion:'reduce'});
   const page=await context.newPage(),errors=[];
   page.on('pageerror',err=>errors.push(err.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'카드 도감',exact:true}).tap();
+  const sizes=[[640,300],[700,320],[780,360],[844,390],[1024,600],[1024,768]];
+  mkdirSync('ui-evidence',{recursive:true});
+  async function checkWorkspace(mode,width,height){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const geometry=await page.evaluate(mode=>{
+      const workspace=document.querySelector(mode==='catalog'?'.integrated-browser':'.deck-builder');
+      const book=workspace.querySelector('.collection-book');
+      const box=el=>el.getBoundingClientRect();
+      const rect=el=>box(el).toJSON();
+      const visible=el=>{
+        const b=box(el);
+        if(b.width<1||b.height<1||b.left<-.5||b.top<-.5||b.right>innerWidth+.5||b.bottom>innerHeight+.5)return false;
+        for(let p=el;p;p=p.parentElement){
+          const style=getComputedStyle(p);
+          if(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)return false;
+          if(p===el)continue;
+          const r=box(p);
+          if(/hidden|clip|auto|scroll/.test(style.overflowX)&&(b.left<r.left-1||b.right>r.right+1))return false;
+          if(/hidden|clip|auto|scroll/.test(style.overflowY)&&(b.top<r.top-1||b.bottom>r.bottom+1))return false;
+        }
+        const top=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
+        return !!top&&el.contains(top);
+      };
+      const cards=[...book.querySelectorAll('.battle-card')],tabs=[...workspace.querySelectorAll('.book-class-tabs button')],edges=[...workspace.querySelectorAll('.book-edge')];
+      const settings=document.querySelector('.lobby-settings-entry>button'),home=document.querySelector('.floating-home>button');
+      const toolbar=workspace.querySelector('.collection-toolbar'),buttons=[...toolbar.querySelectorAll(':scope>button')];
+      const back=document.querySelector('.preview-deck-back');
+      const left=[settings,...buttons],right=mode==='builder'?[back,home]:[home];
+      const row=left.concat(right);
+      const overlap=row.some((a,i)=>row.slice(i+1).some(b=>{const x=box(a),y=box(b);return x.left<y.right-.5&&x.right>y.left+.5&&x.top<y.bottom-.5&&x.bottom>y.top+.5;}));
+      return {count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>box(el).bottom<=box(book).top+2),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
+    },mode);
+    const msg=JSON.stringify({mode,width,height,...geometry});
+    await page.screenshot({path:'ui-evidence/'+mode+'-'+width+'x'+height+'.png'});
+    assert.equal(geometry.count,8,msg);assert.ok(geometry.book.height>100,msg);
+    assert.deepEqual(geometry.badCards,[],msg);assert.deepEqual(geometry.badTabs,[],msg);assert.deepEqual(geometry.badEdges,[],msg);assert.deepEqual(geometry.badControls,[],msg);
+    assert.equal(geometry.overlap,false,msg);assert.equal(geometry.toolbarAbove,true,msg);assert.equal(geometry.order,true,msg);assert.equal(geometry.duplicateCount,false,msg);
+    assert.ok(geometry.documentWidth<=width+2&&geometry.documentHeight<=height+2,msg);
+  }
   const catalog=page.locator('.integrated-browser'),cards=catalog.locator('.collection-book .battle-card');
   await cards.first().waitFor();
   assert.equal(await catalog.locator('.collection-book').getAttribute('data-book-size'),'8');
+  for(const [width,height] of sizes)await checkWorkspace('catalog',width,height);
+  await page.setViewportSize({width:844,height:390});
   const filter=catalog.getByRole('button',{name:'카드 필터',exact:true});
   await filter.tap();
   const filterDialog=page.getByRole('dialog',{name:'카드 필터',exact:true});
@@ -43,18 +86,8 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.waitForFunction(()=>document.querySelector('.deck-live-count')?.textContent==='1/30');
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
   await page.locator('.collection-detail-dialog .collection-detail-body').waitFor({state:'detached'});
-  for(const [width,height] of [[667,375],[844,390],[1024,600],[1024,768]]){
-    await page.setViewportSize({width,height});
-    const geometry=await page.evaluate(()=>{
-      const book=document.querySelector('.deck-builder .collection-book');
-      const rect=book.getBoundingClientRect();
-      const cards=[...book.querySelectorAll('.battle-card')].map(el=>el.getBoundingClientRect());
-      const clipped=cards.filter(c=>c.left<rect.left-2||c.right>rect.right+2||c.top<rect.top-2||c.bottom>rect.bottom+2||c.bottom>innerHeight+2);
-      return {count:cards.length,overflow:clipped.length>0,book:rect.toJSON(),clipped:clipped.map(c=>c.toJSON()),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
-    });
-    assert.equal(geometry.count,8,JSON.stringify(geometry));
-    assert.equal(geometry.overflow,false,JSON.stringify({width,height,...geometry}));
-    assert.ok(geometry.documentWidth<=width+2&&geometry.documentHeight<=height+2,JSON.stringify(geometry));
-  }
+  for(const [width,height] of sizes)await checkWorkspace('builder',width,height);
+  await page.getByRole('button',{name:'← 덱 목록',exact:true}).tap();
+  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).waitFor();
   assert.deepEqual(errors,[]);
 });
