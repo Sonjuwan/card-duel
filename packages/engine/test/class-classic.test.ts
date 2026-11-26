@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createCatalog,createGame,applyAction,starterDeck,deckCards,currentCost,getPlayerView,hasKeyword} from '../src/index.ts';
+import {createCatalog,createGame,applyAction,starterDeck,currentCost,getPlayerView,hasKeyword} from '../src/index.ts';
 import type {GameState,Target,PlayerId} from '../src/index.ts';
 const cards=JSON.parse(readFileSync(new URL('../../../data/cards/v0.13.0.json',import.meta.url),'utf8')),catalog=createCatalog(cards);
 function ready(){let s=createGame(catalog,[starterDeck(catalog,'mage'),starterDeck(catalog,'mage')],{seed:12,firstPlayer:0});s=applyAction(s,0,{type:'mulligan',replace:[]});return applyAction(s,1,{type:'mulligan',replace:[]});}
