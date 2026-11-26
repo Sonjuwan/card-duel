@@ -1,0 +1,48 @@
+name: Performance candidate verification
+on:
+  pull_request:
+    branches: [ui/followup-20261125]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: perf-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:release-baseline
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:render
+      - run: node scripts/performance-touch-geometry.mjs
+      - run: npm run test:package-pwa
+  browser:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:solo-app
+      - run: npx playwright install --with-deps chromium
+      - run: node --test apps/client/test/battle-immersive-browser.test.mjs
+      - run: node --test apps/client/test/solo-app-browser.test.mjs apps/client/test/update-browser.test.mjs
