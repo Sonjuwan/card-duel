@@ -246,7 +246,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const opponentReady=room.mode==='bot'||room.opponentConnected;
   const previousView=useRef<PlayerView|undefined>(undefined);
   const [motion,setMotion]=useState<TableMotion|null>(null);
-  useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const next=deriveTableMotion(previousView.current,s,seat);previousView.current=s;if(document.hidden){setMotion(null);return;}setMotion(next);const timer=setTimeout(()=>setMotion(null),2000);return()=>clearTimeout(timer);},[s?.revision,connected,seat]);
+  useEffect(()=>{if(!connected||!s){previousView.current=undefined;setMotion(null);return;}const previous=previousView.current;previousView.current=s;if(document.hidden||room.animationSpeed==='instant'){setMotion(null);return;}const next=deriveTableMotion(previous,s,seat);setMotion(next);const timer=setTimeout(()=>setMotion(null),2000);return()=>clearTimeout(timer);},[s?.revision,connected,seat,room.animationSpeed]);
   const visual=room.animationSpeed!=='instant'&&motion?.revision===s?.revision&&(!room.animation||cue?.animation.revision===motion?.revision)?motion:null;
   useEffect(()=>{setHandOpen(false);},[acceptedPhase,room.code]);
   const active=!!s&&s.phase==='playing'&&!s.choicePending&&s.activePlayer===seat&&connected&&opponentReady&&!inputBlocked;
@@ -446,12 +446,16 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     return index<0?null:<span className="intent-badge" aria-label={`예약 ${index+1}번`}>{index+1}</span>;
   };
   const canTarget=(target:Target)=>legalTargets.some(t=>sameTarget(t,target));
-  const canAttack=(id?:string)=>active&&!!planAttack(rules,seat,catalog,id);
+  // Cache only within this render's immutable public projection. Explicit
+  // submission and drag paths still revalidate against current rules.
+  const attackReadyCache=new Map<string|undefined,boolean>();
+  const canAttack=(id?:string)=>{if(!active)return false;const cached=attackReadyCache.get(id);if(cached!==undefined)return cached;const ready=!!planAttack(rules,seat,catalog,id);attackReadyCache.set(id,ready);return ready;};
   const power=active?planPower(rules,seat,catalog):null;
   const powerReason=heroPowerReason(rules.self)??(active&&!power?'선택할 수 있는 대상이 없습니다.':undefined);
   const choiceCard=selected?.kind==='cardChoice'?selectionCard(s,catalog,selected):undefined;
   const enemyLabel=room.mode==='bot'?'AI':'상대';
-  const handReady=(id:string)=>active&&!!planCard(rules,seat,catalog,id,boardPosition);
+  const handReadyCache=new Map<string,boolean>();
+  const handReady=(id:string)=>{if(!active)return false;const cached=handReadyCache.get(id);if(cached!==undefined)return cached;const ready=!!planCard(rules,seat,catalog,id,boardPosition);handReadyCache.set(id,ready);return ready;};
   const choose=(target:Target,keyboard=false)=>{if(!active)return;const action=targetAction(rules,seat,catalog,selected,target);if(action)perform(action,keyboard);};
   const beginDrag=(event:DragEvent<HTMLButtonElement>,intent:DragIntent)=>{
     if(stagedAim||!active||!planDrag(rules,seat,catalog,intent,boardPosition)){event.preventDefault();return;}

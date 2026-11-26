@@ -1,0 +1,44 @@
+name: Battle UI evaluation experiment
+on:
+  pull_request:
+    branches: [perf/v0.323-static-render]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  compare:
+    if: github.event.pull_request.head.ref == 'perf/v0.323-battle-ui-evaluation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '20d12852a5003ee71c8f5a3b99df8b7648cea21c'
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run typecheck && npm run build:solo-app
+      - run: npm run test:render
+      - run: npm ci && npm run build:solo-app
+        working-directory: baseline
+      - run: npx playwright install --with-deps chromium
+      - run: node --test apps/client/test/battle-immersive-browser.test.mjs
+      - name: Compare active combat with unchanged animation and inputs
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              dist="$PWD/dist/solo-app"
+              if [ "$kind" = baseline ]; then dist="$PWD/baseline/dist/solo-app"; fi
+              echo "UI EVALUATION $kind"
+              CARD_DUEL_PROFILE_COMBAT=1 CARD_DUEL_SOLO_APP_DIST_DIR="$dist" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+            done
+          done
+      - name: Exercise instant-mode storage and command handling
+        run: node scripts/performance-storage.mjs .
