@@ -274,3 +274,21 @@ export function createParticleCache(){
     return particles;
   };
 }
+
+
+/** Cache cue-invariant trace metadata without changing original event order,
+ * original indices (particle seeds), or the first death/secret beat. */
+export function indexFxTrace(trace:readonly BattleVisualEvent[],recovery:number){
+  const key=(target:Target)=>target.kind==='hero'?'hero:'+target.player:'minion:'+target.instanceId;
+  const deaths=new Map<string,number>();
+  const timed: {index:number;event:BattleVisualEvent}[]=[];
+  let firstSecret=-1;
+  for(const [index,event] of trace.entries()){
+    if(event.kind==='death'){
+      const id=key(event.target);if(!deaths.has(id))deaths.set(id,index);
+    }else if(event.kind==='secretTriggered'&&firstSecret<0)firstSecret=index;
+    if(event.kind==='fatigue'||event.kind==='deathrattle')timed.push({index,event});
+  }
+  return {timed,hasDeath:deaths.size>0,hasSecret:firstSecret>=0,secretBeat:Math.max(0,firstSecret)*35,
+    deathBeat:(id:string)=>Math.min(recovery*.28,240+Math.max(0,deaths.get(id)??-1)*55)};
+}

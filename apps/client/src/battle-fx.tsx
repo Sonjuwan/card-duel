@@ -5,7 +5,7 @@ import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/ind
 import { BattleCard } from './battle-pieces.tsx';
 import { LocalCardArt, LocalCardBack } from './local-art.tsx';
 import type { PlaybackCue } from './battle-playback.ts';
-import { animationTheme, FX_COLORS, impactChanges, impactFeedback, defenseImpactLabel, fxRenderBudget,fxFramePressure,fxAutoAdaptation,fxCanvasGeometryChanged,fxNeedsCanvasAnimation,departureVisual,departureSoundKind,summonVisuals,projectedSummonX,clipBoardFxAnchor,offscreenFxMarkers,fxEdgeMarkerBounds,fxEdgeMarkerLabel,createImpactLabelCache,createParticleCache,fxRandom } from './battle-fx-model.ts';
+import { animationTheme, FX_COLORS, impactChanges, impactFeedback, defenseImpactLabel, fxRenderBudget,fxFramePressure,fxAutoAdaptation,fxCanvasGeometryChanged,fxNeedsCanvasAnimation,departureVisual,departureSoundKind,summonVisuals,projectedSummonX,clipBoardFxAnchor,offscreenFxMarkers,fxEdgeMarkerBounds,fxEdgeMarkerLabel,createImpactLabelCache,createParticleCache,fxRandom,indexFxTrace } from './battle-fx-model.ts';
 import type { FxTheme,FxLabel,FxAnchor,FxEdgeMarker } from './battle-fx-model.ts';
 import { playBattleSound,playBattleDepartureSound,stopBattleSound } from './battle-sound.ts';
 import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
@@ -281,12 +281,7 @@ export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{c
     const start=performance.now(),feedback=impactFeedback(a,impacts);
     const recovery=cue.duration-cue.impact;
     const trace=a.events??[];
-    const deathBeat=(key:string)=>{
-      const index=trace.findIndex(event=>event.kind==='death'&&targetKey(event.target)===key);
-      return Math.min(recovery*.28,240+Math.max(0,index)*55);
-    };
-    const hasDeath=trace.some(event=>event.kind==='death');
-    const secretBeat=Math.max(0,trace.findIndex(event=>event.kind==='secretTriggered'))*35;
+    const {deathBeat,hasDeath,secretBeat,hasSecret,timed}=indexFxTrace(trace,recovery);
     playBattleSound(a,theme,'start');
     if(attack)timeouts.push(setTimeout(()=>playBattleSound(a,theme,'lunge'),cue.windup??cue.impact*700/820));
     const impact=()=>{
@@ -355,7 +350,7 @@ export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{c
         if(elapsed>=cue.impact){
           resolveNewPositions();
           if(!reduced&&!spatialInvalid&&a.kind!=='turn'&&a.kind!=='choice')burst(ctx,to,u,a.blocked||feedback.kind==='armor'?'gold':theme,a.heavy&&feedback.kind!=='armor'?1.65:1.0,a.revision,budget.particleDensity,particlesFor);
-          if(!reduced)for(const [index,event] of trace.entries()){
+          if(!reduced)for(const {index,event} of timed){
             if(event.kind!=='fatigue'&&event.kind!=='deathrattle')continue;
             const p=event.kind==='deathrattle'?positions.get(targetKey(event.target)):center(elementFor(arena,event.target,seat));
             const delay=event.kind==='deathrattle'?deathBeat(targetKey(event.target))+250:0;
@@ -389,9 +384,9 @@ export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{c
           for(const label of labelForFrame(target=>{const p=impactPosition(target);return p?.edge?undefined:p;}))drawImpactLabel(ctx,label,u,reduced);
           if(markersDirty){cachedMarkers=offscreenFxMarkers(impacts,impactPosition);markersDirty=false;}
           for(const marker of cachedMarkers)drawEdgeMarker(ctx,marker,u,rect.width,rect.height,seat);
-          if(a.blocked||elapsed-cue.impact>=secretBeat&&trace.some(e=>e.kind==='secretTriggered')){
+          if(a.blocked||elapsed-cue.impact>=secretBeat&&hasSecret){
             ctx.save();ctx.globalAlpha=1-u;ctx.font='900 25px system-ui,sans-serif';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#25112c';ctx.fillStyle='#f4c2ff';
-            const label=a.events?.some(e=>e.kind==='secretTriggered')?'비밀 발동!':'공격 차단',p=spatialInvalid?boardCenter:to;ctx.strokeText(label,p.x,p.y-70);ctx.fillText(label,p.x,p.y-70);ctx.restore();
+            const label=hasSecret?'비밀 발동!':'공격 차단',p=spatialInvalid?boardCenter:to;ctx.strokeText(label,p.x,p.y-70);ctx.fillText(label,p.x,p.y-70);ctx.restore();
           }
         }
       }
