@@ -211,14 +211,16 @@ test('144 synthetic offline ranked results reach the complete ladder, cycle nine
   assert.equal(settleOfflineRanked(record,growth,first!,{matchId:'full-growth-0',rank:1,heroClass:'warrior',mode:'ranked',outcome:'win',eligible:true}),record);
 });
 
-test('offline ranked worker saves results with checkpoint and cannot grant the same early concession twice',async t=>{
-  let entry:Entry|undefined,record:OfflineGrowthRecord|undefined;
-  const store:LocalSaveStore={async read(){return structuredClone(entry?.snapshot??null);},async readGrowth(growth){return readOfflineGrowth(structuredClone(record),growth);},async write(snapshot,owner,claim,expected,ranked){if(!saveWriteAllowed(entry,owner,claim,expected)||!canReplaceRankedSave(entry,snapshot))return false;if(ranked){record=readOfflineGrowth(record,ranked.growth);if(ranked.award)record=settleOfflineRanked(record,ranked.growth,snapshot.input.ranked!,ranked.award);}entry={hash,owner,snapshot:structuredClone(snapshot)};return true;},async remove(_,owner,expected){if(!saveRemoveAllowed(entry,owner,expected)||activeRankedSave(entry))return false;entry=undefined;return true;}};
+for(const atomic of [false,true])test('offline ranked worker saves results with checkpoint and cannot grant the same early concession twice (atomic profile '+atomic+')',async t=>{
+  let entry:Entry|undefined,record:OfflineGrowthRecord|undefined,reads=0;
+  const store:LocalSaveStore={async read(){return structuredClone(entry?.snapshot??null);},async readGrowth(growth){reads++;return readOfflineGrowth(structuredClone(record),growth);},async write(snapshot,owner,claim,expected,ranked){if(!saveWriteAllowed(entry,owner,claim,expected)||!canReplaceRankedSave(entry,snapshot))return false;if(ranked){record=readOfflineGrowth(record,ranked.growth);if(ranked.award)record=settleOfflineRanked(record,ranked.growth,snapshot.input.ranked!,ranked.award);}entry={hash,owner,snapshot:structuredClone(snapshot)};return true;},async remove(_,owner,expected){if(!saveRemoveAllowed(entry,owner,expected)||activeRankedSave(entry))return false;entry=undefined;return true;}};
+  if(atomic)store.writeRanked=async(snapshot,owner,claim,expected,ranked)=>await store.write(snapshot,owner,claim,expected,ranked)?structuredClone(record!.profile):null;
   const tab=(owner:string)=>{let receive:(m:LocalResponse)=>void=()=>{};const scope:LocalDuelScope={postMessage:m=>receive(m),onmessage:()=>{}};t.after(attachLocalDuel(scope,store,owner));return {send:(data:LocalRequest)=>new Promise<LocalResponse>((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('Worker command timeout')),3000);receive=m=>{clearTimeout(timeout);resolve(m);};scope.onmessage({data});})};};
   const a=tab('ranked-a'),b=tab('ranked-b');const started=await a.send({type:'start',input:savedInput,ranked:true});assert.equal(started.type,'view');assert.equal(started.view.ranked?.rank,1);assert.equal(started.save?.rank,1);
   const forbidden=await b.send({type:'start',input:{...savedInput,code:'forbidden'},ranked:true,developerExperiment:true});assert.equal(forbidden.type,'error');
   const blocked=await b.send({type:'start',input:{...savedInput,code:'other'},ranked:true,replaceSave:started.save});assert.equal(blocked.type,'error');
-  const result=await a.send({type:'act',requestId:1,revision:0,action:{type:'concede'}});assert.equal(result.type,'view');assert.equal(result.view.ranked?.reward,'notEligible');assert.equal(result.profile?.xp,0);assert.equal(result.profile?.matchStats?.ranked.losses,1);assert.equal(record?.settledMatchIds.length,1);
+  const readsBefore=reads;
+  const result=await a.send({type:'act',requestId:1,revision:0,action:{type:'concede'}});assert.equal(result.type,'view');assert.equal(result.view.ranked?.reward,'notEligible');assert.equal(result.profile?.xp,0);assert.equal(result.profile?.matchStats?.ranked.losses,1);assert.equal(record?.settledMatchIds.length,1);assert.equal(reads-readsBefore,atomic?0:1);
   const resumed=await b.send({type:'resume',catalog,catalogHash:hash});assert.equal(resumed.type,'view');assert.equal(resumed.view.ranked?.reward,'notEligible');assert.equal(resumed.profile?.matchStats?.ranked.losses,1);assert.equal(record?.settledMatchIds.length,1);
 });
 
@@ -533,10 +535,10 @@ test('ordinary ranked saves validate growth without rewriting an unchanged ledge
   Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(){const r={onsuccess:()=>{},result:{transaction(_stores:unknown,mode:string){assert.equal(mode,'readwrite');const tx={oncomplete:()=>{},objectStore(name:string){return name==='matches'?{get:()=>request(current),put:(value:Entry)=>{matchWrites++;current=value;}}:{get:()=>request(record),put:(value:OfflineGrowthRecord)=>{growthWrites++;record=value;}};}};setImmediate(()=>tx.oncomplete());return tx;}}};queueMicrotask(()=>r.onsuccess());return r;}}});
   try{
     const store=new IndexedLocalSaveStore(1);
-    assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
+    assert.deepEqual(await store.writeRanked(snapshot,'one',false,undefined,{growth}),initial.profile);
     assert.equal(matchWrites,1);assert.equal(growthWrites,0);
     assert.deepEqual(record,initial);
-    assert.equal(await store.write(snapshot,'old-owner',false,undefined,{growth}),false);
+    assert.equal(await store.writeRanked(snapshot,'old-owner',false,undefined,{growth}),null);
     assert.equal(matchWrites,1);assert.equal(growthWrites,0);
     record={...initial,profile:{...initial.profile,ownedCards:[]}};
     assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
@@ -545,7 +547,8 @@ test('ordinary ranked saves validate growth without rewriting an unchanged ledge
     assert.equal(matchWrites,3);assert.equal(growthWrites,2);
     duel.act(duel.view().state!.revision,{type:'concede'});
     const completed=duel.checkpoint()!;
-    assert.equal(await store.write(completed,'two',false,undefined,{growth,award:duel.rankedAward()}),true);
+    const committed=await store.writeRanked(completed,'two',false,undefined,{growth,award:duel.rankedAward()});
+    assert.deepEqual(committed,record.profile);
     assert.equal(matchWrites,4);assert.equal(growthWrites,3);
     assert.equal(record.settledMatchIds.length,1);
   }finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
