@@ -15,7 +15,8 @@ let initialClaimRetryable=false,initialClaimExpected:SaveVersion|null=null;
 const clear=()=>{timerEpoch++;if(botTimer!==undefined)clearTimeout(botTimer);if(turnTimer!==undefined)clearTimeout(turnTimer);botTimer=undefined;turnTimer=undefined;};
 async function refresh(hash:string){try{const saved=await store.read(hash);lastSaved=saved?publicSaveSummary(saved,hash):null;return true;}catch{return false;}}
 async function persist(claim=false,expected?:SaveVersion|null){
-  const snapshot=duel?.checkpoint();if(!snapshot||!saveAvailable&&!ownsSave&&!initialClaimRetryable)return false;
+  if(!duel||!saveAvailable&&!ownsSave&&!initialClaimRetryable)return false;
+  const snapshot=duel.checkpoint();if(!snapshot)return false;
   // A claim of an unchanged game must still create a distinct save version,
   // even if both tabs act within the same millisecond.
   const prior=expected??lastSaved;if(prior&&Date.parse(snapshot.summary.savedAt)<=Date.parse(prior.savedAt))snapshot.summary.savedAt=new Date(Date.parse(prior.savedAt)+1).toISOString();
