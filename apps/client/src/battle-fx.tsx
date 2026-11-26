@@ -1,5 +1,5 @@
 import {stopDialogueVoice} from './dialogue-voice.ts';
-import { useLayoutEffect, useRef } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import { BattleCard } from './battle-pieces.tsx';
@@ -88,7 +88,7 @@ function drawEdgeMarker(ctx:CanvasRenderingContext2D,marker:FxEdgeMarker,t:numbe
   const {w,h,x,y}=fxEdgeMarkerBounds(marker,width,height);
   ctx.save();ctx.globalAlpha=t>.65?(1-t)/.35:1;ctx.fillStyle='#241a0f';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#f9df97';ctx.lineWidth=1.5;ctx.strokeRect(x+.75,y+.75,Math.max(0,w-1.5),Math.max(0,h-1.5));ctx.fillStyle='#fff0b6';ctx.font='800 12px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(fxEdgeMarkerLabel(marker,seat),x+w/2,y+h/2,Math.max(1,w-8));ctx.restore();
 }
-export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arenaRef:RefObject<HTMLDivElement|null>;catalog:Catalog}){
+export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arenaRef:RefObject<HTMLDivElement|null>;catalog:Catalog}){
   const canvas=useRef<HTMLCanvasElement>(null),cardReveal=useRef<HTMLDivElement>(null);
   const adaptiveUntil=useRef(0);
   const card=cue?.animation.cardId?catalog[cue.animation.cardId]:undefined;
@@ -421,4 +421,4 @@ export function BattleEffects({cue,arenaRef,catalog}:{cue:PlaybackCue|null;arena
     <canvas ref={canvas} className="battle-fx-canvas"/>
     {showCard&&<div className="fx-play-card" ref={cardReveal} data-card-reveal-kind={a.kind}>{card?<><BattleCard card={card}/>{a.kind==='summon'&&<span className="fx-summon-portrait"><LocalCardArt card={card}/></span>}</>:<div className="fx-secret-card"><LocalCardBack/><strong>비밀 설치</strong></div>}</div>}
   </div>;
-}
+});
