@@ -9,7 +9,8 @@ const packageDirectory=fileURLToPath(new URL('../../dist/solo-app/',import.meta.
 // Prior published previews bundled these assets and still need integrity verification.
 const legacyMusicAssets=['home','prepare','library','deck','battle-1','battle-2','battle-3','battle-4','battle-5','battle-6','progress','win','loss']
   .map(name=>`music-${name}.mp3`);
-const types={...Object.fromEntries(legacyMusicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','manifest.webmanifest':'application/manifest+json','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','version.json':'application/json; charset=utf-8','icon-192.png':'image/png','icon-512.png':'image/png'};
+const artBundles=Array.from({length:32},(_,i)=>`art-bundle-${String(i).padStart(2,'0')}.css`);
+const types={...Object.fromEntries(artBundles.map(name=>[name,'text/css; charset=utf-8'])),...Object.fromEntries(legacyMusicAssets.map(name=>[name,'audio/mpeg'])),'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','game.css':'text/css; charset=utf-8','manifest.webmanifest':'application/manifest+json','register.js':'text/javascript; charset=utf-8','sw.js':'text/javascript; charset=utf-8','version.json':'application/json; charset=utf-8','icon-192.png':'image/png','icon-512.png':'image/png'};
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function loadSoloRelease(directory=packageDirectory){
   const worker=readFileSync(resolve(directory,'sw.js')).toString('utf8');
@@ -21,9 +22,12 @@ export function loadSoloRelease(directory=packageDirectory){
   const required=['index.html','manifest.webmanifest','register.js','icon-192.png','icon-512.png'];
   const hasSplitGame=expected.includes('game.js')&&expected.includes('game.css');
   const hasLegacyMusic=legacyMusicAssets.every(name=>expected.includes(name));
-  const validLayout=expected.length===5 ||
-    (hasSplitGame&&(expected.length===7 ||
-      (hasLegacyMusic&&expected.length===7+legacyMusicAssets.length)));
+  const bundles=expected.filter(name=>artBundles.includes(name));
+  const coreCount=expected.length-bundles.length;
+  const validBundles=!bundles.length||hasSplitGame&&[4,8,16,32].includes(bundles.length)&&artBundles.slice(0,bundles.length).every(name=>bundles.includes(name));
+  const validLayout=validBundles&&(coreCount===5&&!bundles.length ||
+    (hasSplitGame&&(coreCount===7 ||
+      (hasLegacyMusic&&coreCount===7+legacyMusicAssets.length))));
   if(!validLayout||!required.every(name=>expected.includes(name))||
     !expected.every(name=>Object.hasOwn(types,name)&&name!=='sw.js'))throw Error('Invalid release asset list');
   const files=new Map([['sw.js',Buffer.from(worker)],...expected.map(name=>[name,readFileSync(resolve(directory,name))])]);
