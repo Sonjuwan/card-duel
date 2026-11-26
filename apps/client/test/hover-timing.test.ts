@@ -55,3 +55,15 @@ test('detail supplier reads latest live stats at deadline, not stale start state
 test('visible preview refreshes updated battle stats and disappears if source is gone',()=>{
   const f=fixture();let health:string|null='4';f.hover.start('m',()=>health);f.tick(700);health='3';f.hover.refresh();assert.equal(f.current(),null);f.tick(300);assert.equal(f.current(),'3');health='1';f.hover.refresh();assert.equal(f.current(),'1');health=null;f.hover.refresh();assert.equal(f.current(),null);
 });
+
+test('stationary battle taps pin details without a timer or a follow-up click action',()=>{
+  const f=fixture(),guard=createTouchPreviewGuard();
+  guard.begin(1,10,10,0);assert.equal(guard.endTap(1,12,12,45),true);assert.equal(guard.suppress(46),true);
+  let value:string|null='card';f.hover.pin('source',()=>value);f.hover.leave('source');f.tick(10000);
+  assert.equal(f.current(),'card');assert.equal(f.timers.size,0);
+  value='updated';f.hover.refresh();assert.equal(f.current(),'updated');
+  f.hover.dismissPinned();assert.equal(f.current(),null);
+  guard.begin(2,0,0,500);guard.move(2,9,0);assert.equal(guard.endTap(2,0,0,550),false);assert.equal(guard.suppress(551),true);
+  guard.begin(3,0,0,900);guard.cancel(3,910);assert.equal(guard.endTap(3,0,0,920),false);
+  f.hover.pin('source',()=>value);value=null;f.hover.refresh();assert.equal(f.current(),null);
+});
