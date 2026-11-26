@@ -64,11 +64,17 @@ export function nearestBoardSlot(x:number,slots:readonly {position:number;x:numb
 /** Snap only to the visible portion of each insertion gap. Scroll-clipped
  * gaps must not win a distance comparison against a visible gap. */
 export function nearestVisibleBoardSlot(x:number,bounds:{left:number;right:number},slots:readonly {position:number;left:number;right:number}[]):number|undefined{
-  if(!Number.isFinite(bounds.left)||!Number.isFinite(bounds.right)||bounds.left>=bounds.right)return undefined;
-  return nearestBoardSlot(x,slots.flatMap(slot=>{
+  if(!Number.isFinite(x)||!Number.isFinite(bounds.left)||!Number.isFinite(bounds.right)||bounds.left>=bounds.right)return undefined;
+  let nearest:number|undefined,distance=Infinity;
+  for(const slot of slots){
     const left=Math.max(bounds.left,slot.left),right=Math.min(bounds.right,slot.right);
-    return Number.isFinite(left)&&Number.isFinite(right)&&left<right?[{position:slot.position,x:(left+right)/2}]:[];
-  }));
+    if(!Number.isFinite(left)||!Number.isFinite(right)||left>=right||!Number.isInteger(slot.position)||slot.position<0)continue;
+    const center=(left+right)/2;
+    if(!Number.isFinite(center))continue;
+    const delta=Math.abs(x-center);
+    if(delta<distance||(delta===distance&&slot.position<(nearest??Infinity))){nearest=slot.position;distance=delta;}
+  }
+  return nearest;
 }
 export type TargetHitBox={target:Target;legal:boolean;left:number;right:number;top:number;bottom:number};
 /** Touch-only tolerance for a finger just outside a target. Include illegal
