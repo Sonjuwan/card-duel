@@ -64,7 +64,7 @@ export function animationTheme(animation:BattleAnimation,card?:Card,heroClass?:H
 }
 export type ImpactKind='damage'|'heal'|'leave'|'summon'|'shield'|'shieldGain'|'armorGain'|'armorHit'|'buff'|'freeze'|'transform';
 export interface FxImpact{target:Target;kind:ImpactKind;amount?:number;side:PlayerId;death?:boolean;hitCount?:number;}
-export type ImpactFeedback={kind:'damage'|'armor'|'blocked'|'shield'|'protect'|'heal'|'neutral';strength:number;shake:number;armor?:boolean;extraHits?:number};
+export type ImpactFeedback={kind:'damage'|'armor'|'blocked'|'shield'|'protect'|'heal'|'neutral';strength:number;shake:number;armor?:boolean;extraHits?:number;attackPower?:number};
 /** Use the accepted public outcomes, not the printed attack value, for impact
  * feedback. A shielded or canceled hit should never sound like full damage. */
 export function impactFeedback(animation:BattleAnimation,impacts:readonly FxImpact[]):ImpactFeedback{

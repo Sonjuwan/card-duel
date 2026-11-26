@@ -1,4 +1,3 @@
-import {stopDialogueVoice} from './dialogue-voice.ts';
 import { memo, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { Catalog, PlayerId, Target } from '../../../packages/engine/src/index.ts';
@@ -7,7 +6,7 @@ import { LocalCardArt, LocalCardBack } from './local-art.tsx';
 import type { PlaybackCue } from './battle-playback.ts';
 import { animationTheme, FX_COLORS, impactChanges, impactFeedback, defenseImpactLabel, fxRenderBudget,fxFramePressure,fxAutoAdaptation,fxCanvasGeometryChanged,fxNeedsCanvasAnimation,departureVisual,departureSoundKind,summonVisuals,projectedSummonX,clipBoardFxAnchor,offscreenFxMarkers,fxEdgeMarkerBounds,fxEdgeMarkerLabel,createImpactLabelCache,createParticleCache,fxRandom } from './battle-fx-model.ts';
 import type { FxTheme,FxLabel,FxAnchor,FxEdgeMarker } from './battle-fx-model.ts';
-import { playBattleSound,playBattleDepartureSound,stopBattleSound } from './battle-sound.ts';
+import { playBattleSound,playBattleDepartureSound } from './battle-sound.ts';
 import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
 import {battleFxQuality} from './battle-fx-quality.ts';
 import {prepareFxGhost} from './battle-fx-ghost.ts';
@@ -279,6 +278,7 @@ export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{c
       }
     }
     const start=performance.now(),feedback=impactFeedback(a,impacts);
+    if(a.kind==='attack'||a.kind==='heroAttack'){feedback.attackPower=a.kind==='heroAttack'?actor.heroAttack+(actor.weapon?.attack??0):actor.board.find(m=>m.instanceId===a.attackerId)?.attack;}
     const recovery=cue.duration-cue.impact;
     const trace=a.events??[];
     const deathBeat=(key:string)=>{
@@ -406,7 +406,7 @@ export const BattleEffects=memo(function BattleEffects({cue,arenaRef,catalog}:{c
     };
     if(ctx)frame=requestAnimationFrame(paint);
     timeouts.push(setTimeout(impact,cue.impact));
-    return()=>{stopDialogueVoice();stopBattleSound();stopBattleHaptics();cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
+    return()=>{stopBattleHaptics();cancelAnimationFrame(frame);for(const t of timeouts)clearTimeout(t);for(const animation of animations)animation.cancel();for(const ghost of ghosts)ghost.remove();for(const boardRow of rows)boardRow.removeEventListener('scroll',onBoardScroll);window.removeEventListener('resize',onResize);resizeObserver?.disconnect();if(reveal)reveal.style.removeProperty('visibility');ctx?.clearRect(0,0,rect.width,rect.height);};
   },[cue,arenaRef,card,catalog]);
   if(!cue)return null;
   const a=cue.animation,own=a.actor===cue.before.seat,showCard=!!card||a.kind==='secret';

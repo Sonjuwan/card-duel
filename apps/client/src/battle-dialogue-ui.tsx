@@ -27,8 +27,8 @@ export function nextCaptionDelay(captions:readonly {expires:number}[],now:number
 }
 export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:boolean,catalog:Catalog,name:(card:Card)=>string){
   const [captions,setCaptions]=useState<Caption[]>([]),[emoteCooldown,setEmoteCooldown]=useState(false);
+  const greeted=useRef(''),sawMulligan=useRef('');
   const serial=useRef(0),timers=useRef<ReturnType<typeof setTimeout>[]>([]),before=useRef<RoomView|null>(null),lastCue=useRef('');
-  const later=(fn:()=>void,ms:number)=>{const timer=setTimeout(()=>{timers.current=timers.current.filter(t=>t!==timer);fn();},ms);timers.current.push(timer);};
   const reset=()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];setCaptions([]);setEmoteCooldown(false);lastCue.current='';before.current=null;stopDialogueVoice();};
   useEffect(()=>{reset();return()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];stopDialogueVoice();};},[room.code,connected]);
   useEffect(()=>{const changed=()=>{if(document.hidden)reset();};document.addEventListener('visibilitychange',changed);return()=>document.removeEventListener('visibilitychange',changed);},[]);
@@ -39,10 +39,14 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
     setCaptions(old=>[...unexpiredCaptions(old,now),...newLines].slice(-16));
     speakDialogue(lines);
   };
-  const showPlan=(plan:ReturnType<typeof dialoguePlan>,impact:number)=>{
-    show(plan.start);if(plan.impact.length)later(()=>show(plan.impact),impact);
-    if(plan.death.length)later(()=>show(plan.death),impact+180);
-  };
+  useEffect(()=>{
+    if(connected&&room.state?.phase==='mulligan')sawMulligan.current=room.code;
+    if(!connected||!room.state||room.state.phase!=='playing'||room.state.turn>1||sawMulligan.current!==room.code||greeted.current===room.code||document.hidden)return;
+    greeted.current=room.code;
+    const {self,opponent}=room.state;
+    show([heroEmote(self.heroClass,room.seat,'greet'),heroEmote(opponent.heroClass,room.seat===0?1:0,'greet')]);
+  },[room.code,room.state?.phase,connected]);
+  const showPlan=(plan:ReturnType<typeof dialoguePlan>)=>show(plan.start);
   useEffect(()=>{
     if(!connected||!room.state)return;
     if(document.hidden)return;
@@ -70,19 +74,11 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
     if(document.hidden||room.animationSpeed!=='instant'||!prev?.state)return;
     const a=freshAcceptedAnimation(prev,room);
     if(a){
-      showPlan(dialoguePlan(a,prev.state,room.state,room.seat,catalog,name),80);
+      showPlan(dialoguePlan(a,prev.state,room.state,room.seat,catalog,name));
       return ()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];setEmoteCooldown(false);};
     }
   },[room.code,room.state?.revision,connected,room.animationSpeed]);
-  const emote=(choice:Emote)=>{
-    if(document.hidden||cue||emoteCooldown||!connected||room.mode!=='bot'||room.state?.phase!=='playing')return;
-    const {self,opponent}=room.state;setEmoteCooldown(true);
-    show([heroEmote(self.heroClass,room.seat,choice)]);
-    const response:Emote=choice==='praise'?'thanks':choice==='sorry'?'greet':choice;
-    later(()=>show([heroEmote(opponent.heroClass,room.seat===0?1:0,response)]),900);
-    later(()=>setEmoteCooldown(false),3000);
-  };
-  return {captions,emote,emoteCooldown:!!cue||emoteCooldown};
+  return {captions,emoteCooldown:!!cue||emoteCooldown};
 }
 export const DialogueCaptions=memo(function DialogueCaptions({captions,side,catalog,hero,heroForm,mode='all'}:{captions:readonly Caption[];side:PlayerId;catalog:Catalog;hero:HeroClass;heroForm?:'jaraxxus';mode?:CaptionMode}){
   const lines=filterCaptions(captions,side,mode),visible=lines.slice(-3);

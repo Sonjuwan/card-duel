@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { applyAction, createCatalog, createGame, getHeroPower, getPlayerView, HERO_CLASSES, practiceDeck, publicCardReason } from '../../../packages/engine/src/index.ts';
 import type { Action, Card, GameState, HeroClass, Minion, PlayerId, Target } from '../../../packages/engine/src/index.ts';
-import { planAttack, planCard, planPower, resolveDrop, repositionSelection, placementOptions, toggleActionSelection, selectHandCard, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from '../src/battle-actions.ts';
+import { hasRemainingBattleAction, planAttack, planCard, planPower, resolveDrop, repositionSelection, placementOptions, toggleActionSelection, selectHandCard, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from '../src/battle-actions.ts';
 import type { DragIntent, Intent, Selection } from '../src/battle-actions.ts';
 import { nearestBoardSlot, touchDropLocations,pointerDrop,dropFeedbackText } from '../src/touch-gesture.ts';
 import type { TouchHit } from '../src/touch-gesture.ts';
@@ -160,4 +160,13 @@ test('an enemy board drop reserves a friendly slot and does not commit a targete
   assert.deepEqual(after.players[1].board,[]);
   const spell=hold(s,'flame_sphere');
   assert.equal(pointerDrop(spell,0,catalog,pointer,{field:true,enemyBoard:true},0).intent,null);
+});
+
+test('turn-ready requires exhaustion of free cards, attacks and hero power, not merely zero mana',()=>{
+  const s=ready('mage'),v=getPlayerView(s,0);v.self.hand=[];v.self.mana=0;v.self.board=[];v.self.heroPowerUsed=true;
+  assert.equal(hasRemainingBattleAction(v,0,catalog),false);
+  v.self.hand=[{instanceId:'free',cardId:'wisp'}];assert.equal(hasRemainingBattleAction(v,0,catalog),true);
+  v.self.hand=[];v.self.board=[{instanceId:'attacker',cardId:'wolf',attack:3,health:2,maxHealth:2,attacksRemaining:1}];assert.equal(hasRemainingBattleAction(v,0,catalog),true);
+  v.self.board[0].attacksRemaining=0;assert.equal(hasRemainingBattleAction(v,0,catalog),false);
+  v.self.mana=2;v.self.heroPowerUsed=false;assert.equal(hasRemainingBattleAction(v,0,catalog),true);
 });

@@ -1,0 +1,58 @@
+name: Verify integrated Card Duel v0.327.0
+on:
+  pull_request:
+    branches: [release/v0.326.0]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: integration-v0327
+  cancel-in-progress: true
+jobs:
+  checks:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'integration/v0.327.0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build:solo-app
+        if: always()
+      - run: npm run verify:release-baseline
+        if: always()
+      - run: npm run test:playable-core
+        if: always()
+      - run: npm test
+        if: always()
+      - run: npm run test:render
+        if: always()
+      - run: node scripts/performance-source-audit.mjs --strict
+        if: always()
+  browser:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'integration/v0.327.0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npx playwright install --with-deps chromium
+      - run: node --test apps/client/test/collection-tap-browser.test.mjs apps/client/test/battle-immersive-browser.test.mjs apps/client/test/landscape-solo-browser.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integrated-ui-evidence
+          path: ui-evidence/
+          if-no-files-found: ignore

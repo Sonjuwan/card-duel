@@ -167,3 +167,14 @@ export function resolveDrop(view:PlayerView,seat:PlayerId,catalog:Catalog,drag:D
   const action=targetAction(view,seat,catalog,plan?.selection??null,drop.target);
   return action?{action}:null;
 }
+
+/** An end-turn prompt is valid only after every real legal action is exhausted. */
+export function hasRemainingBattleAction(view:PlayerView,seat:PlayerId,catalog:Catalog):boolean{
+  if(!ownTurn(view,seat)||view.choicePending)return false;
+  if(planPower(view,seat,catalog)||planAttack(view,seat,catalog)||view.self.board.some(unit=>!!planAttack(view,seat,catalog,unit.instanceId)))return true;
+  return view.self.hand.some(held=>{
+    const card=catalog[held.cardId];
+    if(card&&(card.kind==='minion'||card.kind==='spell')&&card.choices)return card.choices.some((_,choice)=>!!planCard(view,seat,catalog,held.instanceId,undefined,choice));
+    return !!planCard(view,seat,catalog,held.instanceId);
+  });
+}

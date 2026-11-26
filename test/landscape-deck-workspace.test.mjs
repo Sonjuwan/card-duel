@@ -14,7 +14,8 @@ test('deck browsing uses pages while live deck rows retain contained scrolling',
   const integrated=readFileSync(new URL('../apps/client/src/integrated-ui.css',import.meta.url),'utf8');
   const editor=app.slice(app.indexOf('function DeckEditorView'),app.indexOf('export type DeckScreen'));
   assert.match(editor,/deckRows\.map/);
-  assert.match(editor,/<CollectionBook cards=\{bookPage.items\} paging=/);
+  assert.match(editor,/<CollectionBook cards=\{bookPage.current\?\.items\?\?\[\]\} paging=/);
+  assert.match(editor,/groupedCollection\(/);
   assert.doesNotMatch(editor,/<CollectionBook[^>]+continuous/);
   assert.match(integrated,/\.deck-list-scroll\{overflow:auto;overscroll-behavior:contain/);
   assert.match(integrated,/\.deck-builder \.book-with-tabs \.collection-book \{ overflow:hidden/);

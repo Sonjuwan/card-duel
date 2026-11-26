@@ -106,7 +106,7 @@ test('classic desktop collection displays eight cards in a readable two-leaf spr
   assert.match(css,/overflow-y:auto/);
   assert.match(css,/collection-inspector-sidebar/);
   const app=readFileSync('apps/client/src/App.tsx','utf8');
-  assert.match(app,/<div className="card-browser-controls collection-toolbar"><LobbyDialog label="카드 필터">/);assert.doesNotMatch(app,/collection-inspector-sidebar/);
+  assert.match(app,/<aside className="card-browser-controls catalog-inline-filters"><strong>카드 필터<\/strong>/);assert.doesNotMatch(app,/collection-inspector-sidebar/);
 });
 test('desktop battlefield uses adjacent minion lanes and a zero-height separator',()=>{
   const css=readFileSync('apps/client/src/classic-readability.css','utf8');
