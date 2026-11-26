@@ -175,17 +175,17 @@ function CardBrowser({initialClass='all',focusCardId,unreadIds=EMPTY_UNREAD_IDS,
   const filtersMounted=useRef(false);
   useEffect(()=>{if(!filtersMounted.current){filtersMounted.current=true;return;}setPage(0);setInspected(null);},[set,query,rarity,kind,tribe,cost,newOnly]);
   return <HoverPreviewProvider resetKey={`${scope}:${set}:${page}`}><section className="panel deck-panel card-browser integrated-browser collection-workspace" data-deck-screen="cards">
-    <div className="card-browser-controls collection-toolbar">{developer?<div className="developer-catalog-count">
-      <strong>개발자 모드 · 덱 구성 카드 전체 해금</strong>
-      <small>검색 결과 {filteredCount}종 · 전체 {all.length}종</small>
-      <small>덱 구성 {collectibleCount}종 · 비수집 {all.length-collectibleCount}종</small>
-    </div>:null}<LobbyDialog label="카드 필터">
+    <div className="card-browser-controls collection-toolbar"><LobbyDialog label="카드 필터">
     <div className="preview-card-filters">
     <div className="card-set-tabs" role="group" aria-label="카드 세트">{([['all','전체'],['basic','기본 카드'],['original','클래식 카드'],['token','생성 카드']] as const).filter(([key])=>developer||key!=='token').map(([key,label])=><button type="button" key={key} aria-pressed={set===key} onClick={()=>{setSet(key);setRarity('all');}}>{label}<small>{allSetCounts[key]}</small></button>)}</div>
     <div className="controls"><input type="search" aria-label="카드 이름 또는 효과 검색" title="이름 · 효과 · 종족 · 능력 (여러 검색어 가능)" value={query} onChange={e=>setQuery(e.target.value)} placeholder="카드 이름 또는 효과 검색"/><select aria-label="카드 종류" value={kind} onChange={e=>setKind(e.target.value)}><option value="all">전체 종류</option><option value="minion">하수인</option><option value="spell">주문</option><option value="weapon">무기</option><option value="secret">비밀</option>{developer&&<option value="coin">동전</option>}</select><div className="rarity-filters" role="group" aria-label="카드 등급">{Object.entries({all:'전체',basic:'기본',common:'일반',rare:'희귀',epic:'영웅',legendary:'전설'}).map(([key,label])=><button type="button" key={key} className={`rarity-${key}`} aria-pressed={rarity===key} onClick={()=>setRarity(key)}>{key!=='all'&&<span className="rarity-gem" aria-hidden="true"/>}{label}</button>)}</div><ManaFilter value={cost} onChange={setCost}/><select aria-label="종족" value={tribe} onChange={e=>setTribe(e.target.value)}><option value="all">전체 종족</option>{tribes.map(key=><option key={key} value={key}>{tribeNames[key]}</option>)}</select><label className="new-only-filter"><input type="checkbox" checked={newOnly} onChange={e=>setNewOnly(e.target.checked)}/> NEW 카드만 보기 ({unreadIds.length})</label><button className="secondary" onClick={()=>{setScope('all');setSet('all');setQuery('');setRarity('all');setKind('all');setCost('all');setTribe('all');setNewOnly(false);}}>필터 초기화</button></div>
     </div>
     {!developer&&<small>검색 결과 {shown.length}종 · 수집 {all.length}종</small>}
-    </LobbyDialog></div>
+    </LobbyDialog>{developer?<div className="developer-catalog-count">
+      <strong>개발자 모드 · 덱 구성 카드 전체 해금</strong>
+      <small>검색 결과 {filteredCount}종 · 전체 {all.length}종</small>
+      <small>덱 구성 {collectibleCount}종 · 비수집 {all.length-collectibleCount}종</small>
+    </div>:null}</div>
     <div className="deck-layout collection-body"><div className="book-pane book-with-tabs"><BookTabs active={active} onClass={changeClass}/><CollectionBook cards={result.current?.key===active?result.current.items:[]} size={size} paging={{...result,label:result.current?.key===active?`${active==='neutral'?'공용':className[active as HeroClass]} ${result.current.index+1}/${result.current.pages}장`:'검색 결과 없음',onPage:next=>{setPage(next);setScope('all');}}} renderCard={c=><div className={`collection-item${unread.has(c.id)?' card-new-unread':''}${focusCardId===c.id?' reward-card-focus':''}`} key={c.id}><BattleCard card={c} enabled onClick={()=>openDetail(c)}/>{unread.has(c.id)&&<span className="new-card-badge">NEW</span>}<small className="collection-set-label">{maxCardCopies(c)>0?`${cardSetLabel(c)} · ×${maxCardCopies(c)}`:'비수집 생성 카드'}</small></div>}/></div>
     </div><CollectionDetailDialog dialogRef={detailDialog} item={inspected} catalog={catalog} onClosed={()=>setInspected(null)}/></section></HoverPreviewProvider>;
 }
