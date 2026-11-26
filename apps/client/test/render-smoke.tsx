@@ -35,7 +35,7 @@ const legalMageCount=Math.min(8,Object.values(catalog).filter(c=>c.kind!=='coin'
 
 test('deck builder renders the live deck count next to unabridged collection descriptions',()=>{
   const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);
-  assert.match(html,/class="panel deck-panel deck-builder"/);
+  assert.match(html,/class="panel deck-panel deck-builder collection-workspace"/);
   assert.match(html,/내 덱 <span class="deck-live-count">2\/30<\/span>/);
   assert.equal((html.match(/class="card-copy"/g)??[]).length,legalMageCount);
 });
@@ -166,7 +166,7 @@ test('save banner distinguishes pending work from last durable timestamp and con
   assert.match(markup(true,timestamp),/save-indicator warn">저장 확인 중…/);assert.match(markup(false,timestamp),/save-indicator good">자동 저장됨/);assert.match(markup(true,timestamp),/최근 저장 <time dateTime="2026-11-23T02:11:00.000Z">/);
   assert.doesNotMatch(markup(false,'invalid'),/class="last-saved-at"/);
 });
-test('deck editor renders a partial deck, eight-card spread, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,legalMageCount);assert.equal((html.match(/class="battle-card /g)??[]).length,legalMageCount);assert.equal((html.match(/class="book-edge secondary"/g)??[]).length,2);});
+test('deck editor renders a partial deck, eight-card spread, 182 legal cards and mana curve slots',()=>{const html=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:['wolf','wolf']}} setDeck={noOp}/>);assert.match(html,/내 덱 <span class="deck-live-count">2\/30<\/span>/);assert.doesNotMatch(html,/2\/30장/);assert.match(html,/덱 마나 분포/);assert.match(html,/평균 마나 2.0/);assert.match(html,/빈칸 자동 채우기/);assert.match(html,/필터 초기화/);assert.match(html,/type="search" aria-label="카드 이름 또는 효과 검색"/);assert.match(html,/182\/182종/);assert.equal((html.match(/class="collection-item"/g)??[]).length,legalMageCount);assert.equal((html.match(/class="battle-card /g)??[]).length,legalMageCount);assert.equal((html.match(/class="book-edge secondary"/g)??[]).length,2);});
 test('card book advertises keyboard geometry navigation and announces updated pages without activating cards',()=>{
   const html=renderToStaticMarkup(<DeckWorkspace deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialScreen="cards"/>);
   assert.match(html,/role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동/);

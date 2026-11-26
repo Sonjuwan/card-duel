@@ -13,3 +13,4 @@ import './classic-readability.css';
 import './slot-flow.css';
 import './battle-immersive.css';
 import './integrated-ui.css';
+import './collection-layout.css';
