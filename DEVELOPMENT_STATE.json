@@ -29,10 +29,11 @@
     "PERF-J01": "24 Chromium save and resume cycles measured",
     "PERF-I03": "isolated experiment be6dc6e; first install regression",
     "PERF-F02": "effect anchor lookups measured and tested",
-    "PERF-J02": "60 Chromium save and resume cycles measured"
+    "PERF-J02": "60 Chromium save and resume cycles measured",
+    "PERF-J03": "heap snapshots at cycles 15 and 60 compared"
   },
   "inProgress": null,
-  "next": "PROFILE-HEAP-RETAINERS",
+  "next": "PROFILE-ACTIVE-COMBAT-FRAMES-AND-PWA-ART-BUNDLES",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"

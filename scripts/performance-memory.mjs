@@ -1,3 +1,4 @@
+import {closeSync,mkdirSync,openSync,writeSync} from 'node:fs';
 import {once} from 'node:events';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -8,6 +9,8 @@ const root=resolve(process.argv[2]??'.');
 const cycles=Number(process.argv[3]??24);
 if(!Number.isSafeInteger(cycles)||cycles<1)throw Error('Cycle count must be a positive integer.');
 const sampleInterval=Math.ceil(cycles/4);
+const snapshots=process.argv[4]?resolve(process.argv[4]):undefined;
+if(snapshots)mkdirSync(snapshots,{recursive:true});
 const {createSoloAppServer}=await import(pathToFileURL(root+'/apps/cli/serve-solo-app.mjs'));
 const server=createSoloAppServer(root+'/dist/solo-app');
 server.listen(0,'127.0.0.1');
@@ -24,13 +27,20 @@ try{
     if(await menu.isVisible())await menu.click();
     await recordsButton.click();
   }
-  async function sample(cycles){
+  async function sample(completed){
     const deadline=Date.now()+5000;
     while(page.workers().length&&Date.now()<deadline)await delay(100);
     await cdp.send('HeapProfiler.collectGarbage');
     const heap=await cdp.send('Runtime.getHeapUsage');
     const dom=await cdp.send('Memory.getDOMCounters');
-    return {cycles,jsHeapBytes:heap.usedSize,...dom,workers:page.workers().length};
+    if(snapshots&&(completed===sampleInterval||completed===cycles)){
+      const fd=openSync(resolve(snapshots,`cycle-${completed}.heapsnapshot`),'wx');
+      const writeChunk=({chunk})=>writeSync(fd,chunk);
+      cdp.on('HeapProfiler.addHeapSnapshotChunk',writeChunk);
+      try{await cdp.send('HeapProfiler.takeHeapSnapshot');}
+      finally{cdp.off('HeapProfiler.addHeapSnapshotChunk',writeChunk);closeSync(fd);}
+    }
+    return {cycles:completed,jsHeapBytes:heap.usedSize,...dom,workers:page.workers().length};
   }
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await menu.waitFor();
