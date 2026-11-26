@@ -23,3 +23,11 @@ export function deckAddReason(card:Card,deckSize:number,copies:number):string|un
   if(copies>=limit)return `동일 카드 최대 ${limit}장`;
   if(deckSize>=30)return '덱이 30장으로 찼습니다.';
 }
+
+/** Count each card once. The all bucket includes generated cards, just like
+ * matchesCardSet(card,'all'); classification follows the original function. */
+export function collectionSetCounts(cards:readonly Card[]):Record<CardSetFilter|'token',number>{
+  const counts={all:cards.length,basic:0,original:0,token:0};
+  for(const card of cards)counts[cardSet(card)]++;
+  return counts;
+}
