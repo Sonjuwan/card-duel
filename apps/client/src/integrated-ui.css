@@ -838,3 +838,36 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     left:auto;right:max(53px,calc(env(safe-area-inset-right) + 48px));width:clamp(108px,23vw,170px);
   }
 }
+
+
+/* Compact collection workspace: all eight silhouettes remain visible; the
+   detailed reading/add action uses a separate modal, not the thumbnail. */
+.collection-detail-info{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0}
+.collection-detail-add{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px 0}
+.collection-detail-add button{min-height:44px}
+.lobby-main .collection-book .deck-card-add-trigger{width:min(100%,230px);min-height:44px}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px){
+  .lobby-main .deck-panel.integrated-browser>.deck-layout,
+  .lobby-main.preview-lobby .deck-panel.integrated-browser>.deck-layout{
+    display:flex;flex-direction:column;gap:3px;align-items:stretch;
+  }
+  .lobby-main .integrated-browser .book-with-tabs{order:1;width:100%;padding-inline-start:5px}
+  .lobby-main .integrated-browser .card-browser-controls,
+  .lobby-main.preview-lobby .integrated-browser .card-browser-controls{
+    order:0;display:flex;flex-direction:row;align-items:center;justify-content:space-between;
+    padding:0;margin:0;width:100%;max-height:none;overflow:visible;gap:5px;
+  }
+  .lobby-main .integrated-browser .card-browser-controls>button{min-height:36px;padding:3px 10px;flex:none}
+  .lobby-main .integrated-browser .developer-catalog-count{display:flex;flex-wrap:wrap;gap:2px 8px;min-width:0}
+  .lobby-main .integrated-browser .developer-catalog-count strong{font-size:10px}
+  .lobby-main .integrated-browser .developer-catalog-count small{font-size:10px}
+  .lobby-main .integrated-browser .book-class-tabs{grid-auto-rows:clamp(18px,calc((100dvh - 106px)/10),36px);gap:1px}
+  .lobby-main .integrated-browser .book-class-tabs button[aria-pressed=true]{transform:scale(1.1)}
+  .lobby-main .deck-panel.integrated-browser{--catalog-card-width:min(100%,max(42px,calc((100dvh - 126px)/3.1)))}
+  .lobby-main .deck-builder .collection-book .deck-card-add-trigger{display:none}
+  .lobby-main .deck-builder .collection-spread{--builder-card-width:clamp(48px,calc((100dvh - 118px)/3.1),150px)}
+  .lobby-main .deck-builder .collection-book .collection-item{gap:0}
+  .lobby-main .deck-builder .collection-item .collection-set-label{font-size:10px}
+  .collection-detail-info{max-height:calc(100dvh - 80px);overflow:auto;overscroll-behavior:contain}
+  .collection-detail-add{position:sticky;bottom:0;background:#30251e}
+}
