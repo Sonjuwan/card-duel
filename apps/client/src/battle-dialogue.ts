@@ -1,6 +1,5 @@
 import type {Card,Catalog,HeroClass,PlayerId,PlayerView} from '../../../packages/engine/src/index.ts';
 import type {BattleAnimation} from '../../../packages/protocol.ts';
-import {impactChanges} from './battle-fx-model.ts';
 import {className} from './data.ts';
 
 export const EMOTE_LABELS={greet:'인사',thanks:'감사',praise:'칭찬',sorry:'사과',surprise:'놀람',threat:'도발'} as const;
@@ -85,7 +84,7 @@ export function cardDialogue(card:Card|undefined,hero:HeroClass,side:PlayerId,ki
 export function heroEmote(hero:HeroClass,side:PlayerId,emote:Emote):DialogueLine{
   const v=HERO_DIALOGUE[hero];return {side,speaker:className[hero],kind:'emote',hero,text:v.emotes[emote],pitch:v.pitch,rate:v.rate};
 }
-export function dialoguePlan(a:BattleAnimation,before:PlayerView,after:PlayerView,seat:PlayerId,catalog:Catalog,name=(c:Card)=>c.name):DialoguePlan{
+export function dialoguePlan(a:BattleAnimation,before:PlayerView,_after:PlayerView,seat:PlayerId,catalog:Catalog,name=(c:Card)=>c.name):DialoguePlan{
   const start:DialogueLine[]=[],impact:DialogueLine[]=[],death:DialogueLine[]=[];
   const card=a.cardId?catalog[a.cardId]:undefined;
   if(a.kind==='summon'&&card?.kind==='minion')start.push(cardDialogue(card,(a.actor===seat?before.self:before.opponent).heroClass,a.actor,'play',a.revision,name));

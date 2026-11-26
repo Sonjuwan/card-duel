@@ -29,7 +29,6 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
   const [captions,setCaptions]=useState<Caption[]>([]),[emoteCooldown,setEmoteCooldown]=useState(false);
   const greeted=useRef('');
   const serial=useRef(0),timers=useRef<ReturnType<typeof setTimeout>[]>([]),before=useRef<RoomView|null>(null),lastCue=useRef('');
-  const later=(fn:()=>void,ms:number)=>{const timer=setTimeout(()=>{timers.current=timers.current.filter(t=>t!==timer);fn();},ms);timers.current.push(timer);};
   const reset=()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];setCaptions([]);setEmoteCooldown(false);lastCue.current='';before.current=null;stopDialogueVoice();};
   useEffect(()=>{reset();return()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];stopDialogueVoice();};},[room.code,connected]);
   useEffect(()=>{const changed=()=>{if(document.hidden)reset();};document.addEventListener('visibilitychange',changed);return()=>document.removeEventListener('visibilitychange',changed);},[]);
@@ -41,7 +40,7 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
     speakDialogue(lines);
   };
   useEffect(()=>{
-    if(!connected||!room.state||room.state.phase!=='mulligan'||greeted.current===room.code)return;
+    if(!connected||!room.state||room.state.phase!=='playing'||room.state.turn>1||greeted.current===room.code||document.hidden)return;
     greeted.current=room.code;
     const {self,opponent}=room.state;
     show([heroEmote(self.heroClass,room.seat,'greet'),heroEmote(opponent.heroClass,room.seat===0?1:0,'greet')]);
@@ -81,8 +80,7 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
       return ()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];setEmoteCooldown(false);};
     }
   },[room.code,room.state?.revision,connected,room.animationSpeed]);
-  const emote=(_choice:Emote)=>{};
-  return {captions,emote,emoteCooldown:!!cue||emoteCooldown};
+  return {captions,emoteCooldown:!!cue||emoteCooldown};
 }
 export const DialogueCaptions=memo(function DialogueCaptions({captions,side,catalog,hero,heroForm,mode='all'}:{captions:readonly Caption[];side:PlayerId;catalog:Catalog;hero:HeroClass;heroForm?:'jaraxxus';mode?:CaptionMode}){
   const lines=filterCaptions(captions,side,mode),visible=lines.slice(-3);

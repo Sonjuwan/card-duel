@@ -11,7 +11,8 @@ function cancelSource(source:AudioScheduledSourceNode){
 /** Disconnect the entire per-source graph, even if a suspended context
  * defers the ended event. Bound concurrent voices during burst effects. */
 function trackSource(source:AudioScheduledSourceNode,nodes:readonly AudioNode[]){
-  // Existing effects finish naturally; normal action cadence bounds live sources.
+  // Do not interrupt an existing sound when another action starts.
+  // Sources release their own graphs on natural completion.
   const release=()=>{if(!activeSources.delete(source))return;source.onended=null;for(const node of nodes)try{node.disconnect();}catch{}};
   activeSources.set(source,release);source.onended=release;
 }
