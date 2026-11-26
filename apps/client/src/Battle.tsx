@@ -7,7 +7,7 @@ import type { DragEvent,PointerEvent,MouseEvent,KeyboardEvent as ReactKeyboardEv
 import { BOT_DIFFICULTY_NAMES, cardChoiceReason, heroPowerReason, publicCardCost, publicCardReason, sameTarget } from '../../../packages/engine/src/index.ts';
 import type { Action, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import type { RoomView } from '../../../packages/protocol.ts';
-import { catalog, catalogHash, className } from './data.ts';
+import { catalog, catalogHash } from './data.ts';
 import { formatBattleReport } from './battle-report.ts';
 import { planAttack, planCard, planDrag, planPower, selectionCard, repositionSelection, toggleActionSelection, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from './battle-actions.ts';
 import type { DragIntent, DragState, Intent, Selection } from './battle-actions.ts';
