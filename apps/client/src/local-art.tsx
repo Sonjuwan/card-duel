@@ -1,4 +1,4 @@
-import {useId} from 'react';
+import {memo,useId} from 'react';
 import type {Card,HeroClass} from '../../../packages/engine/src/index.ts';
 import {ART_PALETTES,cardArtRecipe,heroArtRecipe,powerArtRecipe} from './local-art-model.ts';
 import type {ArtRecipe,ArtSubject} from './local-art-model.ts';
@@ -153,13 +153,14 @@ function PaintedArt({recipe,asset}:{recipe:ArtRecipe;asset:PaintedAsset}){
 // Vector art remains available as a project-owned fallback and regression fixture.
 export function LocalVectorCardArt({card}:{card:Card}){return <ArtFrame recipe={cardArtRecipe(card)}/>;}
 export function LocalVectorHeroArt({heroClass}:{heroClass:HeroClass}){return <ArtFrame recipe={heroArtRecipe(heroClass)}/>;}
-export function LocalCardArt({card}:{card:Card}){const recipe=cardArtRecipe(card);return <PaintedArt recipe={recipe} asset={paintedCardAsset(card,recipe)}/>;}
-export function LocalHeroArt({heroClass,heroForm}:{heroClass:HeroClass;heroForm?:'jaraxxus'}){return <PaintedArt recipe={heroArtRecipe(heroClass)} asset={heroForm==='jaraxxus'?'legend-lord-jaraxxus':paintedHeroAsset(heroClass)}/>;}
-export function LocalPowerArt({heroClass,shadowformLevel,heroForm}:{heroClass:HeroClass;shadowformLevel?:1|2;heroForm?:'jaraxxus'}){return <PaintedArt recipe={powerArtRecipe(heroClass)} asset={heroForm==='jaraxxus'?'legend-jaraxxus-infernal':shadowformLevel?'epic-shadowform':paintedPowerAsset(heroClass)}/>;}
+export const LocalCardArt=memo(function LocalCardArt({card}:{card:Card}){const recipe=cardArtRecipe(card);return <PaintedArt recipe={recipe} asset={paintedCardAsset(card,recipe)}/>;});
+export const LocalHeroArt=memo(function LocalHeroArt({heroClass,heroForm}:{heroClass:HeroClass;heroForm?:'jaraxxus'}){return <PaintedArt recipe={heroArtRecipe(heroClass)} asset={heroForm==='jaraxxus'?'legend-lord-jaraxxus':paintedHeroAsset(heroClass)}/>;});
+export const LocalPowerArt=memo(function LocalPowerArt({heroClass,shadowformLevel,heroForm}:{heroClass:HeroClass;shadowformLevel?:1|2;heroForm?:'jaraxxus'}){return <PaintedArt recipe={powerArtRecipe(heroClass)} asset={heroForm==='jaraxxus'?'legend-jaraxxus-infernal':shadowformLevel?'epic-shadowform':paintedPowerAsset(heroClass)}/>;});
 
 /** One uniform back for every hidden card. The emblem deliberately uses a
  * compass and diamond rather than the original game's card-back mark. */
-export function LocalCardBack(){
+// Art is static for equal props; avoid rebuilding it on unrelated battle updates.
+export const LocalCardBack=memo(function LocalCardBack(){
   return <svg className="local-card-back-art" viewBox="0 0 80 112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
     <rect x="1" y="1" width="78" height="110" rx="8" fill="#342b28" stroke="#a97b43" strokeWidth="2"/>
     <rect x="5" y="5" width="70" height="102" rx="6" fill="#224a61" stroke="#e1b86a" strokeWidth="2"/>
@@ -172,4 +173,4 @@ export function LocalCardBack(){
     <path d="m40 42 8 14-8 14-8-14Z" fill="#55b4d7" stroke="#f7dfa8" strokeWidth="2"/>
     <circle cx="40" cy="56" r="3" fill="#e8fcff"/>
   </svg>;
-}
+});
