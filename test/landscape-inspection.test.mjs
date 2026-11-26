@@ -3,8 +3,8 @@ import {strict as assert} from 'node:assert';
 import {readFileSync} from 'node:fs';
 const load=p=>readFileSync(new URL(p,import.meta.url),'utf8');
 const battle=load('../apps/client/src/Battle.tsx'),pieces=load('../apps/client/src/battle-pieces.tsx'),css=load('../apps/client/src/landscape-shell.css');
-test('both boards use extended inspection without opening a tap modal',()=>{
-  assert.match(pieces,/useCardHover\(info,BATTLE_HOLD_DELAY\)/);
+test('both boards use pinned inspection without opening a tap modal',()=>{
+  assert.match(pieces,/useCardHover\(info,BATTLE_HOLD_DELAY,!targeted\)/);
   assert.equal((battle.match(/<BattleMinion /g)||[]).length,2);
   assert.doesNotMatch(battle,/onInspectTap/);
 });
@@ -24,5 +24,5 @@ test('modal has notch-safe padding, 44px close action and independent scroll',()
 
 test('hand inspection uses the same preview without committing cards',()=>{
   assert.doesNotMatch(battle,/selected-card-inspect|peekCardId/);
-  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY:undefined\)/);
+  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY:undefined,Boolean\(sourceId\?\.startsWith\('card:'\)&&!mulligan\)\)/);
 });
