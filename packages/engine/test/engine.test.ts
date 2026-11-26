@@ -172,6 +172,19 @@ test('player view exposes own hand, counts only for both decks and opponent hand
   const serialized=JSON.stringify(view); for(const c of [...s.players[1].hand,...s.players[0].deck,...s.players[1].deck]) assert.ok(!serialized.includes(`\"${c.instanceId}\"`));
   view.self.hand.pop(); assert.equal(s.players[0].hand.length,4);
 });
+test('public history preserves order and isolates views from engine records', () => {
+  const s=ready();
+  s.history=[
+    {turn:2,player:0,message:'first public event'},
+    {turn:2,player:1,message:'second public event'}
+  ];
+  const first=getPlayerView(s,0), second=getPlayerView(s,1);
+  assert.deepEqual(first.history,s.history);
+  first.history[0].message='changed by client';
+  first.history.reverse();
+  assert.deepEqual(second.history,s.history);
+  assert.equal(s.history[0].message,'first public event');
+});
 test('bad actor, unknown action and malformed action rejected', () => {
   const s=ready(); rejects(s,2 as PlayerId,{type:'endTurn'},/플레이어/);
   rejects(s,0,{type:'cheat', mana:999},/지원하지/); rejects(s,0,null,/잘못된 행동/);

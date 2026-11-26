@@ -6,11 +6,12 @@
     "commit": "0283a83"
   },
   "lastPublished": {
-    "version": "0.319.0",
-    "commit": "0283a83"
+    "version": "0.322.0",
+    "commit": "fbf2014",
+    "pagesCommit": "c0463c0"
   },
   "localCandidate": {
-    "version": "0.322.0",
+    "version": "0.323.0",
     "ref": "refs/heads/perf/runtime-20261126"
   },
   "completed": {
@@ -22,7 +23,10 @@
     "PERF-A02": "recorded in PERFORMANCE_HISTORY.md",
     "PERF-A03": "b77f54b",
     "PERF-C02": "e2de210",
-    "PERF-F01": "same-seed Chromium frame baseline recorded"
+    "PERF-F01": "same-seed Chromium frame baseline recorded",
+    "PERF-E01": "public battle history projection measured and tested",
+    "PERF-I02": "inline PWA image inventory measured",
+    "PERF-J01": "24 Chromium save and resume cycles measured"
   },
   "inProgress": null,
   "next": "PROFILE-ACTIVE-COMBAT-AND-HEAP",

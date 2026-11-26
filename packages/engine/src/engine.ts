@@ -491,5 +491,5 @@ function publicPlayer(p: Player): PublicPlayer {
 export function getPlayerView(s: GameState, viewer: PlayerId): PlayerView {
   requireRule(validPlayer(viewer), '잘못된 플레이어');
   const self = s.players[viewer];
-  return { phase: s.phase, activePlayer: s.activePlayer, firstPlayer: s.firstPlayer, turn: s.turn, winner: s.winner, reason: s.reason, revision: s.revision,history:structuredClone(s.history), ...(s.pendingChoice?{choicePending:true}:{}), self: { ...publicPlayer(self), hand: structuredClone(self.hand),secrets:structuredClone(self.secrets), ...(s.pendingChoice?.owner===viewer?{pendingChoice:structuredClone(s.pendingChoice.cards)}:{}) }, opponent: publicPlayer(s.players[other(viewer)]) };
+  return { phase: s.phase, activePlayer: s.activePlayer, firstPlayer: s.firstPlayer, turn: s.turn, winner: s.winner, reason: s.reason, revision: s.revision,history:s.history.map(({turn,player,message})=>({turn,player,message})), ...(s.pendingChoice?{choicePending:true}:{}), self: { ...publicPlayer(self), hand: structuredClone(self.hand),secrets:structuredClone(self.secrets), ...(s.pendingChoice?.owner===viewer?{pendingChoice:structuredClone(s.pendingChoice.cards)}:{}) }, opponent: publicPlayer(s.players[other(viewer)]) };
 }
