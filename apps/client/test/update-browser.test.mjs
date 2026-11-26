@@ -40,10 +40,12 @@ test('installed game verifies and explicitly applies an update without reinstall
   const previous=process.env.CARD_DUEL_PREVIOUS_PWA?loadSoloRelease(process.env.CARD_DUEL_PREVIOUS_PWA):undefined;
   const next=nextRelease(base),types={html:'text/html',js:'text/javascript',css:'text/css',json:'application/json',webmanifest:'application/manifest+json',png:'image/png'};
   let served=previous??base,mode='normal',stylesheetBlocked,notifyStyle;
-  const candidateAssets=[];
+  const candidateAssets=[],migrationAssets=[];
+  const cachedPaths=new Set([...base.files.keys()].filter(name=>!['sw.js','version.json'].includes(name)));
   const server=createServer(async(req,res)=>{
     const name=new URL(req.url,'http://localhost').pathname.slice('/ui-preview/'.length)||'index.html';
     const bytes=served.files.get(name);
+    if(previous&&served===base&&cachedPaths.has(name))migrationAssets.push(name);
     if(!bytes){res.writeHead(404).end();return;}
     if(served===next&&['game.js','game.css','index.html','register.js','manifest.webmanifest','icon-192.png','icon-512.png'].includes(name))candidateAssets.push(name);
     if(served===next&&name==='game.css'&&mode==='block'){
@@ -67,7 +69,20 @@ test('installed game verifies and explicitly applies an update without reinstall
     await page.waitForFunction(()=>navigator.serviceWorker.controller!==null);
   };
   let first=await context.newPage();await first.goto(url);await select(first,1);
-  if(previous){
+  if(previous?.files.has('version.json')){
+    const dialog=first.getByRole('dialog',{name:'게임 업데이트'});
+    await first.getByRole('button',{name:'게임 업데이트',exact:true}).tap();
+    served=base;
+    await dialog.getByRole('button',{name:'업데이트 확인',exact:true}).tap();
+    await dialog.getByRole('button',{name:'최신 버전 적용',exact:true}).tap();
+    await select(first,1);
+    const downloaded=[...new Set(migrationAssets)].sort();
+    const changed=[...base.files.keys()].filter(name=>
+      !['sw.js','version.json'].includes(name)&&!base.files.get(name).equals(previous.files.get(name)??Buffer.alloc(0))
+    ).sort();
+    assert.deepEqual(downloaded,changed);
+    t.diagnostic('Previous release update payload: '+migrationAssets.reduce((sum,name)=>sum+base.files.get(name).length,0)+' bytes');
+  }else if(previous){
     assert.equal(await first.getByRole('button',{name:'게임 업데이트'}).count(),0);
     served=base;
     await first.evaluate(async()=>{await (await navigator.serviceWorker.getRegistration()).update();});

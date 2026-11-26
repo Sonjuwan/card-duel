@@ -1,0 +1,11 @@
+{
+  "phase": "PERF-20261126",
+  "branch": "perf/runtime-20261126",
+  "baseline": {"version": "0.319.0", "commit": "0283a83"},
+  "lastPublished": {"version": "0.319.0", "commit": "0283a83"},
+  "candidateVersion": "0.320.0",
+  "completed": {"PERF-H01": "fdd10b7", "PERF-I01": "bde780d"},
+  "inProgress": "PERF-C01",
+  "next": "PERF-D01",
+  "resumeAfter": ["docs/ROADMAP.md", "docs/AI_V2_PLAN.md"]
+}

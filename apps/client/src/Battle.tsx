@@ -36,6 +36,7 @@ import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
 import {ImpactHistory,ImpactRail,useImpactHistory} from './battle-impact-history.tsx';
 import {independentActivation} from './hover-timing.ts';
 import {secondsUntilDeadline,watchDeadlineSeconds} from './battle-clock.ts';
+import {TurnCountdown} from './battle-countdown.tsx';
 
 
 type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;intentEpoch?:number;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;lastSavedAt?:string;compactUi?:boolean};
@@ -229,8 +230,6 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const previousSoundRoom=useRef<RoomView|null>(null),lastInstantSound=useRef(-Infinity);
   useEffect(()=>{if(!connected||!s){previousSoundRoom.current=null;lastInstantSound.current=-Infinity;return;}const before=previousSoundRoom.current;previousSoundRoom.current=room;if(!before||before.code!==room.code){lastInstantSound.current=-Infinity;return;}if(room.animationSpeed!=='instant'||!before.state)return;const a=freshAcceptedAnimation(before,room),now=performance.now();if(!a)return;const impacts=impactChanges(before.state,s,seat,a.events),feedback=impactFeedback(a,impacts);playBattleHaptic(a,feedback,seat);if(s.phase==='finished'||now-lastInstantSound.current<300)return;lastInstantSound.current=now;const theme=animationTheme(a,a.cardId?catalog[a.cardId]:undefined,a.actor===seat?before.state.self.heroClass:before.state.opponent.heroClass);playBattleSound(a,theme,'impact',feedback);playBattleDepartureSound(departureSoundKind(impacts));},[room.code,seat,s?.revision,room.animationSpeed,connected]);
   useEffect(()=>()=>{stopBattleHaptics();stopBattleSound();stopDialogueVoice();},[room.code]);
-  const [secondsLeft,setSecondsLeft]=useState<number|null>(()=>deadline===undefined?null:secondsUntilDeadline(deadline,Date.now()));
-  useEffect(()=>watchDeadlineSeconds(deadline,setSecondsLeft,250),[deadline]);
   const [reconnectLeft,setReconnectLeft]=useState<number|null>(()=>room.opponentReconnectDeadlineMs===undefined?null:secondsUntilDeadline(room.opponentReconnectDeadlineMs,Date.now()));
   useEffect(()=>watchDeadlineSeconds(room.opponentReconnectDeadlineMs,setReconnectLeft,1000),[room.opponentReconnectDeadlineMs]);
   const opponentReady=room.mode==='bot'||room.opponentConnected;
@@ -702,7 +701,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
       <div className="battle-mana own-mana own-resources"><ManaDisplay player={rules.self} charging={visual?.turn==='own'}/></div>
       <aside className="arena-right" inert={ownChoiceOpen||!!inspectedOverlay} aria-label="마나, 덱, 턴 종료">
         <div className="resource-block opponent-resources"><span className="rail-heading">상대 자원</span><DeckPile player={s.opponent} label="상대"/></div>
-        <div className="turn-control"><small>TURN {s.turn}</small>{deadline!==undefined&&<b className="turn-countdown" data-urgent={secondsLeft!==null&&secondsLeft<=5}>판정 시간 {secondsLeft??0}초</b>}<button type="button" className={`end-turn${active?' your-turn':''}`} disabled={!active} onClick={e=>perform({type:'endTurn'},e.detail===0)}>턴 종료</button><span className="turn-owner">{turnLabel}</span></div>
+        <div className="turn-control"><small>TURN {s.turn}</small>{deadline!==undefined&&<TurnCountdown deadline={deadline}/>}<button type="button" className={`end-turn${active?' your-turn':''}`} disabled={!active} onClick={e=>perform({type:'endTurn'},e.detail===0)}>턴 종료</button><span className="turn-owner">{turnLabel}</span></div>
         <div className="resource-block own-resources"><DeckPile player={s.self} label="내"/>{s.self.nextSecretFree&&<small className="resource-buff">다음 비밀 무료</small>}{s.self.protectMinionsThisTurn&&<small className="resource-buff">하수인 피해 보호</small>}</div>
 
       </aside>
