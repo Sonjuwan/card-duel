@@ -75,7 +75,12 @@ try{
     }
     samples.push(await sample('active-'+cycle));
     if(!await result.isVisible()){
-      await page.getByRole('button',{name:'항복',exact:true}).click();
+      const desktop=page.locator('.desktop-concede');
+      if(await desktop.isVisible())await desktop.click();
+      else{
+        await page.getByRole('button',{name:'전투 기록과 도움말 열기'}).click();
+        await page.getByRole('dialog',{name:'전투 기록과 도움말'}).getByRole('button',{name:'항복',exact:true}).click();
+      }
       await result.waitFor({timeout:60000});
     }
     await result.getByRole('button',{name:'대전 준비로 돌아가기'}).click();
