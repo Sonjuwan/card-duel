@@ -14,3 +14,5 @@ const source=readFileSync('apps/client/src/game-styles.ts','utf8');
 const layers=[...source.matchAll(/^import '\.\/([^']+\.css)';$/gm)].map(m=>m[1]);
 assert.equal(new Set(layers).size,layers.length);
 console.log(JSON.stringify({unused,styles:layers.map(name=>({name,bytes:Buffer.byteLength(readFileSync('apps/client/src/'+name))})),note:'Review unused diagnostics individually. Exported public entry points and dynamic CSS selectors cannot be safely removed from compiler diagnostics alone.'},null,2));
+
+if(process.argv.includes('--strict'))assert.equal(unused.length,0,'Unused declarations detected');
