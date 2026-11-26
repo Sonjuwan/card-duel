@@ -14,7 +14,8 @@ export function createTouchPreviewGuard(delay=CARD_HOVER_DELAY){
   const reset=()=>{press=null;suppressUntil=0;};
   return {
     begin(id:number,x:number,y:number,at:number){reset();press={id,x,y,at,moved:false};},
-    move(id:number,x:number,y:number){if(!press||press.id!==id)return false;if(Math.hypot(x-press.x,y-press.y)<8&&!press.moved)return false;press.moved=true;return true;},
+    // Signal the transition to a drag once; later movement cannot reopen inspection.
+    move(id:number,x:number,y:number){if(!press||press.id!==id||press.moved)return false;if(Math.hypot(x-press.x,y-press.y)<8)return false;press.moved=true;return true;},
     end(id:number,x:number,y:number,at:number){if(!press||press.id!==id)return false;if(press.moved||Math.hypot(x-press.x,y-press.y)>=8||at-press.at>=delay)suppressUntil=at+300;press=null;return true;},
     // A battle inspection tap is read-only, including a stationary long press.
     // A moved or cancelled pointer cannot open it or synthesize an action.
