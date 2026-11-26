@@ -7,7 +7,9 @@ const app=load('App.tsx'),shell=load('landscape-shell.css'),component=load('Land
 test('online and offline both import the complete landscape shell last',()=>{
   for(const entry of ['main.tsx','offline-main.tsx']){
     const source=load(entry);
-    assert.ok(source.indexOf("import './landscape-shell.css'")>source.indexOf("import './landscape-combat.css'"));
+    assert.match(source,/import '\.\/game-styles\.ts';/);
+    const shared=load('game-styles.ts'),combat=shared.indexOf("import './landscape-combat.css'"),shell=shared.indexOf("import './landscape-shell.css'");
+    assert.ok(combat>=0&&shell>combat);
   }
 });
 test('game and deck modes share a clipped viewport and independently scrolling active panel',()=>{
