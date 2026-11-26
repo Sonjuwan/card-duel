@@ -246,7 +246,7 @@ test('only installed Korean voices are accepted and the speech queue respects mu
     setBattleSound(true);setBattleSoundVolume(50);setDialogueVoiceEnabled(true);
     const line=heroEmote('mage',0,'greet'),hit=heroEmote('warrior',1,'threat');
     speakDialogue([line,hit]);assert.equal(spoken.length,1);assert.equal(spoken[0].voice,local);assert.ok(Math.abs(spoken[0].volume-.72)<1e-10);
-    spoken[0].onend?.();assert.equal(spoken.length,2);
+    const ended=spoken[0];ended.onend?.();assert.equal(spoken.length,2);assert.equal(ended.onend,null);assert.equal(ended.onerror,null);
     setDialogueVoiceEnabled(false);assert.equal(dialogueVoiceEnabled(),false);assert.equal(cancelled,1);
     speakDialogue([line]);assert.equal(spoken.length,2);
     setDialogueVoiceEnabled(true);setBattleSoundVolume(0);speakDialogue([line]);assert.equal(spoken.length,3);
