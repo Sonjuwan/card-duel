@@ -323,10 +323,12 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   const first=page.locator('.own-hand button[data-preview-card="wisp"]');
   const firstGeometry=await first.boundingBox();
   await first.tap();
+  await page.locator('[data-hover-preview]').waitFor();
   assert.deepEqual(await first.boundingBox(),firstGeometry);
   await first.tap();
   await field.tap({position:{x:30,y:10}});
   await first.waitFor({state:'hidden'});
+  await page.locator('[data-hover-preview]').waitFor({state:'detached'});
   const pointer=await context.newCDPSession(page);
   const drag=async(source,target,beforeRelease)=>{
     const from=await source.boundingBox(),to=await target.boundingBox();
@@ -522,11 +524,12 @@ test('real worker queues two attacks while a staged battlecry validates its targ
     };
   });
   await enemyUnit.tap({force:true});
-  assert.equal(await page.locator('.board-inspect-overlay,[data-hover-preview]').count(),0);
-  await touch('touchStart',[await center(enemyUnit)]);
-  await page.locator('[data-hover-preview]').waitFor();
-  await touch('touchEnd',[]);
-  await page.locator('[data-hover-preview]').waitFor({state:'detached'});
+  const pinned=page.locator('[data-hover-preview]');
+  await pinned.waitFor();
+  await page.waitForTimeout(1200);
+  assert.equal(await pinned.isVisible(),true,'touch inspection must survive pointer release');
+  await page.locator('.battle-divider').tap({force:true});
+  await pinned.waitFor({state:'detached'});
   if(profileCombat){
     await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
     await page.evaluate(()=>{
