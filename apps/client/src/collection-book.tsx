@@ -6,6 +6,7 @@ import type { Inspectable } from './battle-pieces.tsx';
 import { HERO_CLASSES } from '../../../packages/engine/src/index.ts';
 import type { HeroClass } from '../../../packages/engine/src/index.ts';
 import { className } from './data.ts';
+import {cardSetLabel} from './card-sets.ts';
 import { collectionNavigation } from './table-visuals.ts';
 
 export function useBookSize(){return 8;}
@@ -68,5 +69,5 @@ export function showCollectionDetail(dialog:HTMLDialogElement|null,sidebar:HTMLE
   else sidebar?.scrollIntoView({block:'nearest'});
 }
 export function CollectionDetailDialog({dialogRef,item,catalog,onAdd,addReason,copies,onClosed}:{dialogRef:RefObject<HTMLDialogElement|null>;item:Inspectable|null;catalog:Catalog;onAdd?:(card:Card)=>void;addReason?:string;copies?:number;onClosed?:()=>void}){
-  return <dialog ref={dialogRef} className="collection-detail-dialog" aria-label="카드 확대 상세" onClose={event=>{if(!event.currentTarget.open)onClosed?.();}} onClick={event=>{if(event.target!==event.currentTarget)return;const b=event.currentTarget.getBoundingClientRect();if(event.clientX<b.left||event.clientX>b.right||event.clientY<b.top||event.clientY>b.bottom)event.currentTarget.close();}}><div className="collection-detail-header"><h3>카드 확대 상세</h3><button type="button" className="secondary" onClick={()=>dialogRef.current?.close()}>닫기</button></div>{item&&<><div className="collection-detail-body"><div className="collection-detail-card"><BattleCard card={item.card}/></div><div className="collection-detail-info"><CardInspector item={item} catalog={catalog}/>{onAdd&&<div className="collection-detail-add"><small aria-live="polite">덱에 {copies??0}장 포함{addReason?` · ${addReason}`:""}</small><button type="button" disabled={!!addReason} onClick={()=>onAdd(item.card)}>덱에 추가</button></div>}</div></div></>}</dialog>;
+  return <dialog ref={dialogRef} className="collection-detail-dialog" aria-label="카드 확대 상세" onClose={event=>{if(!event.currentTarget.open)onClosed?.();}} onClick={event=>{if(event.target!==event.currentTarget)return;const b=event.currentTarget.getBoundingClientRect();if(event.clientX<b.left||event.clientX>b.right||event.clientY<b.top||event.clientY>b.bottom)event.currentTarget.close();}}><div className="collection-detail-header"><h3>카드 확대 상세</h3><button type="button" className="secondary" onClick={()=>dialogRef.current?.close()}>닫기</button></div>{item&&<><div className="collection-detail-body"><div className="collection-detail-card"><BattleCard card={item.card}/></div><div className="collection-detail-info"><small className="collection-detail-set">{cardSetLabel(item.card)}</small><CardInspector item={item} catalog={catalog}/>{onAdd&&<div className="collection-detail-add"><small aria-live="polite">덱에 {copies??0}장 포함{addReason?` · ${addReason}`:""}</small><button type="button" disabled={!!addReason} onClick={()=>onAdd(item.card)}>덱에 추가</button></div>}</div></div></>}</dialog>;
 }

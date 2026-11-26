@@ -252,9 +252,9 @@ test('hover panel displays a large card with current buffed attack, damaged heal
  assert.match(h,/role="tooltip"/);assert.match(h,/hover-large-card/);assert.match(h,/stat-attack">9/);assert.match(h,/stat-health">1/);assert.match(h,/생명력 1\/5/);assert.match(h,/도발/);assert.match(h,/빙결/);assert.match(h,/hover-description/);assert.match(h,/data-art-asset="raptor"/);
  const silence=renderToStaticMarkup(<CardHoverPanel preview={{item:{card:catalog.wolf,minion:{...minion,silenced:true}},side:'right'}}/>);assert.match(silence,/침묵 \(원래 카드 효과 제거\)/);
 });
-test('deck builder has explicit set tabs with counts and each visible card has a set label',()=>{
+test('deck builder has explicit set tabs with counts and each visible card has its copy-limit badge',()=>{
  const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp}/>);
- assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/클래식 카드<small>\d+/);assert.equal((h.match(/collection-set-label/g)??[]).length,legalMageCount);
+ assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/클래식 카드<small>\d+/);assert.equal((h.match(/collection-copy-badge/g)??[]).length,legalMageCount);
 });
 test('deck builder basic and original initial views never display cards from the opposite set',()=>{
  const basic=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="basic"/>);
