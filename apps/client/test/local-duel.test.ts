@@ -509,3 +509,16 @@ test('exit while playing records a loss, and app relaunch settles an abandoned r
   const check=await reboot.send({type:'inspectSave',catalogHash:hash,catalog,settleAbandoned:true});assert.equal(check.type,'saveInfo');
   assert.equal(record?.profile.matchStats?.ranked.losses,2,'restart must not count a second loss');
 });
+
+
+test('long growth ledger retains every match ID and rejects duplicate or missing recent IDs',()=>{
+  const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth);
+  const ranked=createOfflineRankedInput(savedInput,initial,growth);
+  const record=settleOfflineRanked(initial,growth,ranked.ranked!,{matchId:ranked.code,rank:1,heroClass:'mage',opponentClass:'warrior',mode:'ranked',outcome:'win',eligible:true,completedAt:10,turns:12});
+  const ids=[...Array.from({length:10000},(_,i)=>'historical-'+i),ranked.code];
+  const long:OfflineGrowthRecord={...record,settledMatchIds:ids,profile:{...record.profile,revision:ids.length,matchStats:{...record.profile.matchStats!,ranked:{wins:1,losses:10000,draws:0}}}};
+  const result=readOfflineGrowth(long,growth);
+  assert.deepEqual(result.settledMatchIds,ids);assert.notEqual(result.settledMatchIds,ids);
+  assert.throws(()=>readOfflineGrowth({...long,settledMatchIds:[...ids.slice(0,-1),ids[0]]},growth),/손상/);
+  assert.throws(()=>readOfflineGrowth({...long,settledMatchIds:[...ids.slice(0,-1),'missing-recent']},growth),/원장/);
+});
