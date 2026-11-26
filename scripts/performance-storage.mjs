@@ -43,6 +43,12 @@ try{
   await worker.evaluate(()=>{
     const transaction=IDBDatabase.prototype.transaction;
     globalThis.writeTimes=[];
+    globalThis.putCounts={matches:0,growth:0};
+    const put=IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put=function(...args){
+      if(Object.hasOwn(globalThis.putCounts,this.name))globalThis.putCounts[this.name]++;
+      return put.apply(this,args);
+    };
     IDBDatabase.prototype.transaction=function(stores,mode,options){
       const start=performance.now();
       const result=transaction.call(this,stores,mode,options);
@@ -59,7 +65,8 @@ try{
   }
   console.log(JSON.stringify({
     endTurnWorkerAcknowledgmentMs:await page.evaluate(()=>window.turnAcknowledgments),
-    indexedDbWriteMs:await worker.evaluate(()=>globalThis.writeTimes)
+    indexedDbWriteMs:await worker.evaluate(()=>globalThis.writeTimes),
+    indexedDbPutCounts:await worker.evaluate(()=>globalThis.putCounts)
   }));
 }finally{
   await browser.close();
