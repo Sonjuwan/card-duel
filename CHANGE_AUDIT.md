@@ -189,3 +189,11 @@ f207596 Prepare v0.327.0 with mandatory full release verification and pinned PWA
 e1d5794 Fix floating combat history rail swallowing empty board taps
 a4b09cb Keep friendly and enemy minion widths identical across board counts
 ```
+
+## v0.328.0 복구 중 확인한 구체적 회귀
+
+- 공개 v0.327.0에서 페이지 이동 버튼이 책 높이보다 짧은 문제를 동일 Chromium 통합 테스트로 재현했다. 버튼의 실제 클릭 영역을 양옆 페이지 높이에 맞췄다.
+- 모바일에서 도감 필터 사이드바만 숨기고 대체 진입을 두지 않은 상태였다. 기존 상태와 필터 기능을 재사용하는 대화상자를 연결했고 화면 비율 전환 시 필터를 초기화하는 동작을 제거했다.
+- 큰 화면에는 상세 오버레이와 카드 본체 확대가 동시에 적용됐다. 확대는 100ms 상세 카드에 적용하고 손패 클릭 영역과 원본 카드는 고정했다.
+- 설정 패널의 기존 래핑 규칙 때문에 좁은 화면에서 콘텐츠가 패널 밖으로 이동했다. 세로 스크롤을 하나만 사용하고 제목·계속 버튼을 패널 안에서 확인했다.
+- AI 모델과 수치, 기존 카드·영웅 자산은 감사 단계에서 확인한 상태를 사용한다. 음악은 공개본에 재생 설정이 없음을 기존 브라우저 검사에서 확인했고 전투 속도는 대전 시작 시 저장된 설정을 유지한다.

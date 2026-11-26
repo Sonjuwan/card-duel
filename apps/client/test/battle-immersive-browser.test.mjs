@@ -118,6 +118,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
               if(classes)side.heroClass=classes[i];
               side.board=Array.from({length:units},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
               side.handCount=10;
+            side.mana=side.maxMana=10;
             }
             view.self.handCount=hand;
             view.self.hand=Array.from({length:hand},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
@@ -406,6 +407,13 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await rail.evaluate(el=>{el.scrollTop=el.scrollHeight;});
   await page.getByRole('button',{name:'최신 행동으로 이동'}).click();
   await page.waitForFunction(()=>document.querySelector('.impact-rail').scrollTop===0);
+  for(const [width,height] of [[1366,768],[1920,1080]]){
+    await page.setViewportSize({width,height});
+    await rail.locator('.impact-icon').first().waitFor();
+    const history=await rail.boundingBox(),opponentHand=await page.locator('.hidden-hand').boundingBox();
+    assert.ok(history&&opponentHand&&history.y>=opponentHand.y+opponentHand.height,JSON.stringify({width,history,opponentHand}));
+    await page.screenshot({path:`ui-evidence/action-rail-${width}.png`});
+  }
   await context.close();
 });
 

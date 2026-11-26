@@ -125,9 +125,14 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       assert.ok(section&&section.x>=panel.x&&section.x+section.width<=panel.x+panel.width,JSON.stringify({label,name,panel,section}));
     }
     await page.screenshot({path:'ui-evidence/battle-settings-'+label+'.png'});
+    const quality=toolbar.getByRole('combobox',{name:'전투 연출 품질',exact:true});
+    const initialQuality=await quality.inputValue();
+    await quality.selectOption('economy');
     await continueGame.click();
     await selected.waitFor();
     await battleSettings.click();
+    assert.equal(await quality.inputValue(),'economy');
+    await quality.selectOption(initialQuality);
     await page.getByRole('button',{name:'저장 후 나가기'}).click();
     const resume=page.getByRole('button',{name:'이어서 플레이하기'});
     const restart=page.getByRole('button',{name:'새로운 게임 시작'});

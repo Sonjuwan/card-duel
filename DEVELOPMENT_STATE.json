@@ -11,7 +11,7 @@
     "pagesCommit": "dc6a522"
   },
   "localCandidate": {
-    "version": "0.328.0 (development target)",
+    "version": "0.328.0",
     "ref": "refs/heads/ui/v0.328.0"
   },
   "completed": {
@@ -33,15 +33,18 @@
     "PERF-F03": "active Chromium CPU-throttled comparison recorded",
     "PERF-D02": "isolated experiment ca2f43c; active frame improvement not confirmed"
   },
-  "inProgress": "battle-layout",
-  "next": "complete mobile and desktop layout and compare visuals",
+  "inProgress": "integrated-regression-and-performance",
+  "next": "verify exact v0.328.0 candidate and compare alternating-order offline startup",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"
   ],
   "lastStableCommit": "a4b09cb",
   "lastSuccessfulTests": [
-    "browser battle geometry / drag suite: 4 passed on layout draft"
+    "playable baseline checks: 437 card entries and 2 champions",
+    "preservation suite: 56 passed",
+    "client SSR: 65 passed",
+    "integrated settings, collection and battle smoke coverage"
   ],
   "failedTests": []
 }
