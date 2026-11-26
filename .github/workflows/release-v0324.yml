@@ -2,7 +2,7 @@ name: Publish verified Card Duel v0.324.0
 on:
   pull_request:
     branches: [ui/followup-20261125]
-    types: [opened]
+    types: [opened, synchronize, reopened]
 permissions:
   contents: read
 concurrency:
