@@ -864,10 +864,16 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .lobby-main .integrated-browser .book-class-tabs{grid-auto-rows:clamp(18px,calc((100dvh - 106px)/10),36px);gap:1px}
   .lobby-main .integrated-browser .book-class-tabs button[aria-pressed=true]{transform:scale(1.1)}
   .lobby-main .deck-panel.integrated-browser{--catalog-card-width:min(100%,max(42px,calc((100dvh - 126px)/3.1)))}
-  .lobby-main .deck-builder .collection-book .deck-card-add-trigger{display:none}
   .lobby-main .deck-builder .collection-spread{--builder-card-width:clamp(48px,calc((100dvh - 118px)/3.1),150px)}
   .lobby-main .deck-builder .collection-book .collection-item{gap:0}
   .lobby-main .deck-builder .collection-item .collection-set-label{font-size:10px}
   .collection-detail-info{max-height:calc(100dvh - 80px);overflow:auto;overscroll-behavior:contain}
   .collection-detail-add{position:sticky;bottom:0;background:#30251e}
+}
+
+/* The modal has the explicit add control on every device. Avoid spending
+   two extra 44px button rows in a height-constrained two-leaf spread,
+   including landscape tablets such as 1024x600. */
+@media (orientation:landscape) and (max-height:700px), (pointer:coarse) and (orientation:landscape){
+  .lobby-main .deck-builder .collection-book .deck-card-add-trigger{display:none}
 }
