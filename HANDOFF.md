@@ -1,3 +1,9 @@
+## v0.328.0 통합 복구 진행
+
+- 공개 안정본 v0.327.0 소스 `a4b09cb`, Pages `dc6a522`. 개발 브랜치 `ui/v0.328.0`.
+- 변경 이력과 복구 기준, 근거가 불충분한 항목은 [감사 기록](CHANGE_AUDIT.md)에 남겼다.
+- 전투 배치 작업이 진행 중이다. `npm run build:solo-app` 후 `node --test apps/client/test/battle-immersive-browser.test.mjs`와 실제 스크린샷으로 확인한다.
+
 ## PERF-20261126 — 안정 후보 v0.323.0 및 실험 결과
 
 - 안정 후보는 v0.323.0 `3aeaee8`이다. 공개 안정본은 v0.322.0 `fbf2014`, Pages `c0463c0`이다.
