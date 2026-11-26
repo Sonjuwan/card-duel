@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCatalog,deckCards,HERO_CLASSES} from '../../../packages/engine/src/index.ts';
-import {cardSet,matchesCardSet,cardSetLabel,sortCardsForDisplay,deckAddReason} from '../src/card-sets.ts';
+import {collectionSetCounts,cardSet,matchesCardSet,cardSetLabel,sortCardsForDisplay,deckAddReason} from '../src/card-sets.ts';
 import {displayCardName,cardSearchTerms,matchesCardSearch} from '../src/card-names.ts';
 import {collectionPage} from '../src/table-visuals.ts';
 const active=JSON.parse(readFileSync('data/cards/active.json','utf8')) as {file:string};
@@ -40,5 +40,15 @@ test('all classes and sets are sorted by cost then visible name before paginatio
       if(sorted[i-1].cost===sorted[i].cost)assert.ok(displayCardName(sorted[i-1],classic).localeCompare(displayCardName(sorted[i],classic),'ko',{numeric:true,sensitivity:'base'})<=0);
     }
     const paged=Array.from({length:collectionPage(sorted,0).pages},(_,i)=>collectionPage(sorted,i).items).flat();assert.deepEqual(paged,sorted);
+  }
+});
+
+test('single-pass set counts equal independent filters for all classes and filtered catalog subsets',()=>{
+  const lists=[all,[],...HERO_CLASSES.map(hero=>deckCards(catalog,hero)),...Array.from({length:11},(_,cost)=>all.filter(c=>Math.min(c.cost,10)===cost))];
+  for(const cards of lists){
+    const before=cards.map(c=>c.id);
+    const counts=collectionSetCounts(cards);
+    for(const key of ['all','basic','original','token'] as const)assert.equal(counts[key],cards.filter(c=>matchesCardSet(c,key)).length);
+    assert.deepEqual(cards.map(c=>c.id),before);
   }
 });
