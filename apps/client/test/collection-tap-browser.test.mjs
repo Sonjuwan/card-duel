@@ -29,8 +29,9 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   assert.equal(await detail.getByRole('button',{name:'덱에 추가',exact:true}).count(),0);
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
   await page.getByRole('button',{name:'메인으로',exact:true}).tap();
-  await page.getByRole('button',{name:'덱 만들기',exact:true}).tap();
-  await page.locator('.workspace-heroes button').first().tap();
+  await page.getByRole('button',{name:'대전',exact:true}).tap();
+  await page.getByRole('button',{name:'전사',exact:true}).tap();
+  await page.getByRole('button',{name:'＋ 새 덱 만들기 / 편집',exact:true}).tap();
   await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).tap();
   const builder=page.locator('.deck-builder'),count=builder.locator('.deck-live-count');
   await count.waitFor();
