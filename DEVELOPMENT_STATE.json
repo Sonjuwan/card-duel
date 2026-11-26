@@ -21,10 +21,11 @@
     "PERF-G01": "measured; no storage changes",
     "PERF-A02": "recorded in PERFORMANCE_HISTORY.md",
     "PERF-A03": "b77f54b",
-    "PERF-C02": "public report and log rows reuse"
+    "PERF-C02": "e2de210",
+    "PERF-F01": "same-seed Chromium frame baseline recorded"
   },
   "inProgress": null,
-  "next": "PERF-F01",
+  "next": "PROFILE-ACTIVE-COMBAT-AND-HEAP",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"

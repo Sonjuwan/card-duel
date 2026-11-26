@@ -25,7 +25,21 @@ async function sample(mobile){
     if(throttle>1)await cdp.send('Emulation.setCPUThrottlingRate',{rate:throttle});
     await cdp.send('Performance.enable');
     await page.addInitScript(()=>{
+      const postMessage=Worker.prototype.postMessage;
+      Worker.prototype.postMessage=function(message,...options){
+        if(message?.type==='start')message={...message,input:{...message.input,seed:10,deckSeed:123}};
+        return postMessage.call(this,message,...options);
+      };
       window.longTasks=[];
+      window.longFrames=[];
+      if(PerformanceObserver.supportedEntryTypes.includes('long-animation-frame')){
+        new PerformanceObserver(list=>{
+          window.longFrames.push(...list.getEntries().map(entry=>({
+            start:entry.startTime,duration:entry.duration,blocking:entry.blockingDuration,
+            forcedLayout:entry.scripts.reduce((sum,script)=>sum+script.forcedStyleAndLayoutDuration,0)
+          })));
+        }).observe({type:'long-animation-frame',buffered:true});
+      }
       new PerformanceObserver(list=>{
         window.longTasks.push(...list.getEntries().map(entry=>entry.duration));
       }).observe({type:'longtask',buffered:true});
@@ -57,6 +71,7 @@ async function sample(mobile){
     await page.locator('.mulligan-confirm').click();
     await page.locator('.battle-arena').waitFor();
     const frames=await page.evaluate(()=>new Promise(resolve=>{
+      const start=performance.now();
       const times=[];
       let prior;
       function frame(now){
@@ -66,7 +81,8 @@ async function sample(mobile){
         const total=times.reduce((sum,elapsed)=>sum+elapsed,0);
         times.sort((a,b)=>a-b);
         resolve({fps:120000/total,p95:times[113],p99:times[118],
-          heap:performance.memory?.usedJSHeapSize,longTasks:window.longTasks});
+          heap:performance.memory?.usedJSHeapSize,longTasks:window.longTasks,
+          longFrames:window.longFrames.filter(entry=>entry.start+entry.duration>=start)});
       }
       requestAnimationFrame(frame);
     }));
