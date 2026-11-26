@@ -78,7 +78,14 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   assert.equal(await catalog.locator('.collection-book').getAttribute('data-book-size'),'8');
   for(const [width,height] of sizes)await checkWorkspace('catalog',width,height);
   await page.setViewportSize({width:844,height:390});
-  assert.equal(await catalog.getByRole('button',{name:'카드 필터',exact:true}).count(),0);
+  await catalog.getByRole('button',{name:'카드 필터',exact:true}).tap();
+  const filters=page.getByRole('dialog',{name:'카드 필터',exact:true});
+  await filters.getByRole('searchbox',{name:'카드 이름 또는 효과 검색'}).fill('대조 대상 없음');
+  await filters.getByRole('button',{name:'닫기',exact:true}).tap();
+  await catalog.getByText('검색 결과가 없습니다.',{exact:false}).waitFor();
+  await catalog.getByRole('button',{name:'카드 필터',exact:true}).tap();
+  await filters.getByRole('button',{name:'필터 초기화',exact:true}).tap();
+  await filters.getByRole('button',{name:'닫기',exact:true}).tap();
   assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),false);
   await page.setViewportSize({width:1024,height:768});
   assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),true);
