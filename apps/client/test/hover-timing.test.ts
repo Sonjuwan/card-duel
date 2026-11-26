@@ -67,3 +67,12 @@ test('stationary battle taps pin details without a timer or a follow-up click ac
   guard.begin(3,0,0,900);guard.cancel(3,910);assert.equal(guard.endTap(3,0,0,920),false);
   f.hover.pin('source',()=>value);value=null;f.hover.refresh();assert.equal(f.current(),null);
 });
+
+test('a long drag requests preview cancellation only once, and cannot pin or activate a card',()=>{
+  const guard=createTouchPreviewGuard();guard.begin(7,0,0,0);
+  let cancels=0;for(let i=0;i<500;i++)if(guard.move(7,i,0))cancels++;
+  assert.equal(cancels,1);
+  assert.equal(guard.endTap(7,0,0,550),false);
+  assert.equal(guard.suppress(551),true);
+  guard.begin(8,10,10,600);assert.equal(guard.endTap(8,10,10,630),true);
+});
