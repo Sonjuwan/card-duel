@@ -65,3 +65,12 @@ Follow the existing queue: profile local drag style writes and PWA image bundles
 - Asset inventory: all 458 WebP assets unique; no removable EXIF/XMP bytes. CSS 15,829,661 bytes; gzip 11,745,471, Brotli q5 11,701,353. Grouped PWA again slower on CPU-4x mobile (install 1,106 → 1,386 ms; offline menu 619 → 885 ms). Retain original packaging.
 - Added read-only largest-24 WebP experiment with exact decoded PAM equality and smaller bytes required, excludes animated/profiled/metadata assets. No image quality changes or release art writes. Result pending.
 - No merge/release; complete post-adoption verification and physical Android checks before publication.
+
+
+## Run 45749983415 — cleanup and lossless art results
+
+- Post-adoption regression 985/985, render 65/65, packaging 2/2, CSS entry 1/1, strict unused bindings 0. Service-worker checks 19 pass, one optional prior-release test skipped.
+- Largest 24 WebP lossless re-encodings: 24 decoded PAM comparisons equal, zero smaller encodings. Reject and retain original art; no claim about untested encodings or the remaining assets.
+- Repeated 60 restore/exit cycles: heap 6,902,760 vs 6,924,788 bytes; both 1,566 DOM nodes and zero remaining dedicated workers. No heap reduction established.
+- Added memoized collection group/spread reuse and unread-ID Set membership; page selection preserves the original clamping logic and avoids a second complete grouping pass. Added 96 equivalent page cases across scopes and sizes. Released finished save-probe worker references and handlers. Post-change regression pending; no measured memory reduction claimed.
+- Latest published baseline unchanged. Keep physical Android measurements as an explicit outstanding gate.
