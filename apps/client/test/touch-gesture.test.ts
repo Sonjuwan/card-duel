@@ -120,3 +120,19 @@ test('linear touch target selection matches the previous sorted reference',()=>{
   assert.equal(nearestTouchTarget(5,5,[{...a,legal:false},b]),undefined);
   assert.deepEqual(nearestTouchTarget(5,5,[a]),a.target);
 });
+
+
+test('single-pass visible insertion slot matches clipped reference including invalid geometry',()=>{
+  let seed=987654;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  const coord=()=>{const a=random();return a<.01?NaN:a<.02?Infinity:a<.03?-Infinity:a<.04?1.7e308:a<.05?-1.7e308:Math.floor(random()*200)-100;};
+  for(let i=0;i<30000;i++){
+    const x=coord(),bounds={left:coord(),right:coord()};
+    const slots=Array.from({length:Math.floor(random()*10)},()=>({position:random()<.1?-1:Math.floor(random()*9),left:coord(),right:coord()}));
+    const expected=!Number.isFinite(bounds.left)||!Number.isFinite(bounds.right)||bounds.left>=bounds.right?undefined:nearestBoardSlot(x,slots.flatMap(slot=>{
+      const left=Math.max(bounds.left,slot.left),right=Math.min(bounds.right,slot.right);
+      return Number.isFinite(left)&&Number.isFinite(right)&&left<right?[{position:slot.position,x:(left+right)/2}]:[];
+    }));
+    assert.equal(nearestVisibleBoardSlot(x,bounds,slots),expected,'seeded case '+i);
+  }
+});
