@@ -149,7 +149,7 @@ test('real armor-only and mixed hits preserve rules, exact public trace and appr
     const impacts=impactChanges(getPlayerView(s,0),getPlayerView(next,0),0,events),reverse=impactChanges(getPlayerView(s,1),getPlayerView(next,1),1,events);assert.deepEqual(impacts,reverse);
     assert.equal(impacts.find(i=>i.kind==='armorHit')?.amount??0,Math.min(armor,3));assert.equal(impacts.find(i=>i.kind==='damage')?.amount??0,Math.max(0,3-armor));
     assert.equal(impactFeedback(trace,impacts).kind,armor>=3?'armor':'damage');assert.equal(impactFeedback(trace,impacts).armor,armor===2?true:undefined);
-    assert.equal(dialoguePlan(trace,getPlayerView(s,0),getPlayerView(next,0),0,catalog).impact.length,armor>=3?0:1);
+    assert.equal(dialoguePlan(trace,getPlayerView(s,0),getPlayerView(next,0),0,catalog).impact.length,0);
   }
 });
 test('precise armor trace splits repeated hits despite simultaneous armor gain and bounds feedback',()=>{
@@ -232,7 +232,7 @@ test('blocked, shielded and returned units never speak false hit or death lines;
   assert.equal(dialoguePlan(base,before,after,0,catalog).impact.length,0);assert.equal(dialoguePlan({...base,blocked:true,events:[]},before,after,0,catalog).death.length,0);
   after.opponent.board=[];assert.equal(dialoguePlan({...base,events:[]},before,after,0,catalog).death.length,0);
   const secret=dialoguePlan({kind:'secret',actor:1,revision:5,cardId:'ice_block'},before,before,0,catalog);
-  assert.equal(secret.start[0].speaker,'비밀');assert.equal(secret.start[0].cardId,undefined);assert.doesNotMatch(JSON.stringify(secret),/ice_block/);
+  assert.deepEqual(secret,{start:[],impact:[],death:[]});assert.doesNotMatch(JSON.stringify(secret),/ice_block/);
 });
 test('only installed Korean voices are accepted and the speech queue respects mute and voice setting',()=>{
   const remote={lang:'ko-KR',localService:false},english={lang:'en-US',localService:true},local={lang:'ko-KR',localService:true};

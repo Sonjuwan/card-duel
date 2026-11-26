@@ -99,3 +99,14 @@ test('a reserved weapon strike accounts for the last durability before another h
   assert.ok(validateBattleIntent(projected,0,catalog,action));
   assert.equal(view.self.weapon.durability,1);
 });
+
+test('druid power and rogue weapon reservations permit immediate hero-attack input',()=>{
+  for(const hero of ['druid','rogue'] as const){
+    let state=createGame(catalog,[practiceDeck(catalog,hero),practiceDeck(catalog,'warrior')],{seed:123,firstPlayer:0});
+    state=applyAction(state,0,{type:'mulligan',replace:[]});state=applyAction(state,1,{type:'mulligan',replace:[]});
+    const view=getPlayerView(state,0);view.self.mana=2;
+    const projected=projectBattleIntents(view,0,catalog,[{type:'heroPower'}]);
+    assert.equal(projected.self.mana,0);assert.equal(validateBattleIntent(projected,0,catalog,{type:'heroAttack',target:{kind:'hero',player:1}}),undefined);
+    assert.equal(view.self.heroAttack,0);assert.equal(view.self.weapon,null);
+  }
+});

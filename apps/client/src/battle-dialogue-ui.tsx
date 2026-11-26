@@ -27,7 +27,7 @@ export function nextCaptionDelay(captions:readonly {expires:number}[],now:number
 }
 export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:boolean,catalog:Catalog,name:(card:Card)=>string){
   const [captions,setCaptions]=useState<Caption[]>([]),[emoteCooldown,setEmoteCooldown]=useState(false);
-  const greeted=useRef('');
+  const greeted=useRef(''),sawMulligan=useRef('');
   const serial=useRef(0),timers=useRef<ReturnType<typeof setTimeout>[]>([]),before=useRef<RoomView|null>(null),lastCue=useRef('');
   const reset=()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];setCaptions([]);setEmoteCooldown(false);lastCue.current='';before.current=null;stopDialogueVoice();};
   useEffect(()=>{reset();return()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];stopDialogueVoice();};},[room.code,connected]);
@@ -40,15 +40,13 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
     speakDialogue(lines);
   };
   useEffect(()=>{
-    if(!connected||!room.state||room.state.phase!=='playing'||room.state.turn>1||greeted.current===room.code||document.hidden)return;
+    if(connected&&room.state?.phase==='mulligan')sawMulligan.current=room.code;
+    if(!connected||!room.state||room.state.phase!=='playing'||room.state.turn>1||sawMulligan.current!==room.code||greeted.current===room.code||document.hidden)return;
     greeted.current=room.code;
     const {self,opponent}=room.state;
     show([heroEmote(self.heroClass,room.seat,'greet'),heroEmote(opponent.heroClass,room.seat===0?1:0,'greet')]);
   },[room.code,room.state?.phase,connected]);
-  const showPlan=(plan:ReturnType<typeof dialoguePlan>,impact:number)=>{
-    show(plan.start);if(plan.impact.length)later(()=>show(plan.impact),impact);
-    if(plan.death.length)later(()=>show(plan.death),impact+180);
-  };
+  const showPlan=(plan:ReturnType<typeof dialoguePlan>)=>show(plan.start);
   useEffect(()=>{
     if(!connected||!room.state)return;
     if(document.hidden)return;
@@ -76,7 +74,7 @@ export function useBattleDialogue(room:RoomView,cue:PlaybackCue|null,connected:b
     if(document.hidden||room.animationSpeed!=='instant'||!prev?.state)return;
     const a=freshAcceptedAnimation(prev,room);
     if(a){
-      showPlan(dialoguePlan(a,prev.state,room.state,room.seat,catalog,name),80);
+      showPlan(dialoguePlan(a,prev.state,room.state,room.seat,catalog,name));
       return ()=>{for(const timer of timers.current)clearTimeout(timer);timers.current=[];setEmoteCooldown(false);};
     }
   },[room.code,room.state?.revision,connected,room.animationSpeed]);
