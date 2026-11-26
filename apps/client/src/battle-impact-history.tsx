@@ -5,6 +5,7 @@ import type {Card,Catalog} from '../../../packages/engine/src/index.ts';
 import type {RoomView} from '../../../packages/protocol.ts';
 import {advanceImpactHistory} from './battle-impact-history-model.ts';
 import type {ImpactHistoryEntry,ImpactPortrait} from './battle-impact-history-model.ts';
+const emptyHistory:readonly ImpactHistoryEntry[]=[];
 function historyStorageKey(key:string){
   return `card-duel:impact:v1:${location.pathname}:${key}`;
 }
@@ -35,7 +36,7 @@ export function useImpactHistory(room:RoomView,connected:boolean,catalog:Catalog
     try{sessionStorage.setItem(historyStorageKey(history.key),JSON.stringify(history.entries));}
     catch{/* Private mode and storage limits can leave history available only in memory. */}
   },[history]);
-  return history.key===key?history.entries:[];
+  return history.key===key?history.entries:emptyHistory;
 }
 const actionMark={summon:'＋',attack:'⚔',heroAttack:'⚔',spell:'✦',weapon:'⚒',secret:'?',coin:'◉',power:'ϟ',turn:'↻',choice:'▣',heal:'✚',death:'☠',draw:'▤'};
 const actionLabel={summon:'소환',attack:'공격',heroAttack:'영웅 공격',spell:'주문',weapon:'무기',secret:'비밀',coin:'동전',power:'영웅 능력',turn:'턴 변경',choice:'카드 선택'};
