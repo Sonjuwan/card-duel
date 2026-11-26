@@ -139,3 +139,37 @@ test('opponent sampling cache preserves fixed-node ranking and never shares muta
   }
   assert.deepEqual(view,original);
 });
+
+
+test('private log-free AI simulation preserves rule state, errors, RNG and input immutability',async()=>{
+  const {applyBotSimulationAction}=await import('../src/engine.ts');
+  const {candidates}=await import('../src/simulate.ts');
+  const {strategicDeck}=await import('../src/deck-strategies.ts');
+  const current=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8')));
+  let checked=0,invalid=0;
+  for(const [i,cls] of HERO_CLASSES.entries()){
+    let s=createGame(current,[strategicDeck(current,cls,'control',32+i),strategicDeck(current,HERO_CLASSES[(i+4)%9],'synergy',80+i)],{seed:103+i});
+    for(let turn=0;turn<100&&s.phase!=='finished';turn++){
+      const actor:PlayerId=s.phase==='mulligan'?(s.players[0].mulliganDone?1:0):s.activePlayer;
+      const options=candidates(s,actor);
+      if(s.phase==='playing')options.push({type:'endTurn'});
+      const before=JSON.stringify(s),valid:GameState[]=[];
+      for(const action of options){
+        let authoritative:GameState;
+        try{authoritative=applyAction(s,actor,action);}
+        catch(e){if(!(e instanceof RuleError))throw e;assert.throws(()=>applyBotSimulationAction(s,actor,action),(err:unknown)=>err instanceof RuleError&&err.message===e.message);invalid++;continue;}
+        const hypothetical=applyBotSimulationAction(s,actor,action);
+        assert.deepEqual(hypothetical,{...authoritative,history:[]});
+        assert.equal(hypothetical.catalog,authoritative.catalog);
+        valid.push(authoritative);checked++;
+      }
+      assert.equal(JSON.stringify(s),before);
+      assert.ok(valid.length);
+      // Deterministic progression through varied legal actions; periodically
+      // end the turn to exercise draws, fatigue, triggers and expiry.
+      s=valid[turn%4===0?valid.length-1:(turn*17+i)%valid.length];
+    }
+  }
+  assert.ok(checked>1000);
+  assert.ok(invalid>=0);
+});
