@@ -224,7 +224,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   },[battleToolsOpen]);
   useEffect(()=>setBattleToolsOpen(false),[room.code,s?.phase]);
   const dialogue=useBattleDialogue(room,cue,connected,catalog,card=>displayCardName(card,classicNames));
-  const impactHistory=useImpactHistory(acceptedRoom,connected,catalog,card=>displayCardName(card,classicNames)).filter(entry=>entry.revision<=(s?.revision??0));
+  const acceptedImpactHistory=useImpactHistory(acceptedRoom,connected,catalog,card=>displayCardName(card,classicNames));
+  const impactHistory=useMemo(()=>acceptedImpactHistory.filter(entry=>entry.revision<=(s?.revision??0)),[acceptedImpactHistory,s?.revision]);
   const previousResult=useRef<ResultSoundState|null>(null);
   useEffect(()=>{if(!connected||!s){previousResult.current=null;return;}if(!presentingResult&&s.phase==='finished')return;const current={code:room.code,seat,phase:s.phase,winner:s.winner},result=resultSoundTransition(previousResult.current,current);previousResult.current=current;if(result)playBattleResultSound(result);},[room.code,seat,s?.phase,s?.winner,presentingResult,connected]);
   const previousSoundRoom=useRef<RoomView|null>(null),lastInstantSound=useRef(-Infinity);
