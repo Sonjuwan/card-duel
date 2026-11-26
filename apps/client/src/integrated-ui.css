@@ -116,15 +116,31 @@
 }
 .lobby-settings-entry{z-index:130}
 .game-main .duel-screen.preview-compact>.duel-title[data-settings-open="true"] .duel-toolbar{
-  display:block!important;overflow:auto!important;overscroll-behavior:contain;
+  display:flex!important;flex-flow:column nowrap!important;justify-content:flex-start!important;
+  overflow:auto!important;overscroll-behavior:contain;
+  width:min(430px,calc(100dvw - 20px))!important;
 }
-.game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .audio-mixer{
-  grid-column:1/-1;width:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;
+.game-main .duel-screen.preview-compact .duel-toolbar .duel-actions{flex:none!important}
+.game-main:has(.duel-title[data-settings-open="true"]) .game-toast{visibility:hidden}
+.battle-setting-group{
+  display:grid;gap:6px;min-width:0;align-content:start;
+  border-top:1px solid #8d6b45;padding:7px 0 2px;color:#fff0d1;
 }
-.game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .audio-mixer-actions{grid-column:1/-1}
-.game-main .duel-screen.preview-compact>.duel-title .duel-actions>.pause-save,
-.game-main .duel-screen.preview-compact>.duel-title .duel-actions>.compact-concede,
-.game-main .duel-screen.preview-compact>.duel-title .duel-actions>.compact-settings-close{order:-1}
+.battle-setting-group h3,.battle-settings-management-title{
+  margin:0;color:#ffdda0;font-size:clamp(13px,2.2dvh,19px);
+}
+.battle-setting-group .audio-mixer{width:100%;gap:5px 12px}
+.battle-setting-group .audio-mixer-actions{grid-column:1/-1}
+.game-main .duel-screen.preview-compact .duel-actions>.battle-sound-flat{order:-2}
+.game-main .duel-screen.preview-compact .duel-actions>.battle-settings-management-title{order:-1;grid-column:1/-1;border-top:1px solid #8d6b45;padding-top:7px}
+.game-main .duel-screen.preview-compact .duel-actions>.danger{color:#ffd4ca;border-color:#b26664}
+.game-main .duel-screen.preview-compact>.duel-title .compact-settings-close{position:sticky;top:0;order:-1;flex:none;z-index:4;background:#4a3527;border-color:#b9945d}
+@media (orientation:landscape) and (min-height:541px){
+  .game-main .duel-screen.preview-compact>.duel-title[data-settings-open="true"] .duel-toolbar{width:min(620px,calc(100dvw - 24px))!important}
+  .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .dialogue-settings-panel{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
 .lobby-settings-entry:has(~.lobby-page-nav){right:max(64px,calc(env(safe-area-inset-right) + 54px))}
 body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner{pointer-events:none}
 body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner button{pointer-events:auto}
@@ -994,10 +1010,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .own-hand .hand-card-slot{width:min(calc((100dvw - min(29dvw,36dvh) - 10dvw - 32px)/var(--hand-count)),15.5dvh)!important;height:auto!important;aspect-ratio:1/1.55;min-width:0!important;max-height:100%!important;flex:none!important;transform:none!important;margin:0!important}
   .game-main .duel-screen .own-hand .hand-card-slot>.battle-card{width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;position:relative!important;inset:auto!important}
 }
-@media (hover:hover) and (pointer:fine) and (orientation:landscape) and (min-height:541px){
-  .game-main .duel-screen:not(.is-dragging) .arena-field .own-hand .hand-card-slot:hover>.battle-card{transform:scale(1.42)!important;transform-origin:bottom center;transition:transform 100ms ease;z-index:42}
-  .game-main .duel-screen:not(.is-dragging) .arena-field .own-hand .hand-card-slot:hover{z-index:42}
-}
+
 
 .game-main .duel-screen .mana-preview-label{color:#ffd571;font-size:.6em;margin-inline-start:3px}
 @media (orientation:landscape){
@@ -1067,11 +1080,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card{animation:none!important;transition:transform 100ms ease}
 }
-@media (orientation:landscape) and (min-height:541px) and (hover:hover) and (pointer:fine){
-  .game-main .duel-screen:not(.is-dragging) .arena-field .own-hand .hand-card-slot:hover>.battle-card{
-    transform:scale(1.42)!important;transform-origin:bottom center;
-  }
-}
+
 
 /* The floating history rail must not intercept board taps in its empty
    padding or unused height. Only rendered history controls consume input.
