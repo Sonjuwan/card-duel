@@ -33,18 +33,23 @@
     "PERF-F03": "active Chromium CPU-throttled comparison recorded",
     "PERF-D02": "isolated experiment ca2f43c; active frame improvement not confirmed"
   },
-  "inProgress": "integrated-regression-and-performance",
-  "next": "verify exact v0.328.0 candidate and compare alternating-order offline startup",
+  "inProgress": null,
+  "next": "Investigate post-response offline startup delay and repeat the release gate",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"
   ],
   "lastStableCommit": "a4b09cb",
   "lastSuccessfulTests": [
-    "playable baseline checks: 437 card entries and 2 champions",
-    "preservation suite: 56 passed",
-    "client SSR: 65 passed",
-    "integrated settings, collection and battle smoke coverage"
+    "playable baseline: 437 card entries / 2 AI champions / 5 checksums",
+    "TypeScript",
+    "full regressions: 992 passed",
+    "SSR: 65 passed",
+    "Chromium and PWA checks: 30 passed including upgrade from public v0.327.0"
   ],
-  "failedTests": []
+  "failedTests": [],
+  "releaseBlockedBy": [
+    "desktop Chromium CPU 4x offline menu median 1007.3 → 1277.1 ms in six alternating pairs",
+    "full long-session and real device validation remains pending"
+  ]
 }
