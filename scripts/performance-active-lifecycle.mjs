@@ -26,8 +26,17 @@ try{
   try{await cdp.send('LayerTree.enable');}catch{/* Optional compositing diagnostics. */}
   await page.addInitScript(()=>{
     const post=Worker.prototype.postMessage;
+    window.acceptedEndTurns=0;
     Worker.prototype.postMessage=function(message,...rest){
       if(message?.type==='start')message={...message,input:{...message.input,seed:10,deckSeed:123}};
+      if(message?.type==='act'&&message.action?.type==='endTurn'){
+        const receive=event=>{
+          if(event.data?.requestId!==message.requestId)return;
+          this.removeEventListener('message',receive);
+          if(event.data?.type==='view')window.acceptedEndTurns++;
+        };
+        this.addEventListener('message',receive);
+      }
       return post.call(this,message,...rest);
     };
     window.longFrameCount=0;window.longFrameMs=0;
@@ -61,6 +70,7 @@ try{
     for(let turn=0;turn<5;turn++){
       if(await result.isVisible())break;
       await ownTurn.click();turns++;
+      await page.waitForFunction(count=>window.acceptedEndTurns===count,turns,{timeout:60000});
       await ownTurn.or(result).first().waitFor({timeout:60000});
     }
     samples.push(await sample('active-'+cycle));
