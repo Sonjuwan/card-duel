@@ -1,5 +1,5 @@
 export * from './types.ts';
-export * from './engine.ts';
+export { RULES, HERO_CLASSES, RuleError, createCatalog, validateDeck, createGame, applyAction, getPlayerView } from './engine.ts';
 export { HERO_POWERS, HERO_TOKENS, getHeroPower } from './hero-powers.ts';
 export type { RuntimeOptions } from './rules.ts';
 export {maxCardCopies,turnTimeLimitSeconds} from './rules.ts';
