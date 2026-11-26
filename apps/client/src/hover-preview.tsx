@@ -33,7 +33,7 @@ export function CardHoverPanel({preview,example=false}:{preview:CardPreview;exam
       {minion&&<div className="hover-live"><b>전장 능력치</b><span>공격 {minion.attack} · 생명력 {minion.health}/{minion.maxHealth}</span>{card.kind==='minion'&&!minion.silenced&&!!((card.spellDamage??0)+(minion.bonusSpellDamage??0))&&<span>주문 공격력 +{(card.spellDamage??0)+(minion.bonusSpellDamage??0)}</span>}{minionTags(minion).length>0&&<span>{minionTags(minion).join(' · ')}</span>}</div>}
       {weapon&&<div className="hover-live"><b>장착 중인 능력치</b><span>공격 {weapon.attack} · 내구도 {weapon.durability}</span></div>}
       {powers.size>0&&<dl className="hover-keywords">{[...powers].map(k=><div key={k}><dt>{keywords[k]}</dt><dd>{keywordHelp[k]}</dd></div>)}</dl>}
-      {reason&&<small className="hover-reason">{reason}</small>}<small className="hover-dismiss">마우스를 떼면 닫힙니다 · Esc</small>
+      {reason&&<small className="hover-reason">{reason}</small>}<small className="hover-dismiss">다른 곳을 터치하거나 Esc로 닫기 · 마우스는 영역 밖으로 이동</small>
     </div>
   </aside>;
 }
@@ -45,10 +45,10 @@ export function HoverPreviewProvider({children,resetKey,refreshKey}:{children:Re
   useLayoutEffect(()=>{controls.clear();},[controls,resetKey]);
   useLayoutEffect(()=>{controls.refresh();},[controls,refreshKey]);
   useEffect(()=>{
-    const close=()=>controls.clear(),key=(e:KeyboardEvent)=>{if(e.key==='Escape')close();};
-    window.addEventListener('blur',close);window.addEventListener('keydown',key);window.addEventListener('resize',close);
+    const close=()=>controls.clear(),outside=()=>controls.dismissPinned(),key=(e:KeyboardEvent)=>{if(e.key==='Escape')close();};
+    window.addEventListener('pointerdown',outside,true);window.addEventListener('blur',close);window.addEventListener('keydown',key);window.addEventListener('resize',close);
     window.addEventListener('dragstart',close,true);document.addEventListener('visibilitychange',close);
-    return()=>{window.removeEventListener('blur',close);window.removeEventListener('keydown',key);window.removeEventListener('resize',close);window.removeEventListener('dragstart',close,true);document.removeEventListener('visibilitychange',close);controls.clear();};
+    return()=>{window.removeEventListener('pointerdown',outside,true);window.removeEventListener('blur',close);window.removeEventListener('keydown',key);window.removeEventListener('resize',close);window.removeEventListener('dragstart',close,true);document.removeEventListener('visibilitychange',close);controls.clear();};
   },[controls]);
   return <HoverContext.Provider value={controls}>{children}{preview&&typeof document!=='undefined'&&createPortal(<CardHoverPanel preview={preview}/>,document.body)}</HoverContext.Provider>;
 }
