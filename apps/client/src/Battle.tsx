@@ -2,7 +2,7 @@ import {heroShatterMs,lethalPortraits,mulliganSlots} from './battle-cinematics.t
 import {LocalCardArt} from './local-art.tsx';
 import type {BattleIntent} from './battle-intents.ts';
 import {BattleIntentQueue,isBattleIntent,projectBattleIntents,validateBattleIntent} from './battle-intents.ts';
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent,PointerEvent,MouseEvent,KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { BOT_DIFFICULTY_NAMES, cardChoiceReason, heroPowerReason, publicCardCost, publicCardReason, sameTarget } from '../../../packages/engine/src/index.ts';
 import type { Action, PlayerId, Target } from '../../../packages/engine/src/index.ts';
@@ -154,6 +154,16 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [casting,setCasting]=useState(false);
   const castRef=useRef(false);
   const pointerPoint=useRef<{x:number;y:number}|null>(null);
+  const castPoint=useRef<{x:number;y:number}|null>(null);
+  const dragGhostRef=useRef<HTMLDivElement|null>(null),castAnchorRef=useRef<HTMLDivElement|null>(null);
+  const applyDragPosition=(node:HTMLDivElement|null,point:{x:number;y:number}|null,xName:string,yName:string)=>{
+    if(!node||!point)return;
+    node.style.setProperty(xName,`${point.x}px`);node.style.setProperty(yName,`${point.y}px`);
+  };
+  // Set initial coordinates on mount, before paint; subsequent moves touch only
+  // the two overlay elements instead of inherited properties on the entire arena.
+  const attachDragGhost=useCallback((node:HTMLDivElement|null)=>{dragGhostRef.current=node;applyDragPosition(node,pointerPoint.current,'--touch-x','--touch-y');},[]);
+  const attachCastAnchor=useCallback((node:HTMLDivElement|null)=>{castAnchorRef.current=node;applyDragPosition(node,castPoint.current,'--cast-x','--cast-top');},[]);
   const [touchGhost,setTouchGhost]=useState<string|null>(null);
   const [touchSlot,setTouchSlot]=useState<number|undefined>(undefined);
   const [dropTarget,setDropTarget]=useState<Target|undefined>(undefined);
@@ -296,7 +306,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   useEffect(()=>{const cancel=()=>{actionFocus.current=null;};const tab=(e:KeyboardEvent)=>{if(e.key==='Tab')cancel();};window.addEventListener('pointerdown',cancel,true);window.addEventListener('keydown',tab,true);return()=>{window.removeEventListener('pointerdown',cancel,true);window.removeEventListener('keydown',tab,true);};},[]);
   const stopEdgePan=()=>{if(edgePanRef.current)cancelAnimationFrame(edgePanRef.current.frame);edgePanRef.current=null;};
   useEffect(()=>()=>stopEdgePan(),[]);
-  const clearDrag=()=>{stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);castRef.current=false;setCasting(false);pointerPoint.current=null;setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');};
+  const clearDrag=()=>{stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);castRef.current=false;setCasting(false);pointerPoint.current=null;castPoint.current=null;setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');};
   const cancelActiveTouch=()=>{const interrupted=touchRef.current,guard=interruptTouch(interrupted,cancelledPointer.current,suppressClick.current,Date.now());cancelledPointer.current=guard.cancelledPointer;suppressClick.current=guard.suppressUntil;clearDrag();if(interrupted&&arenaRef.current?.hasPointerCapture(interrupted.pointerId)){try{arenaRef.current.releasePointerCapture(interrupted.pointerId);}catch{}}};
   const cancelCardChoice=()=>{if(selected?.kind==='cardChoice')choiceReturn.current=selected.id;setSelected(null);cancelActiveTouch();};
   useEffect(()=>{
@@ -416,15 +426,14 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const dragPointer=(x:number,y:number,d:DragState)=>{
     pointerPoint.current={x,y};
     const arena=arenaRef.current;
-    arena?.style.setProperty('--touch-x',`${x}px`);
-    arena?.style.setProperty('--touch-y',`${y}px`);
+    applyDragPosition(dragGhostRef.current,pointerPoint.current,'--touch-x','--touch-y');
     const card=d.intent.kind==='card'?selectionCard(rules,catalog,{kind:'held',id:d.intent.id}):undefined;
     const boundary=arena?.querySelector('.friendly-board')?.getBoundingClientRect().bottom;
     const anchor=arena?.querySelector('.self-hero-zone .hero-portrait')?.getBoundingClientRect();
     if(arena&&anchor){
       const parent=arena.getBoundingClientRect();
-      arena.style.setProperty('--cast-top',`${anchor.top-parent.top}px`);
-      arena.style.setProperty('--cast-x',`${anchor.left+anchor.width/2-parent.left}px`);
+      castPoint.current={x:anchor.left+anchor.width/2-parent.left,y:anchor.top-parent.top};
+      applyDragPosition(castAnchorRef.current,castPoint.current,'--cast-x','--cast-top');
     }
     if(card?.kind==='spell'&&planDrag(rules,seat,catalog,d.intent)?.selection?.kind==='card'&&boundary!==undefined){
       const next=castRef.current?y<Math.max(boundary+12,(anchor?.bottom??0)+4):y<boundary-12;
@@ -664,8 +673,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     {title}{homeControl}
     <div className="arena-message" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={messageRef} onKeyDownCapture={targetKeys} data-drop-feedback={currentDrag?dropFeedback??undefined:dropNotice?'notice':undefined}><span className={`turn-lamp${active?' live':''}`}/><span role="status" aria-live={currentDrag?"off":"polite"}>{status}{intentNotice&&<small> · {intentNotice}</small>}{selected&&!currentDrag&&legalTargets.length>0&&<small className="target-key-hint"> · 방향키/Enter</small>}</span>{pending>0&&<button className="secondary" type="button" onClick={cancelPending} aria-label={`예약 ${pending}개 취소`}>예약 {pending} · 취소</button>}{connected&&!opponentReady&&reconnectLeft!==null&&<small className="reconnect-countdown" aria-live="off"> · 남은 재접속 시간 {Math.floor(reconnectLeft/60)}분 {reconnectLeft%60}초</small>}</div>
     <div className="battle-arena classic-table" inert={battleToolsOpen||!!inspectedOverlay} ref={arenaRef} onKeyDownCapture={targetKeys} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={nativeDragOver} onDropCapture={nativeDrop} onDragLeave={e=>{if(!e.relatedTarget||!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget)){setDropFeedback(null);setTouchSlot(undefined);setDropTarget(undefined);hideAim();}}} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();if(selected?.kind==='cardChoice')cancelCardChoice();else{setSelected(null);clearDrag();}}}}>
-      {casting&&<div className="spell-cast-anchor" data-tone={selectedCard?.kind==='spell'?selectedCard.class:undefined} aria-hidden="true"/>}
-      {touchGhost&&!casting&&<div className="touch-drag-ghost" aria-hidden="true"><BattleCard card={catalog[s.self.hand.find(h=>h.instanceId===touchGhost)?.cardId??'']??catalog.__coin}/></div>}
+      {casting&&<div className="spell-cast-anchor" ref={attachCastAnchor} data-tone={selectedCard?.kind==='spell'?selectedCard.class:undefined} aria-hidden="true"/>}
+      {touchGhost&&!casting&&<div className="touch-drag-ghost" ref={attachDragGhost} aria-hidden="true"><BattleCard card={catalog[s.self.hand.find(h=>h.instanceId===touchGhost)?.cardId??'']??catalog.__coin}/></div>}
       <TableDecor/><BattleEffects cue={cue} arenaRef={arenaRef} catalog={catalog}/>{visual?.turn&&<div className={`turn-flash ${visual.turn}`} role="status">{visual.turn==='own'?'내 턴':'상대 턴'}</div>}
       {aimVisible&&<svg className={`aim-overlay${highlight?.kind==='attack'||highlight?.kind==='heroAttack'?' attack-aim':''}`} key={aimSource} aria-hidden="true"><defs><marker id="duel-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="currentColor"/></marker></defs><line ref={aimRef} visibility="hidden" markerEnd="url(#duel-arrow)" stroke="currentColor" strokeWidth="7" strokeLinecap="round"/></svg>}
       <aside className="arena-left" inert={ownChoiceOpen} aria-label="전투 기록">
