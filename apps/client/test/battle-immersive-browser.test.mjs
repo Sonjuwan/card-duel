@@ -94,17 +94,24 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   // Exercise the real worker/React path, then supply a display-only snapshot.
   // The injected snapshot is never sent to the worker or written to storage.
   await page.addInitScript(()=>{
+    const replace=String.prototype.replace;
+    window.logTranslations=null;
+    String.prototype.replace=function(...args){
+      if(window.logTranslations!==null&&String(this).startsWith('PERF_LOG_MARKER '))window.logTranslations++;
+      return replace.apply(this,args);
+    };
     const NativeWorker=window.Worker;
     window.Worker=class extends NativeWorker{
       set onmessage(handler){
         super.onmessage=event=>{
           const data=event.data;
           if(window.denseFixtureActive&&data?.type==='view')return;
-          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10,classes)=>{
+          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10,classes,logLabel)=>{
             window.denseFixtureActive=true;
             const fixture=structuredClone(data),view=fixture.view.state;
             fixture.view.animation=undefined;
             view.revision+=1;
+            if(logLabel)view.history=Array.from({length:60},(_,n)=>({turn:1,player:0,message:'PERF_LOG_MARKER '+logLabel+' '+n}));
             for(const [i,side] of [view.self,view.opponent].entries()){
               if(classes)side.heroClass=classes[i];
               side.board=Array.from({length:units},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
@@ -229,6 +236,24 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     }
   }
   assert.equal(new Set(crops.values()).size,classes.length,'each class has its own focal point');
+  await page.evaluate(()=>window.denseBoard(7,10,undefined,'first'));
+  const report=page.locator('.battle-report textarea');
+  await page.waitForFunction(()=>document.querySelector('.battle-report textarea')?.value.includes('PERF_LOG_MARKER first 59'));
+  await page.evaluate(()=>{window.logTranslations=0;});
+  for(let i=0;i<3;i++){
+    await page.locator('.folded-hand').tap();
+    await page.locator('.friendly-board').tap({position:{x:65,y:6}});
+  }
+  const translations=await page.evaluate(()=>{
+    const value=window.logTranslations;
+    window.logTranslations=null;
+    return value;
+  });
+  t.diagnostic('Public log translations across three hand toggles: '+translations);
+  assert.equal(translations,0,'hand UI must reuse the unchanged public history and report');
+  assert.match(await report.inputValue(),/PERF_LOG_MARKER first 59/);
+  await page.evaluate(()=>window.denseBoard(7,10,undefined,'updated'));
+  await page.waitForFunction(()=>document.querySelector('.battle-report textarea')?.value.includes('PERF_LOG_MARKER updated 59'));
   const unitSizes=[];
   for(let count=1;count<=10;count++){
     await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);

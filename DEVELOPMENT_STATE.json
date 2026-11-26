@@ -10,7 +10,7 @@
     "commit": "0283a83"
   },
   "localCandidate": {
-    "version": "0.321.0",
+    "version": "0.322.0",
     "ref": "refs/heads/perf/runtime-20261126"
   },
   "completed": {
@@ -20,9 +20,10 @@
     "PERF-D01": "e5dac43",
     "PERF-G01": "measured; no storage changes",
     "PERF-A02": "recorded in PERFORMANCE_HISTORY.md",
-    "PERF-A03": "same-worker offline reload"
+    "PERF-A03": "b77f54b",
+    "PERF-C02": "public report and log rows reuse"
   },
-  "inProgress": "PERF-C02",
+  "inProgress": null,
   "next": "PERF-F01",
   "resumeAfter": [
     "docs/ROADMAP.md",
