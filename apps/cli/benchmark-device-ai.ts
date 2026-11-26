@@ -9,6 +9,8 @@ import type {DeviceMode,DeviceInfo} from '../client/src/device-budget.ts';
 const {version,catalog}=new CardStore().read();
 const positions:GameState[]=[];
 const fixedNodes=process.env.CARD_DUEL_FIXED_NODES==='1';
+const overridePolicy=Number(process.env.CARD_DUEL_BENCH_POLICY??0);
+if(![0,1,2,3].includes(overridePolicy))throw Error('Invalid benchmark policy');
 const count=Math.max(1,Math.min(9,Number(process.argv[2]??9)||9));
 const level=(Number(process.argv[3])||0);
 const modes:DeviceMode[]=process.argv[4]==='all'?['fast','auto','strong']:['auto'];
@@ -34,7 +36,7 @@ for(const mode of modes)for(const difficulty of BOT_DIFFICULTIES.filter(d=>!leve
   const times:number[]=[];let fallbacks=0,passes=0,overBudget=0;
   const rankedDigest=createHash('sha256'),acceptedDigest=createHash('sha256');
   const budget=deviceBudget(difficulty,mode,device);
-  const options={...budget,deadlineMs:fixedNodes?undefined:budget.deadlineMs,weights,policyVersion:difficulty===25?2 as const:1 as const};
+  const options={...budget,deadlineMs:fixedNodes?undefined:budget.deadlineMs,weights,policyVersion:(overridePolicy|| (difficulty===25?2:1)) as 1|2|3};
   for(const s of positions){
     const actor=s.activePlayer,start=performance.now(),actions=rankBotActions(getPlayerView(s,actor),s.catalog,actor,difficulty,options),elapsed=performance.now()-start;
     if(fixedNodes)rankedDigest.update(JSON.stringify(actions)+'\n');
@@ -46,5 +48,5 @@ for(const mode of modes)for(const difficulty of BOT_DIFFICULTIES.filter(d=>!leve
     if(accepted.type==='endTurn')passes++;
   }
   times.sort((a,b)=>a-b);
-  console.log(JSON.stringify({mode,difficulty,positions:times.length,nodeBudget:budget.nodeLimit,targetMs:budget.deadlineMs,medianMs:Math.round(percentile(times,.5)),p95Ms:Math.round(percentile(times,.95)),maxMs:Math.round(times.at(-1)!),overBudget,fallbacks,passes,...(fixedNodes?{fixedNodes:true,wallClockDeadlineDisabled:true,rankedActionSha256:rankedDigest.digest('hex'),acceptedActionSha256:acceptedDigest.digest('hex')}: {})}));
+  console.log(JSON.stringify({mode,difficulty,policyVersion:options.policyVersion,positions:times.length,nodeBudget:budget.nodeLimit,targetMs:budget.deadlineMs,medianMs:Math.round(percentile(times,.5)),p95Ms:Math.round(percentile(times,.95)),maxMs:Math.round(times.at(-1)!),overBudget,fallbacks,passes,...(fixedNodes?{fixedNodes:true,wallClockDeadlineDisabled:true,rankedActionSha256:rankedDigest.digest('hex'),acceptedActionSha256:acceptedDigest.digest('hex')}: {})}));
 }

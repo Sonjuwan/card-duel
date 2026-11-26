@@ -1,4 +1,4 @@
-import { applyAction, RuleError } from './engine.ts';
+import { applyBotSimulationAction, RuleError } from './engine.ts';
 import { candidates } from './simulate.ts';
 import { snapshotBattleCatalog } from './catalog-snapshot.ts';
 import type { Action, CardInstance, Catalog, GameState, HeroClass, Player, PlayerId, PlayerView, PublicPlayer } from './types.ts';
@@ -74,7 +74,7 @@ function evaluate(s:GameState,actor:PlayerId,advanced:boolean,actions:Action[]):
   const baseline=value(s,actor,advanced),p=s.players[actor],ranked:Evaluated[]=[];
   for(const action of actions){
     try{
-      const result=applyAction(s,actor,action),after=result.players[actor];
+      const result=applyBotSimulationAction(s,actor,action),after=result.players[actor];
       let score=value(result,actor,advanced)-baseline;
       if(action.type==='playCard'){
         const card=s.catalog[p.hand.find(h=>h.instanceId===action.instanceId)!.cardId];
@@ -165,7 +165,7 @@ function actionBonus(s:GameState,a:Action,actor:PlayerId):number{
   return a.type==='heroPower' ? .06 : 0;
 }
 function legalResult(s:GameState,actor:PlayerId,a:Action):GameState|null{
-  try{return applyAction(s,actor,a);}catch(e){if(e instanceof RuleError)return null;throw e;}
+  try{return applyBotSimulationAction(s,actor,a);}catch(e){if(e instanceof RuleError)return null;throw e;}
 }
 // All callers use the managed, deeply immutable battle catalog produced by
 // imagined(). Cache only deterministic practice-card IDs, never sampled hands,

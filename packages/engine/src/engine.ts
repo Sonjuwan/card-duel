@@ -107,7 +107,10 @@ function instance(s: GameState, cardId: string): CardInstance {
 function blankPlayer(heroClass: HeroClass): Player {
   return { heroClass, health: RULES.heroHealth, mana: 0, maxMana: 0, armor:0, heroAttack:0, heroAttacksRemaining:0, heroPowerUsed:false, pendingOverload:0,lockedMana:0,cardsPlayedThisTurn:0,weapon:null, secrets:[], fatigue: 0, deck: [], hand: [], board: [], mulliganDone: false };
 }
+// Private hypothetical search states never publish their presentation history.
+const hypotheticalStates=new WeakSet<GameState>();
 function log(s:GameState,player:PlayerId,message:string):void{
+  if(hypotheticalStates.has(s))return;
   s.history.push({turn:s.turn,player,message});if(s.history.length>60)s.history.shift();
 }
 function finish(s: GameState, winner: PlayerId|null, reason: NonNullable<GameState['reason']>): void {
@@ -443,11 +446,21 @@ function heroPower(s:GameState,id:PlayerId,target:unknown):void {
 }
 /** Pure transaction: all invalid actions throw without altering the input state. */
 export function applyAction(state: GameState, actor: PlayerId, action: unknown, runtime?:RuntimeOptions): GameState {
+  return executeAction(state,actor,action,runtime,false);
+}
+/** Internal AI-only transaction. All rules, RNG and state cloning are shared
+ * with the authoritative path; only unused hypothetical public logs are omitted.
+ * Never use this for a real match or a user-visible checkpoint. */
+export function applyBotSimulationAction(state:GameState,actor:PlayerId,action:unknown):GameState{
+  return executeAction(state,actor,action,undefined,true);
+}
+function executeAction(state:GameState,actor:PlayerId,action:unknown,runtime:RuntimeOptions|undefined,hypothetical:boolean):GameState{
   requireRule(validPlayer(actor), '잘못된 플레이어');
   requireRule(state.phase !== 'finished', '이미 종료된 게임입니다.');
   requireRule(record(action), '잘못된 행동');
   const {catalog,...dynamic}=state;
-  const s:GameState={...structuredClone(dynamic),catalog:snapshotBattleCatalog(catalog)};
+  const s:GameState={...structuredClone(hypothetical?{...dynamic,history:[]}:dynamic),catalog:snapshotBattleCatalog(catalog)};
+  if(hypothetical)hypotheticalStates.add(s);
   setRuntime(s,runtime);
   if (action.type === 'concede') {log(s,actor,'항복');finish(s, other(actor), 'concede');}
   else if (s.phase === 'mulligan') {
