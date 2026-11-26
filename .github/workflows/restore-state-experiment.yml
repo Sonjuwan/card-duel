@@ -1,0 +1,52 @@
+name: Restore state experiment
+on:
+  pull_request:
+    branches: [perf/v0.323-static-render]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  compare:
+    if: github.event.pull_request.head.ref == 'perf/v0.323-restore-state'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '20d12852a5003ee71c8f5a3b99df8b7648cea21c'
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run typecheck
+      - run: node --test apps/client/test/local-duel.test.ts
+      - run: npm ci
+        working-directory: baseline
+      - name: Compare checkpoint restoration timing and identity
+        shell: bash
+        run: |
+          cp scripts/performance-restore-state.ts baseline/scripts/performance-restore-state.ts
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              dir=.
+              if [ "$kind" = baseline ]; then dir=baseline; fi
+              (cd "$dir" && node scripts/performance-restore-state.ts) | tee -a "/tmp/restore-$kind.jsonl"
+            done
+          done
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const read=k=>readFileSync("/tmp/restore-"+k+".jsonl","utf8").trim().split("\n").map(JSON.parse);
+            const a=read("baseline"),b=read("candidate");
+            assert.equal(a.length,3);assert.equal(b.length,3);
+            for(let i=0;i<3;i++){
+              assert.equal(a[i].checkpointSha256,b[i].checkpointSha256);
+              assert.equal(a[i].iterations,b[i].iterations);
+              console.log(JSON.stringify({baseline:a[i],candidate:b[i]}));
+            }
+          '
