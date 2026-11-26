@@ -49,10 +49,11 @@ jobs:
       - run: node --test apps/client/test/battle-immersive-browser.test.mjs
       - run: node --test apps/client/test/solo-app-browser.test.mjs apps/client/test/update-browser.test.mjs
 
-  performance:
+
+  combat_profile:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,22 +63,11 @@ jobs:
           ref: '15802d04696b51239e3ca30db912de2606ad0e47'
           path: perf-baseline
           persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          ref: 'ca83498357bccdd2b9752117466fd2a4f7d64970'
-          path: perf-ai
-          persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          ref: '13a1ddc8272bc46f43cac5171cf59928edceaf1b'
-          path: perf-bundle
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci
-      - run: npm run build:solo-app
+      - run: npm ci && npm run build:solo-app
       - run: npm ci && npm run build:solo-app
         working-directory: perf-baseline
       - run: npx playwright install --with-deps chromium
@@ -94,25 +84,93 @@ jobs:
           done
       - name: Count drag writes without timing instrumentation
         run: CARD_DUEL_PROFILE_DRAG_WRITES=1 node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
-      - name: Compare virtual image bundles (not a package change)
-        run: node perf-bundle/scripts/performance-pwa-bundle-study.mjs dist/solo-app/game.css
+
+  ai_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 'ca83498357bccdd2b9752117466fd2a4f7d64970'
+          path: perf-ai
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm ci && npm run typecheck && node --test packages/engine/test/bot.test.ts
+        working-directory: perf-ai
       - name: Compare AI decisions with fixed node budgets
         shell: bash
         run: |
-          npm ci --prefix perf-ai
-          (cd perf-ai && npm run typecheck && node --test packages/engine/test/bot.test.ts)
-          CARD_DUEL_FIXED_NODES=1 node apps/cli/benchmark-device-ai.ts 3 25 auto mid | tee /tmp/ai-base.jsonl
-          (cd perf-ai && CARD_DUEL_FIXED_NODES=1 node apps/cli/benchmark-device-ai.ts 3 25 auto mid) | tee /tmp/ai-candidate.jsonl
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              root="$PWD"
+              if [ "$kind" = candidate ]; then root="$PWD/perf-ai"; fi
+              echo "FIXED NODES AI $kind"
+              (cd "$root" && CARD_DUEL_FIXED_NODES=1 node apps/cli/benchmark-device-ai.ts 3 25 auto mid) | tee -a "/tmp/ai-$kind.jsonl"
+            done
+          done
           node --input-type=module -e '
             import {readFileSync} from "node:fs";
             import assert from "node:assert/strict";
             const read=p=>readFileSync(p,"utf8").trim().split("\n").map(JSON.parse);
-            const a=read("/tmp/ai-base.jsonl"),b=read("/tmp/ai-candidate.jsonl");
+            const a=read("/tmp/ai-baseline.jsonl"),b=read("/tmp/ai-candidate.jsonl");
             assert.equal(a.length,b.length);assert.ok(a.length>1);
-            assert.equal(a[0].weights,b[0].weights);
-            for(let i=1;i<a.length;i++){
+            for(let i=0;i<a.length;i++){
+              if(a[i].weights){assert.equal(a[i].weights,b[i].weights);continue;}
               for(const key of ["mode","difficulty","positions","nodeBudget","rankedActionSha256","acceptedActionSha256"])assert.equal(a[i][key],b[i][key],key);
               assert.ok(a[i].positions>0 && a[i].rankedActionSha256);
               console.log(JSON.stringify({mode:a[i].mode,difficulty:a[i].difficulty,beforeMedianMs:a[i].medianMs,afterMedianMs:b[i].medianMs,beforeP95Ms:a[i].p95Ms,afterP95Ms:b[i].p95Ms,decisionMatch:true}));
+            }
+          '
+
+  pwa_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '4e2613a32c31bc39d67d0509f46f0e0cbb7b6b71'
+          path: perf-bundle
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: node --test perf-bundle/test/performance-pwa-bundle-prototype.test.mjs
+      - run: node perf-bundle/scripts/performance-pwa-bundle-study.mjs dist/solo-app/game.css
+      - name: Generate and verify isolated eight-bundle prototype
+        run: |
+          node perf-bundle/scripts/performance-pwa-bundle-prototype.mjs dist/solo-app perf-bundle/dist/solo-app 8
+          node perf-bundle/apps/cli/serve-solo-app.mjs --verify perf-bundle/dist/solo-app
+      - run: npx playwright install --with-deps chromium
+      - name: Compare installation, offline startup, frames and image hashes
+        shell: bash
+        run: |
+          CARD_DUEL_CPU_THROTTLE=4 node perf-bundle/scripts/performance-browser.mjs . | tee /tmp/pwa-baseline.json
+          CARD_DUEL_CPU_THROTTLE=4 node perf-bundle/scripts/performance-browser.mjs perf-bundle | tee /tmp/pwa-bundled.json
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const a=JSON.parse(readFileSync("/tmp/pwa-baseline.json","utf8")),b=JSON.parse(readFileSync("/tmp/pwa-bundled.json","utf8"));
+            const art=new Map(a.flatMap(s=>s.art).map(x=>[x.name,x.hash]));
+            let matched=0;
+            for(const x of b.flatMap(s=>s.art))if(art.has(x.name)){assert.equal(x.hash,art.get(x.name));matched++;}
+            assert.ok(matched>0,"No overlapping rendered art identities");
+            for(const mobile of [true,false]){
+              const med=(xs,f)=>xs.map(f).sort((x,y)=>x-y)[Math.floor(xs.length/2)];
+              const report=xs=>{const s=xs.filter(x=>x.mobile===mobile);return {firstCacheMs:med(s,x=>x.installReadyMs),offlineMenuMs:med(s,x=>x.offline.menuMs),p99:med(s,x=>x.frames.p99)}};
+              console.log(JSON.stringify({mobile,before:report(a),after:report(b),matchedArt:matched}));
             }
           '
