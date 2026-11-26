@@ -324,3 +324,31 @@ jobs:
       - run: npm ci && npm run build:solo-app
       - run: sudo apt-get update && sudo apt-get install -y webp
       - run: node scripts/performance-art-lossless-study.mjs dist/solo-app/game.css 24
+
+  active_lifecycle_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '15802d04696b51239e3ca30db912de2606ad0e47'
+          path: perf-baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npm ci && npm run build:solo-app
+        working-directory: perf-baseline
+      - run: npx playwright install --with-deps chromium
+      - name: Compare repeated active matches and browser compositing proxies
+        run: |
+          echo "BASELINE active lifecycle"
+          CARD_DUEL_CPU_THROTTLE=4 node scripts/performance-active-lifecycle.mjs perf-baseline 8
+          echo "CANDIDATE active lifecycle"
+          CARD_DUEL_CPU_THROTTLE=4 node scripts/performance-active-lifecycle.mjs . 8
