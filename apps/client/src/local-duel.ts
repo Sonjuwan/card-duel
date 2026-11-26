@@ -8,6 +8,8 @@ import type {DeviceInfo,DeviceMode} from './device-budget.ts';
 import type {MatchAward,AccountProfile} from '../../../packages/account-protocol.ts';
 import type {OfflineRankContext,OfflineDeveloperContext} from './offline-growth.ts';
 import {experimentalPolicy} from '../../../packages/experimental-difficulty.ts';
+import {snapshotBattleCatalog} from '../../../packages/engine/src/catalog-snapshot.ts';
+const RESTORE_STATE=Symbol('validated local checkpoint restoration');
 const opaqueCardId=()=>typeof globalThis.crypto!=='undefined'?Array.from(crypto.getRandomValues(new Uint32Array(4)),x=>x.toString(16).padStart(8,'0')).join(''):Array.from({length:4},()=>Math.floor(Math.random()*4294967296).toString(16).padStart(8,'0')).join('');
 
 export interface LocalDuelInput{
@@ -52,7 +54,7 @@ export class LocalDuel{
   private botActions=0;
   readonly style:DeckStyle;
   private readonly input:LocalDuelInput;
-  constructor(input:LocalDuelInput){
+  constructor(input:LocalDuelInput,restored?:{key:typeof RESTORE_STATE;state:Omit<GameState,'catalog'>}){
     this.input={...input,deckSeed:input.deckSeed??((input.seed^0x9ef1672)>>>0)};
     if(!isBotDifficulty(input.difficulty))throw new RuleError('잘못된 AI 난이도');
     validateDeck(input.deck,input.catalog);
@@ -67,7 +69,13 @@ export class LocalDuel{
     if(chosenOpponent&&(!input.developerFree||chosenOpponent.heroClass!==input.heroClass))throw new RuleError('상대 AI 직업과 덱이 일치하지 않습니다.');
     const opponent=tier?.opponentDeck??chosenOpponent??strategicDeck(input.catalog,input.heroClass,this.style,this.input.deckSeed);
     validateDeck(opponent,input.catalog);
-    this.state=createGame(input.catalog,[input.deck,opponent],{seed:input.seed,firstPlayer:input.firstPlayer,runtime:{instanceId:opaqueCardId}});
+    if(restored?.key===RESTORE_STATE){
+      const catalog=snapshotBattleCatalog(input.catalog),state=structuredClone(restored.state);
+      checkSavedState(state,catalog);
+      this.state={...state,catalog};
+    }else{
+      this.state=createGame(input.catalog,[input.deck,opponent],{seed:input.seed,firstPlayer:input.firstPlayer,runtime:{instanceId:opaqueCardId}});
+    }
   }
   checkpoint(now=Date.now()):LocalDuelCheckpoint|null{
     const hash=this.input.catalogHash;if(!hash||!/^[a-f0-9]{64}$/.test(hash))return null;
@@ -77,9 +85,9 @@ export class LocalDuel{
   static restore(saved:LocalDuelCheckpoint,catalog:Catalog,hash:string,device?:DeviceInfo,now=Date.now()):LocalDuel{
     publicSaveSummary(saved,hash);
     if(!/^[a-f0-9]{64}$/.test(hash)||saved.input?.catalogHash!==hash||saved.summary.code!==saved.input.code||saved.summary.difficulty!==saved.input.difficulty||!integer(saved.input.seed,0,0xffffffff)||!integer(saved.input.deckSeed,0,0xffffffff)||!integer(saved.input.generation??0,0)||saved.input.firstPlayer!==undefined&&![0,1].includes(saved.input.firstPlayer)||saved.input.deviceMode!==undefined&&!['auto','fast','strong'].includes(saved.input.deviceMode)||!integer(saved.botTurn,-1,RULES.maxTurns)||!integer(saved.botActions,0,600)||saved.input.weights&&!validateBotWeights(saved.input.weights))throw new RuleError('현재 카드 버전과 일치하지 않거나 손상된 저장 경기입니다.');
-    const duel=new LocalDuel({...saved.input,catalog,device});const state=structuredClone(saved.state);checkSavedState(state,duel.state.catalog);
+    const duel=new LocalDuel({...saved.input,catalog,device},{key:RESTORE_STATE,state:saved.state});const state=duel.state;
     if(saved.summary.revision!==state.revision||saved.summary.phase!==state.phase||saved.summary.turn!==state.turn||saved.summary.heroClass!==state.players[0].heroClass||saved.summary.opponent!==state.players[1].heroClass||saved.input.deck.heroClass!==state.players[0].heroClass||saved.input.heroClass!==state.players[1].heroClass)throw new RuleError('저장 경기의 요약이 일치하지 않습니다.');
-    duel.state={...state,catalog:duel.state.catalog};duel.botTurn=saved.botTurn;duel.botActions=saved.botActions;duel.updateClock(now);
+    duel.botTurn=saved.botTurn;duel.botActions=saved.botActions;duel.updateClock(now);
     if(duel.deadline!==undefined){if(!integer(saved.remainingMs,0,duel.limit!*1000))throw new RuleError('저장 경기의 남은 시간이 손상되었습니다.');duel.deadline=now+saved.remainingMs!;}else if(saved.remainingMs!==undefined)throw new RuleError('저장 경기의 시간 제한이 일치하지 않습니다.');
     return duel;
   }
