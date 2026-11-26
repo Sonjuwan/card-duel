@@ -183,3 +183,5 @@ v0.326.0 실험은 타입 검사, 전체 자동 회귀 978건, PWA 20건, 서버
 재현: `CARD_DUEL_CPU_THROTTLE=4 node scripts/performance-browser.mjs <checkout>`. 시작 재측정은 `CARD_DUEL_STARTUP_ONLY=1`을 추가한다. 교대 표본은 `node scripts/performance-offline-pair.mjs <v0.327 PWA 폴더> <v0.328 PWA 폴더>`를 사용한다. 각 Chromium 실행에서 필요하면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`을 설정한다.
 
 배포본에서 교체한 Chromium 시험은 16,853,595바이트의 검증 대상 응답을 받았다. 이 값은 테스트 서버의 원시 페이로드이며 실제 CDN 압축 전송량과 다를 수 있다. 입력 지연, 장시간 경기의 힙, 전 기종 음향·발열 및 실기기 배터리는 이 비교에서 미측정이다.
+
+병목 분리용 로컬 혼합 빌드 두 개도 같은 6쌍 방식으로 비교했다. v0.328 후보에 v0.327 CSS만 대입한 쪽의 메뉴 중앙값은 1,210ms, v0.327 JS만 대입한 쪽은 1,119ms였다. DOMContentLoaded 종료는 각각 956ms와 821ms였다. 혼합 빌드는 화면 호환성 검증용 릴리스가 아니며, 표본 분포가 겹쳐 자바스크립트를 원인으로 확정하지 않는다. 다음은 원본 두 버전에서 스크립트 파싱·실행과 초기 React 커밋을 분리하는 것이다.
