@@ -49,10 +49,10 @@ test('battle, deck maker and card catalog are actual switched game screens',()=>
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
-test('press-and-hold displays an unplayable hand card without a manual play button',()=>{
+test('single-touch inspection displays an unplayable hand card without a manual play button',()=>{
   const battle=load('Battle.tsx'),pieces=load('battle-pieces.tsx');
   assert.doesNotMatch(battle,/setPeekCardId|selected-card-use|selected-card-inspect/);
-  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY/);
+  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY:undefined,Boolean\(sourceId\?\.startsWith\('card:'\)&&!mulligan\)\)/);
 });
 test('battle setup uses a single canvas with secondary records in a dialog',()=>{
   assert.match(app,/lobbyView==='play'&&lossOnExit\?<PreviewPlay/);
