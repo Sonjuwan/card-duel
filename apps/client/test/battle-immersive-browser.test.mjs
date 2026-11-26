@@ -14,7 +14,9 @@ test('phone/tablet combat uses entire available height instead of three redundan
   t.after(()=>browser.close());
   mkdirSync('ui-evidence',{recursive:true});
   for(const [label,width,height,isMobile] of [
+    ['phone-640',640,360,true],
     ['phone-844',844,390,true],
+    ['phone-932',932,430,true],
     ['phone-780',780,360,true],
     ['tablet-1024',1024,768,true],
     ['desktop-1366',1366,768,false],
@@ -116,6 +118,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
               if(classes)side.heroClass=classes[i];
               side.board=Array.from({length:units},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
               side.handCount=10;
+            side.mana=side.maxMana=10;
             }
             view.self.handCount=hand;
             view.self.hand=Array.from({length:hand},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
@@ -154,15 +157,15 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   await page.locator('.friendly-board .battle-minion').nth(6).waitFor();
   await page.evaluate(async()=>{if(document.fullscreenElement)await document.exitFullscreen();});
   await metrics.detach();
-  for(const width of [640,780,844,1024]){
-    await page.setViewportSize({width,height:width===1024?768:360});
+  for(const [width,height] of [[640,360],[780,360],[844,390],[932,430],[1024,768]]){
+    await page.setViewportSize({width,height});
     const dimensions=await page.evaluate(()=>{
       const box=selector=>document.querySelector(selector).getBoundingClientRect().toJSON();
       const rows=['.enemy-board','.friendly-board'].map(selector=>{
         const row=box(selector),units=[...document.querySelectorAll(selector+' .battle-minion')].map(el=>el.getBoundingClientRect().toJSON());
         return {row,units};
       });
-      return {rows,arena:box('.battle-arena'),width:innerWidth,height:innerHeight,
+      return {rows,arena:box('.arena-field'),zones:['.enemy-hero-zone','.enemy-board','.friendly-board','.self-hero-zone'].map(box),width:innerWidth,height:innerHeight,
         scroll:[document.documentElement.scrollWidth,document.documentElement.scrollHeight],
         rail:getComputedStyle(document.querySelector('.arena-right')).display};
     });
@@ -178,6 +181,10 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const share=dimensions.rows.reduce((sum,{row})=>sum+row.height,0)/dimensions.height;
     t.diagnostic(width+'px board share '+(share*100).toFixed(1)+'%');
     assert.ok(share>=.38, String(share));
+    if(height<=540)for(const [index,zone] of dimensions.zones.entries()){
+      assert.ok(Math.abs(zone.height-dimensions.arena.height/4)<1.5,JSON.stringify({width,index,zone}));
+      assert.ok(Math.abs(zone.top-dimensions.arena.top-index*zone.height)<1.5,JSON.stringify({width,index,zone}));
+    }
     assert.ok(await page.locator('.arena-field .hero-portrait').evaluateAll(heroes=>heroes.every(hero=>{
       const {width,height}=hero.getBoundingClientRect();
       return width>=height&&width/height<=1.35;
@@ -206,6 +213,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     });
     assert.deepEqual(resourceGeometry,{cards:true,stats:true},String(width));
     const card=page.locator('.own-hand .battle-card').first();
+    await page.screenshot({path:`ui-evidence/dense-${width}-hand.png`});
     const original=await card.boundingBox();
     await card.tap({force:true});
     assert.deepEqual(await card.boundingBox(),original);
@@ -399,6 +407,13 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   await rail.evaluate(el=>{el.scrollTop=el.scrollHeight;});
   await page.getByRole('button',{name:'최신 행동으로 이동'}).click();
   await page.waitForFunction(()=>document.querySelector('.impact-rail').scrollTop===0);
+  for(const [width,height] of [[1366,768],[1920,1080]]){
+    await page.setViewportSize({width,height});
+    await rail.locator('.impact-icon').first().waitFor();
+    const history=await rail.boundingBox(),opponentHand=await page.locator('.hidden-hand').boundingBox();
+    assert.ok(history&&opponentHand&&history.y>=opponentHand.y+opponentHand.height,JSON.stringify({width,history,opponentHand}));
+    await page.screenshot({path:`ui-evidence/action-rail-${width}.png`});
+  }
   await context.close();
 });
 

@@ -17,7 +17,7 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'카드 도감',exact:true}).tap();
-  const sizes=[[640,300],[700,320],[780,360],[844,390],[1024,600],[1024,768],[1920,850]];
+  const sizes=[[640,300],[700,320],[780,360],[844,390],[932,430],[1024,600],[1024,768],[1366,768],[1920,850],[1920,1080]];
   mkdirSync('ui-evidence',{recursive:true});
   async function checkWorkspace(mode,width,height){
     await page.locator('.game-toast').waitFor({state:'detached'});
@@ -49,15 +49,22 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
       const left=[settings,...buttons],right=mode==='builder'?[back,home]:[home];
       const row=left.concat(right);
       const overlap=row.some((a,i)=>row.slice(i+1).some(b=>{const x=box(a),y=box(b);return x.left<y.right-.5&&x.right>y.left+.5&&x.top<y.bottom-.5&&x.bottom>y.top+.5;}));
+      const badges=[...book.querySelectorAll('.collection-copy-badge')];
+      const badBadges=badges.filter(badge=>{
+        const r=box(badge),c=box(badge.parentElement.querySelector('.battle-card'));
+        return !/^\d+\/\d+$/.test(badge.textContent)||!r.width||r.right>innerWidth||r.bottom>innerHeight||
+          (r.left<c.right-1&&r.right>c.left+1&&r.top<c.bottom-1&&r.bottom>c.top+1);
+      }).map(badge=>badge.textContent);
       const status=workspace.querySelector('.book-page-status');
       const badMana=cards.map((c,i)=>{const mana=c.querySelector('.card-mana'),m=box(mana),b=box(c);return m.left<b.left-.5||m.top<b.top-.5||m.right>b.right+.5||m.bottom>b.bottom+.5||!visible(mana)?i:null;}).filter(i=>i!==null);
       const save=workspace.querySelector('.deck-save-primary');
       let saveTextFits=true;
       if(save){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
-      return {badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
+      return {badBadges,badgeCount:badges.length,badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
     },mode);
     const msg=JSON.stringify({mode,width,height,...geometry});
     await page.screenshot({path:'ui-evidence/'+mode+'-'+width+'x'+height+'.png'});
+    assert.deepEqual(geometry.badBadges,[],msg);assert.equal(geometry.badgeCount,8,msg);
     assert.equal(geometry.count,8,msg);assert.ok(geometry.book.height>100,msg);
     assert.ok(Math.max(...geometry.cardRects.map(r=>r.width))-Math.min(...geometry.cardRects.map(r=>r.width))<2,msg);
     assert.ok(geometry.cardRects.every(r=>r.height/r.width>1.5&&r.height/r.width<1.6),msg);
@@ -71,7 +78,14 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   assert.equal(await catalog.locator('.collection-book').getAttribute('data-book-size'),'8');
   for(const [width,height] of sizes)await checkWorkspace('catalog',width,height);
   await page.setViewportSize({width:844,height:390});
-  assert.equal(await catalog.getByRole('button',{name:'카드 필터',exact:true}).count(),0);
+  await catalog.getByRole('button',{name:'카드 필터',exact:true}).tap();
+  const filters=page.getByRole('dialog',{name:'카드 필터',exact:true});
+  await filters.getByRole('searchbox',{name:'카드 이름 또는 효과 검색'}).fill('대조 대상 없음');
+  await filters.getByRole('button',{name:'닫기',exact:true}).tap();
+  await catalog.getByText('검색 결과가 없습니다.',{exact:false}).waitFor();
+  await catalog.getByRole('button',{name:'카드 필터',exact:true}).tap();
+  await filters.getByRole('button',{name:'필터 초기화',exact:true}).tap();
+  await filters.getByRole('button',{name:'닫기',exact:true}).tap();
   assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),false);
   await page.setViewportSize({width:1024,height:768});
   assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),true);

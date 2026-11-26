@@ -4,6 +4,7 @@ import {chromium} from 'playwright';
 import {once} from 'node:events';
 
 const root=resolve(process.argv[2]??'.');
+const startupOnly=process.env.CARD_DUEL_STARTUP_ONLY==='1';
 const throttle=Number(process.env.CARD_DUEL_CPU_THROTTLE??1);
 if(!Number.isFinite(throttle)||throttle<1)throw Error('CPU throttle must be at least 1.');
 const {createSoloAppServer}=await import(pathToFileURL(root+'/apps/cli/serve-solo-app.mjs'));
@@ -65,6 +66,7 @@ async function sample(mobile){
     await page.reload({waitUntil:'domcontentloaded'});
     await home.waitFor();
     const offline=await metrics();
+    if(startupOnly)return {mobile,throttle,cold,offline};
     await page.getByRole('button',{name:'대전',exact:true}).click();
     await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
     await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();

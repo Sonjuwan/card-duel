@@ -44,3 +44,8 @@
   .hover-description{font-size:13px;line-height:1.4;padding:7px 0}.hover-details{gap:6px}.hover-live{font-size:11px}.hover-dismiss{font-size:10px}
 }
 @media(max-height:480px){.card-hover-panel{grid-template-columns:minmax(0,150px) minmax(0,1fr);width:min(400px,calc(100vw - 20px));gap:10px;padding:10px}.hover-description{font-size:12px;line-height:1.35}.hover-details{gap:4px}}
+
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .card-hover-panel:not(.hover-example) .hover-large-card{animation:card-detail-enter 100ms ease-out}
+}
+@keyframes card-detail-enter{from{scale:.96;opacity:.88}to{scale:1;opacity:1}}

@@ -7,7 +7,7 @@ import {loadCatalog} from '../../server/server.ts';
 import {createGrowthBackup,offlineGrowth,readOfflineGrowth} from '../src/offline-growth.ts';
 
 async function previewBrowser(t){
-  const server=createSoloAppServer();
+  const server=createSoloAppServer(process.env.CARD_DUEL_GEOMETRY_BASELINE);
   server.prependListener('request',req=>{
     if(req.url.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);
   });
@@ -72,8 +72,10 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     assert.match(await page.locator('.book-page-status').textContent(),/주술사 1\//);
     await page.getByRole('button',{name:'이전 페이지',exact:true}).click();
     assert.match(await page.locator('.book-page-status').textContent(),/전사 \d+\//);
+    if(height<=540)await page.getByRole('button',{name:'카드 필터',exact:true}).click();
     await page.getByRole('button',{name:'10마나 이상',exact:true}).click();
     await page.getByRole('button',{name:'필터 초기화',exact:true}).click();
+    if(height<=540)await page.getByRole('dialog',{name:'카드 필터',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
     assert.equal(await page.locator('.collection-inspector-sidebar').count(),0);
     const bookmarks=await page.locator('.book-class-tabs button').evaluateAll(tabs=>{
       const selected=tabs.find(tab=>tab.getAttribute('aria-pressed')==='true');
@@ -107,7 +109,30 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     assert.equal(await selected.locator('.mulligan-replace-cross').isVisible(),true);
     await page.screenshot({path:'ui-evidence/mulligan-'+label+'.png'});
     await selected.click();assert.equal(await selected.getAttribute('aria-pressed'),'false');
-    await page.getByRole('button',{name:'전투 설정'}).click();
+    const battleSettings=page.getByRole('button',{name:'전투 설정'});
+    await battleSettings.click();
+    const toolbar=page.locator('.duel-toolbar');
+    for(const heading of ['오디오','전투 연출','게임 관리']){
+      assert.equal(await toolbar.getByRole('heading',{name:heading,exact:true}).count(),1);
+    }
+    const continueGame=toolbar.getByRole('button',{name:'게임 계속하기',exact:true});
+    const continueBounds=await continueGame.boundingBox(),panel=await toolbar.boundingBox();
+    assert.ok(panel&&panel.x>=0&&panel.y>=0&&panel.x+panel.width<=width&&panel.y+panel.height<=height);
+    assert.ok(continueBounds&&continueBounds.x>=0&&continueBounds.y>=0&&
+      continueBounds.x+continueBounds.width<=width&&continueBounds.y+continueBounds.height<=height,JSON.stringify({label,continueBounds,panel}));
+    for(const name of ['오디오','전투 연출','게임 관리']){
+      const section=await toolbar.getByRole('heading',{name,exact:true}).boundingBox();
+      assert.ok(section&&section.x>=panel.x&&section.x+section.width<=panel.x+panel.width,JSON.stringify({label,name,panel,section}));
+    }
+    await page.screenshot({path:'ui-evidence/battle-settings-'+label+'.png'});
+    const quality=toolbar.getByRole('combobox',{name:'전투 연출 품질',exact:true});
+    const initialQuality=await quality.inputValue();
+    await quality.selectOption('economy');
+    await continueGame.click();
+    await selected.waitFor();
+    await battleSettings.click();
+    assert.equal(await quality.inputValue(),'economy');
+    await quality.selectOption(initialQuality);
     await page.getByRole('button',{name:'저장 후 나가기'}).click();
     const resume=page.getByRole('button',{name:'이어서 플레이하기'});
     const restart=page.getByRole('button',{name:'새로운 게임 시작'});
@@ -134,7 +159,7 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       !document.querySelector('.duel-screen.is-playing-fx'),null,{timeout:30000});
     const hand=page.locator('.own-hand .hand-card-slot .battle-card').first();
     assert.equal(await page.locator('.compact-home-trigger').count(),0);
-    if(hasTouch){
+    if(height<=540){
       const folded=page.locator('.folded-hand');
       await folded.waitFor();
       await hand.waitFor({state:'hidden'});
@@ -147,12 +172,15 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       assert.equal(await folded.getAttribute('aria-expanded'),'true',label+' hand stays open between touches');
       await folded.tap();
       await hand.waitFor({state:'hidden'});
-    }else{
+    }else if(!hasTouch){
       await hand.waitFor();
       const before=await hand.boundingBox();
       await hand.hover();
       await page.locator('[data-hover-preview]').waitFor();
       assert.deepEqual(await hand.boundingBox(),before,label+' hover leaves the hand card in place');
+    }else{
+      assert.equal(await page.locator('.folded-hand').isVisible(),false,label+' large-screen layout');
+      await hand.waitFor();
     }
     assert.deepEqual(errors,[]);
     await context.close();

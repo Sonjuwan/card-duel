@@ -479,8 +479,8 @@
   }
   .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings>summary{display:none!important}
   .game-main .duel-screen.preview-compact>.duel-title .flat-dialogue-settings .dialogue-settings-panel{
-    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-    gap:clamp(3px,.7dvh,8px)!important;
+    display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+    gap:clamp(6px,1.2dvh,12px)!important;
     position:static!important;width:100%!important;max-width:none!important;
     max-height:none!important;overflow:visible!important;
     padding:0!important;margin:0!important;background:transparent!important;

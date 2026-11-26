@@ -1,18 +1,18 @@
 {
-  "phase": "PERF-20261126",
-  "branch": "perf/runtime-20261126",
+  "phase": "RESTORE-UI-328",
+  "branch": "ui/v0.328.0",
   "baseline": {
     "version": "0.319.0",
     "commit": "0283a83"
   },
   "lastPublished": {
-    "version": "0.322.0",
-    "commit": "fbf2014",
-    "pagesCommit": "c0463c0"
+    "version": "0.327.0",
+    "commit": "a4b09cb",
+    "pagesCommit": "dc6a522"
   },
   "localCandidate": {
-    "version": "0.323.0",
-    "ref": "refs/heads/perf/runtime-20261126"
+    "version": "0.328.0",
+    "ref": "refs/heads/ui/v0.328.0"
   },
   "completed": {
     "PERF-H01": "fdd10b7",
@@ -34,9 +34,22 @@
     "PERF-D02": "isolated experiment ca2f43c; active frame improvement not confirmed"
   },
   "inProgress": null,
-  "next": "PROFILE-LOCAL-DRAG-WRITES-AND-PWA-ART-BUNDLES",
+  "next": "Investigate post-response offline startup delay and repeat the release gate",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"
+  ],
+  "lastStableCommit": "a4b09cb",
+  "lastSuccessfulTests": [
+    "playable baseline: 437 card entries / 2 AI champions / 5 checksums",
+    "TypeScript",
+    "full regressions: 992 passed",
+    "SSR: 65 passed",
+    "Chromium and PWA checks: 30 passed including upgrade from public v0.327.0"
+  ],
+  "failedTests": [],
+  "releaseBlockedBy": [
+    "desktop Chromium CPU 4x offline menu median 1007.3 → 1277.1 ms in six alternating pairs",
+    "full long-session and real device validation remains pending"
   ]
 }
