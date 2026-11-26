@@ -1,13 +1,13 @@
 import {publicSaveSummary} from './local-duel.ts';
 import type {LocalDuelCheckpoint,LocalSaveSummary,LocalSlotOverview} from './local-duel.ts';
-import type {GrowthView,MatchAward} from '../../../packages/account-protocol.ts';
+import type {AccountProfile,GrowthView,MatchAward} from '../../../packages/account-protocol.ts';
 import {readOfflineGrowth,settleOfflineRanked,canRestoreGrowth,decodeGrowthBackup} from './offline-growth.ts';
 import type {OfflineGrowthRecord} from './offline-growth.ts';
 import {soloSlotDatabase} from './solo-slots.ts';
 import type {SoloSlot,SoloNamespace} from './solo-slots.ts';
 export type SaveVersion=Pick<LocalSaveSummary,'code'|'revision'|'savedAt'>;
 export type RankedWrite={growth:GrowthView;award?:MatchAward};
-export interface LocalSaveStore{read(hash:string):Promise<LocalDuelCheckpoint|null>;write(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected?:SaveVersion|null,ranked?:RankedWrite):Promise<boolean>;remove(hash:string,owner?:string,expected?:SaveVersion):Promise<boolean>;readGrowth?(growth:GrowthView):Promise<OfflineGrowthRecord>;restoreGrowth?(raw:unknown,growth:GrowthView):Promise<OfflineGrowthRecord>;inspectSlot?(hash:string,growth:GrowthView):Promise<LocalSlotOverview>}
+export interface LocalSaveStore{read(hash:string):Promise<LocalDuelCheckpoint|null>;write(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected?:SaveVersion|null,ranked?:RankedWrite):Promise<boolean>;writeRanked?(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected:SaveVersion|null|undefined,ranked:RankedWrite):Promise<AccountProfile|null>;remove(hash:string,owner?:string,expected?:SaveVersion):Promise<boolean>;readGrowth?(growth:GrowthView):Promise<OfflineGrowthRecord>;restoreGrowth?(raw:unknown,growth:GrowthView):Promise<OfflineGrowthRecord>;inspectSlot?(hash:string,growth:GrowthView):Promise<LocalSlotOverview>}
 export type Entry={hash:string;owner:string;snapshot:LocalDuelCheckpoint};
 const storeName='matches',growthStoreName='growth',growthKey='player';
 // Called only after readOfflineGrowth has validated the stored profile.
@@ -89,9 +89,14 @@ export class IndexedLocalSaveStore implements LocalSaveStore{
   });}
   async write(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected?:SaveVersion|null,ranked?:RankedWrite){
     if(!snapshot.input.ranked){if(ranked)throw Error('연습 경기에는 성장 보상을 적용할 수 없습니다.');return this.modify(snapshot.catalogHash,(store,current)=>{if(!saveWriteAllowed(current,owner,claim,expected)||!canReplaceRankedSave(current,snapshot))return false;store.put({hash:snapshot.catalogHash,owner,snapshot} satisfies Entry);return true;});}
-    const context=snapshot.input.ranked;if(!ranked||(snapshot.state.phase==='finished')!==!!ranked.award||ranked.award&&ranked.award.matchId!==snapshot.summary.code)throw Error('랭크 보상 데이터가 올바르지 않습니다.');
-    const db=await this.open();return new Promise<boolean>((resolve,reject)=>{
-      const tx=db.transaction([storeName,growthStoreName],'readwrite'),matches=tx.objectStore(storeName),progress=tx.objectStore(growthStoreName),get=matches.get(snapshot.catalogHash);let applied=false,reason:unknown;
+    if(!ranked)throw Error('랭크 보상 데이터가 올바르지 않습니다.');
+    return (await this.writeRanked(snapshot,owner,claim,expected,ranked))!==null;
+  }
+  /** Publish the validated profile only after the same fenced transaction commits. */
+  async writeRanked(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected:SaveVersion|null|undefined,ranked:RankedWrite){
+    const context=snapshot.input.ranked;if(!context||!ranked||(snapshot.state.phase==='finished')!==!!ranked.award||ranked.award&&ranked.award.matchId!==snapshot.summary.code)throw Error('랭크 보상 데이터가 올바르지 않습니다.');
+    const db=await this.open();return new Promise<AccountProfile|null>((resolve,reject)=>{
+      const tx=db.transaction([storeName,growthStoreName],'readwrite'),matches=tx.objectStore(storeName),progress=tx.objectStore(growthStoreName),get=matches.get(snapshot.catalogHash);let committedProfile:AccountProfile|null=null,reason:unknown;
       const timer=setTimeout(()=>{try{tx.abort();}catch{}reject(Error('랭크 경기 저장 시간 초과'));},3000);
       get.onsuccess=()=>{try{const current=get.result as Entry|undefined;if(!saveWriteAllowed(current,owner,claim,expected)||!canReplaceRankedSave(current,snapshot))return;const update=()=>{const request=progress.get(growthKey);request.onsuccess=()=>{try{
         let record=readOfflineGrowth(request.result,ranked.growth);const duplicate=record.settledMatchIds.includes(snapshot.summary.code);
@@ -102,12 +107,12 @@ export class IndexedLocalSaveStore implements LocalSaveStore{
         // The match still commits atomically with growth validation. A normal
         // move has no reward; avoid rewriting a potentially long unchanged ledger.
         if(claim||ranked.award||ownedCardsChanged(request.result,record))progress.put(record,growthKey);
-        applied=true;
+        committedProfile=record.profile;
       }catch(e){reason=e;tx.abort();}};};
         // Only a newly created ranked match needs the cross-version check. An existing active match must still be resumable when returning to its original release.
         if(claim&&current?.snapshot.summary.code!==snapshot.summary.code){const all=matches.getAll();all.onsuccess=()=>{try{if(rankedClaimAllowedAcrossVersions(all.result as Entry[],current,snapshot))update();}catch(e){reason=e;tx.abort();}};}else update();
       }catch(e){reason=e;tx.abort();}};
-      tx.oncomplete=()=>{clearTimeout(timer);resolve(applied);};tx.onerror=tx.onabort=()=>{clearTimeout(timer);reject(reason??tx.error??Error('랭크 경기 저장 실패'));};
+      tx.oncomplete=()=>{clearTimeout(timer);resolve(committedProfile);};tx.onerror=tx.onabort=()=>{clearTimeout(timer);reject(reason??tx.error??Error('랭크 경기 저장 실패'));};
     });
   }
   remove(hash:string,owner?:string,expected?:SaveVersion){return this.modify(hash,(store,current)=>{if(!saveRemoveAllowed(current,owner,expected)||activeRankedSave(current))return false;store.delete(hash);return true;});}
