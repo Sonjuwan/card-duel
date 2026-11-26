@@ -69,10 +69,11 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   assert.equal(await catalog.locator('.collection-book').getAttribute('data-book-size'),'8');
   for(const [width,height] of sizes)await checkWorkspace('catalog',width,height);
   await page.setViewportSize({width:844,height:390});
-  const filter=catalog.getByRole('button',{name:'카드 필터',exact:true});
-  await filter.tap();
-  const filterDialog=page.getByRole('dialog',{name:'카드 필터',exact:true});
-  await filterDialog.waitFor();await filterDialog.getByRole('button',{name:'닫기',exact:true}).tap();
+  assert.equal(await catalog.getByRole('button',{name:'카드 필터',exact:true}).count(),0);
+  assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),false);
+  await page.setViewportSize({width:1024,height:768});
+  assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),true);
+  await page.setViewportSize({width:844,height:390});
   await cards.first().tap();
   const detail=page.getByRole('dialog',{name:'카드 확대 상세'});
   await detail.waitFor();
@@ -82,7 +83,6 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'전사',exact:true}).tap();
   await page.getByRole('button',{name:'＋ 새 덱 만들기 / 편집',exact:true}).tap();
-  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).tap();
   const builder=page.locator('.deck-builder'),count=builder.locator('.deck-live-count');
   await count.waitFor();
   assert.equal(await count.textContent(),'0/30');
