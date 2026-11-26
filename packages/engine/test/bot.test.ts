@@ -119,3 +119,23 @@ test('nine full AI versus AI games finish, exercising all hero classes',{timeout
   }
   assert.ok(plays>30&&attacks>30&&powers>5);
 });
+
+
+test('opponent sampling cache preserves fixed-node ranking and never shares mutable catalog definitions',()=>{
+  const s=ready();
+  s.players[0].board=[{...minion('guard',2,4),originalOwner:0,keywords:['taunt']}];
+  s.players[1].board=[minion('attacker',3,5),minion('other',2,2)];
+  s.players[1].mana=5;
+  s.players[1].hand=[{instanceId:'known',cardId:'recruit'}];
+  const view=getPlayerView(s,1),original=structuredClone(view);
+  for(const policyVersion of [1,2,3] as const){
+    const settings={policyVersion,nodeLimit:100,responseLimit:3};
+    const cold=rankBotActions(view,structuredClone(s.catalog),1,25,settings);
+    const first=rankBotActions(view,s.catalog,1,25,settings);
+    const warm=rankBotActions(view,s.catalog,1,25,settings);
+    assert.deepEqual(warm,first);
+    assert.deepEqual(first,cold);
+    assert.ok(first.length);
+  }
+  assert.deepEqual(view,original);
+});

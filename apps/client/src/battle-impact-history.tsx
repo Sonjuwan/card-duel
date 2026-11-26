@@ -1,10 +1,11 @@
-import {useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {memo,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {LocalCardArt,LocalHeroArt} from './local-art.tsx';
 import {Sigil} from './battle-pieces.tsx';
 import type {Card,Catalog} from '../../../packages/engine/src/index.ts';
 import type {RoomView} from '../../../packages/protocol.ts';
 import {advanceImpactHistory} from './battle-impact-history-model.ts';
 import type {ImpactHistoryEntry,ImpactPortrait} from './battle-impact-history-model.ts';
+const emptyHistory:readonly ImpactHistoryEntry[]=[];
 function historyStorageKey(key:string){
   return `card-duel:impact:v1:${location.pathname}:${key}`;
 }
@@ -35,7 +36,7 @@ export function useImpactHistory(room:RoomView,connected:boolean,catalog:Catalog
     try{sessionStorage.setItem(historyStorageKey(history.key),JSON.stringify(history.entries));}
     catch{/* Private mode and storage limits can leave history available only in memory. */}
   },[history]);
-  return history.key===key?history.entries:[];
+  return history.key===key?history.entries:emptyHistory;
 }
 const actionMark={summon:'＋',attack:'⚔',heroAttack:'⚔',spell:'✦',weapon:'⚒',secret:'?',coin:'◉',power:'ϟ',turn:'↻',choice:'▣',heal:'✚',death:'☠',draw:'▤'};
 const actionLabel={summon:'소환',attack:'공격',heroAttack:'영웅 공격',spell:'주문',weapon:'무기',secret:'비밀',coin:'동전',power:'영웅 능력',turn:'턴 변경',choice:'카드 선택'};
@@ -56,7 +57,7 @@ function ImpactDetail({entry,catalog}:{entry:ImpactHistoryEntry;catalog:Catalog}
   </>;
 }
 
-export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
+export const ImpactRail=memo(function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
   const press=useRef<{id:number;x:number;y:number;timer:ReturnType<typeof setTimeout>}|null>(null);
   const clearPress=()=>{if(press.current)clearTimeout(press.current.timer);press.current=null;};
   useEffect(()=>()=>{if(press.current)clearTimeout(press.current.timer);},[]);
@@ -107,8 +108,8 @@ export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntr
     {!following&&<button type="button" className="impact-latest secondary" aria-label="최신 행동으로 이동" onClick={()=>{if(scroller.current)scroller.current.scrollTop=0;setSelected(null);}}>↑</button>}
     {preview&&<div className="impact-preview" id={`impact-preview-${preview.revision}`} data-open="true"><ImpactDetail entry={preview} catalog={catalog}/></div>}
   </div>;
-}
+});
 
-export function ImpactHistory({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
+export const ImpactHistory=memo(function ImpactHistory({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
   return <details className="impact-history"><summary>최근 전투 결과 ({entries.length})</summary>{entries.length?<ol className="impact-history-list">{entries.map(entry=><li key={entry.revision}><ImpactDetail entry={entry} catalog={catalog}/></li>)}</ol>:<p>아직 기록 없음</p>}</details>;
-}
+});

@@ -1,6 +1,6 @@
 import type {Card,HeroClass} from '../../../packages/engine/src/index.ts';
-import {cardArtRecipe,heroArtRecipe,powerArtRecipe} from './local-art-model.ts';
-import type {ArtRecipe,ArtSubject} from './local-art-model.ts';
+import {cardArtRecipe,powerArtRecipe} from './local-art-model.ts';
+import type {ArtSubject} from './local-art-model.ts';
 
 import {DISTINCT_CARD_ART} from './distinct-card-art.ts';
 

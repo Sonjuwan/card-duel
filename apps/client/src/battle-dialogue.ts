@@ -1,4 +1,4 @@
-import type {Card,Catalog,HeroClass,PlayerId,PlayerView,Target} from '../../../packages/engine/src/index.ts';
+import type {Card,Catalog,HeroClass,PlayerId,PlayerView} from '../../../packages/engine/src/index.ts';
 import type {BattleAnimation} from '../../../packages/protocol.ts';
 import {impactChanges} from './battle-fx-model.ts';
 import {className} from './data.ts';

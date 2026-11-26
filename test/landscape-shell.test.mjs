@@ -7,7 +7,9 @@ const app=load('App.tsx'),shell=load('landscape-shell.css'),component=load('Land
 test('online and offline both import the complete landscape shell last',()=>{
   for(const entry of ['main.tsx','offline-main.tsx']){
     const source=load(entry);
-    assert.ok(source.indexOf("import './landscape-shell.css'")>source.indexOf("import './landscape-combat.css'"));
+    assert.match(source,/import '\.\/game-styles\.ts';/);
+    const shared=load('game-styles.ts'),combat=shared.indexOf("import './landscape-combat.css'"),shell=shared.indexOf("import './landscape-shell.css'");
+    assert.ok(combat>=0&&shell>combat);
   }
 });
 test('game and deck modes share a clipped viewport and independently scrolling active panel',()=>{
@@ -47,10 +49,10 @@ test('battle, deck maker and card catalog are actual switched game screens',()=>
   assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
-test('press-and-hold displays an unplayable hand card without a manual play button',()=>{
+test('single-touch inspection displays an unplayable hand card without a manual play button',()=>{
   const battle=load('Battle.tsx'),pieces=load('battle-pieces.tsx');
   assert.doesNotMatch(battle,/setPeekCardId|selected-card-use|selected-card-inspect/);
-  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY/);
+  assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY:undefined,Boolean\(sourceId\?\.startsWith\('card:'\)&&!mulligan\)\)/);
 });
 test('battle setup uses a single canvas with secondary records in a dialog',()=>{
   assert.match(app,/lobbyView==='play'&&lossOnExit\?<PreviewPlay/);

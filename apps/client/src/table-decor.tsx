@@ -1,8 +1,9 @@
-import { useId } from 'react';
+import { memo, useId } from 'react';
 
 /** Original SVG tabletop ornaments. The SVG is purely decorative and never
  * participates in mouse hit testing or the server's game rules. */
-export function TableDecor(){
+// The scenery has no changing props; retain it across battle input updates.
+export const TableDecor=memo(function TableDecor(){
   const id=useId().replace(/:/g,'');
   const wood=id+'w',stone=id+'s',cloth=id+'c',metal=id+'m',grass=id+'g';
   return <svg className="table-decor" viewBox="0 0 1400 800" preserveAspectRatio="none" aria-hidden="true">
@@ -64,4 +65,4 @@ export function TableDecor(){
       {[38,1362].flatMap(x=>[35,767].map(y=><circle key={`${x}-${y}`} cx={x} cy={y} r="10"/>))}
     </g>
   </svg>;
-}
+});

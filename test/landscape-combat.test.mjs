@@ -5,6 +5,7 @@ import { strict as assert } from 'node:assert';
 const css=readFileSync(new URL('../apps/client/src/landscape-combat.css',import.meta.url),'utf8');
 const client=readFileSync(new URL('../apps/client/src/main.tsx',import.meta.url),'utf8');
 const solo=readFileSync(new URL('../apps/client/src/offline-main.tsx',import.meta.url),'utf8');
+const shared=readFileSync(new URL('../apps/client/src/game-styles.ts',import.meta.url),'utf8');
 const battle=readFileSync(new URL('../apps/client/src/Battle.tsx',import.meta.url),'utf8');
 
 test('mobile landscape rules cannot accidentally replace portrait or desktop layouts',()=>{
@@ -13,7 +14,8 @@ test('mobile landscape rules cannot accidentally replace portrait or desktop lay
 });
 test('both installed and standalone apps load landscape rules after combat effects',()=>{
   for(const source of [client,solo]){
-    const fx=source.indexOf("import './battle-fx.css';"),layout=source.indexOf("import './landscape-combat.css';");
+    assert.match(source,/import '\.\/game-styles\.ts';/);
+    const fx=shared.indexOf("import './battle-fx.css';"),layout=shared.indexOf("import './landscape-combat.css';");
     assert.ok(fx>=0&&layout>fx);
   }
 });

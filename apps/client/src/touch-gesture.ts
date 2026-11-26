@@ -64,11 +64,17 @@ export function nearestBoardSlot(x:number,slots:readonly {position:number;x:numb
 /** Snap only to the visible portion of each insertion gap. Scroll-clipped
  * gaps must not win a distance comparison against a visible gap. */
 export function nearestVisibleBoardSlot(x:number,bounds:{left:number;right:number},slots:readonly {position:number;left:number;right:number}[]):number|undefined{
-  if(!Number.isFinite(bounds.left)||!Number.isFinite(bounds.right)||bounds.left>=bounds.right)return undefined;
-  return nearestBoardSlot(x,slots.flatMap(slot=>{
+  if(!Number.isFinite(x)||!Number.isFinite(bounds.left)||!Number.isFinite(bounds.right)||bounds.left>=bounds.right)return undefined;
+  let nearest:number|undefined,distance=Infinity;
+  for(const slot of slots){
     const left=Math.max(bounds.left,slot.left),right=Math.min(bounds.right,slot.right);
-    return Number.isFinite(left)&&Number.isFinite(right)&&left<right?[{position:slot.position,x:(left+right)/2}]:[];
-  }));
+    if(!Number.isFinite(left)||!Number.isFinite(right)||left>=right||!Number.isInteger(slot.position)||slot.position<0)continue;
+    const center=(left+right)/2;
+    if(!Number.isFinite(center))continue;
+    const delta=Math.abs(x-center);
+    if(delta<distance||(delta===distance&&slot.position<(nearest??Infinity))){nearest=slot.position;distance=delta;}
+  }
+  return nearest;
 }
 export type TargetHitBox={target:Target;legal:boolean;left:number;right:number;top:number;bottom:number};
 /** Touch-only tolerance for a finger just outside a target. Include illegal
@@ -76,13 +82,17 @@ export type TargetHitBox={target:Target;legal:boolean;left:number;right:number;t
  * cannot steal a drop intended for a different unit. No ambiguous gap snap. */
 export function nearestTouchTarget(x:number,y:number,boxes:readonly TargetHitBox[]):Target|undefined{
   if(!Number.isFinite(x)||!Number.isFinite(y))return undefined;
-  const ranked=boxes.flatMap(box=>{
-    if(![box.left,box.right,box.top,box.bottom].every(Number.isFinite)||box.left>=box.right||box.top>=box.bottom)return [];
+  // Only the nearest and runner-up distances are needed. Preserve original
+  // iteration order for ties, including illegal boxes in both positions.
+  let best:TargetHitBox|undefined,bestDistance=Infinity,secondDistance=Infinity;
+  for(const box of boxes){
+    if(![box.left,box.right,box.top,box.bottom].every(Number.isFinite)||box.left>=box.right||box.top>=box.bottom)continue;
     const dx=Math.max(box.left-x,0,x-box.right),dy=Math.max(box.top-y,0,y-box.bottom);
-    return [{box,distance:Math.hypot(dx,dy)}];
-  }).sort((a,b)=>a.distance-b.distance);
-  const best=ranked[0];
-  return best?.box.legal&&best.distance<=10&&(!ranked[1]||ranked[1].distance-best.distance>=4)?best.box.target:undefined;
+    const distance=Math.hypot(dx,dy);
+    if(!best||distance<bestDistance){secondDistance=bestDistance;bestDistance=distance;best=box;}
+    else if(distance<secondDistance)secondDistance=distance;
+  }
+  return best?.legal&&bestDistance<=10&&secondDistance-bestDistance>=4?best.target:undefined;
 }
 /** Target first, then board fallback for untargeted cards. Never submit a
  * card play on the hand, another UI control, or the area outside the field. */

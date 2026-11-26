@@ -1,2 +1,2 @@
-v0.323.0 is a SOURCE-ONLY candidate; use the verified build command to package a playable release.
-Build baseline: PREVIOUS VERIFIED v0.300.0.
+v0.325.0 is a SOURCE-ONLY candidate; use the verified build command to package a playable release.
+Build baseline: PREVIOUS VERIFIED v0.324.0.

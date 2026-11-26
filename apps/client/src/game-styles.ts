@@ -1,0 +1,15 @@
+// Single source of truth for online and offline CSS cascade order.
+// Keep layer order stable; do not sort imports alphabetically.
+import './styles.css';
+import './battle.css';
+import './classic-table.css';
+import './local-cards.css';
+import './painted-art.css';
+import './hover-preview.css';
+import './battle-fx.css';
+import './landscape-combat.css';
+import './landscape-shell.css';
+import './classic-readability.css';
+import './slot-flow.css';
+import './battle-immersive.css';
+import './integrated-ui.css';
