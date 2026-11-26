@@ -24,12 +24,16 @@ async function persist(claim=false,expected?:SaveVersion|null){
     const ranked=snapshot.input.ranked;
     if(ranked&&(!growth||!store.readGrowth))throw Error('오프라인 성장 저장소가 필요합니다.');
     const freshClaim=!ownsSave&&initialClaimRetryable;
-    if(!await store.write(snapshot,owner,claim||freshClaim,freshClaim?initialClaimExpected:expected,ranked?{growth:growth!,award:duel?.rankedAward()}:undefined)){
+    const claimSave=claim||freshClaim,expectedSave=freshClaim?initialClaimExpected:expected;
+    const rankedWrite=ranked?{growth:growth!,award:duel.rankedAward()}:undefined;
+    const committedProfile=rankedWrite&&store.writeRanked?await store.writeRanked(snapshot,owner,claimSave,expectedSave,rankedWrite):undefined;
+    const written=committedProfile!==undefined?committedProfile!==null:await store.write(snapshot,owner,claimSave,expectedSave,rankedWrite);
+    if(!written){
       ownsSave=false;saveAvailable=false;initialClaimRetryable=false;
       await refresh(snapshot.catalogHash);return false;
     }
     ownsSave=true;initialClaimRetryable=false;lastSaved=snapshot.summary;
-    if(ranked)profile=(await store.readGrowth!(growth!)).profile;
+    if(ranked)profile=committedProfile??(await store.readGrowth!(growth!)).profile;
     saveAvailable=true;return true;
   }catch{
     saveAvailable=false;
