@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {existsSync,mkdirSync,writeFileSync,renameSync,rmSync,mkdtempSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {loadSoloRelease} from '../apps/cli/serve-solo-app.mjs';
 import assert from 'node:assert/strict';
 
@@ -69,7 +70,7 @@ export function createPrototype(source,destination,count=8){
   return {artCount,bundles:bundles.size,version:release.version,release:release.id,originalCssBytes:before.length,mainCssBytes:main.length,bundleBytes:[...bundles.values()].reduce((sum,b)=>sum+b.length,0)};
 }
 
-if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const [source,destination,count]=process.argv.slice(2);
   if(!source||!destination)throw Error('Usage: node scripts/performance-pwa-bundle-prototype.mjs <verified-dist> <new-output-dir> [4|8|16|32]');
   console.log(JSON.stringify(createPrototype(source,destination,count===undefined?8:Number(count))));
