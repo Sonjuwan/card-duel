@@ -1,5 +1,5 @@
 import {BATTLE_HOLD_DELAY} from './hover-timing.ts';
-import { useContext, useRef } from 'react';
+import { memo, useContext, useRef } from 'react';
 import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { canAttackMinion, getHeroPower } from '../../../packages/engine/src/index.ts';
 import type { Card, Catalog, HeroClass, Minion, PlayerId, PlayerView, PublicPlayer, Rarity, Target } from '../../../packages/engine/src/index.ts';
@@ -176,9 +176,9 @@ export function ManaDisplay({player,compact=false,charging=false}:{player:Public
     {(player.pendingOverload>0||player.lockedMana>0)&&<span className="mana-warning">{player.lockedMana>0?`🔒 ${player.lockedMana}`:''}{player.lockedMana>0&&player.pendingOverload>0?' · ':''}{player.pendingOverload>0?`다음 과부하 ${player.pendingOverload}`:''}</span>}
   </div>;
 }
-export function HiddenHand({count}:{count:number}){
+export const HiddenHand=memo(function HiddenHand({count}:{count:number}){
   return <div className="hidden-hand" aria-label={`상대 손패 ${count}장`}><div className="card-back-row" aria-hidden="true">{Array.from({length:Math.max(0,Math.min(10,count))},(_,i)=><span key={i} className={`opponent-card-slot ${fanSlot(i,Math.min(10,count))}`}><span className="card-back"><LocalCardBack/></span></span>)}</div><span className="hand-count">손패 {count}/10</span></div>;
-}
+});
 export function DeckPile({player,label}:{player:PublicPlayer;label:string}){
   return <div className={`deck-pile${!player.deckCount?' empty':''}`} aria-label={`${label} 덱 ${player.deckCount}장${player.fatigue?`, 탈진 ${player.fatigue}`:''}`} title={`${label} 덱 ${player.deckCount}장${player.fatigue?` · 탈진 ${player.fatigue}`:''}`}><span className="deck-stack" aria-hidden="true" style={{'--deck-depth':Math.min(9,Math.ceil(player.deckCount/4)) + 'px'} as React.CSSProperties}>{player.deckCount>0&&<LocalCardBack/>}</span><span className="deck-number">{player.deckCount}</span><small>{player.fatigue?`탈진 ${player.fatigue}`:`${label} 덱`}</small></div>;
 }
