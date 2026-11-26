@@ -115,8 +115,9 @@ test('desktop battlefield uses adjacent minion lanes and a zero-height separator
   assert.equal([4.5,13.5,24.5,0,24.5,13,20].reduce((a,b)=>a+b,0),100);
   assert.match(css,/\.arena-field>\.battle-divider/);
   assert.match(css,/pointer-events:none/);
+  assert.match(readFileSync('apps/client/src/game-styles.ts','utf8'),/import '\.\/classic-readability\.css';/);
   for(const entry of ['main.tsx','offline-main.tsx']){
-    assert.match(readFileSync('apps/client/src/'+entry,'utf8'),/import '\.\/classic-readability\.css';/);
+    assert.match(readFileSync('apps/client/src/'+entry,'utf8'),/import '\.\/game-styles\.ts';/);
   }
 });
 
