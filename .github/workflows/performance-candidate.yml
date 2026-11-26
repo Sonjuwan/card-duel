@@ -25,6 +25,7 @@ jobs:
       - run: npm ci
       - run: npm run verify:release-baseline
       - run: npm run typecheck
+      - run: npm run build:offline
       - run: npm test
       - run: npm run test:render
       - run: node scripts/performance-touch-geometry.mjs
