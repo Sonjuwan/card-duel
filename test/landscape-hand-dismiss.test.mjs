@@ -7,9 +7,10 @@ const pieces=load('../apps/client/src/battle-pieces.tsx');
 
 const hover=load('../apps/client/src/hover-context.ts');
 const portal=load('../apps/client/src/hover-preview.tsx');
-test('hand and battlefield inspection shares a release-to-close preview',()=>{
-  assert.match(pieces,/useCardHover\(info,BATTLE_HOLD_DELAY\)/);
-  assert.match(hover,/onPointerUp:[^\n]+clear\(\)/);
+test('hand and battlefield inspection shares a pinned touch preview',()=>{
+  assert.match(pieces,/useCardHover\(info,BATTLE_HOLD_DELAY,!targeted\)/);
+  assert.match(hover,/onPointerUp:[^\n]+endTap[^\n]+context\?\.pin/);
+  assert.match(portal,/pointerdown',outside,true/);
   assert.match(hover,/onPointerCancel:[^\n]+clear\(\)/);
   assert.match(portal,/e.key==='Escape'\)close\(\)/);
 });
