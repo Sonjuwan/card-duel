@@ -38,3 +38,19 @@ Follow the existing queue: profile local drag style writes and PWA image bundles
 - AI benchmark: `CARD_DUEL_FIXED_NODES=1 npm run benchmark:device -- 3 25 all mid` disables the wall-clock search deadline while preserving device node/response budgets and emits SHA-256 fingerprints of ranked and accepted actions. This supports before/after comparison without changing production AI. Actual AI benchmark execution pending.
 - Impact feedback: aggregate damage, armor, hit counts and flags in a single pass without intermediate arrays. Exact JS mirrors of both bodies matched 30,000 seeded mixed-event cases; corresponding repository regression test added. No claim of FPS improvement or full test passage.
 - Next measurement-dependent task: execute the browser diagnostics and AI baseline; use the results to select local CSS write scoping or AI search candidates. Do not change PWA asset packaging or engine search policy without the respective baseline and regression checks.
+
+
+## Integrated checklist validation — run 45748308430
+
+- Fixed-node AI comparison at level 25: three pairs, 12 positions per run, identical ranked and accepted SHA-256 digests. Median of per-run median search times 45 → 27 ms. Median p95 133 → 135 ms; tail improvement not demonstrated.
+- Shared style entry: generated `game.css` compared byte-for-byte equal to v0.323 baseline.
+- Chromium combat 4/4 and PWA browser 2/2 passed.
+- Main regression 981/982: one source-level layout test still expected direct CSS imports; corrected in follow-up to assert the shared entry and the underlying required style.
+- Engine dense public view SHA-256 equal. Checkpoint median ~49.2 → 48.4 µs; no meaningful improvement established.
+- Storage five-turn acknowledgment samples: median of run medians ~13.8 → 14.8 ms; not an improvement. IndexedDB writes remain durable and synchronous.
+- Sixty restore/exit cycles: GC-sampled page heap 6,914,508 → 6,915,260 bytes at cycle 60; DOM nodes 1,566 and zero dedicated workers for both. No demonstrated heap improvement; physical GPU, battery and heat still unmeasured.
+- Eight-bundle PWA prototype: all 458 image declarations reconstructed, 48 overlapping computed art observations matched. CPU-4x mobile install 1,210 → 1,329 ms, offline menu 693 → 806 ms; desktop install 1,185 → 1,326 ms, offline menu 671 → 795 ms. Main CSS plus bundles is larger than original CSS (15,862,773 vs 15,829,661 bytes). Reject this prototype for production; keep current intact art and cache format.
+- Follow-up: reuse the ledger membership Set when checking recent matches. Add a 10,001-ID preservation, duplicate and missing-ID regression test. Pending full validation.
+
+- Integrated combat profile (three alternating-order pairs): p95 16.8 ms and p99 33.4 ms on both; long-frame counts baseline 7/2/5, candidate 4/2/1. Forced layout medians 161.7 → 33.0 ms.
+- Scoped-drag experiment compared to the integrated pre-scope candidate: three pairs, p99 ~33.4 ms both, long-frame counts 7/2/4 → 0/0/0; forced style/layout in long-frame entries 104.9/26.2/77.2 → 0/0/0 ms. No claim that all layout work was eliminated. Normal combat and three timed scenarios passed. Adopted scoped-drag implementation; full post-integration test pending.
