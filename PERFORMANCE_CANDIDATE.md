@@ -54,3 +54,14 @@ Follow the existing queue: profile local drag style writes and PWA image bundles
 
 - Integrated combat profile (three alternating-order pairs): p95 16.8 ms and p99 33.4 ms on both; long-frame counts baseline 7/2/5, candidate 4/2/1. Forced layout medians 161.7 → 33.0 ms.
 - Scoped-drag experiment compared to the integrated pre-scope candidate: three pairs, p99 ~33.4 ms both, long-frame counts 7/2/4 → 0/0/0; forced style/layout in long-frame entries 104.9/26.2/77.2 → 0/0/0 ms. No claim that all layout work was eliminated. Normal combat and three timed scenarios passed. Adopted scoped-drag implementation; full post-integration test pending.
+
+
+## Run 45749081368 — storage and clock adoption
+
+- Regression: 983/983, render 65/65, packaging 2/2, PWA service-worker tests 19 pass / 1 optional previous-release test skipped; browser job passed. Scoped drag and lifecycle jobs were cancelled by later pushes; previous run results remain historical evidence.
+- AI fixed-node comparison: median of run medians 23 → 12 ms, p95 68 → 63 ms, identical decision digests. CPU-4x integrated combat compared to v0.323: long frames 3/2/3 → 0/0/1; median p99 33.4 → 33.2 ms. No physical-device claim.
+- Storage/clock experiment 42/42 unit checks, 4/4 browser combat checks. Three alternating pairs each showed match writes 17 → 17 and growth writes 17 → 0. Total writes 34 → 17, acknowledgment latency not materially improved. Adopted both changes. Countdown boundary model 122 → 31 callbacks over 30.5 s; actual device power unmeasured.
+- Compiler source audit flagged seven unused bindings in six files; removed imports / renamed intentionally unused callback parameter. Added strict audit gate; post-cleanup audit pending.
+- Asset inventory: all 458 WebP assets unique; no removable EXIF/XMP bytes. CSS 15,829,661 bytes; gzip 11,745,471, Brotli q5 11,701,353. Grouped PWA again slower on CPU-4x mobile (install 1,106 → 1,386 ms; offline menu 619 → 885 ms). Retain original packaging.
+- Added read-only largest-24 WebP experiment with exact decoded PAM equality and smaller bytes required, excludes animated/profiled/metadata assets. No image quality changes or release art writes. Result pending.
+- No merge/release; complete post-adoption verification and physical Android checks before publication.
