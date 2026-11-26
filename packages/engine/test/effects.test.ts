@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createCatalog, createGame, applyAction, getPlayerView, validateDeck, HERO_CLASSES, HERO_POWERS, RuleError } from '../src/index.ts';
+import { createCatalog, createGame, applyAction, getPlayerView, validateDeck, HERO_CLASSES, RuleError } from '../src/index.ts';
 import type { GameState, PlayerId, HeroClass, CardInstance, Minion, Target, Keyword } from '../src/index.ts';
 
 const data=JSON.parse(readFileSync(new URL('../../../data/cards/v0.2.0.json',import.meta.url),'utf8'));

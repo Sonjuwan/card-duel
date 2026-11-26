@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {intentFromSource,advanceGesture,finishGesture,interruptTouch,isCaptureHandoff,canPanBoard,boardEdgePanDelta,nearestBoardSlot,nearestVisibleBoardSlot,nearestTouchTarget,touchDropLocations,dropFeedbackText} from '../src/touch-gesture.ts';
-import type {TouchGesture} from '../src/touch-gesture.ts';
+import type {TouchGesture,TargetHitBox} from '../src/touch-gesture.ts';
 const g:TouchGesture={pointerId:1,originX:120,originY:600,drag:{intent:{kind:'card',id:'a'},revision:4},phase:'pending'};
 test('implicit touch capture transfers to the arena without cancelling a live drag',()=>{
   const drag=advanceGesture(g,125,570,4)!;
@@ -90,4 +90,49 @@ test('drop status names the actual action target and placement only for an actio
   assert.equal(dropFeedbackText('action',2,'내 늑대 (1번)'),'놓기: 내 늑대 (1번) 대상 · 배치 3번');
   assert.equal(dropFeedbackText('action',1),'놓으면 2번 위치에 배치합니다.');
   for(const f of ['target','choice','invalid','cancel'] as const)assert.doesNotMatch(dropFeedbackText(f,0,'상대 늑대'),/상대 늑대/);
+});
+
+
+test('linear touch target selection matches the previous sorted reference',()=>{
+  function reference(x:number,y:number,boxes:readonly TargetHitBox[]){
+    if(!Number.isFinite(x)||!Number.isFinite(y))return undefined;
+    const ranked=boxes.flatMap(box=>{
+      if(![box.left,box.right,box.top,box.bottom].every(Number.isFinite)||box.left>=box.right||box.top>=box.bottom)return [];
+      const dx=Math.max(box.left-x,0,x-box.right),dy=Math.max(box.top-y,0,y-box.bottom);
+      return [{box,distance:Math.hypot(dx,dy)}];
+    }).sort((a,b)=>a.distance-b.distance);
+    const best=ranked[0];
+    return best?.box.legal&&best.distance<=10&&(!ranked[1]||ranked[1].distance-best.distance>=4)?best.box.target:undefined;
+  }
+  let seed=123456;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  for(let i=0;i<30000;i++){
+    const count=Math.floor(random()*18),x=Math.floor(random()*100)-30,y=Math.floor(random()*100)-30;
+    const boxes:TargetHitBox[]=Array.from({length:count},(_,j)=>{
+      const l=Math.floor(random()*80)-20,t=Math.floor(random()*80)-20,legal=random()>.3;
+      return {target:{kind:'minion',instanceId:String(j)},legal,left:random()<.01?NaN:l,right:l+Math.floor(random()*30)-2,top:t,bottom:t+Math.floor(random()*30)-2};
+    });
+    assert.deepEqual(nearestTouchTarget(x,y,boxes),reference(x,y,boxes),'seeded case '+i);
+  }
+  const a:TargetHitBox={target:{kind:'hero',player:0},legal:true,left:0,right:10,top:0,bottom:10};
+  const b:TargetHitBox={...a,target:{kind:'hero',player:1}};
+  assert.equal(nearestTouchTarget(5,5,[a,b]),undefined);
+  assert.equal(nearestTouchTarget(5,5,[{...a,legal:false},b]),undefined);
+  assert.deepEqual(nearestTouchTarget(5,5,[a]),a.target);
+});
+
+
+test('single-pass visible insertion slot matches clipped reference including invalid geometry',()=>{
+  let seed=987654;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  const coord=()=>{const a=random();return a<.01?NaN:a<.02?Infinity:a<.03?-Infinity:a<.04?1.7e308:a<.05?-1.7e308:Math.floor(random()*200)-100;};
+  for(let i=0;i<30000;i++){
+    const x=coord(),bounds={left:coord(),right:coord()};
+    const slots=Array.from({length:Math.floor(random()*10)},()=>({position:random()<.1?-1:Math.floor(random()*9),left:coord(),right:coord()}));
+    const expected=!Number.isFinite(bounds.left)||!Number.isFinite(bounds.right)||bounds.left>=bounds.right?undefined:nearestBoardSlot(x,slots.flatMap(slot=>{
+      const left=Math.max(bounds.left,slot.left),right=Math.min(bounds.right,slot.right);
+      return Number.isFinite(left)&&Number.isFinite(right)&&left<right?[{position:slot.position,x:(left+right)/2}]:[];
+    }));
+    assert.equal(nearestVisibleBoardSlot(x,bounds,slots),expected,'seeded case '+i);
+  }
 });

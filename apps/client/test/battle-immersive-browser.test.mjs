@@ -400,6 +400,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
 
 test('real worker queues two attacks while a staged battlecry validates its targets',{timeout:90000},async t=>{
   const profileCombat=process.env.CARD_DUEL_PROFILE_COMBAT==='1';
+  const profileDragWrites=process.env.CARD_DUEL_PROFILE_DRAG_WRITES==='1';
   const server=createSoloAppServer(process.env.CARD_DUEL_SOLO_APP_DIST_DIR);
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -494,6 +495,32 @@ test('real worker queues two attacks while a staged battlecry validates its targ
     await whileDragging?.();
     await touch('touchEnd',[]);
   };
+  if(profileDragWrites)await page.evaluate(()=>{
+    // Diagnostic counters only: run separately from timing comparisons.
+    const props=new Set(['--touch-x','--touch-y','--cast-x','--cast-top']);
+    const counts=Object.fromEntries([...props].map(name=>[name,{writes:0,identical:0}]));
+    const previous=new WeakMap();
+    const proto=CSSStyleDeclaration.prototype,original=proto.setProperty;
+    let pointerMoves=0;
+    const onMove=()=>{pointerMoves++;};
+    document.addEventListener('pointermove',onMove,{capture:true,passive:true});
+    proto.setProperty=function(name,value,priority){
+      if(props.has(name)){
+        let values=previous.get(this);
+        if(!values){values=new Map();previous.set(this,values);}
+        const prior=values.get(name);
+        counts[name].writes++;
+        if(prior&&prior.value===value&&prior.priority===priority)counts[name].identical++;
+        values.set(name,{value,priority});
+      }
+      return original.call(this,name,value,priority);
+    };
+    window.stopDragWriteProfile=()=>{
+      document.removeEventListener('pointermove',onMove,true);
+      proto.setProperty=original;
+      return {pointerMoves,properties:counts};
+    };
+  });
   await enemyUnit.tap({force:true});
   assert.equal(await page.locator('.board-inspect-overlay,[data-hover-preview]').count(),0);
   await touch('touchStart',[await center(enemyUnit)]);
@@ -578,6 +605,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   }
   await page.waitForFunction(()=>!document.querySelector('[data-preview-minion="test-enemy"]'));
   assert.equal(await page.locator('.own-hand .battle-card').count(),1);
+  if(profileDragWrites)t.diagnostic('Drag style write counts (not frame timings): '+JSON.stringify(await page.evaluate(()=>window.stopDragWriteProfile())));
   const lookups=await page.evaluate(()=>window.combatAnchorLookups);
   t.diagnostic('Combat DOM anchor queries: '+JSON.stringify(lookups));
   if(profileCombat)t.diagnostic('Active combat CPU 4x: '+JSON.stringify(await page.evaluate(()=>({...window.stopCombatProfile(),arenaReads:window.combatArenaReads}))));

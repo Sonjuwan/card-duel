@@ -1,0 +1,354 @@
+name: Performance candidate verification
+on:
+  pull_request:
+    branches: [ui/followup-20261125]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: perf-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:release-baseline
+      - run: npm run typecheck
+      - run: npm run build:offline
+      - run: node scripts/performance-source-audit.mjs --strict
+      - run: node --test test/game-styles.test.mjs
+      - run: npm test
+      - run: npm run test:render
+      - run: node scripts/performance-touch-geometry.mjs
+      - run: node apps/client/test/build-solo-app.mjs
+      - run: npm run test:package-pwa
+      - run: node --test apps/client/test/solo-app.test.mjs
+  browser:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:solo-app
+      - run: npx playwright install --with-deps chromium
+      - run: node --test apps/client/test/battle-immersive-browser.test.mjs
+      - run: node --test apps/client/test/solo-app-browser.test.mjs apps/client/test/update-browser.test.mjs
+
+
+  combat_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '15802d04696b51239e3ca30db912de2606ad0e47'
+          path: perf-baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npm ci && npm run build:solo-app
+        working-directory: perf-baseline
+      - run: npx playwright install --with-deps chromium
+      - name: Paired active combat timing, alternating order
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              dist="$PWD/dist/solo-app"
+              if [ "$kind" = baseline ]; then dist="$PWD/perf-baseline/dist/solo-app"; fi
+              echo "ACTIVE COMBAT $kind"
+              CARD_DUEL_PROFILE_COMBAT=1 CARD_DUEL_SOLO_APP_DIST_DIR="$dist" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+            done
+          done
+      - name: Count drag writes without timing instrumentation
+        run: CARD_DUEL_PROFILE_DRAG_WRITES=1 node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+
+  ai_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 'd34d28f69448603a79dad2def370cd8c7f56d2e5'
+          path: perf-ai-baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm ci && npm run typecheck && node --test packages/engine/test/bot.test.ts
+        working-directory: perf-ai-baseline
+      - name: Compare AI decisions with fixed node budgets
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              root="$PWD/perf-ai-baseline"
+              if [ "$kind" = candidate ]; then root="$PWD"; fi
+              echo "FIXED NODES AI $kind"
+              (cd "$root" && CARD_DUEL_FIXED_NODES=1 node apps/cli/benchmark-device-ai.ts 3 25 auto mid) | tee -a "/tmp/ai-$kind.jsonl"
+            done
+          done
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const read=p=>readFileSync(p,"utf8").trim().split("\n").map(JSON.parse);
+            const a=read("/tmp/ai-baseline.jsonl"),b=read("/tmp/ai-candidate.jsonl");
+            assert.equal(a.length,b.length);assert.ok(a.length>1);
+            for(let i=0;i<a.length;i++){
+              if(a[i].weights){assert.equal(a[i].weights,b[i].weights);continue;}
+              for(const key of ["mode","difficulty","positions","nodeBudget","rankedActionSha256","acceptedActionSha256"])assert.equal(a[i][key],b[i][key],key);
+              assert.ok(a[i].positions>0 && a[i].rankedActionSha256);
+              console.log(JSON.stringify({mode:a[i].mode,difficulty:a[i].difficulty,beforeMedianMs:a[i].medianMs,afterMedianMs:b[i].medianMs,beforeP95Ms:a[i].p95Ms,afterP95Ms:b[i].p95Ms,decisionMatch:true}));
+            }
+          '
+
+  pwa_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '4e2613a32c31bc39d67d0509f46f0e0cbb7b6b71'
+          path: perf-bundle
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: node --test perf-bundle/test/performance-pwa-bundle-prototype.test.mjs
+      - run: node perf-bundle/scripts/performance-pwa-bundle-study.mjs dist/solo-app/game.css
+      - name: Generate and verify isolated eight-bundle prototype
+        run: |
+          node perf-bundle/scripts/performance-pwa-bundle-prototype.mjs dist/solo-app perf-bundle/dist/solo-app 8
+          node perf-bundle/apps/cli/serve-solo-app.mjs --verify perf-bundle/dist/solo-app
+      - run: npx playwright install --with-deps chromium
+      - name: Compare installation, offline startup, frames and image hashes
+        shell: bash
+        run: |
+          CARD_DUEL_CPU_THROTTLE=4 node perf-bundle/scripts/performance-browser.mjs . | tee /tmp/pwa-baseline.json
+          CARD_DUEL_CPU_THROTTLE=4 node perf-bundle/scripts/performance-browser.mjs perf-bundle | tee /tmp/pwa-bundled.json
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const a=JSON.parse(readFileSync("/tmp/pwa-baseline.json","utf8")),b=JSON.parse(readFileSync("/tmp/pwa-bundled.json","utf8"));
+            const art=new Map(a.flatMap(s=>s.art).map(x=>[x.name,x.hash]));
+            let matched=0;
+            for(const x of b.flatMap(s=>s.art))if(art.has(x.name)){assert.equal(x.hash,art.get(x.name));matched++;}
+            assert.ok(matched>0,"No overlapping rendered art identities");
+            for(const mobile of [true,false]){
+              const med=(xs,f)=>xs.map(f).sort((x,y)=>x-y)[Math.floor(xs.length/2)];
+              const report=xs=>{const s=xs.filter(x=>x.mobile===mobile);return {firstCacheMs:med(s,x=>x.installReadyMs),offlineMenuMs:med(s,x=>x.offline.menuMs),p99:med(s,x=>x.frames.p99)}};
+              console.log(JSON.stringify({mobile,before:report(a),after:report(b),matchedArt:matched}));
+            }
+          '
+
+  lifecycle_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '15802d04696b51239e3ca30db912de2606ad0e47'
+          path: perf-baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npm ci && npm run build:solo-app
+        working-directory: perf-baseline
+      - name: Check compiled CSS is byte-identical after shared import refactor
+        run: cmp dist/solo-app/game.css perf-baseline/dist/solo-app/game.css
+      - run: npx playwright install --with-deps chromium
+      - name: Engine snapshots and checkpoint throughput
+        run: |
+          node scripts/performance-engine.mjs perf-baseline
+          node scripts/performance-engine.mjs .
+      - name: Compare storage and worker acknowledgement timing
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              root=.
+              if [ "$kind" = baseline ]; then root=perf-baseline; fi
+              echo "STORAGE $kind"
+              node scripts/performance-storage.mjs "$root"
+            done
+          done
+      - name: Long-run save and restore memory
+        run: |
+          echo "MEMORY baseline"
+          node scripts/performance-memory.mjs perf-baseline 60
+          echo "MEMORY candidate"
+          node scripts/performance-memory.mjs . 60
+
+  drag_scope_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 'b6d1f305caa333fda4150882ec8216543a8c362b'
+          path: perf-drag
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npm ci && npm run typecheck && npm run build:solo-app
+        working-directory: perf-drag
+      - run: npx playwright install --with-deps chromium
+      - name: Verify scoped overlay positions and input commands
+        run: CARD_DUEL_SOLO_APP_DIST_DIR="$PWD/dist/solo-app" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+      - name: Compare local drag writes under repeated active combat
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              dist="$PWD/dist/solo-app"
+              if [ "$kind" = baseline ]; then dist="$PWD/perf-drag/dist/solo-app"; fi
+              echo "DRAG SCOPE $kind"
+              CARD_DUEL_PROFILE_COMBAT=1 CARD_DUEL_SOLO_APP_DIST_DIR="$dist" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+            done
+          done
+
+  storage_clock_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '499dc3eb3ce140fca4af2b67ca9707fce37bc7d4'
+          path: perf-storage
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npm ci && npm run typecheck && node --test apps/client/test/local-duel.test.ts apps/client/test/battle-clock.test.ts && npm run build:solo-app
+        working-directory: perf-storage
+      - name: Inventory lossless asset optimization opportunities
+        run: node scripts/performance-art-audit.mjs dist/solo-app/game.css
+      - run: npx playwright install --with-deps chromium
+      - name: Compare actual growth and match writes in alternating-order trials
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              root=perf-storage
+              if [ "$kind" = candidate ]; then root=.; fi
+              echo "STORAGE AND CLOCK $kind"
+              node scripts/performance-storage.mjs "$root" | tee -a "/tmp/storage-$kind.jsonl"
+            done
+          done
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const read=k=>readFileSync("/tmp/storage-"+k+".jsonl","utf8").trim().split("\n").map(JSON.parse);
+            const a=read("baseline"),b=read("candidate");
+            assert.equal(a.length,3);assert.equal(b.length,3);
+            for(let i=0;i<3;i++){
+              assert.equal(a[i].endTurnWorkerAcknowledgmentMs.length,5);
+              assert.equal(b[i].endTurnWorkerAcknowledgmentMs.length,5);
+              assert.ok(a[i].indexedDbPutCounts.matches>0&&b[i].indexedDbPutCounts.matches>0);
+              assert.ok(b[i].indexedDbPutCounts.growth<a[i].indexedDbPutCounts.growth,"No growth-write reduction");
+              console.log(JSON.stringify({baseline:a[i],candidate:b[i]}));
+            }
+          '
+      - name: Validate actual combat in experiment
+        run: CARD_DUEL_SOLO_APP_DIST_DIR="$PWD/dist/solo-app" node --test apps/client/test/battle-immersive-browser.test.mjs
+
+  art_lossless_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: sudo apt-get update && sudo apt-get install -y webp
+      - run: node scripts/performance-art-lossless-study.mjs dist/solo-app/game.css 24
+
+  active_lifecycle_profile:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '15802d04696b51239e3ca30db912de2606ad0e47'
+          path: perf-baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build:solo-app
+      - run: npm ci && npm run build:solo-app
+        working-directory: perf-baseline
+      - run: npx playwright install --with-deps chromium
+      - name: Compare repeated active matches and browser compositing proxies
+        run: |
+          echo "BASELINE active lifecycle"
+          CARD_DUEL_CPU_THROTTLE=4 node scripts/performance-active-lifecycle.mjs perf-baseline 8
+          echo "CANDIDATE active lifecycle"
+          CARD_DUEL_CPU_THROTTLE=4 node scripts/performance-active-lifecycle.mjs . 8

@@ -40,3 +40,30 @@ test('reconnect and turn countdown values include zero, never negative and do no
   });
   assert.deepEqual(expired,[0]);assert.equal(scheduled,false,'expired deadlines do not wake a timer');stopExpired();
 });
+
+
+test('browser boundary timer wakes only for a new displayed second and stays paused while hidden',()=>{
+  type Timer=ReturnType<typeof setInterval>;
+  let now=0,visible=true,visibility=()=>{},serial=0,wakes=0;
+  const active=new Map<Timer,{at:number;run:()=>void}>(),published:(number|null)[]=[];
+  const clock:DeadlineClockRuntime={
+    now:()=>now,visible:()=>visible,onVisibility:fn=>{visibility=fn;return()=>{visibility=()=>{};};},
+    every:()=>{throw Error('Browser clock must not use polling');},
+    after:(fn,ms)=>{const id=++serial as unknown as Timer;active.set(id,{at:now+ms,run:fn});return id;},
+    clear:id=>{active.delete(id);},
+  };
+  const stop=watchDeadlineSeconds(30500,value=>published.push(value),250,clock);
+  const advance=(end:number)=>{
+    while(active.size){
+      const next=[...active].sort((a,b)=>a[1].at-b[1].at)[0];
+      if(next[1].at>end)break;
+      now=next[1].at;active.delete(next[0]);wakes++;next[1].run();
+    }
+    now=end;
+  };
+  assert.deepEqual(published,[31]);advance(3000);assert.deepEqual(published,[31,30,29,28]);assert.equal(wakes,3);
+  visible=false;visibility();assert.equal(active.size,0);advance(10000);assert.equal(wakes,3);
+  visible=true;visibility();assert.equal(published.at(-1),21);visibility();assert.equal(published.filter(n=>n===21).length,1);
+  advance(30500);assert.equal(published.at(-1),0);assert.equal(active.size,0);assert.equal(wakes,24);
+  stop();assert.equal(active.size,0);
+});

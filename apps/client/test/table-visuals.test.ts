@@ -115,8 +115,9 @@ test('desktop battlefield uses adjacent minion lanes and a zero-height separator
   assert.equal([4.5,13.5,24.5,0,24.5,13,20].reduce((a,b)=>a+b,0),100);
   assert.match(css,/\.arena-field>\.battle-divider/);
   assert.match(css,/pointer-events:none/);
+  assert.match(readFileSync('apps/client/src/game-styles.ts','utf8'),/import '\.\/classic-readability\.css';/);
   for(const entry of ['main.tsx','offline-main.tsx']){
-    assert.match(readFileSync('apps/client/src/'+entry,'utf8'),/import '\.\/classic-readability\.css';/);
+    assert.match(readFileSync('apps/client/src/'+entry,'utf8'),/import '\.\/game-styles\.ts';/);
   }
 });
 
@@ -129,4 +130,22 @@ test('collection detail uses a complete Card Duel card and mulligan keeps its re
   assert.match(css,/\.collection-detail-body\{[\s\S]*grid-template-columns:minmax\(0,260px\)/);
   assert.match(css,/\.game-main \.mulligan-cards \.battle-card\{/);
   assert.match(css,/aspect-ratio:0\.68\/1/);
+});
+
+
+test('cached collection spreads preserve direct page calculation across filters and out-of-range requests',()=>{
+  const groups=[{key:'empty',items:[]},{key:'mage',items:Array.from({length:19},(_,i)=>'mage-'+i)},{key:'neutral',items:Array.from({length:29},(_,i)=>'neutral-'+i)}];
+  for(const size of [4,8,12]){
+    const cached=groupedCollection(groups,0,size);
+    for(const scope of ['all','empty','mage','neutral']){
+      const first=scope==='all'?0:cached.spreads.findIndex(item=>item.key===scope);
+      for(const page of [-99,-1,0,1,2,99,NaN,Infinity]){
+        const requested=Math.max(0,first)+page;
+        const selected=collectionPage(cached.spreads,requested,1);
+        const reused={page:selected.page,pages:selected.pages,spreads:cached.spreads,current:cached.spreads[selected.page]};
+        assert.deepEqual(reused,groupedCollection(groups,requested,size));
+        assert.equal(reused.spreads,cached.spreads);
+      }
+    }
+  }
 });

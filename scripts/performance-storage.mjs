@@ -43,9 +43,18 @@ try{
   await worker.evaluate(()=>{
     const transaction=IDBDatabase.prototype.transaction;
     globalThis.writeTimes=[];
+    globalThis.putCounts={matches:0,growth:0};
+    globalThis.transactionCounts={growthOnly:0,matchAndGrowth:0};
+    const put=IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put=function(...args){
+      if(Object.hasOwn(globalThis.putCounts,this.name))globalThis.putCounts[this.name]++;
+      return put.apply(this,args);
+    };
     IDBDatabase.prototype.transaction=function(stores,mode,options){
       const start=performance.now();
       const result=transaction.call(this,stores,mode,options);
+      const names=Array.from(result.objectStoreNames);
+      if(names.includes('growth'))globalThis.transactionCounts[names.includes('matches')?'matchAndGrowth':'growthOnly']++;
       if(mode==='readwrite'&&Array.from(result.objectStoreNames).includes('matches')){
         result.addEventListener('complete',()=>globalThis.writeTimes.push(performance.now()-start),{once:true});
       }
@@ -59,7 +68,9 @@ try{
   }
   console.log(JSON.stringify({
     endTurnWorkerAcknowledgmentMs:await page.evaluate(()=>window.turnAcknowledgments),
-    indexedDbWriteMs:await worker.evaluate(()=>globalThis.writeTimes)
+    indexedDbWriteMs:await worker.evaluate(()=>globalThis.writeTimes),
+    indexedDbPutCounts:await worker.evaluate(()=>globalThis.putCounts),
+    indexedDbTransactionCounts:await worker.evaluate(()=>globalThis.transactionCounts)
   }));
 }finally{
   await browser.close();

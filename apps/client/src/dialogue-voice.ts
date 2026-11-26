@@ -29,11 +29,18 @@ type Item={line:DialogueLine;expires:number};
 const priority=(line:DialogueLine)=>(line.cardId?0:4)+({emote:4,play:3,death:2,attack:1,hit:0}[line.kind]);
 let clipToken:object|null=null, stopClip:(()=>void)|undefined;
 let waiting:Item[]=[],current:SpeechSynthesisUtterance|null=null,watchdog:ReturnType<typeof setTimeout>|undefined;
+// Release browser-held callbacks as well as the module reference. A late
+// native speech event must not retain a completed battle's dialogue closure.
+function releaseUtterance(utterance:SpeechSynthesisUtterance){
+  utterance.onend=null;utterance.onerror=null;
+  if(current===utterance)current=null;
+  if(watchdog)clearTimeout(watchdog);watchdog=undefined;
+}
 export function stopDialogueVoice(){
 
   clipToken=null;stopClip?.();stopClip=undefined;
   waiting=[];if(watchdog)clearTimeout(watchdog);watchdog=undefined;
-  if(current){current=null;try{globalThis.speechSynthesis?.cancel();}catch{}}
+  if(current){releaseUtterance(current);try{globalThis.speechSynthesis?.cancel();}catch{}}
 }
 function drain():boolean{
   if(globalThis.document?.hidden){stopDialogueVoice();return false;}
@@ -69,9 +76,9 @@ function speakItem(item:Item):boolean{
     utterance.voice=voice;utterance.lang=voice.lang;utterance.pitch=item.line.pitch;utterance.rate=item.line.rate;
     utterance.volume=dialogueOutput();
     current=utterance;
-    const done=()=>{if(current!==utterance)return;if(watchdog)clearTimeout(watchdog);watchdog=undefined;current=null;drain();};
+    const done=()=>{if(current!==utterance)return;releaseUtterance(utterance);drain();};
     utterance.onend=done;utterance.onerror=done;
-    watchdog=setTimeout(()=>{if(current===utterance){current=null;try{synth.cancel();}catch{}drain();}},4500);
+    watchdog=setTimeout(()=>{if(current===utterance){releaseUtterance(utterance);try{synth.cancel();}catch{}drain();}},4500);
     synth.speak(utterance);return true;
   }catch{stopDialogueVoice();return false;}
 }
