@@ -579,3 +579,33 @@ test('single-pass impact feedback matches v0.323 reference for mixed events',()=
     assert.deepEqual(impactFeedback(animation,impacts),reference(animation,impacts),'seeded case '+i);
   }
 });
+
+
+test('indexed visual trace preserves first event timing and original particle indices',async()=>{
+  const {indexFxTrace}=await import('../src/battle-fx-model.ts');
+  type Event=import('../../../packages/engine/src/index.ts').BattleVisualEvent;
+  const key=(target:import('../../../packages/engine/src/index.ts').Target)=>target.kind==='hero'?'hero:'+target.player:'minion:'+target.instanceId;
+  let seed=831;
+  const rand=(n:number)=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%n;};
+  for(let trial=0;trial<3000;trial++){
+    const trace:Event[]=[];
+    for(let i=0,n=rand(64);i<n;i++){
+      const side=rand(2) as 0|1;
+      const target={kind:'minion' as const,instanceId:'m'+rand(8)};
+      switch(rand(6)){
+        case 0:trace.push({kind:'death',target,side});break;
+        case 1:trace.push({kind:'deathrattle',target,side});break;
+        case 2:trace.push({kind:'fatigue',target:{kind:'hero',player:side},side,amount:1+rand(10)});break;
+        case 3:trace.push({kind:'secretTriggered',cardId:'secret',side});break;
+        case 4:trace.push({kind:'draw',side,burned:false});break;
+        default:trace.push({kind:'damage',target,side,amount:3});
+      }
+    }
+    const recovery=100+rand(3000),indexed=indexFxTrace(trace,recovery);
+    assert.equal(indexed.hasDeath,trace.some(e=>e.kind==='death'));
+    assert.equal(indexed.hasSecret,trace.some(e=>e.kind==='secretTriggered'));
+    assert.equal(indexed.secretBeat,Math.max(0,trace.findIndex(e=>e.kind==='secretTriggered'))*35);
+    assert.deepEqual(indexed.timed,trace.map((event,index)=>({event,index})).filter(({event})=>event.kind==='fatigue'||event.kind==='deathrattle'));
+    for(let i=0;i<=8;i++){const id='minion:m'+i;assert.equal(indexed.deathBeat(id),Math.min(recovery*.28,240+Math.max(0,trace.findIndex(e=>e.kind==='death'&&key(e.target)===id))*55));}
+  }
+});
