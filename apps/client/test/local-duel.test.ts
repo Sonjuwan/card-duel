@@ -522,3 +522,31 @@ test('long growth ledger retains every match ID and rejects duplicate or missing
   assert.throws(()=>readOfflineGrowth({...long,settledMatchIds:[...ids.slice(0,-1),ids[0]]},growth),/손상/);
   assert.throws(()=>readOfflineGrowth({...long,settledMatchIds:[...ids.slice(0,-1),'missing-recent']},growth),/원장/);
 });
+
+
+test('ordinary ranked saves validate growth without rewriting an unchanged ledger',async()=>{
+  const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth);
+  const duel=new LocalDuel(createOfflineRankedInput({...savedInput,code:'write-dedup'},initial,growth)),snapshot=duel.checkpoint()!;
+  let current:Entry|undefined={hash,owner:'one',snapshot},record:OfflineGrowthRecord=structuredClone(initial),matchWrites=0,growthWrites=0;
+  const original=Object.getOwnPropertyDescriptor(globalThis,'indexedDB');
+  const request=(result:unknown)=>{const r={result,onsuccess:()=>{}};queueMicrotask(()=>r.onsuccess());return r;};
+  Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(){const r={onsuccess:()=>{},result:{transaction(_stores:unknown,mode:string){assert.equal(mode,'readwrite');const tx={oncomplete:()=>{},objectStore(name:string){return name==='matches'?{get:()=>request(current),put:(value:Entry)=>{matchWrites++;current=value;}}:{get:()=>request(record),put:(value:OfflineGrowthRecord)=>{growthWrites++;record=value;}};}};setImmediate(()=>tx.oncomplete());return tx;}}};queueMicrotask(()=>r.onsuccess());return r;}}});
+  try{
+    const store=new IndexedLocalSaveStore(1);
+    assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
+    assert.equal(matchWrites,1);assert.equal(growthWrites,0);
+    assert.deepEqual(record,initial);
+    assert.equal(await store.write(snapshot,'old-owner',false,undefined,{growth}),false);
+    assert.equal(matchWrites,1);assert.equal(growthWrites,0);
+    record={...initial,profile:{...initial.profile,ownedCards:[]}};
+    assert.equal(await store.write(snapshot,'one',false,undefined,{growth}),true);
+    assert.equal(matchWrites,2);assert.equal(growthWrites,1);assert.deepEqual(record,initial);
+    assert.equal(await store.write(snapshot,'two',true,snapshot.summary,{growth}),true);
+    assert.equal(matchWrites,3);assert.equal(growthWrites,2);
+    duel.act(duel.view().state!.revision,{type:'concede'});
+    const completed=duel.checkpoint()!;
+    assert.equal(await store.write(completed,'two',false,undefined,{growth,award:duel.rankedAward()}),true);
+    assert.equal(matchWrites,4);assert.equal(growthWrites,3);
+    assert.equal(record.settledMatchIds.length,1);
+  }finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
+});
