@@ -1076,3 +1076,20 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     transform:scale(1.42)!important;transform-origin:bottom center;
   }
 }
+
+/* The floating history rail must not intercept board taps in its empty
+   padding or unused height. Only rendered history controls consume input.
+   Keep the populated rail scrollable and its detail preview interactive. */
+@media (orientation:landscape){
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left,
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left>.impact-rail-shell{
+    pointer-events:none!important;
+  }
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left .impact-rail{
+    width:fit-content;max-width:100%;pointer-events:none;
+  }
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left .impact-rail:has(.impact-rail-entry),
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left :is(.impact-icon,.impact-latest,.impact-preview){
+    pointer-events:auto;
+  }
+}
