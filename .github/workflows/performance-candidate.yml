@@ -48,3 +48,71 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node --test apps/client/test/battle-immersive-browser.test.mjs
       - run: node --test apps/client/test/solo-app-browser.test.mjs apps/client/test/update-browser.test.mjs
+
+  performance:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'perf/v0.323-static-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '15802d04696b51239e3ca30db912de2606ad0e47'
+          path: perf-baseline
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 'ca83498357bccdd2b9752117466fd2a4f7d64970'
+          path: perf-ai
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '13a1ddc8272bc46f43cac5171cf59928edceaf1b'
+          path: perf-bundle
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:solo-app
+      - run: npm ci && npm run build:solo-app
+        working-directory: perf-baseline
+      - run: npx playwright install --with-deps chromium
+      - name: Paired active combat timing, alternating order
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              dist="$PWD/dist/solo-app"
+              if [ "$kind" = baseline ]; then dist="$PWD/perf-baseline/dist/solo-app"; fi
+              echo "ACTIVE COMBAT $kind"
+              CARD_DUEL_PROFILE_COMBAT=1 CARD_DUEL_SOLO_APP_DIST_DIR="$dist" node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+            done
+          done
+      - name: Count drag writes without timing instrumentation
+        run: CARD_DUEL_PROFILE_DRAG_WRITES=1 node --test --test-name-pattern 'real worker queues two attacks' apps/client/test/battle-immersive-browser.test.mjs
+      - name: Compare virtual image bundles (not a package change)
+        run: node perf-bundle/scripts/performance-pwa-bundle-study.mjs dist/solo-app/game.css
+      - name: Compare AI decisions with fixed node budgets
+        shell: bash
+        run: |
+          npm ci --prefix perf-ai
+          (cd perf-ai && npm run typecheck && node --test packages/engine/test/bot.test.ts)
+          CARD_DUEL_FIXED_NODES=1 node apps/cli/benchmark-device-ai.ts 3 25 auto mid | tee /tmp/ai-base.jsonl
+          (cd perf-ai && CARD_DUEL_FIXED_NODES=1 node apps/cli/benchmark-device-ai.ts 3 25 auto mid) | tee /tmp/ai-candidate.jsonl
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const read=p=>readFileSync(p,"utf8").trim().split("\n").map(JSON.parse);
+            const a=read("/tmp/ai-base.jsonl"),b=read("/tmp/ai-candidate.jsonl");
+            assert.equal(a.length,b.length);assert.ok(a.length>1);
+            assert.equal(a[0].weights,b[0].weights);
+            for(let i=1;i<a.length;i++){
+              for(const key of ["mode","difficulty","positions","nodeBudget","rankedActionSha256","acceptedActionSha256"])assert.equal(a[i][key],b[i][key],key);
+              assert.ok(a[i].positions>0 && a[i].rankedActionSha256);
+              console.log(JSON.stringify({mode:a[i].mode,difficulty:a[i].difficulty,beforeMedianMs:a[i].medianMs,afterMedianMs:b[i].medianMs,beforeP95Ms:a[i].p95Ms,afterP95Ms:b[i].p95Ms,decisionMatch:true}));
+            }
+          '
