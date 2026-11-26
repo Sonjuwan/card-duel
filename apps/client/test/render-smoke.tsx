@@ -13,6 +13,7 @@ import type { RoomView } from '../../../packages/protocol.ts';
 import { REFERENCE_CARDS } from '../src/reference-art-data.ts';
 import { ClassicNamesContext, displayCardName } from '../src/card-names.ts';
 import { LocalCardArt, LocalHeroArt, LocalPowerArt, LocalVectorCardArt } from '../src/local-art.tsx';
+import { TableDecor } from '../src/table-decor.tsx';
 import { CardHoverPanel } from '../src/hover-preview.tsx';
 import { cardArtRecipe, heroArtRecipe, powerArtRecipe } from '../src/local-art-model.ts';
 import { HERO_CLASSES } from '../../../packages/engine/src/index.ts';
@@ -313,4 +314,20 @@ test('mulligan staging maps authoritative replacement cards back to the original
   assert.deepEqual(mulliganSlots([a,b,c],[a,c,incoming,{instanceId:'coin',cardId:'__coin'}],['b']),[
     {key:'a',card:a,swapping:false},{key:'b',card:incoming,swapping:true},{key:'c',card:c,swapping:false},
   ]);
+});
+
+
+test('static battle subtrees preserve card identity, hand count and independent SVG ids',()=>{
+  const cards=renderToStaticMarkup(<><LocalCardArt card={catalog.wolf}/><LocalCardArt card={catalog.wisp}/></>);
+  for(const card of [catalog.wolf,catalog.wisp])assert.ok(cards.includes(`data-art-seed="${cardArtRecipe(card).seed}"`));
+  for(const count of [0,1,7,10]){
+    const html=renderToStaticMarkup(<HiddenHand count={count}/>);
+    assert.equal((html.match(/class="card-back"/g)??[]).length,count);
+    assert.ok(html.includes(`상대 손패 ${count}장`));
+  }
+  const tables=renderToStaticMarkup(<><TableDecor/><TableDecor/></>);
+  const ids=Array.from(tables.matchAll(/\sid="([^"]+)"/g),m=>m[1]);
+  assert.equal(ids.length,10);
+  assert.equal(new Set(ids).size,ids.length);
+  for(const id of ids)assert.ok(tables.includes(`url(#${id})`));
 });
