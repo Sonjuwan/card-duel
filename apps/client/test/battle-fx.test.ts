@@ -119,8 +119,9 @@ test('battle sound volume preserves mute preference, clamps input and recreates 
     page.hidden=true;stopBattleSound();assert.equal(oscillators[0].stops.length,2);assert.equal(oscillators[0].disconnects,1);assert.equal(gainNodes.at(-1)?.disconnects,1);assert.equal(oscillators[0].onended,null);stopBattleSound();assert.equal(oscillators[0].stops.length,2);
     playBattleSound(turn,'gold','impact');playBattleResultSound('win');assert.equal(oscillators.length,1);assert.equal(battleSoundEnabled(),true);page.hidden=false;playBattleSound(turn,'gold','impact');assert.equal(oscillators.length,2);
     const ended=oscillators[1];ended.onended?.();assert.equal(ended.disconnects,1);assert.equal(ended.stops.length,1);
-    for(let i=0;i<40;i++)playBattleSound(turn,'gold','impact');
-    assert.equal(oscillators.filter(o=>o.disconnects===0).length,32);
+    for(let i=0;i<120;i++)playBattleSound(turn,'gold','impact');
+    assert.equal(oscillators.filter(o=>o.disconnects===0).length,96);
+    assert.equal(oscillators[2].stops.length,1,'the oldest playing source finishes naturally rather than being interrupted');
     setBattleSound(false);assert.equal(oscillators.filter(o=>o.disconnects===0).length,0);assert.equal(ended.stops.length,1);
     setBattleSound(true);playBattleSound(turn,'gold','impact');const latest=oscillators.at(-1)!;setBattleSoundVolume(0);assert.equal(latest.disconnects,1);assert.equal(gainNodes.at(-1)?.disconnects,1);
   }finally{page.hidden=false;stopBattleSound();setBattleSoundVolume(100);setBattleSound(true);if(storage)Object.defineProperty(globalThis,'localStorage',storage);else Reflect.deleteProperty(globalThis,'localStorage');if(audio)Object.defineProperty(globalThis,'AudioContext',audio);else Reflect.deleteProperty(globalThis,'AudioContext');if(doc)Object.defineProperty(globalThis,'document',doc);else Reflect.deleteProperty(globalThis,'document');}
@@ -149,7 +150,7 @@ test('real armor-only and mixed hits preserve rules, exact public trace and appr
     const impacts=impactChanges(getPlayerView(s,0),getPlayerView(next,0),0,events),reverse=impactChanges(getPlayerView(s,1),getPlayerView(next,1),1,events);assert.deepEqual(impacts,reverse);
     assert.equal(impacts.find(i=>i.kind==='armorHit')?.amount??0,Math.min(armor,3));assert.equal(impacts.find(i=>i.kind==='damage')?.amount??0,Math.max(0,3-armor));
     assert.equal(impactFeedback(trace,impacts).kind,armor>=3?'armor':'damage');assert.equal(impactFeedback(trace,impacts).armor,armor===2?true:undefined);
-    assert.equal(dialoguePlan(trace,getPlayerView(s,0),getPlayerView(next,0),0,catalog).impact.length,armor>=3?0:1);
+    assert.equal(dialoguePlan(trace,getPlayerView(s,0),getPlayerView(next,0),0,catalog).impact.length,0);
   }
 });
 test('precise armor trace splits repeated hits despite simultaneous armor gain and bounds feedback',()=>{
@@ -232,7 +233,7 @@ test('blocked, shielded and returned units never speak false hit or death lines;
   assert.equal(dialoguePlan(base,before,after,0,catalog).impact.length,0);assert.equal(dialoguePlan({...base,blocked:true,events:[]},before,after,0,catalog).death.length,0);
   after.opponent.board=[];assert.equal(dialoguePlan({...base,events:[]},before,after,0,catalog).death.length,0);
   const secret=dialoguePlan({kind:'secret',actor:1,revision:5,cardId:'ice_block'},before,before,0,catalog);
-  assert.equal(secret.start[0].speaker,'비밀');assert.equal(secret.start[0].cardId,undefined);assert.doesNotMatch(JSON.stringify(secret),/ice_block/);
+  assert.deepEqual(secret,{start:[],impact:[],death:[]});assert.doesNotMatch(JSON.stringify(secret),/ice_block/);
 });
 test('only installed Korean voices are accepted and the speech queue respects mute and voice setting',()=>{
   const remote={lang:'ko-KR',localService:false},english={lang:'en-US',localService:true},local={lang:'ko-KR',localService:true};

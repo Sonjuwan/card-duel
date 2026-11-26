@@ -26,7 +26,6 @@ export function installedKoreanVoiceCount():number{
   try{return typeof SpeechSynthesisUtterance==='undefined'?0:(globalThis.speechSynthesis?.getVoices()??[]).filter(v=>v.localService&&/^ko(?:[-_]|$)/i.test(v.lang)).length;}catch{return 0;}
 }
 type Item={line:DialogueLine;expires:number};
-const priority=(line:DialogueLine)=>(line.cardId?0:4)+({emote:4,play:3,death:2,attack:1,hit:0}[line.kind]);
 let clipToken:object|null=null, stopClip:(()=>void)|undefined;
 let waiting:Item[]=[],current:SpeechSynthesisUtterance|null=null,watchdog:ReturnType<typeof setTimeout>|undefined;
 // Release browser-held callbacks as well as the module reference. A late
@@ -87,9 +86,8 @@ function speakItem(item:Item):boolean{
 export function speakDialogue(lines:readonly DialogueLine[]){
   if(globalThis.document?.hidden||!enabled||!battleSoundEnabled()||voiceVolume===0)return;
   const now=Date.now();waiting=waiting.filter(item=>item.expires>=now);
-  for(const line of lines.slice(0,2))waiting.push({line,expires:now+3500});
-  waiting.sort((a,b)=>priority(b.line)-priority(a.line));
-  if(waiting.length>4)waiting.length=4;
+  for(const line of lines.slice(0,2))waiting.push({line,expires:now+30000});
+  // Preserve chronological summon and greeting order; never interrupt the current line.
   drain();
 }
 /** A preview explicitly replaces only the dialogue queue, never game audio or

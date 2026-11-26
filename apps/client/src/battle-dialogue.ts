@@ -1,6 +1,5 @@
 import type {Card,Catalog,HeroClass,PlayerId,PlayerView} from '../../../packages/engine/src/index.ts';
 import type {BattleAnimation} from '../../../packages/protocol.ts';
-import {impactChanges} from './battle-fx-model.ts';
 import {className} from './data.ts';
 
 export const EMOTE_LABELS={greet:'인사',thanks:'감사',praise:'칭찬',sorry:'사과',surprise:'놀람',threat:'도발'} as const;
@@ -85,20 +84,9 @@ export function cardDialogue(card:Card|undefined,hero:HeroClass,side:PlayerId,ki
 export function heroEmote(hero:HeroClass,side:PlayerId,emote:Emote):DialogueLine{
   const v=HERO_DIALOGUE[hero];return {side,speaker:className[hero],kind:'emote',hero,text:v.emotes[emote],pitch:v.pitch,rate:v.rate};
 }
-export function dialoguePlan(a:BattleAnimation,before:PlayerView,after:PlayerView,seat:PlayerId,catalog:Catalog,name=(c:Card)=>c.name):DialoguePlan{
+export function dialoguePlan(a:BattleAnimation,before:PlayerView,_after:PlayerView,seat:PlayerId,catalog:Catalog,name=(c:Card)=>c.name):DialoguePlan{
   const start:DialogueLine[]=[],impact:DialogueLine[]=[],death:DialogueLine[]=[];
-  const hero=(side:PlayerId)=>(side===seat?before.self:before.opponent).heroClass;
-  const line=(side:PlayerId,kind:'play'|'attack'|'hit'|'death',card?:Card)=>cardDialogue(card,hero(side),side,kind,a.revision,name);
-  if(a.kind==='secret')start.push({...line(a.actor,'play'),speaker:'비밀',text:'쉿... 아직은 비밀이다.'});
-  else if(a.kind==='heroAttack')start.push(line(a.actor,'attack'));
-  else if(a.kind==='power')start.push(line(a.actor,'play'));
-  else if(['summon','spell','weapon','coin'].includes(a.kind)&&a.cardId&&catalog[a.cardId])start.push(line(a.actor,'play',catalog[a.cardId]));
-  for(const event of impactChanges(before,after,seat,a.events)){
-    if(event.kind==='damage'&&event.target.kind==='hero'&&(event.amount??0)>0)impact.push(line(event.side,'hit'));
-  }
-  for(const side of [seat,seat===0?1:0] as PlayerId[]){
-    const old=side===seat?before.self:before.opponent,next=side===seat?after.self:after.opponent;
-    if(old.health>0&&next.health<=0)death.push(line(side,'death'));
-  }
+  const card=a.cardId?catalog[a.cardId]:undefined;
+  if(a.kind==='summon'&&card?.kind==='minion')start.push(cardDialogue(card,(a.actor===seat?before.self:before.opponent).heroClass,a.actor,'play',a.revision,name));
   return {start,impact,death};
 }

@@ -162,3 +162,62 @@
   .lobby-main .collection-workspace .collection-body .collection-book .card-name{font-size:clamp(8px,10cqi,13px)}
   .lobby-main .collection-workspace .collection-body .collection-book .card-copy{font-size:clamp(7px,8cqi,10px)}
 }
+
+/* Card silhouettes occupy their actual allocated cells; desktop filter panel is
+   independent of pointer type. Compact screens have no catalog filter rail. */
+@media (orientation:landscape){
+  .lobby-main.preview-lobby .integrated-browser.collection-workspace>.collection-body,
+  .lobby-main .integrated-browser.collection-workspace>.collection-body{
+    grid-template-columns:minmax(0,1fr) clamp(165px,22dvw,330px);
+    grid-template-rows:minmax(0,1fr);
+  }
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters{
+    grid-area:1/2;display:flex;flex-direction:column;align-items:stretch;align-self:stretch;
+    width:100%;height:100%;min-height:0;max-height:none;min-width:0;overflow:auto;
+    padding:8px;margin:0;gap:7px;background:#30251e;border:1px solid #9c805b;border-radius:8px;
+  }
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .controls{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .controls>*{width:100%;min-width:0}
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .card-set-tabs{display:flex;flex-wrap:wrap;gap:3px}
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .card-set-tabs>button{flex:1 1 auto;min-width:0}
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .book-mana-filter{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .book-mana-filter>button{min-width:0;padding:1px}
+  .lobby-main .integrated-browser.collection-workspace .collection-body>.book-pane{grid-area:1/1}
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item{
+    container-type:size;display:grid;grid-template-rows:auto var(--collection-label-height);
+    align-content:center;justify-items:center;align-items:center;gap:2px;min-width:0;min-height:0;width:100%;height:100%;
+  }
+  .lobby-main.preview-lobby .collection-workspace .collection-body .book-with-tabs .collection-book .collection-item>:is(.battle-card,.collection-blank),
+  .lobby-main .collection-workspace .collection-body .book-with-tabs .collection-book .collection-item>:is(.battle-card,.collection-blank){
+    --cell-card-width:min(100cqw,calc((100cqh - var(--collection-label-height) - 2px)/1.55));
+    box-sizing:border-box;width:var(--cell-card-width)!important;height:calc(var(--cell-card-width)*1.55)!important;
+    aspect-ratio:100/155;max-width:none!important;max-height:none!important;min-height:0!important;min-width:0!important;
+    flex:none;justify-self:center;align-self:center;margin:0!important;transform:none;
+  }
+  .lobby-main .collection-workspace .collection-body .book-with-tabs{grid-template-columns:clamp(38px,5.8dvw,65px) minmax(0,1fr)}
+  .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs button{width:70%;justify-self:end;transform-origin:right}
+  .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs button[aria-pressed=true]{transform:scaleX(1.4);z-index:4}
+}
+@media (orientation:landscape) and (max-height:540px){
+  .lobby-main.preview-lobby .integrated-browser.collection-workspace>.collection-body,
+  .lobby-main .integrated-browser.collection-workspace>.collection-body{grid-template-columns:minmax(0,1fr)}
+  .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters{display:none!important}
+  .lobby-main .integrated-browser.collection-workspace>.catalog-toolbar:empty{height:0;flex-basis:0;min-height:0;padding:0}
+}
+@media (orientation:landscape) and (min-height:541px){
+  .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs{grid-auto-rows:clamp(22px,calc((100dvh - 110px)/14.5),39px);gap:9px}
+  .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs button[aria-pressed=true]{transform:scale(1.4)}
+}
+
+@media (orientation:landscape){
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item{
+    box-sizing:border-box;grid-template-columns:minmax(0,1fr);padding:0!important;
+    justify-content:center;align-content:center;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card,
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.collection-set-label{
+    grid-column:1;justify-self:center!important;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card{grid-row:1}
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.collection-set-label{grid-row:2;position:static!important;transform:none!important}
+}

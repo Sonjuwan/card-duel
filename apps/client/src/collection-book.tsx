@@ -54,7 +54,7 @@ export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,c
       if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5)turn(dx<0?1:-1);
     }} role="group" aria-label="카드책 펼침" aria-description="방향키로 카드 이동, Home과 End로 첫 카드와 마지막 카드 이동" onKeyDown={navigate}>
     {cards.length===0?<p className="empty-collection">검색 결과가 없습니다. 검색어나 필터를 바꿔 보세요.</p>:
-      continuous?cards.map(renderCard):[0,1].map(leaf=><div key={`${paging?.page??0}:${leaf}`} className="collection-leaf" data-book-page={leaf===0?'left':'right'} aria-label={leaf===0?'왼쪽 페이지':'오른쪽 페이지'}>{cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).map(c=>renderCard(c))}{Array.from({length:Math.max(0,perLeaf-cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).length)},(_,i)=><span key={`empty-${i}`} className="collection-blank" aria-hidden="true"/>)}</div>)}
+      continuous?cards.map(renderCard):[0,1].map(leaf=><div key={`${paging?.page??0}:${leaf}`} className="collection-leaf" data-book-page={leaf===0?'left':'right'} aria-label={leaf===0?'왼쪽 페이지':'오른쪽 페이지'}>{cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).map(c=>renderCard(c))}{Array.from({length:Math.max(0,perLeaf-cards.slice(leaf*perLeaf,leaf*perLeaf+perLeaf).length)},(_,i)=><div key={`empty-${i}`} className="collection-item collection-empty-slot" aria-hidden="true"><span className="collection-blank"/><small/></div>)}</div>)}
   </div>
   {paging&&<button type="button" className="book-edge secondary" disabled={paging.page>=paging.pages-1} onClick={()=>turn(1)} aria-label="다음 페이지">▶</button>}
   {paging&&<span className="book-page-status" role="status" aria-live="polite" aria-atomic="true">{paging.label}</span>}

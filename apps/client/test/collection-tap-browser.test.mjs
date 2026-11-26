@@ -17,7 +17,7 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'카드 도감',exact:true}).tap();
-  const sizes=[[640,300],[700,320],[780,360],[844,390],[1024,600],[1024,768]];
+  const sizes=[[640,300],[700,320],[780,360],[844,390],[1024,600],[1024,768],[1920,850]];
   mkdirSync('ui-evidence',{recursive:true});
   async function checkWorkspace(mode,width,height){
     await page.locator('.game-toast').waitFor({state:'detached'});
@@ -54,11 +54,13 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
       const save=workspace.querySelector('.deck-save-primary');
       let saveTextFits=true;
       if(save){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
-      return {badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>box(el).bottom<=box(book).top+2),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
+      return {badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
     },mode);
     const msg=JSON.stringify({mode,width,height,...geometry});
     await page.screenshot({path:'ui-evidence/'+mode+'-'+width+'x'+height+'.png'});
     assert.equal(geometry.count,8,msg);assert.ok(geometry.book.height>100,msg);
+    assert.ok(Math.max(...geometry.cardRects.map(r=>r.width))-Math.min(...geometry.cardRects.map(r=>r.width))<2,msg);
+    assert.ok(geometry.cardRects.every(r=>r.height/r.width>1.5&&r.height/r.width<1.6),msg);
     assert.deepEqual(geometry.badMana,[],msg);assert.equal(geometry.pageStatusVisible,true,msg);assert.equal(geometry.saveTextFits,true,msg);
     assert.deepEqual(geometry.badCards,[],msg);assert.deepEqual(geometry.badTabs,[],msg);assert.deepEqual(geometry.badEdges,[],msg);assert.deepEqual(geometry.badControls,[],msg);
     assert.equal(geometry.overlap,false,msg);assert.equal(geometry.toolbarAbove,true,msg);assert.equal(geometry.order,true,msg);assert.equal(geometry.duplicateCount,false,msg);
@@ -69,10 +71,11 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   assert.equal(await catalog.locator('.collection-book').getAttribute('data-book-size'),'8');
   for(const [width,height] of sizes)await checkWorkspace('catalog',width,height);
   await page.setViewportSize({width:844,height:390});
-  const filter=catalog.getByRole('button',{name:'카드 필터',exact:true});
-  await filter.tap();
-  const filterDialog=page.getByRole('dialog',{name:'카드 필터',exact:true});
-  await filterDialog.waitFor();await filterDialog.getByRole('button',{name:'닫기',exact:true}).tap();
+  assert.equal(await catalog.getByRole('button',{name:'카드 필터',exact:true}).count(),0);
+  assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),false);
+  await page.setViewportSize({width:1024,height:768});
+  assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),true);
+  await page.setViewportSize({width:844,height:390});
   await cards.first().tap();
   const detail=page.getByRole('dialog',{name:'카드 확대 상세'});
   await detail.waitFor();
@@ -82,7 +85,6 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'전사',exact:true}).tap();
   await page.getByRole('button',{name:'＋ 새 덱 만들기 / 편집',exact:true}).tap();
-  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).tap();
   const builder=page.locator('.deck-builder'),count=builder.locator('.deck-live-count');
   await count.waitFor();
   assert.equal(await count.textContent(),'0/30');
@@ -94,6 +96,12 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
   await page.locator('.collection-detail-dialog .collection-detail-body').waitFor({state:'detached'});
   for(const [width,height] of sizes)await checkWorkspace('builder',width,height);
+  const tabs=builder.locator('.book-class-tabs button');
+  const next=builder.getByRole('button',{name:'다음 페이지',exact:true}),previous=builder.getByRole('button',{name:'이전 페이지',exact:true});
+  await tabs.first().tap();
+  for(let i=0;i<60&&await tabs.first().getAttribute('aria-pressed')==='true';i++)await next.tap();
+  assert.equal(await tabs.last().getAttribute('aria-pressed'),'true','class last page crosses into neutral');
+  await previous.tap();assert.equal(await tabs.first().getAttribute('aria-pressed'),'true','neutral first page returns to class last');
   await page.getByRole('button',{name:'← 덱 목록',exact:true}).tap();
   await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).waitFor();
   assert.deepEqual(errors,[]);
