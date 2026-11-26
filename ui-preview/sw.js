@@ -1,13 +1,13 @@
 /* The build substitutes a content-derived cache identifier and asset digests. */
-const release = {"id":"396e447dfb72df500a193ed750fd34f7b83e21641fc2b3a1f251b371880bbeae","version":"0.319.0","files":{"game.js":"e97d943db3aced9c80df8c8004d61803939946b6400935905339bfd65590b178","game.css":"4dedd99d686076f2dd6d9f74cce0dc24903fac97a1672b4804a0aaa1295451e9","manifest.webmanifest":"81922b9d40d3a3f15d8168adeaaa2fb80009daac17242666b98c69f146df2ea4","register.js":"33bdada5c1a9b20419d7eca2d14a94d3f92b28ac8e1b1769ec493f55f9c3de34","icon-192.png":"2190f8168d94278ce3dd23fb9f935fce878efe9f0f4be4739ef1d8bda3850a74","icon-512.png":"eddf576e10e76b866739b33183ec014d9b91058bf4fb10c84e41fd6d9600f4ff","index.html":"0996113e373bed7dbfd3921e1aaadbb0ffb80f85f1a2915fef3299c6aa396913"}};
+const release = {"id":"3c0abeee0f6633b2c666cd73ed66a29206351c389debe2cc6ca923ca7dff4b06","version":"0.322.0","files":{"game.js":"858315c6cb0bf307a22562e84f2987cee4c305ce5041f7eadc7caeba2f448f60","game.css":"4dedd99d686076f2dd6d9f74cce0dc24903fac97a1672b4804a0aaa1295451e9","manifest.webmanifest":"81922b9d40d3a3f15d8168adeaaa2fb80009daac17242666b98c69f146df2ea4","register.js":"33bdada5c1a9b20419d7eca2d14a94d3f92b28ac8e1b1769ec493f55f9c3de34","icon-192.png":"2190f8168d94278ce3dd23fb9f935fce878efe9f0f4be4739ef1d8bda3850a74","icon-512.png":"eddf576e10e76b866739b33183ec014d9b91058bf4fb10c84e41fd6d9600f4ff","index.html":"4f9051d4fc4f5bcb3c045bc838067d2ff21d7fd46f24f943f7e7d6639b31f67c"}};
 const prefix = 'card-duel-solo-app:' + self.registration.scope + ':';
 const cacheName = prefix + release.id;
 const url = path => new URL(path, self.registration.scope).href;
 const assets = new Map(Object.entries(release.files).map(([path,hash])=>[url(path),hash]));
 const app = url('index.html');
 const root = url('./');
-// A worker process checks each cached response at first use. Further reads in
-// that process reuse the verified result without rehashing 14 MB of card art.
+// Verification lasts only for this worker process. A restarted worker checks
+// each cached response on first use before serving it.
 const checkedCache=new Set();
 const pointerCache=prefix+'active-pointer';
 const pointerKey=url('__card-duel-active-release__');
@@ -29,9 +29,29 @@ async function reportInstall(done) {
   }catch{/* Install integrity never depends on notification support. */}
 }
 
+async function activeReleaseCache(names) {
+  if(!names.includes(pointerCache))return undefined;
+  try{
+    const pointer=await (await caches.open(pointerCache)).match(pointerKey);
+    const active=await pointer?.text();
+    if(active&&active!==cacheName&&active.startsWith(prefix)&&
+       /^[a-f0-9]{64}$/.test(active.slice(prefix.length))&&names.includes(active))
+      return await caches.open(active);
+  }catch{/* An unavailable or corrupt cache pointer must not block installation. */}
+}
+async function reusableAsset(cache,path,hash) {
+  if(!cache)return undefined;
+  try{
+    const response=await cache.match(path);
+    if(await responseMatches(response,hash))return response;
+  }catch{/* The normal network and integrity path can recover this asset. */}
+}
+
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
-    const existed=(await caches.keys()).includes(cacheName);
+    const names=await caches.keys();
+    const existed=names.includes(cacheName);
+    const activeCache=await activeReleaseCache(names);
     const cache = await caches.open(cacheName);
     let done=0;
     try {
@@ -44,9 +64,13 @@ self.addEventListener('install', event => {
           if(cached&&await responseMatches(cached,hash)){await reportInstall(++done);continue;}
           if(cached)await cache.delete(path);
         }
-        await cache.put(path,await verifiedResponse(path,hash));
+        const reused=await reusableAsset(activeCache,path,hash);
+        await cache.put(path,reused??await verifiedResponse(path,hash));
         await reportInstall(++done);
       }
+      // Installation just verified every response placed in this release.
+      // A restarted worker has an empty set and still checks on first use.
+      for(const path of assets.keys())checkedCache.add(path);
     } catch (error) { if(!existed)await caches.delete(cacheName); throw error; }
     // No skipWaiting: do not replace the version beneath an active game.
   })());
@@ -83,9 +107,9 @@ self.addEventListener('fetch',event=>{
       }
       // Cache Storage may contain an incomplete or damaged asset after a
       // crash. Never serve it or silently borrow bytes from an older patch.
-      checkedCache.delete(address);
       await cache.delete(address);
     }
+    checkedCache.delete(address);
     // Browser cache eviction is recoverable only using the exact same release.
     try{
       const recovered=await verifiedResponse(address,assets.get(address));
