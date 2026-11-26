@@ -96,6 +96,12 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
   await page.locator('.collection-detail-dialog .collection-detail-body').waitFor({state:'detached'});
   for(const [width,height] of sizes)await checkWorkspace('builder',width,height);
+  const tabs=builder.locator('.book-class-tabs button');
+  const next=builder.getByRole('button',{name:'다음 페이지',exact:true}),previous=builder.getByRole('button',{name:'이전 페이지',exact:true});
+  await tabs.first().tap();
+  for(let i=0;i<60&&await tabs.first().getAttribute('aria-pressed')==='true';i++)await next.tap();
+  assert.equal(await tabs.last().getAttribute('aria-pressed'),'true','class last page crosses into neutral');
+  await previous.tap();assert.equal(await tabs.first().getAttribute('aria-pressed'),'true','neutral first page returns to class last');
   await page.getByRole('button',{name:'← 덱 목록',exact:true}).tap();
   await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).waitFor();
   assert.deepEqual(errors,[]);

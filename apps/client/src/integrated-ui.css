@@ -1063,3 +1063,16 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen .arena-field .hand-heading{display:none!important}
   .game-main .duel-screen .arena-field .own-hand .battle-hand{max-width:none!important}
 }
+
+@media (orientation:landscape) and (min-height:541px){
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot,
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card{
+    transform:none!important;translate:none!important;rotate:none!important;scale:none!important;
+  }
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card{animation:none!important;transition:transform 100ms ease}
+}
+@media (orientation:landscape) and (min-height:541px) and (hover:hover) and (pointer:fine){
+  .game-main .duel-screen:not(.is-dragging) .arena-field .own-hand .hand-card-slot:hover>.battle-card{
+    transform:scale(1.42)!important;transform-origin:bottom center;
+  }
+}

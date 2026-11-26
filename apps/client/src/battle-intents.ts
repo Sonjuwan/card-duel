@@ -72,9 +72,10 @@ export function projectBattleIntents(base:PlayerView,seat:PlayerId,catalog:Catal
   if(!actions.length)return base;
   const self={...base.self,board:base.self.board.map(unit=>({...unit})),hand:base.self.hand.slice()};
   const projected={...base,self};
-  const applyHeroEffect=(effect:import('../../../packages/engine/src/index.ts').Effect)=>{
+  const applyHeroEffect=(effect:import('../../../packages/engine/src/index.ts').Effect,target?:import('../../../packages/engine/src/index.ts').Target)=>{
     if(effect.condition)return;
     if(effect.kind==='heroAttack')self.heroAttack+=effect.amount;
+    if(effect.kind==='temporaryAttack'&&(effect.target==='friendlyHero'||effect.target==='friendlyCharacters'||effect.target==='chosen'&&target?.kind==='hero'&&target.player===seat))self.heroAttack+=effect.amount;
     if(effect.kind==='armor')self.armor+=effect.amount;
     if(effect.kind==='equip'){const w=effect.cardId?catalog[effect.cardId]:undefined;self.weapon={attack:w?.kind==='weapon'?w.attack:effect.attack,durability:w?.kind==='weapon'?w.durability:effect.durability,...(effect.cardId?{cardId:effect.cardId}:{})};self.heroAttacksRemaining=Math.min(self.heroAttacksRemaining,Math.max(0,(w?.kind==='weapon'&&w.windfury?2:1)-(self.heroAttacksMadeThisTurn??0)));}
     if(effect.kind==='buffWeapon'){if(self.weapon)self.weapon={...self.weapon,attack:self.weapon.attack+effect.attack,durability:self.weapon.durability+effect.durability};else if(effect.equipIfMissing)self.weapon={...effect.equipIfMissing};}
@@ -121,7 +122,7 @@ export function projectBattleIntents(base:PlayerView,seat:PlayerId,catalog:Catal
         const effects=action.choice===undefined?card.effects:card.choices?.[action.choice]?.effects;
         for(const effect of effects??[]){
           if(effect.condition)continue;
-          applyHeroEffect(effect);
+          applyHeroEffect(effect,action.target);
           if(effect.kind==='discountNextSpell')self.nextSpellDiscount=(self.nextSpellDiscount??0)+effect.amount;
           if(effect.kind==='summon'&&effect.side!=='enemy'&&!effect.per){
             const token=catalog[effect.cardId];
@@ -132,6 +133,10 @@ export function projectBattleIntents(base:PlayerView,seat:PlayerId,catalog:Catal
         }
       }
       if(card.kind==='weapon'){self.weapon={cardId:card.id,attack:card.attack,durability:card.durability};self.heroAttacksRemaining=Math.max(0,(card.windfury?2:1)-(self.heroAttacksMadeThisTurn??0));}
+      if(card.kind==='minion'||card.kind==='weapon'){
+        const effects=card.kind==='minion'&&action.choice!==undefined?card.choices?.[action.choice]?.effects:card.battlecry;
+        for(const effect of effects??[])applyHeroEffect(effect,action.target);
+      }
       if(card.kind==='secret')self.nextSecretFree=false;
       if(card.kind==='minion')self.minionsPlayedThisTurn=(self.minionsPlayedThisTurn??0)+1;
       if(card.kind==='minion')self.board.splice(action.position??self.board.length,0,{

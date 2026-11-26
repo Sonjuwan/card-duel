@@ -598,6 +598,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await drag(shieldCard,page.locator('.enemy-board'));
   await anchor.waitFor();
   await wolf.tap();
+  await page.waitForFunction(()=>window.combatActions.some(action=>action.instanceId==='shield-card'&&action.target?.instanceId==='test-wolf'));
   await page.waitForFunction(()=>document.querySelector('[data-preview-minion="test-wolf"]')?.classList.contains('has-shield'));
   const chosenSpell=page.getByRole('button',{name:'주문 대상 지정',exact:true});
   for(const [index,id] of ['wrath-3','wrath-1'].entries()){

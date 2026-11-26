@@ -142,6 +142,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   };
 
   const aimPress=useRef<number|null>(null);
+  const stagedPress=useRef<{id:number;x:number;y:number;target:Target;selection:Selection}|null>(null);
   const effectPress=useRef<{id:number;choice:number;x:number;y:number}|null>(null);
   const [drag,setDrag]=useState<DragState|null>(null),dragRef=useRef<DragState|null>(null);
   const touchRef=useRef<TouchGesture|null>(null),cancelledPointer=useRef<number|null>(null),suppressClick=useRef(0);
@@ -306,7 +307,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   useEffect(()=>{const cancel=()=>{actionFocus.current=null;};const tab=(e:KeyboardEvent)=>{if(e.key==='Tab')cancel();};window.addEventListener('pointerdown',cancel,true);window.addEventListener('keydown',tab,true);return()=>{window.removeEventListener('pointerdown',cancel,true);window.removeEventListener('keydown',tab,true);};},[]);
   const stopEdgePan=()=>{if(edgePanRef.current)cancelAnimationFrame(edgePanRef.current.frame);edgePanRef.current=null;};
   useEffect(()=>()=>stopEdgePan(),[]);
-  const clearDrag=()=>{stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);castRef.current=false;setCasting(false);pointerPoint.current=null;castPoint.current=null;setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');};
+  const clearDrag=()=>{stagedPress.current=null;stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);castRef.current=false;setCasting(false);pointerPoint.current=null;castPoint.current=null;setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');};
   const cancelActiveTouch=()=>{const interrupted=touchRef.current,guard=interruptTouch(interrupted,cancelledPointer.current,suppressClick.current,Date.now());cancelledPointer.current=guard.cancelledPointer;suppressClick.current=guard.suppressUntil;clearDrag();if(interrupted&&arenaRef.current?.hasPointerCapture(interrupted.pointerId)){try{arenaRef.current.releasePointerCapture(interrupted.pointerId);}catch{}}};
   const cancelCardChoice=()=>{if(selected?.kind==='cardChoice')choiceReturn.current=selected.id;setSelected(null);cancelActiveTouch();};
   useEffect(()=>{
@@ -480,6 +481,12 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     // A physical new press is independent from the previous drag/scroll's
     // synthetic click. Do not make the user wait 250 ms to tap again.
     if(e.isPrimary){suppressClick.current=0;cancelledPointer.current=null;setDropNotice('');}
+    if(e.isPrimary)stagedPress.current=null;
+    if(stagedAim&&active&&selected&&e.isPrimary&&e.pointerType==='touch'&&e.target instanceof Element&&e.target.closest('.battle-minion,.hero-portrait')){
+      const target=stagedTargetAt(e.clientX,e.clientY);
+      if(target)stagedPress.current={id:e.pointerId,x:e.clientX,y:e.clientY,target,selection:selected};
+      return;
+    }
     if(stagedAim||!active||e.pointerType==='mouse'||!e.isPrimary||!(e.target instanceof Element))return;
     const source=e.target.closest<HTMLElement>('[data-action-source]'),intent=intentFromSource(source?.dataset.actionSource);
     if(!intent||!planDrag(rules,seat,catalog,intent,boardPosition))return;
@@ -559,6 +566,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const nativeDragEnd=()=>{const unfinished=!!dragRef.current;clearDrag();if(unfinished&&active)setDropNotice('드래그 취소 · 카드와 마나는 그대로 유지됩니다.');};
   const touchMove=(e:PointerEvent<HTMLDivElement>)=>{
     pointAim(e.clientX,e.clientY);
+    if(stagedPress.current?.id===e.pointerId&&Math.hypot(e.clientX-stagedPress.current.x,e.clientY-stagedPress.current.y)>12){stagedPress.current=null;suppressClick.current=Date.now()+250;}
     if(aimPress.current===e.pointerId){setDropTarget(stagedTargetAt(e.clientX,e.clientY));return;}
     const g=touchRef.current;if(!g||g.pointerId!==e.pointerId)return;
     const next=advanceGesture(g,e.clientX,e.clientY,rules.revision);if(!next||!planDrag(rules,seat,catalog,g.drag.intent)){cancelActiveTouch();return;}touchRef.current=next;
@@ -587,6 +595,15 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     });
   };
   const touchUp=(e:PointerEvent<HTMLDivElement>)=>{
+    const press=stagedPress.current;
+    if(press?.id===e.pointerId){
+      stagedPress.current=null;
+      const target=stagedTargetAt(e.clientX,e.clientY);
+      if(stagedAim&&active&&selected===press.selection&&target&&sameTarget(target,press.target)&&Math.hypot(e.clientX-press.x,e.clientY-press.y)<=12){
+        suppressClick.current=Date.now()+300;choose(target);e.preventDefault();return;
+      }
+      suppressClick.current=Date.now()+300;e.preventDefault();return;
+    }
     if(aimPress.current===e.pointerId){
       aimPress.current=null;
       const target=stagedTargetAt(e.clientX,e.clientY);
@@ -608,7 +625,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     if(!plan.intent)returnTouchCard(e.currentTarget,g.drag.intent);
     clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));e.preventDefault();
   };
-  const stopTouch=(e:PointerEvent<HTMLDivElement>)=>{if(aimPress.current===e.pointerId){aimPress.current=null;setDropTarget(undefined);setSelected(null);hideAim();return;}if(isCaptureHandoff(e.type,e.target!==e.currentTarget,e.currentTarget.hasPointerCapture(e.pointerId)))return;if(cancelledPointer.current===e.pointerId||touchRef.current?.pointerId===e.pointerId){cancelledPointer.current=e.type==='lostpointercapture'?e.pointerId:null;suppressClick.current=Date.now()+250;clearDrag();}};
+  const stopTouch=(e:PointerEvent<HTMLDivElement>)=>{if(stagedPress.current?.id===e.pointerId){stagedPress.current=null;suppressClick.current=Date.now()+300;}if(aimPress.current===e.pointerId){aimPress.current=null;setDropTarget(undefined);setSelected(null);hideAim();return;}if(isCaptureHandoff(e.type,e.target!==e.currentTarget,e.currentTarget.hasPointerCapture(e.pointerId)))return;if(cancelledPointer.current===e.pointerId||touchRef.current?.pointerId===e.pointerId){cancelledPointer.current=e.type==='lostpointercapture'?e.pointerId:null;suppressClick.current=Date.now()+250;clearDrag();}};
   const guardClick=(e:MouseEvent<HTMLDivElement>)=>{
     if(Date.now()<suppressClick.current&&!independentActivation(e.nativeEvent)){e.preventDefault();e.stopPropagation();return;}
     if(!(e.target instanceof Element))return;
