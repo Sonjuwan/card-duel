@@ -30,3 +30,11 @@ Release number intentionally unchanged. No merge or deployment.
 ## Next work
 
 Follow the existing queue: profile local drag style writes and PWA image bundles with real browser traces. Do not reintroduce PERF-D02 or the earlier image split that failed installation performance validation without new evidence. Keep animation duration, art quality and AI strength unchanged.
+
+
+## Follow-up checkpoint — sequential work
+
+- Drag-write diagnostic: `CARD_DUEL_PROFILE_DRAG_WRITES=1` on the existing active-combat Chromium test counts writes to the four drag/cast CSS custom properties and repeated values. Run independently of the frame-timing profile; instrumentation is not a timing benchmark. Diagnostic code committed, browser execution pending.
+- AI benchmark: `CARD_DUEL_FIXED_NODES=1 npm run benchmark:device -- 3 25 all mid` disables the wall-clock search deadline while preserving device node/response budgets and emits SHA-256 fingerprints of ranked and accepted actions. This supports before/after comparison without changing production AI. Actual AI benchmark execution pending.
+- Impact feedback: aggregate damage, armor, hit counts and flags in a single pass without intermediate arrays. Exact JS mirrors of both bodies matched 30,000 seeded mixed-event cases; corresponding repository regression test added. No claim of FPS improvement or full test passage.
+- Next measurement-dependent task: execute the browser diagnostics and AI baseline; use the results to select local CSS write scoping or AI search candidates. Do not change PWA asset packaging or engine search policy without the respective baseline and regression checks.
