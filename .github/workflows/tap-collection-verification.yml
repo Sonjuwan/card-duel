@@ -25,3 +25,18 @@ jobs:
       - run: npm run test:playable-core && npm test && npm run test:render
       - run: npx playwright install --with-deps chromium
       - run: node --test apps/client/test/battle-immersive-browser.test.mjs apps/client/test/collection-tap-browser.test.mjs apps/client/test/landscape-solo-browser.test.mjs
+  profile:
+    if: github.event.pull_request.head.ref == 'ui/tap-collection-20261126'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/performance-collection-ui.ts
+      - run: node scripts/performance-source-audit.mjs --strict
