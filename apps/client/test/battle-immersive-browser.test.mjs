@@ -399,7 +399,8 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
 });
 
 test('real worker queues two attacks while a staged battlecry validates its targets',{timeout:90000},async t=>{
-  const server=createSoloAppServer();
+  const profileCombat=process.env.CARD_DUEL_PROFILE_COMBAT==='1';
+  const server=createSoloAppServer(process.env.CARD_DUEL_SOLO_APP_DIST_DIR);
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
@@ -410,6 +411,13 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await page.addInitScript(()=>{
     window.combatActions=[];
     window.combatAnchorLookups={all:0,scanned:0,exact:0};
+    window.combatArenaReads={friendlyBoard:0};
+    const box=Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect=function(){
+      if(this.classList.contains('friendly-board'))window.combatArenaReads.friendlyBoard++;
+      return box.call(this);
+    };
+
     const all=Element.prototype.querySelectorAll,one=Element.prototype.querySelector;
     Element.prototype.querySelectorAll=function(selector){
       const result=all.call(this,selector);
@@ -473,6 +481,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await wind.waitFor();
   const cdp=await context.newCDPSession(page);
   const center=async locator=>{
+    await locator.waitFor({state:'visible'});
     const box=await locator.boundingBox();
     assert.ok(box);
     return {x:Math.round(box.x+box.width/2),y:Math.round(box.y+box.height/2)};
@@ -491,13 +500,44 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await page.locator('[data-hover-preview]').waitFor();
   await touch('touchEnd',[]);
   await page.locator('[data-hover-preview]').waitFor({state:'detached'});
+  if(profileCombat){
+    await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
+    await page.evaluate(()=>{
+      const start=performance.now();
+      const intervals=[];
+      let prior,frame;
+      const tick=now=>{
+        if(prior!==undefined)intervals.push(now-prior);
+        prior=now;frame=requestAnimationFrame(tick);
+      };
+      frame=requestAnimationFrame(tick);
+      window.stopCombatProfile=()=>{
+        cancelAnimationFrame(frame);
+        const long=performance.getEntriesByType('long-animation-frame')
+          .filter(entry=>entry.startTime>=start);
+        const layout=new Map();
+        for(const script of long.flatMap(entry=>entry.scripts)){
+          if(!script.forcedStyleAndLayoutDuration)continue;
+          const key=`${script.invoker} @ ${script.sourceURL?new URL(script.sourceURL,location.href).pathname:'inline'}:${script.sourceCharPosition}`;
+          layout.set(key,(layout.get(key)??0)+script.forcedStyleAndLayoutDuration);
+        }
+        const sorted=intervals.sort((a,b)=>a-b);
+        const percentile=p=>sorted[Math.ceil(sorted.length*p)-1];
+        return {samples:sorted.length,p95:percentile(.95),p99:percentile(.99),longFrames:long.length,
+          longest:Math.max(0,...long.map(entry=>entry.duration)),
+          forcedLayout:[...layout.values()].reduce((sum,elapsed)=>sum+elapsed,0),
+          layoutSources:[...layout].sort((a,b)=>b[1]-a[1]).slice(0,5)};
+      };
+    });
+  }
   await drag(wind,enemyHero);
   assert.equal(await wind.evaluate(unit=>unit.classList.contains('is-ready')),true);
   await drag(wind,enemyHero);
   assert.equal(await wind.evaluate(unit=>unit.classList.contains('is-ready')),false);
   await drag(wolf,enemyHero);
   assert.equal(await wolf.evaluate(unit=>unit.classList.contains('is-ready')),false);
-  assert.equal(await wolf.evaluate(unit=>unit.classList.contains('is-preparing')),true);
+  // Throttled input can take long enough for the queued attack to begin.
+  if(!profileCombat)assert.equal(await wolf.evaluate(unit=>unit.classList.contains('is-preparing')),true);
   const hand=page.locator('.folded-hand'),card=page.locator('[data-preview-card="harsh_overseer"].battle-card');
   await hand.tap();
   await drag(card,page.locator('.enemy-board'));
@@ -540,6 +580,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   assert.equal(await page.locator('.own-hand .battle-card').count(),1);
   const lookups=await page.evaluate(()=>window.combatAnchorLookups);
   t.diagnostic('Combat DOM anchor queries: '+JSON.stringify(lookups));
+  if(profileCombat)t.diagnostic('Active combat CPU 4x: '+JSON.stringify(await page.evaluate(()=>({...window.stopCombatProfile(),arenaReads:window.combatArenaReads}))));
 
 
   await context.close();

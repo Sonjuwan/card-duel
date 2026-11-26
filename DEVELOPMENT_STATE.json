@@ -11,7 +11,7 @@
     "pagesCommit": "c0463c0"
   },
   "localCandidate": {
-    "version": "0.325.0",
+    "version": "0.323.0",
     "ref": "refs/heads/perf/runtime-20261126"
   },
   "completed": {
@@ -28,12 +28,13 @@
     "PERF-I02": "inline PWA image inventory measured",
     "PERF-J01": "24 Chromium save and resume cycles measured",
     "PERF-I03": "isolated experiment be6dc6e; first install regression",
-    "PERF-F02": "effect anchor lookups measured and tested",
     "PERF-J02": "60 Chromium save and resume cycles measured",
-    "PERF-J03": "heap snapshots at cycles 15 and 60 compared"
+    "PERF-J03": "heap snapshots at cycles 15 and 60 compared",
+    "PERF-F03": "active Chromium CPU-throttled comparison recorded",
+    "PERF-D02": "isolated experiment ca2f43c; active frame improvement not confirmed"
   },
   "inProgress": null,
-  "next": "PROFILE-ACTIVE-COMBAT-FRAMES-AND-PWA-ART-BUNDLES",
+  "next": "PROFILE-LOCAL-DRAG-WRITES-AND-PWA-ART-BUNDLES",
   "resumeAfter": [
     "docs/ROADMAP.md",
     "docs/AI_V2_PLAN.md"
