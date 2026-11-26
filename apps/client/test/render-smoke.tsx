@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { App, Battle, DeckEditor, DeckWorkspace } from '../src/App.tsx';
-import { BattleCard, BattleMinion, HeroPortrait, HeroPower, TargetPicker, PlacementPicker, targetRowText, CardInspector, HiddenHand, ManaDisplay } from '../src/battle-pieces.tsx';
+import { BattleCard, BattleMinion, HeroPortrait, HeroPower, TargetPicker, PlacementPicker, targetRowText, CardInspector, HiddenHand, ManaDisplay, DeckPile } from '../src/battle-pieces.tsx';
 import { catalog, loadPublicCatalog } from '../src/data.ts';
 import { applyAction, createGame, getPlayerView, starterDeck } from '../../../packages/engine/src/index.ts';
 import type { GameState, PlayerId } from '../../../packages/engine/src/index.ts';
@@ -330,4 +330,16 @@ test('static battle subtrees preserve card identity, hand count and independent 
   assert.equal(ids.length,10);
   assert.equal(new Set(ids).size,ids.length);
   for(const id of ids)assert.ok(tables.includes(`url(#${id})`));
+});
+
+
+test('scalar resource readouts preserve deck fatigue, mana flags and labels',()=>{
+  const p=getPlayerView(ready(),0).self;
+  const full=renderToStaticMarkup(<DeckPile player={{...p,deckCount:30,fatigue:0}} label="내"/>);
+  const empty=renderToStaticMarkup(<DeckPile player={{...p,deckCount:0,fatigue:2}} label="내"/>);
+  assert.match(full,/내 덱 30장/);assert.match(full,/local-card-back-art/);
+  assert.match(empty,/내 덱 0장, 탈진 2/);assert.match(empty,/deck-pile empty/);assert.doesNotMatch(empty,/local-card-back-art/);
+  const mana=renderToStaticMarkup(<ManaDisplay player={{...p,mana:2,maxMana:6,lockedMana:2,pendingOverload:3}} charging compact/>);
+  assert.match(mana,/mana-display compact/);assert.match(mana,/data-charging="true"/);assert.match(mana,/마나 2\/6/);
+  assert.match(mana,/다음 과부하 3/);
 });
