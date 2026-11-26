@@ -11,7 +11,7 @@ export function useCardHover(item:Inspectable|null,holdDelay?:number,tapInspect=
   latest.current=item;
   // Leaving/unmounting a source never clears a different card's pending preview.
   useEffect(()=>()=>context?.clear(key),[context,key]);
-  const read=(element:HTMLElement)=>()=>{
+  const read=(element:HTMLElement):(()=>CardPreview|null)=>()=>{
     if(!element.isConnected||!latest.current)return null;
     const bounds=element.getBoundingClientRect();
     return{item:latest.current,side:bounds.left+bounds.width/2<window.innerWidth/2?'right':'left'};
