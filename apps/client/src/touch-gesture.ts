@@ -76,13 +76,17 @@ export type TargetHitBox={target:Target;legal:boolean;left:number;right:number;t
  * cannot steal a drop intended for a different unit. No ambiguous gap snap. */
 export function nearestTouchTarget(x:number,y:number,boxes:readonly TargetHitBox[]):Target|undefined{
   if(!Number.isFinite(x)||!Number.isFinite(y))return undefined;
-  const ranked=boxes.flatMap(box=>{
-    if(![box.left,box.right,box.top,box.bottom].every(Number.isFinite)||box.left>=box.right||box.top>=box.bottom)return [];
+  // Only the nearest and runner-up distances are needed. Preserve original
+  // iteration order for ties, including illegal boxes in both positions.
+  let best:TargetHitBox|undefined,bestDistance=Infinity,secondDistance=Infinity;
+  for(const box of boxes){
+    if(![box.left,box.right,box.top,box.bottom].every(Number.isFinite)||box.left>=box.right||box.top>=box.bottom)continue;
     const dx=Math.max(box.left-x,0,x-box.right),dy=Math.max(box.top-y,0,y-box.bottom);
-    return [{box,distance:Math.hypot(dx,dy)}];
-  }).sort((a,b)=>a.distance-b.distance);
-  const best=ranked[0];
-  return best?.box.legal&&best.distance<=10&&(!ranked[1]||ranked[1].distance-best.distance>=4)?best.box.target:undefined;
+    const distance=Math.hypot(dx,dy);
+    if(!best||distance<bestDistance){secondDistance=bestDistance;bestDistance=distance;best=box;}
+    else if(distance<secondDistance)secondDistance=distance;
+  }
+  return best?.legal&&bestDistance<=10&&secondDistance-bestDistance>=4?best.target:undefined;
 }
 /** Target first, then board fallback for untargeted cards. Never submit a
  * card play on the hand, another UI control, or the area outside the field. */
