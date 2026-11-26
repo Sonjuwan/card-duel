@@ -1,7 +1,7 @@
 import { applyAction, RuleError } from './engine.ts';
 import { candidates } from './simulate.ts';
 import { snapshotBattleCatalog } from './catalog-snapshot.ts';
-import type { Action, CardInstance, Catalog, GameState, Player, PlayerId, PlayerView, PublicPlayer } from './types.ts';
+import type { Action, CardInstance, Catalog, GameState, HeroClass, Player, PlayerId, PlayerView, PublicPlayer } from './types.ts';
 import { botSearchConfig, DEFAULT_BOT_WEIGHTS } from './bot-profile.ts';
 import type { BotOptions, BotWeights } from './bot-profile.ts';
 import { practiceDeck } from './practice-decks.ts';
@@ -167,11 +167,24 @@ function actionBonus(s:GameState,a:Action,actor:PlayerId):number{
 function legalResult(s:GameState,actor:PlayerId,a:Action):GameState|null{
   try{return applyAction(s,actor,a);}catch(e){if(e instanceof RuleError)return null;throw e;}
 }
+// All callers use the managed, deeply immutable battle catalog produced by
+// imagined(). Cache only deterministic practice-card IDs, never sampled hands,
+// RNG, game state or private opponent information.
+const sampleDeckCache=new WeakMap<Catalog,Map<HeroClass,readonly string[]>>();
+function sampledDeckCards(catalog:Catalog,heroClass:HeroClass):readonly string[]{
+  let byClass=sampleDeckCache.get(catalog);
+  if(!byClass){byClass=new Map();sampleDeckCache.set(catalog,byClass);}
+  const existing=byClass.get(heroClass);
+  if(existing)return existing;
+  const cards=Object.freeze(practiceDeck(catalog,heroClass).cards);
+  byClass.set(heroClass,cards);
+  return cards;
+}
 /** Sample a plausible opponent hand from its public class only. No actual
  * enemy hand/deck/secret or server random state can enter this function. */
 function sampleOpponent(s:GameState,actor:PlayerId,salt:number,pairedRevision=s.revision):GameState{
   const {catalog,...dynamic}=s,n={...structuredClone(dynamic),catalog} as GameState,enemy=(1-actor) as PlayerId,p=n.players[enemy];
-  const deck=practiceDeck(catalog,p.heroClass).cards;let seed=(Math.imul(pairedRevision+1,2654435761)^salt)>>>0;
+  const deck=sampledDeckCards(catalog,p.heroClass);let seed=(Math.imul(pairedRevision+1,2654435761)^salt)>>>0;
   const pick=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return deck[seed%deck.length];};
   p.hand=p.hand.map(h=>h.instanceId.startsWith('__bot_')?{...h,cardId:pick()}:h);
   p.deck=p.deck.map(h=>({...h,cardId:pick()}));return n;
