@@ -1,4 +1,4 @@
-import {useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {memo,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {LocalCardArt,LocalHeroArt} from './local-art.tsx';
 import {Sigil} from './battle-pieces.tsx';
 import type {Card,Catalog} from '../../../packages/engine/src/index.ts';
@@ -56,7 +56,7 @@ function ImpactDetail({entry,catalog}:{entry:ImpactHistoryEntry;catalog:Catalog}
   </>;
 }
 
-export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
+export const ImpactRail=memo(function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
   const press=useRef<{id:number;x:number;y:number;timer:ReturnType<typeof setTimeout>}|null>(null);
   const clearPress=()=>{if(press.current)clearTimeout(press.current.timer);press.current=null;};
   useEffect(()=>()=>{if(press.current)clearTimeout(press.current.timer);},[]);
@@ -107,8 +107,8 @@ export function ImpactRail({entries,catalog}:{entries:readonly ImpactHistoryEntr
     {!following&&<button type="button" className="impact-latest secondary" aria-label="최신 행동으로 이동" onClick={()=>{if(scroller.current)scroller.current.scrollTop=0;setSelected(null);}}>↑</button>}
     {preview&&<div className="impact-preview" id={`impact-preview-${preview.revision}`} data-open="true"><ImpactDetail entry={preview} catalog={catalog}/></div>}
   </div>;
-}
+});
 
-export function ImpactHistory({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
+export const ImpactHistory=memo(function ImpactHistory({entries,catalog}:{entries:readonly ImpactHistoryEntry[];catalog:Catalog}){
   return <details className="impact-history"><summary>최근 전투 결과 ({entries.length})</summary>{entries.length?<ol className="impact-history-list">{entries.map(entry=><li key={entry.revision}><ImpactDetail entry={entry} catalog={catalog}/></li>)}</ol>:<p>아직 기록 없음</p>}</details>;
-}
+});
