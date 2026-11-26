@@ -1093,3 +1093,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     pointer-events:auto;
   }
 }
+
+/* Use the same fixed flex basis on both boards. Legacy classic-table rules
+   otherwise grow a direct enemy minion differently from a friendly minion
+   nested in a placement segment, especially when only one unit is present. */
+@media (orientation:landscape){
+  .game-main .duel-screen .arena-field .minion-row .battle-minion{
+    flex:0 0 var(--unit)!important;
+    max-width:var(--unit)!important;
+  }
+}
