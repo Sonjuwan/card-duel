@@ -29,9 +29,29 @@ async function reportInstall(done) {
   }catch{/* Install integrity never depends on notification support. */}
 }
 
+async function activeReleaseCache(names) {
+  if(!names.includes(pointerCache))return undefined;
+  try{
+    const pointer=await (await caches.open(pointerCache)).match(pointerKey);
+    const active=await pointer?.text();
+    if(active&&active!==cacheName&&active.startsWith(prefix)&&
+       /^[a-f0-9]{64}$/.test(active.slice(prefix.length))&&names.includes(active))
+      return await caches.open(active);
+  }catch{/* An unavailable or corrupt cache pointer must not block installation. */}
+}
+async function reusableAsset(cache,path,hash) {
+  if(!cache)return undefined;
+  try{
+    const response=await cache.match(path);
+    if(await responseMatches(response,hash))return response;
+  }catch{/* The normal network and integrity path can recover this asset. */}
+}
+
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
-    const existed=(await caches.keys()).includes(cacheName);
+    const names=await caches.keys();
+    const existed=names.includes(cacheName);
+    const activeCache=await activeReleaseCache(names);
     const cache = await caches.open(cacheName);
     let done=0;
     try {
@@ -44,7 +64,8 @@ self.addEventListener('install', event => {
           if(cached&&await responseMatches(cached,hash)){await reportInstall(++done);continue;}
           if(cached)await cache.delete(path);
         }
-        await cache.put(path,await verifiedResponse(path,hash));
+        const reused=await reusableAsset(activeCache,path,hash);
+        await cache.put(path,reused??await verifiedResponse(path,hash));
         await reportInstall(++done);
       }
     } catch (error) { if(!existed)await caches.delete(cacheName); throw error; }

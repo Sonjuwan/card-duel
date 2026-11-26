@@ -53,7 +53,7 @@ function fakeWorker({corrupt=false,offline=false,script=worker,readAsset=read,sh
   const prefix=`card-duel-solo-app:${scope}:`,pointer=prefix+'active-pointer',pointerKey=scope+'__card-duel-active-release__';
   const listeners=new Map(),storage=sharedStorage??new Map(),other=`card-duel-solo-app:https://other.invalid/:old`,old=prefix+'a'.repeat(64),name=prefix+config.id;
   if(seedOld){storage.set(other,new Map());storage.set(old,new Map());if(seedPointer)storage.set(pointer,new Map([[pointerKey,new Response(old)]]));}
-  let claimed=0;const progress=[];
+  let claimed=0;const progress=[],fetched=[];
   // Real CacheStorage stores immutable response bytes. Do not retain a stream
   // Response object in the mock: Node 22 can mark a cloned stream consumed
   // after several verification reads, unlike the browser Cache API.
@@ -68,13 +68,29 @@ function fakeWorker({corrupt=false,offline=false,script=worker,readAsset=read,sh
       delete:async url=>values.delete(url)
     };
   }};
-  const fetch=async url=>{if(offline)throw Error('No connection');const path=new URL(url).pathname.split('/').at(-1);return new Response(corrupt&&path==='register.js'?'corrupt':readAsset(path));};
+  const fetch=async url=>{if(offline)throw Error('No connection');const path=new URL(url).pathname.split('/').at(-1);fetched.push(path);return new Response(corrupt&&path==='register.js'?'corrupt':readAsset(path));};
   const self={registration:{scope},clients:{claim:async()=>{claimed++;},matchAll:async()=>[{postMessage:data=>progress.push(data)}]},addEventListener:(type,callback)=>listeners.set(type,callback)};
   runInNewContext(script,{self,caches,fetch,URL,Response,crypto:webcrypto,Uint8Array,Map,Object,Array,Error});
   const event=type=>{let promise;listeners.get(type)({waitUntil:value=>{promise=value;}});return promise;};
   const request=(url,method='GET')=>{let promise;listeners.get('fetch')({request:{url,method},respondWith:value=>{promise=value;}});return promise;};
-  return {storage,old,other,name,pointer,pointerKey,event,request,progress,claimed:()=>claimed,setOffline:value=>{offline=value;},setCorrupt:value=>{corrupt=value;},setAssetReader:value=>{readAsset=value;}};
+  return {storage,old,other,name,pointer,pointerKey,event,request,progress,fetched,claimed:()=>claimed,setOffline:value=>{offline=value;},setCorrupt:value=>{corrupt=value;},setAssetReader:value=>{readAsset=value;}};
 }
+test('candidate downloads only missing, modified or damaged active-release assets',async()=>{
+  const app=fakeWorker();
+  const old=app.storage.get(app.old);
+  for(const path of Object.keys(release.files))old.set(scope+path,read(path));
+  old.set(scope+'game.js',Buffer.from('old version bytes'));
+  old.set(scope+'game.css',Buffer.from('damaged bytes'));
+  old.delete(scope+'register.js');
+  await app.event('install');
+  assert.deepEqual(app.fetched.sort(),['game.css','game.js','register.js']);
+  assert.equal(app.storage.get(app.name).size,assetCount);
+  assert.ok(app.storage.has(app.old),'active release is preserved while the candidate waits');
+  for(const [path,digest] of Object.entries(release.files)){
+    assert.equal(hash(app.storage.get(app.name).get(scope+path)),digest);
+  }
+});
+
 test('service worker completes precache, preserves old release until activation, then serves exact offline game',async()=>{
   const app=fakeWorker();await app.event('install');assert.equal(app.storage.get(app.name).size,assetCount);
   assert.deepEqual(app.progress.map(report=>report.done),Array.from({length:assetCount},(_,i)=>i+1));

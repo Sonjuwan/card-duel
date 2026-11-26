@@ -14,7 +14,17 @@ function nextRelease(base){
   const segments=metadata.version.split('.').map(Number);
   segments[2]++;
   const version=segments.join('.');
-  files.set('index.html',Buffer.from(files.get('index.html').toString().replaceAll(metadata.version,version)));
+  let html=files.get('index.html').toString().replaceAll(metadata.version,version);
+  // Use changed bundle bytes so integrity and interrupted downloads still
+  // exercise the network path after unchanged-cache reuse is introduced.
+  for(const name of ['game.js','game.css']){
+    const old=files.get(name);
+    const changed=Buffer.concat([old,Buffer.from('\n/* next release fixture */\n')]);
+    const sri=bytes=>'sha256-'+Buffer.from(hash(bytes),'hex').toString('base64');
+    html=html.replace(sri(old),sri(changed));
+    files.set(name,changed);
+  }
+  files.set('index.html',Buffer.from(html));
   const source=files.get('sw.js').toString();
   const marker=/^const release = (.+);$/m;
   const template=source.replace(marker,'const release = __CACHE_SPEC__;');
@@ -30,10 +40,12 @@ test('installed game verifies and explicitly applies an update without reinstall
   const previous=process.env.CARD_DUEL_PREVIOUS_PWA?loadSoloRelease(process.env.CARD_DUEL_PREVIOUS_PWA):undefined;
   const next=nextRelease(base),types={html:'text/html',js:'text/javascript',css:'text/css',json:'application/json',webmanifest:'application/manifest+json',png:'image/png'};
   let served=previous??base,mode='normal',stylesheetBlocked,notifyStyle;
+  const candidateAssets=[];
   const server=createServer(async(req,res)=>{
     const name=new URL(req.url,'http://localhost').pathname.slice('/ui-preview/'.length)||'index.html';
     const bytes=served.files.get(name);
     if(!bytes){res.writeHead(404).end();return;}
+    if(served===next&&['game.js','game.css','index.html','register.js','manifest.webmanifest','icon-192.png','icon-512.png'].includes(name))candidateAssets.push(name);
     if(served===next&&name==='game.css'&&mode==='block'){
       notifyStyle();await stylesheetBlocked;
     }
@@ -92,6 +104,7 @@ test('installed game verifies and explicitly applies an update without reinstall
     await dialog.getByText(/다운로드 또는 파일 검증에 실패했습니다/).waitFor();
     assert.equal(await apply.isDisabled(),true);
   }
+  candidateAssets.length=0;
   mode='block';
   let releaseStyle;
   stylesheetBlocked=new Promise(resolve=>{releaseStyle=resolve;});
@@ -104,6 +117,7 @@ test('installed game verifies and explicitly applies an update without reinstall
   assert.equal(await apply.isDisabled(),true);
   mode='normal';releaseStyle();
   await dialog.getByText(/파일 검증 완료/).waitFor();
+  assert.deepEqual([...new Set(candidateAssets)].sort(),['game.css','game.js','index.html']);
 
   const second=await context.newPage();
   await second.setViewportSize({width:1366,height:768});
