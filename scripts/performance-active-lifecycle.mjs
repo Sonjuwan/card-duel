@@ -86,6 +86,13 @@ try{
     await result.getByRole('button',{name:'대전 준비로 돌아가기'}).click();
     await records.waitFor();
     await page.waitForFunction(()=>!document.querySelector('.duel-screen'));
+    // Rewards are part of the normal completed-match lifecycle. Do not
+    // bypass their DOM or animation; close using the actual user controls.
+    const reward=page.locator('.preview-card-reward-overlay');
+    if(await reward.isVisible()){
+      await reward.getByRole('button',{name:/^(연출 건너뛰기|계속하기)$/}).click();
+      await reward.waitFor({state:'hidden'});
+    }
     const deadline=Date.now()+5000;
     while(page.workers().length&&Date.now()<deadline)await delay(100);
     const idle=await sample('menu-'+cycle,true);samples.push(idle);
