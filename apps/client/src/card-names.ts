@@ -14,8 +14,12 @@ export function useCardName(card:Card):string{return displayCardName(card,useCon
 const normalizeSearch=(text:string)=>text.normalize('NFKC').toLocaleLowerCase().trim();
 export function cardSearchTerms(query:string):string[]{return normalizeSearch(query).split(/\s+/u).filter(Boolean);}
 export const coinDescription='이번 턴에 마나 1을 얻습니다.';
-export function matchesCardSearch(card:Card,terms:readonly string[]):boolean{
-  if(!terms.length)return true;
+// Catalog definitions are replaced on catalog load. Weak keys let an old catalog
+// and its index be collected together, even when the new one reuses card IDs.
+const searchFields=new WeakMap<Card,readonly string[]>();
+function indexSearchFields(card:Card):readonly string[]{
+  const cached=searchFields.get(card);
+  if(cached)return cached;
   const fields=[card.id,card.name,displayCardName(card,true)];
   fields.push(card.kind==='coin'?coinDescription:card.description);
   if(card.kind==='minion'){
@@ -25,7 +29,16 @@ export function matchesCardSearch(card:Card,terms:readonly string[]):boolean{
   }
   if(card.kind==='weapon'&&card.battlecry?.length)fields.push('전투의 함성');
   const normalized=fields.map(field=>normalizeSearch(field).replace(/[\s_-]+/gu,''));
-  return terms.every(term=>normalized.some(field=>field.includes(term.replace(/[\s_-]+/gu,''))));
+  searchFields.set(card,normalized);
+  return normalized;
+}
+export function matchesCardSearch(card:Card,terms:readonly string[]):boolean{
+  if(!terms.length)return true;
+  const normalized=indexSearchFields(card);
+  return terms.every(term=>{
+    const compact=term.replace(/[\s_-]+/gu,'');
+    return normalized.some(field=>field.includes(compact));
+  });
 }
 
 
