@@ -42,15 +42,17 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await detail.getByRole('button',{name:'덱에 추가',exact:true}).tap();
   await page.waitForFunction(()=>document.querySelector('.deck-live-count')?.textContent==='1/30');
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
-  for(const [width,height] of [[667,375],[844,390],[1024,600]]){
+  await page.locator('.collection-detail-dialog .collection-detail-body').waitFor({state:'detached'});
+  for(const [width,height] of [[667,375],[844,390],[1024,600],[1024,768]]){
     await page.setViewportSize({width,height});
     const geometry=await page.evaluate(()=>{
       const book=document.querySelector('.deck-builder .collection-book');
       const rect=book.getBoundingClientRect();
       const cards=[...book.querySelectorAll('.battle-card')].map(el=>el.getBoundingClientRect());
-      return {count:cards.length,overflow:cards.some(c=>c.left<rect.left-2||c.right>rect.right+2||c.bottom>rect.bottom+2),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
+      const clipped=cards.filter(c=>c.left<rect.left-2||c.right>rect.right+2||c.top<rect.top-2||c.bottom>rect.bottom+2||c.bottom>innerHeight+2);
+      return {count:cards.length,overflow:clipped.length>0,book:rect.toJSON(),clipped:clipped.map(c=>c.toJSON()),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
     });
-    assert.ok(geometry.count>0&&geometry.count<=8,JSON.stringify(geometry));
+    assert.equal(geometry.count,8,JSON.stringify(geometry));
     assert.equal(geometry.overflow,false,JSON.stringify({width,height,...geometry}));
     assert.ok(geometry.documentWidth<=width+2&&geometry.documentHeight<=height+2,JSON.stringify(geometry));
   }
