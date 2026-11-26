@@ -990,3 +990,14 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .game-main .duel-screen:not(.is-dragging) .arena-field .own-hand .hand-card-slot:hover>.battle-card{transform:scale(1.42)!important;transform-origin:bottom center;transition:transform 100ms ease;z-index:42}
   .game-main .duel-screen:not(.is-dragging) .arena-field .own-hand .hand-card-slot:hover{z-index:42}
 }
+
+.game-main .duel-screen .mana-preview-label{color:#ffd571;font-size:.6em;margin-inline-start:3px}
+@media (orientation:landscape){
+.game-main .duel-screen .arena-field>:is(.hero-zone,.arena-board){position:relative!important;inset:auto!important;grid-column:1!important;align-self:stretch!important;width:100%!important;box-sizing:border-box}
+}
+@media (orientation:landscape) and (max-height:540px){
+.game-main .duel-screen .arena-field>.own-hand{position:absolute!important;inset:auto 0 0!important;height:25%!important;min-height:0!important;max-height:25%!important;pointer-events:none;z-index:34}
+.game-main .duel-screen .own-hand .folded-hand{pointer-events:auto}
+.game-main .duel-screen .own-hand .battle-hand{height:100%!important;max-height:100%!important}
+.game-main .duel-screen .arena-field .arena-board{padding-inline:max(54px,8dvw) max(90px,12dvw)!important}
+}

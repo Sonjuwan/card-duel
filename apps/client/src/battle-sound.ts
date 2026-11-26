@@ -80,7 +80,7 @@ export function unlockBattleSound(event?:Event){
   }catch{/* Sound is optional and must never interrupt gameplay. */}
 }
 function tone(from:number,to:number,time:number,volume:number,type:OscillatorType='sine',delay=0){
-  if(!context||!master)return;
+  if(!context||!master||activeSources.size>=MAX_BATTLE_SOUND_SOURCES)return;
   const start=context.currentTime+delay,osc=context.createOscillator(),gain=context.createGain();
   osc.type=type;osc.frequency.setValueAtTime(from,start);osc.frequency.exponentialRampToValueAtTime(Math.max(1,to),start+time);
   gain.gain.setValueAtTime(.001,start);gain.gain.exponentialRampToValueAtTime(Math.max(.002,volume),start+.015);gain.gain.exponentialRampToValueAtTime(.001,start+time);
@@ -88,7 +88,7 @@ function tone(from:number,to:number,time:number,volume:number,type:OscillatorTyp
   try{osc.start(start);osc.stop(start+time+.02);}catch(e){cancelSource(osc);throw e;}
 }
 function noise(time:number,frequency:number,endFrequency:number,volume:number,delay=0,type:BiquadFilterType='lowpass'){
-  if(!context||!master)return;
+  if(!context||!master||activeSources.size>=MAX_BATTLE_SOUND_SOURCES)return;
   if(!engineNoise){engineNoise=context.createBuffer(1,context.sampleRate*2,context.sampleRate);const samples=engineNoise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;}
   const start=context.currentTime+delay,source=context.createBufferSource(),filter=context.createBiquadFilter(),gain=context.createGain();
   source.buffer=engineNoise;filter.type=type;filter.frequency.setValueAtTime(frequency,start);filter.frequency.exponentialRampToValueAtTime(Math.max(20,endFrequency),start+time);

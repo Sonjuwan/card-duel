@@ -172,10 +172,13 @@ const ManaReadout=memo(function ManaReadout({mana,maxMana,lockedMana,pendingOver
   const slots=Math.min(10,Math.max(0,maxMana+extra));
   const gem=(i:number)=>i>=slots?'future':i>=unlocked&&i<maxMana?'locked':i<Math.min(mana,unlocked)||i>=maxMana&&i<maxMana+extra?'filled':'spent';
   const spent=Math.max(0,unlocked-Math.min(mana,unlocked));
-  const resourceLabel=`마나 ${mana}/${maxMana}, 사용한 마나 ${spent}${lockedMana?`, 잠긴 마나 ${lockedMana}`:''}${extra?`, 추가 마나 ${extra}`:''}${pendingOverload?`, 다음 턴 과부하 ${pendingOverload}`:''}`;
+  const preview=previewCost!==undefined&&previewCost<=mana;
+  const filled=Array.from({length:10},(_,i)=>i).filter(i=>gem(i)==='filled');
+  const spending=new Set(preview?filled.slice(Math.max(0,filled.length-previewCost!)):[]);
+  const resourceLabel=`마나 ${mana}/${maxMana}, 사용한 마나 ${spent}${lockedMana?`, 잠긴 마나 ${lockedMana}`:''}${extra?`, 추가 마나 ${extra}`:''}${pendingOverload?`, 다음 턴 과부하 ${pendingOverload}`:''}${preview?`, 사용 후 예상 마나 ${mana-previewCost!}`:''}`;
   return <div className={`mana-display${compact?' compact':''}`} data-charging={charging||undefined} data-preview-insufficient={previewCost!==undefined&&previewCost>mana||undefined} role="group" aria-label={resourceLabel} title={resourceLabel}>
-    <span className="mana-number"><span className="mana-jewel" aria-hidden="true"/>{previewCost!==undefined&&previewCost<=mana?mana-previewCost:mana}<small>/{maxMana}</small></span>
-    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=>{const state=gem(i);return <span key={i} className={`mana-crystal ${state}${previewCost!==undefined&&previewCost<=mana&&state==='filled'&&i>=mana-previewCost?' preview-spend':''}`}>{state==='locked'?'🔒':''}</span>;})}</span>
+    <span className="mana-number"><span className="mana-jewel" aria-hidden="true"/>{preview?mana-previewCost!:mana}<small>/{maxMana}</small>{preview&&<small className="mana-preview-label">예상</small>}</span>
+    <span className="mana-crystals" aria-hidden="true">{Array.from({length:10},(_,i)=>{const state=gem(i);return <span key={i} className={`mana-crystal ${state}${spending.has(i)?' preview-spend':''}`}>{state==='locked'?'🔒':''}</span>;})}</span>
     {(pendingOverload>0||lockedMana>0)&&<span className="mana-warning">{lockedMana>0?`🔒 ${lockedMana}`:''}{lockedMana>0&&pendingOverload>0?' · ':''}{pendingOverload>0?`다음 과부하 ${pendingOverload}`:''}</span>}
   </div>;
 });

@@ -9,7 +9,7 @@ import type { Action, PlayerId, Target } from '../../../packages/engine/src/inde
 import type { RoomView } from '../../../packages/protocol.ts';
 import { catalog, catalogHash } from './data.ts';
 import { formatBattleReport } from './battle-report.ts';
-import { planAttack, planCard, planDrag, planPower, selectionCard, repositionSelection, toggleActionSelection, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from './battle-actions.ts';
+import { hasRemainingBattleAction, planAttack, planCard, planDrag, planPower, selectionCard, repositionSelection, toggleActionSelection, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from './battle-actions.ts';
 import type { DragIntent, DragState, Intent, Selection } from './battle-actions.ts';
 import { BattleCard, BattleMinion, CardInspector, DeckPile, HeroPortrait, HeroPower, HiddenHand, ManaDisplay, Secrets, Sigil, targetRowText, WeaponSlot } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
@@ -239,7 +239,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const previousResult=useRef<ResultSoundState|null>(null);
   useEffect(()=>{if(!connected||!s){previousResult.current=null;return;}if(!presentingResult&&s.phase==='finished')return;const current={code:room.code,seat,phase:s.phase,winner:s.winner},result=resultSoundTransition(previousResult.current,current);previousResult.current=current;if(result)playBattleResultSound(result);},[room.code,seat,s?.phase,s?.winner,presentingResult,connected]);
   const previousSoundRoom=useRef<RoomView|null>(null);
-  useEffect(()=>{if(!connected||!s){previousSoundRoom.current=null;return;}const before=previousSoundRoom.current;previousSoundRoom.current=room;if(!before||before.code!==room.code){return;}if(room.animationSpeed!=='instant'||!before.state)return;const a=freshAcceptedAnimation(before,room);if(!a)return;const impacts=impactChanges(before.state,s,seat,a.events),feedback=impactFeedback(a,impacts);const actor=a.actor===seat?before.state.self:before.state.opponent;if(a.kind==='attack'||a.kind==='heroAttack')feedback.attackPower=a.kind==='heroAttack'?actor.heroAttack+(actor.weapon?.attack??0):actor.board.find(m=>m.instanceId===a.attackerId)?.attack;playBattleHaptic(a,feedback,seat);if(s.phase==='finished')return;const theme=animationTheme(a,a.cardId?catalog[a.cardId]:undefined,a.actor===seat?before.state.self.heroClass:before.state.opponent.heroClass);playBattleSound(a,theme,'impact',feedback);playBattleDepartureSound(departureSoundKind(impacts));},[room.code,seat,s?.revision,room.animationSpeed,connected]);
+  useEffect(()=>{if(!connected||!s){previousSoundRoom.current=null;return;}const before=previousSoundRoom.current;previousSoundRoom.current=room;if(!before||before.code!==room.code){return;}if(room.animationSpeed!=='instant'||!before.state)return;const a=freshAcceptedAnimation(before,room);if(!a)return;const impacts=impactChanges(before.state,s,seat,a.events),feedback=impactFeedback(a,impacts);const actor=a.actor===seat?before.state.self:before.state.opponent;if(a.kind==='attack'||a.kind==='heroAttack')feedback.attackPower=a.kind==='heroAttack'?actor.heroAttack+(actor.weapon?.attack??0):actor.board.find(m=>m.instanceId===a.attackerId)?.attack;playBattleHaptic(a,feedback,seat);const theme=animationTheme(a,a.cardId?catalog[a.cardId]:undefined,a.actor===seat?before.state.self.heroClass:before.state.opponent.heroClass);playBattleSound(a,theme,'impact',feedback);playBattleDepartureSound(departureSoundKind(impacts));},[room.code,seat,s?.revision,room.animationSpeed,connected]);
   useEffect(()=>()=>{stopBattleHaptics();stopBattleSound();stopDialogueVoice();},[room.code]);
   const [reconnectLeft,setReconnectLeft]=useState<number|null>(()=>room.opponentReconnectDeadlineMs===undefined?null:secondsUntilDeadline(room.opponentReconnectDeadlineMs,Date.now()));
   useEffect(()=>watchDeadlineSeconds(room.opponentReconnectDeadlineMs,setReconnectLeft,1000),[room.opponentReconnectDeadlineMs]);
@@ -318,9 +318,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   },[]);
   useEffect(()=>{setSelected(null);setPosition(null);cancelActiveTouch();setDropNotice('');},[room.code,acceptedTurn,acceptedPhase,connected,opponentReady]);
   const rulesView=projected??s;
-  const readyToEnd=!!rulesView&&active&&!selected&&!drag&&!casting&&!busy&&!reservations.length&&!planPower(rulesView,seat,catalog)&&!planAttack(rulesView,seat,catalog)&&!rulesView.self.board.some(unit=>!!planAttack(rulesView,seat,catalog,unit.instanceId))&&!rulesView.self.hand.some(card=>!!planCard(rulesView,seat,catalog,card.instanceId));
-  const lastReady=useRef(false);
-  useEffect(()=>{if(readyToEnd&&!lastReady.current)playTurnReadySound();lastReady.current=readyToEnd;},[readyToEnd]);
+  const readyToEnd=!!rulesView&&active&&!selected&&!drag&&!casting&&!busy&&!reservations.length&&!hasRemainingBattleAction(rulesView,seat,catalog);
+  const lastReady=useRef('');
+  useEffect(()=>{const key=room.code+':'+rulesView?.turn;if(readyToEnd&&lastReady.current!==key){playTurnReadySound();lastReady.current=key;}else if(rulesView&&active&&hasRemainingBattleAction(rulesView,seat,catalog))lastReady.current='';},[readyToEnd,room.code,rulesView,active,seat]);
   useEffect(()=>{if(rulesView?.self.hand.length===0)setHandOpen(false);},[rulesView?.self.hand.length]);
   useLayoutEffect(()=>{
     const gesture=touchRef.current,held=dragRef.current??gesture?.drag;
