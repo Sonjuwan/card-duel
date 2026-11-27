@@ -1,0 +1,54 @@
+name: Engine evaluation experiment
+on:
+  pull_request:
+    branches: [perf/v0.323-static-render]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  compare:
+    if: github.event.pull_request.head.ref == 'perf/v0.323-engine-evaluation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '2a971d23b472b9c1931444b97b824a5feb176d0a'
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run typecheck && npm run verify:release-baseline
+      - run: node --test packages/engine/test/bot.test.ts
+      - run: npm ci
+        working-directory: baseline
+      - name: Compare identical search budgets and all policies
+        shell: bash
+        run: |
+          cp apps/cli/benchmark-device-ai.ts baseline/apps/cli/benchmark-device-ai.ts
+          for policy in 1 2 3; do
+            for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+              for kind in $order; do
+                dir=.
+                if [ "$kind" = baseline ]; then dir=baseline; fi
+                (cd "$dir" && CARD_DUEL_FIXED_NODES=1 CARD_DUEL_BENCH_POLICY="$policy" node apps/cli/benchmark-device-ai.ts 9 25 auto mid) | tee -a "/tmp/ai-$kind.jsonl"
+              done
+            done
+          done
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const read=k=>readFileSync("/tmp/ai-"+k+".jsonl","utf8").trim().split("\n").map(JSON.parse);
+            const a=read("baseline"),b=read("candidate");
+            assert.equal(a.length,b.length);assert.equal(a.length,18);
+            for(let i=0;i<a.length;i++){
+              if(a[i].weights){assert.equal(a[i].weights,b[i].weights);continue;}
+              for(const k of ["policyVersion","difficulty","positions","nodeBudget","rankedActionSha256","acceptedActionSha256"])assert.equal(a[i][k],b[i][k],k);
+              console.log(JSON.stringify({policy:a[i].policyVersion,positions:a[i].positions,beforeMedianMs:a[i].medianMs,afterMedianMs:b[i].medianMs,beforeP95Ms:a[i].p95Ms,afterP95Ms:b[i].p95Ms,decisionMatch:true}));
+            }
+          '

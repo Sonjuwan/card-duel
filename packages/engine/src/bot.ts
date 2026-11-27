@@ -14,11 +14,24 @@ export function isBotDifficulty(value:unknown):value is BotDifficulty{
   return typeof value==='number'&&BOT_DIFFICULTIES.includes(value as BotDifficulty);
 }
 
+// All calls below use immutable battle catalogs; only public static definitions
+// are cached, never board state or the sampled opponent's hidden cards.
+type CatalogFacts={placeholder:string|undefined;secrets:Map<HeroClass,string[]>};
+const factsCache=new WeakMap<Catalog,CatalogFacts>();
+function botCatalogFacts(catalog:Catalog):CatalogFacts{
+  const cached=factsCache.get(catalog);if(cached)return cached;
+  const cards=Object.values(catalog),secrets=new Map<HeroClass,string[]>();
+  for(const c of cards)if(c.kind==='secret'&&c.collectible!==false&&c.class!=='neutral'){
+    const ids=secrets.get(c.class)??[];ids.push(c.id);secrets.set(c.class,ids);
+  }
+  const facts={placeholder:cards.find(c=>c.kind==='minion'&&c.collectible!==false)?.id,secrets};
+  factsCache.set(catalog,facts);return facts;
+}
 /** Build a hypothetical position using only information visible to the bot.
  * Unknown cards are deliberately represented by placeholders; the actual shuffled
  * decks, enemy secrets, and server RNG are never passed to the decision function. */
 function imagined(view:PlayerView,catalog:Catalog,actor:PlayerId):GameState{
-  const placeholder=Object.values(catalog).find(c=>c.kind==='minion'&&c.collectible!==false)?.id;
+  const placeholder=botCatalogFacts(catalog).placeholder;
   if(!placeholder)throw new Error('AI requires a collectible minion');
   const unknown=(count:number,label:string):CardInstance[]=>Array.from({length:count},(_,i)=>({instanceId:`__bot_${label}_${i}`,cardId:placeholder}));
   const player=(p:PublicPlayer,side:string,hand:CardInstance[],secrets:CardInstance[]):Player=>({
@@ -50,7 +63,7 @@ function value(s:GameState,actor:PlayerId,advanced=false):number{
   const own=s.players[actor],enemy=s.players[(1-actor) as PlayerId];
   // Estimate pressure on each hero from public board and weapon only.
   const danger=(p:Player,against:Player)=>{
-    const guard=p.board.filter(m=>m.keywords?.includes('taunt')&&!m.keywords?.includes('stealth')).reduce((n,m)=>n+m.health+(m.keywords?.includes('divineShield')?2:0),0);
+    let guard=0;for(const m of p.board)if(m.keywords?.includes('taunt')&&!m.keywords?.includes('stealth'))guard=guard+m.health+(m.keywords?.includes('divineShield')?2:0);
     const pressure=Math.max(0,against.board.reduce((n,m)=>n+(m.frozenThroughTurn===undefined?m.attack*(m.keywords?.includes('windfury')?2:1):0),0)+(against.weapon?.attack??0)-guard);
     return Math.max(0,pressure-(p.health+p.armor)*.55)*1.2+Math.max(0,pressure-p.health-p.armor+1)*2;
   };
@@ -128,7 +141,7 @@ function weightedValue(s:GameState,actor:PlayerId,w:Readonly<BotWeights>,adaptiv
   };
   const own=s.players[actor],enemy=s.players[(1-actor) as PlayerId];
   const threat=(p:Player,against:Player)=>{
-    const guard=p.board.filter(m=>m.keywords?.includes('taunt')&&!m.keywords?.includes('stealth')).reduce((n,m)=>n+m.health+(m.keywords?.includes('divineShield')?2:0),0);
+    let guard=0;for(const m of p.board)if(m.keywords?.includes('taunt')&&!m.keywords?.includes('stealth'))guard=guard+m.health+(m.keywords?.includes('divineShield')?2:0);
     const raw=against.board.reduce((n,m)=>{const c=s.catalog[m.cardId];return n+(m.frozenThroughTurn===undefined&&!(c?.kind==='minion'&&c.noAttack&&!m.silenced)?m.attack*(m.keywords?.includes('windfury')?2:1):0);},0)+(against.weapon?.attack??0)+(against.heroAttack??0);
     const pressure=Math.max(0,raw-guard),hp=p.health+p.armor;
     return (Math.max(0,pressure-hp*.5)*1.15+Math.max(0,pressure-hp+1)*2.8)*w.pressure;
@@ -145,7 +158,7 @@ function stateKeyV2(s:GameState):string{
 }
 function optimizedOptions(s:GameState,actor:PlayerId):Action[]{
   const own=s.players[actor],enemy=s.players[(1-actor) as PlayerId];
-  const taunts=new Set(enemy.board.filter(m=>m.keywords?.includes('taunt')&&!m.keywords?.includes('stealth')).map(m=>m.instanceId));
+  const taunts=new Set<string>();for(const m of enemy.board)if(m.keywords?.includes('taunt')&&!m.keywords?.includes('stealth'))taunts.add(m.instanceId);
   const seen=new Set<string>();
   return options(s,actor,true).filter(a=>{
     if((a.type==='attack'||a.type==='heroAttack')&&taunts.size>0&&(a.target.kind!=='minion'||!taunts.has(a.target.instanceId)))return false;
@@ -219,11 +232,11 @@ function confirmsLethal(s:GameState,actor:PlayerId,path:Action[],secretCount:num
 }
 function visibleSecretRisk(s:GameState,actor:PlayerId,path:Action[],count:number,salt:number,w:Readonly<BotWeights>,expected:number):number{
   const enemy=(1-actor) as PlayerId,cls=s.players[enemy].heroClass;
-  const pool=Object.values(s.catalog).filter(c=>c.kind==='secret'&&c.class===cls&&c.collectible!==false);
+  const pool=botCatalogFacts(s.catalog).secrets.get(cls)??[];
   if(!count||!pool.length)return 0;
   const {catalog,...dynamic}=s;let n={...structuredClone(dynamic),catalog} as GameState,seed=(s.revision^salt)>>>0;
   const available=[...pool];
-  for(let i=0;i<Math.min(count,available.length);i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const card=available.splice(seed%available.length,1)[0];n.players[enemy].secrets.push({instanceId:'__bot_secret_'+i,cardId:card.id});}
+  for(let i=0;i<Math.min(count,available.length);i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const cardId=available.splice(seed%available.length,1)[0];n.players[enemy].secrets.push({instanceId:'__bot_secret_'+i,cardId});}
   for(const action of path){const after=legalResult(n,actor,action);if(!after)break;n=after;if(n.phase==='finished')break;}
   // A guessed secret is uncertain, but estimated losses are relevant. A
   // speculative successful lethal is not an unlimited positive score.
@@ -256,7 +269,8 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
     nodes.sort((a,b)=>b.rank-a.rank);
     // Preserve root diversity rather than spending every branch on one trade.
     const counts=new Map<Action,number>(),result:SearchNode[]=[];
-    for(const n of nodes){const key=adaptive?stateKeyV2(n.state):stateKey(n.state);if(seen.has(key)||(counts.get(n.first)??0)>=Math.max(2,Math.ceil(config.beam/3)))continue;seen.add(key);counts.set(n.first,(counts.get(n.first)??0)+1);result.push(n);if(result.length>=config.beam)break;}
+    const perRoot=Math.max(2,Math.ceil(config.beam/3));
+    for(const n of nodes){const count=counts.get(n.first)??0;if(count>=perRoot)continue;const key=adaptive?stateKeyV2(n.state):stateKey(n.state);if(seen.has(key))continue;seen.add(key);counts.set(n.first,count+1);result.push(n);if(result.length>=config.beam)break;}
     return result;
   };
   frontier=breadth(frontier);
