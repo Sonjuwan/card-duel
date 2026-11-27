@@ -5,6 +5,7 @@ import type { BotWeights, Catalog, Deck, ResearchStrategy } from '../../packages
 import { fixtureSeed, isMatchupGroup, MATCHUPS, positiveSignTail, RELEASE_FIXTURE_START, rowFor } from './matchup-evolution.ts';
 import type { MatchupState, MatchupGroup } from './matchup-evolution.ts';
 import { benchmarkDeck } from './research-benchmark-decks.ts';
+import type { FixtureSplit } from './research-benchmark-decks.ts';
 import type { ResearchWeightRow } from './research-models.ts';
 import type { TrainingJob } from './ai-training-match.ts';
 
@@ -42,8 +43,7 @@ export function releaseJobs(catalog: Catalog, trainingSeed: number, matrix: Inte
   const seed = fixtureSeed(trainingSeed, RELEASE_FIXTURE_START + (holdout ? RELEASE_GROUPS : 0) + index);
   const split = holdout ? 'confirmation' : 'release';
   const profile = releaseProfile(own, holdout);
-  const pilot = benchmarkDeck(catalog, HERO_CLASSES[(cell + block) % HERO_CLASSES.length], own, split, (seed ^ 0x530fce3a) >>> 0);
-  const rival = benchmarkDeck(catalog, HERO_CLASSES[(cell * 2 + block * 5 + 4) % HERO_CLASSES.length], opponent, split, (seed ^ 0xde9060a1) >>> 0);
+  const [pilot, rival] = integratedFixtureDecks(catalog, cell, block, seed, split);
   const jobs: TrainingJob[] = [];
   for (const treatment of [false, true]) {
     for (const candidateSeat of [0, 1] as const) {
@@ -58,6 +58,14 @@ export function releaseJobs(catalog: Catalog, trainingSeed: number, matrix: Inte
     }
   }
   return jobs;
+}
+
+export function integratedFixtureDecks(catalog: Catalog, cell: number, block: number, seed: number, split: FixtureSplit): [Deck, Deck] {
+  const { own, opponent } = MATCHUPS[cell];
+  return [
+    benchmarkDeck(catalog, HERO_CLASSES[(cell + block) % HERO_CLASSES.length], own, split, (seed ^ 0x530fce3a) >>> 0),
+    benchmarkDeck(catalog, HERO_CLASSES[(cell * 2 + block * 5 + 4) % HERO_CLASSES.length], opponent, split, (seed ^ 0xde9060a1) >>> 0),
+  ];
 }
 
 function summarize(groups: readonly MatchupGroup[]) {

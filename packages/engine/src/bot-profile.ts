@@ -1,3 +1,5 @@
+import type { CounterattackOrder } from './bot-counterattack.ts';
+
 /** Tunable, interpretable evaluation coefficients. Evolution optimizes these
  * through complete legal games; no private data or external model is needed. */
 export const BOT_WEIGHT_KEYS=['health','lowHealth','criticalHealth','body','attack','durability','ability','keyword','weapon','hand','handQuality','secret','mana','overload','fatigue','pressure','initiative','trade','face'] as const;
@@ -28,4 +30,8 @@ export interface BotOptions{
   responseLimit?:number;
   /** Pin exact training/benchmark decision semantics across engine releases. */
   policyVersion?:1|2|3|4|5;
+  /** Research override for the bounded public counterattack proof. */
+  counterattackOrder?: CounterattackOrder;
+  /** Research override that reserves reply-proof work during or after beam search. */
+  counterattackSchedule?: 'beam' | 'finalists' | 'hybrid';
 }

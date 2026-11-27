@@ -12,6 +12,10 @@ const recipes: Record<ResearchStrategy, readonly (readonly [number, number])[]> 
 
 export const RESEARCH_SPLITS = ['development', 'holdout'] as const;
 export type ResearchSplit = typeof RESEARCH_SPLITS[number];
+const FIXTURE_SPLITS = [...RESEARCH_SPLITS, 'release', 'confirmation', 'control-development',
+  'control-confirmation', 'control-stress', 'control-inference', 'control-tactics', 'control-reply-schedule',
+  'control-evaluation', 'control-reply-hybrid', 'control-evaluation-phases'] as const;
+export type FixtureSplit = typeof FIXTURE_SPLITS[number];
 export const researchSplitSeed = { development: 179424673, holdout: 15485863 } satisfies Record<ResearchSplit, number>;
 const manaBand = (cost: number) => cost <= 1 ? 0 : cost === 2 ? 1 : cost <= 4 ? 2 : cost <= 6 ? 3 : 4;
 
@@ -33,11 +37,11 @@ function priority(card: Card, strategy: ResearchStrategy): number {
 }
 
 /** The fixtures use separate quotas and selection rules from the AI's reference decks. */
-export function benchmarkDeck(catalog: Catalog, heroClass: HeroClass, strategy: ResearchStrategy, split: ResearchSplit | 'release' | 'confirmation', seed: number): Deck {
+export function benchmarkDeck(catalog: Catalog, heroClass: HeroClass, strategy: ResearchStrategy, split: FixtureSplit, seed: number): Deck {
   let state = seed >>> 0;
   const pool = deckCards(catalog, heroClass);
   // Distinct reserved slots keep the release fixtures outside both training holdouts.
-  const anchorIndex = split === 'development' ? 0 : split === 'holdout' ? 1 : split === 'release' ? 2 : 3;
+  const anchorIndex = FIXTURE_SPLITS.indexOf(split);
   const required = Math.max(2, anchorIndex + 1);
   const anchors = pool.filter(card => card.kind === 'minion' && manaBand(card.cost) === 2 && card.attack >= 2).slice(0, required);
   if (anchors.length < required) throw new Error(`Not enough mid-curve minions for the ${heroClass} validation fixtures`);

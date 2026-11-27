@@ -129,4 +129,8 @@ ZIP을 복원한 경우 `data/ai`가 제공되어 있으며 이전 저장본에 
 - 다음 핵심 작업의 권장 추론 수준은 Extra High다. 장기 실경기에서 독립 후보의 승격과 통합 배포 전 검증 결과를 확인한다. 기존 후보만 마무리할 때는 `train:matchups -- --finish-validation`, 통합 결과를 확인할 때는 `verify:integrated-ai`를 사용한다. 더 넓은 전술군 및 상대 집단 일반화, 통합 관리 화면과 Windows 검증이 남았다.
 - 재개 입력 예시 — “Card Duel 차세대 AI 연구를 ai-research-foundation의 HANDOFF.md부터 이어서 개발하고 검증해 주세요.”
 
-후속 AI 개발은 **Extra High**를 권장한다. 후보 및 현 챔피언 상태는 유지했다. 별도의 개발용 덱·시드에서 미드레인지의 기존 정책 4를 고정하고, 컨트롤만 대상으로 탐색 정책과 혼합 강도를 독립 비교한다. 통합 심사와 이번 확인 시드는 개발 후보 선정에서 제외한다. 개발용 결과에서 후보를 하나 고정한 후 새 확인 덱·시드에서 기존 승격·배포 허들을 적용한다. 재현 및 확인 명령은 `docs/AI_TRAINING.md`, 판정은 `docs/TEST_RESULTS.md`에 있다.
+### 컨트롤 연구 인계 (2026-11-28 KST)
+
+`c88ff2c`에서 시작해 미드레인지 정책 4를 고정했다. 컨트롤의 10가지 설정을 개발 2,160경기로 비교했고 정책 4·혼합 0%를 고정했다. 독립 576경기에서 전체 +1.04%p와 p=.500, 컨트롤 −4.17%p 및 어그로 −8.33%p였다. 검증 기준을 통과하지 못해 승격·배포 승인을 보류했다. 동일한 덱과 시드에서 기존 컨트롤과 비교한 차이는 −1.39%p였다. 이후 공개 반격, 추론, 평가 계수를 별도 연구로 이어갔다.
+
+같은 작업 공간에서는 `/workspace/work/matchup-smoke-c657ced/matchups-v1/4fda1c70ee9d13b2bafdc894021b7d550081b92c524d5b9aa100904d48307afb/checkpoint.json`과 `/workspace/work/control-{development,confirmation}-v1.json`으로 재검증할 수 있다. 보고서 생성과 판정 명령은 `docs/AI_TRAINING.md`, 실측과 후속 방향은 `docs/TEST_RESULTS.md`에 있다. 사용자가 1시간 단위를 지정한 경우 판정을 마친 실험에서 다음 구현·검증으로 이어간다.

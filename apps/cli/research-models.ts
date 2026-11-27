@@ -1,5 +1,5 @@
 import { BOT_WEIGHT_KEYS, DEFAULT_BOT_WEIGHTS } from '../../packages/engine/src/bot-profile.ts';
-import type { BotWeights } from '../../packages/engine/src/bot-profile.ts';
+import type { BotWeightKey, BotWeights } from '../../packages/engine/src/bot-profile.ts';
 import { RESEARCH_STRATEGIES, researchDeck } from '../../packages/engine/src/deck-strategies.ts';
 import type { ResearchStrategy } from '../../packages/engine/src/deck-strategies.ts';
 import type { Card, Catalog, HeroClass, PlayerId, PlayerView, PublicEvent } from '../../packages/engine/src/types.ts';
@@ -64,7 +64,13 @@ function evidenceFor(catalog: Catalog, heroClass: HeroClass): StrategyEvidence {
 export const INFERENCE_MODES = ['uniform', 'cards', 'profile', 'actions'] as const;
 export type InferenceMode = typeof INFERENCE_MODES[number];
 type LogEvidence = [aggro: number, midrange: number, control: number, bigDeck: number];
-type StrategyProbabilities = Record<ResearchStrategy, number>;
+export type StrategyProbabilities = Record<ResearchStrategy, number>;
+
+export const INFERENCE_HORIZONS = [2, 4, 6, 8] as const;
+export type InferenceHorizon = typeof INFERENCE_HORIZONS[number];
+type WeightGate = { keys: readonly BotWeightKey[]; activeWhen: 'health-15' | 'mana-5' };
+export type ResearchMixRule = { mode: InferenceMode; attenuation?: 'posterior' | 'row'; keys?: readonly BotWeightKey[];
+  gates?: readonly WeightGate[] };
 
 function profileEvidence(card: Card): LogEvidence {
   if (card.kind === 'minion') {
@@ -158,6 +164,34 @@ export function mixResearchWeights(row: ResearchWeightRow, probabilities: Readon
       total + row[strategy][key] * probabilities[strategy], 0);
   }
   return result;
+}
+
+export function attenuatedResearchWeights(row: ResearchWeightRow, base: BotWeights,
+  probabilities: StrategyProbabilities, attenuation: NonNullable<ResearchMixRule['attenuation']>): BotWeights {
+  // Four strategies start at .25. Inference retains a .025 floor per strategy.
+  const strength = (Math.max(...Object.values(probabilities)) - .25) / .675;
+  if (attenuation === 'posterior') {
+    const shrunk = { ...probabilities };
+    for (const strategy of RESEARCH_STRATEGIES) shrunk[strategy] = .25 + strength * (probabilities[strategy] - .25);
+    return mixResearchWeights(row, shrunk);
+  }
+  const blended = mixResearchWeights(row, probabilities);
+  for (const key of BOT_WEIGHT_KEYS) blended[key] = base[key] + strength * (blended[key] - base[key]);
+  return blended;
+}
+
+export function resolveResearchWeights(row: ResearchWeightRow, base: BotWeights, probabilities: StrategyProbabilities,
+  rule?: ResearchMixRule, position?: Pick<PlayerView['self'], 'health' | 'armor' | 'maxMana'>): BotWeights {
+  const mixed = rule?.attenuation ? attenuatedResearchWeights(row, base, probabilities, rule.attenuation)
+    : mixResearchWeights(row, probabilities);
+  if (!rule?.keys && !rule?.gates) return mixed;
+  const selected = { ...base };
+  for (const key of rule.keys ?? []) selected[key] = mixed[key];
+  for (const gate of rule.gates ?? []) {
+    const active = position && (gate.activeWhen === 'health-15' ? position.health + position.armor <= 15 : position.maxMana >= 5);
+    if (active) for (const key of gate.keys) selected[key] = mixed[key];
+  }
+  return selected;
 }
 
 export function initialResearchRow(own: ResearchStrategy): ResearchWeightRow {

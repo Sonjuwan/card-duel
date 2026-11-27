@@ -2,9 +2,10 @@ import { applyAction,createGame,getPlayerView,HERO_CLASSES,practiceDeck,starterD
 import type { BotDifficulty,BotWeights,Catalog,GameState,HeroClass,PlayerId,DeckStyle,Deck,PlayerView,Action } from '../../packages/engine/src/index.ts';
 import {createTrainingScenarios,variedCatalog} from './ai-training-scenarios.ts';
 import type {OpponentTag,ScenarioOptions} from './ai-training-scenarios.ts';
-import { inferOpponentStrategy, mixInitialResearchWeights, mixResearchWeights } from './research-models.ts';
+import { INFERENCE_HORIZONS, INFERENCE_MODES, inferOpponentStrategy,
+  mixInitialResearchWeights, resolveResearchWeights } from './research-models.ts';
 import type { BotOptions } from '../../packages/engine/src/index.ts';
-import type { InferenceMode, ResearchWeightRow } from './research-models.ts';
+import type { InferenceHorizon, InferenceMode, ResearchMixRule, ResearchWeightRow, StrategyProbabilities } from './research-models.ts';
 import type { ResearchStrategy } from '../../packages/engine/src/deck-strategies.ts';
 export interface TrainingJob {
   seed:number; classes:[HeroClass,HeroClass]; styles:[boolean,boolean]; firstPlayer:PlayerId; candidateSeat:PlayerId;
@@ -17,10 +18,17 @@ export interface TrainingJob {
   /** Missing means the previous policy; saved unfinished trials never silently change. */
   policyVersion?:BotOptions['policyVersion'];
   opponentPolicyVersion?:BotOptions['policyVersion'];
+  counterattackOrder?: BotOptions['counterattackOrder'];
+  counterattackSchedule?: BotOptions['counterattackSchedule'];
   /** Role-based rows. Their mixture uses public evidence, regardless of the trial label. */
   researchRows?: { candidate: ResearchWeightRow; opponent?: ResearchWeightRow };
+  opponentResearchRow?: ResearchWeightRow;
+  candidateMixRule?: ResearchMixRule;
+  sampleCandidateInference?: true;
 }
-export interface TrainingResult {score:number; moves:number; turns:number; truncated:boolean; opponentEstimate?: Record<ResearchStrategy, number>; focusExposure?: { seen: boolean; played: boolean };}
+export type InferenceSamples = Partial<Record<InferenceHorizon, Record<InferenceMode, StrategyProbabilities>>>;
+export interface TrainingResult {score:number; moves:number; turns:number; truncated:boolean; opponentEstimate?: Record<ResearchStrategy, number>;
+  inferenceSamples?: InferenceSamples; focusExposure?: { seen: boolean; played: boolean };}
 export function pairedJobs(seed:number,pairs:number,candidate:BotWeights,opponent:BotWeights,nodes:number,level:BotDifficulty,scenarios?:ScenarioOptions):TrainingJob[]{
   let random=seed>>>0;
   const next=()=>{random=(Math.imul(random,1664525)+1013904223)>>>0;return random;};
@@ -36,6 +44,8 @@ export function pairedJobs(seed:number,pairs:number,candidate:BotWeights,opponen
 export interface TrainingMatchOptions {
   observeDecision?: (view: PlayerView, actor: PlayerId) => void;
   observeAction?: (view: PlayerView, actor: PlayerId, action: Action) => void;
+  /** Research-only action intervention; the engine still checks legality. */
+  overrideAction?: (view: PlayerView, actor: PlayerId, move: number) => Action | undefined;
   candidateInference?: InferenceMode;
   focusCard?: string;
   reuseDecisions?: Map<string, Action[]>;
@@ -47,6 +57,7 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
   const decks=job.fixedDecks??job.classes.map((c,i)=>job.archetypes?strategicDeck(environment,c,job.archetypes[i],job.deckSeeds?.[i]??job.seed):job.styles[i]?practiceDeck(environment,c):starterDeck(environment,c)) as [ReturnType<typeof practiceDeck>,ReturnType<typeof practiceDeck>];
   let s=createGame(environment,decks,{seed:job.seed,firstPlayer:job.firstPlayer}),moves=0,lastTurn=-1,turnActions=0;
   const focusExposure = options?.focusCard === undefined ? undefined : { seen: false, played: false };
+  const inferenceSamples: InferenceSamples | undefined = job.sampleCandidateInference ? {} : undefined;
   let opponentEstimate: TrainingResult['opponentEstimate'];
   while(s.phase!=='finished'&&moves<600){
     const actor:PlayerId=s.phase==='mulligan'?(s.players[0].mulliganDone?1:0):s.activePlayer;
@@ -57,10 +68,19 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
       ? view.self.hand.find(card => card.cardId === options?.focusCard) : undefined;
     if (focusedCard && focusExposure) focusExposure.seen = true;
     const isCandidate = actor === job.candidateSeat;
-    const row = isCandidate ? job.researchRows?.candidate : job.researchRows?.opponent;
+    if (inferenceSamples && isCandidate && view.phase === 'playing') {
+      const horizon = INFERENCE_HORIZONS.find(round => round === Math.ceil(view.turn / 2));
+      if (horizon !== undefined && !inferenceSamples[horizon]) {
+        inferenceSamples[horizon] = Object.fromEntries(INFERENCE_MODES.map(mode =>
+          [mode, inferOpponentStrategy(view, actor, s.catalog, mode)])) as Record<InferenceMode, StrategyProbabilities>;
+      }
+    }
+    const row = isCandidate ? job.researchRows?.candidate : job.researchRows?.opponent ?? job.opponentResearchRow;
     let weights = job.opponent;
     if (row) {
-      weights = mixResearchWeights(row, inferOpponentStrategy(view, actor, s.catalog));
+      const rule = isCandidate ? job.candidateMixRule : undefined;
+      const inferred = inferOpponentStrategy(view, actor, s.catalog, rule?.mode);
+      weights = resolveResearchWeights(row, job.candidate, inferred, rule, view.self);
     } else if (isCandidate) {
       weights = job.candidate;
       if (job.candidateStrategy !== undefined) {
@@ -72,11 +92,16 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
       weights = mixInitialResearchWeights(strategy, inferOpponentStrategy(view, actor, s.catalog, inference));
     }
     let actions: Action[];
-    if (turnActions >= 40 && s.phase === 'playing' && !s.pendingChoice) {
+    const forced = options?.overrideAction?.(view, actor, moves);
+    if (forced) {
+      actions = [forced];
+    } else if (turnActions >= 40 && s.phase === 'playing' && !s.pendingChoice) {
       actions = [{ type: 'endTurn' }];
     } else {
       const settings: BotOptions = { weights, nodeLimit: job.nodes, responseLimit: job.level === 25 ? 2 : 0,
-        policyVersion: (isCandidate ? job.policyVersion : job.opponentPolicyVersion ?? job.policyVersion) ?? 1 };
+        policyVersion: (isCandidate ? job.policyVersion : job.opponentPolicyVersion ?? job.policyVersion) ?? 1,
+        counterattackOrder: isCandidate ? job.counterattackOrder : undefined,
+        counterattackSchedule: isCandidate ? job.counterattackSchedule : undefined };
       const cache = options?.reuseDecisions;
       if (cache) {
         // Ranking consumes the projected state and resolved weights. History
@@ -102,5 +127,5 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
     options?.observeAction?.(view, actor, applied);
     s=after;moves++;turnActions++;
   }
-  return{score:s.phase!=='finished'||s.winner===null?.5:s.winner===job.candidateSeat?1:0,moves,turns:s.turn,truncated:s.phase!=='finished',...(opponentEstimate ? { opponentEstimate } : {}),...(focusExposure ? { focusExposure } : {})};
+  return{score:s.phase!=='finished'||s.winner===null?.5:s.winner===job.candidateSeat?1:0,moves,turns:s.turn,truncated:s.phase!=='finished',...(opponentEstimate ? { opponentEstimate } : {}),...(inferenceSamples ? { inferenceSamples } : {}),...(focusExposure ? { focusExposure } : {})};
 }

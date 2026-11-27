@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { applyAction, createCatalog, createGame, getPlayerView, rankBotActions, starterDeck } from '../src/index.ts';
 import { visibleCounterattack } from '../src/bot-counterattack.ts';
+import { projectBotPosition } from '../src/bot.ts';
 import type { HeroClass, Minion, PlayerId } from '../src/types.ts';
 
 const catalog = createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json', import.meta.url), 'utf8')));
@@ -61,4 +62,23 @@ test('a known win this turn still ranks ahead of defense', () => {
   game.players[0].board = [{ ...piece('attacker', 0, 3, 4), attacksRemaining: 1 }];
   const [action] = rankBotActions(getPlayerView(game, 0), game.catalog, 0, 25, { policyVersion: 4, nodeLimit: 24 });
   assert.equal(applyAction(game, 0, action).winner, 0);
+  const [planned] = rankBotActions(getPlayerView(game, 0), game.catalog, 0, 25,
+    { policyVersion: 4, nodeLimit: 24, counterattackOrder: 'planned', counterattackSchedule: 'finalists' });
+  assert.deepEqual(planned, action);
+});
+
+test('planned reply preserves damage to finish after using smaller hits on a guard', () => {
+  const game = opening('mage');
+  game.players[0].health = 7;
+  game.players[0].board = [piece('friendly', 0, 2, 2), { ...piece('guard', 0, 1, 4), keywords: ['taunt'] }];
+  game.players[1].board = [{ ...piece('windfury', 1, 3, 2), keywords: ['windfury'] }, piece('small', 1, 2, 3),
+    piece('other', 1, 2, 4)];
+  const publicPosition = projectBotPosition(getPlayerView(game, 0), catalog, 0);
+  assert.equal(visibleCounterattack(0, 24, () => false)(publicPosition), false);
+  assert.equal(visibleCounterattack(0, 24, () => false, 'ordered')(publicPosition), false);
+  assert.equal(visibleCounterattack(0, 24, () => false, 'planned')(publicPosition), true);
+  assert.equal(visibleCounterattack(0, 24, () => true, 'planned')(publicPosition), false);
+  game.players[1].deck[0].cardId = 'wisp';
+  game.rng ^= 609;
+  assert.deepEqual(projectBotPosition(getPlayerView(game, 0), catalog, 0), publicPosition);
 });

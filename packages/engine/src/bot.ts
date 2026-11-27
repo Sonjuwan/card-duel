@@ -19,7 +19,7 @@ export function isBotDifficulty(value:unknown):value is BotDifficulty{
 /** Build a hypothetical position using only information visible to the bot.
  * Unknown cards are deliberately represented by placeholders; the actual shuffled
  * decks, enemy secrets, and server RNG are never passed to the decision function. */
-function imagined(view:PlayerView,catalog:Catalog,actor:PlayerId):GameState{
+export function projectBotPosition(view:PlayerView,catalog:Catalog,actor:PlayerId):GameState{
   const placeholder=Object.values(catalog).find(c=>c.kind==='minion'&&c.collectible!==false)?.id;
   if(!placeholder)throw new Error('AI requires a collectible minion');
   const unknown=(count:number,label:string):CardInstance[]=>Array.from({length:count},(_,i)=>({instanceId:`__bot_${label}_${i}`,cardId:placeholder}));
@@ -240,12 +240,18 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
   const deadline=settings.deadlineMs===undefined?Infinity:performance.now()+Math.max(50,settings.deadlineMs);
   const starts=getOptions(s),rootLimit=Math.max(starts.length,settings.nodeLimit??config.nodes);
   const expired=()=>performance.now()>=deadline,known=new Set(view.self.hand.map(h=>h.instanceId));
-  const evaluateCounter = policy === 4 || policy === 5 ? visibleCounterattack(actor, Math.max(48,Math.min(128,rootLimit)), expired) : undefined;
+  const guarded = policy === 4 || policy === 5;
+  const finalistSchedule = guarded && settings.counterattackSchedule === 'finalists';
+  const hybridSchedule = guarded && settings.counterattackSchedule === 'hybrid';
+  const counterLimit = Math.max(48, Math.min(128, rootLimit));
+  const reserve = Math.min(24, Math.floor(counterLimit / 4));
+  const beamProofLimit = finalistSchedule ? reserve : hybridSchedule ? counterLimit - reserve : counterLimit;
+  const evaluateCounter = guarded ? visibleCounterattack(actor, beamProofLimit, expired, settings.counterattackOrder) : undefined;
   const counterPenalty = 200000;
   const passLoses = evaluateCounter?.(s) ?? false;
   const base = weightedValue(s,actor,w,adaptive) - (passLoses ? counterPenalty : 0);
   const lineLoses = (next: GameState) => evaluateCounter !== undefined &&
-    (next.phase === 'finished' ? next.winner === 1-actor : next.rng === s.rng && evaluateCounter(next));
+    (next.phase === 'finished' ? next.winner === 1-actor : !finalistSchedule && next.rng === s.rng && evaluateCounter(next));
   const valueFor=(r:GameState,path:Action[]):number=>{
     if(adaptive&&r.phase==='finished'&&r.winner===actor&&(view.opponent.secretCount>0||r.rng!==s.rng&&!confirmsLethal(s,actor,path,view.opponent.secretCount,expired)))return base+16;
     return weightedValue(r,actor,w,adaptive);
@@ -289,6 +295,23 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
     frontier=breadth(next);
   }
   const ordered=[...best.values()].sort((a,b)=>b.value-a.value);
+  if (finalistSchedule || hybridSchedule) {
+    // Each root has one finalist. An early branch cannot spend the remaining
+    // proof budget before another top-ranked action gets its own check.
+    const finalists = ordered.filter(node => !node.counterattack && node.state.phase === 'playing' && !node.state.pendingChoice &&
+      node.state.rng === s.rng).slice(0, finalistSchedule ? 6 : 3);
+    const perRoot = Math.floor((counterLimit - beamProofLimit) / Math.max(1, finalists.length));
+    for (const node of finalists) {
+      if (expired()) break;
+      const proven = visibleCounterattack(actor, perRoot, expired, settings.counterattackOrder)(node.state);
+      if (proven) {
+        node.counterattack = true;
+        node.value -= counterPenalty;
+        node.rank -= counterPenalty;
+      }
+    }
+    ordered.sort((a, b) => b.value - a.value);
+  }
   const rescue=passLoses&&ordered.some(node=>!node.counterattack);
   const ranked=rescue?ordered.filter(node=>!node.counterattack):ordered;
   const responses=Math.min(settings.responseLimit??config.responses,ranked.length);
@@ -335,7 +358,7 @@ export function rankBotActions(view:PlayerView,catalog:Catalog,actor:PlayerId,di
     });
     return cards.map(c=>({type:'chooseDeckCard',instanceId:c.instanceId}));
   }
-  const s=imagined(view,catalog,actor);
+  const s=projectBotPosition(view,catalog,actor);
   const end:Action={type:'endTurn'};
   if(view.phase==='mulligan'){
     if(view.self.mulliganDone)return [];

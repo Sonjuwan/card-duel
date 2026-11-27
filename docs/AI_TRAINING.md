@@ -151,3 +151,32 @@ npm run verify:integrated-ai -- --checkpoint <연구체크포인트.json> --repo
 진단은 기존 심사의 카드·모델·시드·정책을 확인하고 선택 전략의 손실 묶음을 양쪽 좌석에서 재현한다. 고정 배포 가중치, 균등 상성 혼합, 공개 추론 혼합과 탐색 정책 2~4를 통제해 차이를 확인한다. 각 결과는 기초 대조군과 처음 달라지는 성공한 행동을 기록한다. `--guarded`는 정책 5·고정 가중치와 두 기존 기준의 짧은 재현이다. 이 손실 표본은 원인 조사에 사용한다.
 
 실험 후보 `weak-fixed-guarded-v1`은 미드레인지·컨트롤에 배포 가중치와 정책 5를 사용한다. 정책 5는 정책 2의 반격 샘플링에 정책 4의 공개 치명 반격 검사를 적용한다. 독립 확인은 이전 심사와 겹치지 않는 144개 시드와 별도 지정 슬롯의 덱을 사용한다. 기존 배포 심사와 같은 576경기·전술·전체/전략/상성 허들을 적용하며, 평가 파일은 정상 심사와 별도 경로에 둔다.
+
+### 컨트롤 교차 실험과 독립 심사
+
+다음 명령의 JSON 파일은 별도 경로에 저장한다. `--checkpoint`에는 검증을 마친 16상성 체크포인트를 지정한다. 진행 중인 명령은 완료한 묶음부터 이어서 실행할 수 있다.
+
+```bash
+npm run calibrate:control-ai -- --checkpoint checkpoint.json --report control-development.json --workers 2
+npm run calibrate:control-ai -- --checkpoint checkpoint.json --development control-development.json --report control-confirmation.json --workers 2
+npm run review:control-ai -- --checkpoint checkpoint.json --development control-development.json --confirmation control-confirmation.json
+npm run audit:control-ai -- --checkpoint checkpoint.json --report control-confirmation.json
+```
+
+개발은 정책 4와 5, 혼합 강도 0·25·50·75·100%를 교차한다. 동일 덱과 난수에서 양쪽 좌석을 사용하며, 나머지 조건을 고정한 정책 차이와 혼합 강도 차이를 각각 출력한다. 완전한 108묶음과 고정 전술을 충족한 변경안 중 기존 컨트롤 대비 승점이 가장 높은 하나를 고정한다. 개발 최고 변경안의 승점이 기존보다 낮을 때도 독립 심사에서 탐색적 변경안으로 확인한다. 기존 심사 및 독립 확인 자료는 선정 입력에서 제외한다.
+
+독립 확인은 새로운 144개 묶음에서 배포 기준 AI와 대상 통합 AI를 기존 576경기 기준으로 비교한다. 컨트롤에서 기존 통합 정책 4를 같은 조건으로 72경기 추가 평가한다. 미드레인지를 포함한 세 전략에 기존 정책 4와 각 상성 행을 적용한다. `review:control-ai`는 고정된 후보, 개발 원시 자료 지문, 현 카탈로그와 모델 지문을 검사한 뒤 기존 판정 함수를 실행한다. 자동화에서 `--require-eligible`을 사용하면 배포 기준 미통과 시 종료 코드 2를 반환한다. `audit:control-ai`는 두 컨트롤의 승점이 달라진 좌석을 재현하고 동일 상태에서 처음 달라진 행동만 상대쪽 행동으로 바꾼다.
+
+```bash
+npm run stress:control-ai -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-stress.json
+npm run study:control-inference -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-inference.json
+npm run benchmark:public-tactics -- --variant 0 --budget 24
+npm run benchmark:public-tactics -- --variant 1 --budget 24
+npm run benchmark:public-tactics-replay -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-tactics.json
+npm run study:control-reply-schedule -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-replies.json
+npm run study:control-reply-schedule -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-replies-hybrid.json --hybrid
+npm run study:control-evaluation -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-evaluation.json
+npm run study:control-evaluation -- --checkpoint checkpoint.json --confirmation control-confirmation.json --report control-evaluation-phases.json --phase-study
+```
+
+후속 실험은 각각 다른 덱·시드를 사용한다. 컨트롤 고정 후보의 상대군 비교와 세 전술 탐색법의 확인, 공개 이력의 2·4·6·8라운드 추론 품질, 반격 탐색 순서와 예산 배분의 교차 실험, 생존·자원·교환 계수의 교차 실험을 보고한다. 이 단계의 출력은 추가 연구용이며 승인 판정은 독립 확인의 기존 배포 기준에서 산출한다.

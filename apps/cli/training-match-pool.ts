@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import type { TrainingJob, TrainingResult } from './ai-training-match.ts';
 
-function runPair(worker: Worker, jobs: readonly TrainingJob[], id: number): Promise<TrainingResult[]> {
+function runSeat(worker: Worker, jobs: readonly TrainingJob[], id: number): Promise<TrainingResult[]> {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
       worker.off('message', message);
@@ -11,7 +11,7 @@ function runPair(worker: Worker, jobs: readonly TrainingJob[], id: number): Prom
     const message = (reply: { id: number; results?: TrainingResult[]; error?: string }) => {
       if (reply.id !== id) return;
       cleanup();
-      if (reply.results?.length === 2) resolve(reply.results);
+      if (reply.results?.length === jobs.length) resolve(reply.results);
       else reject(new Error(reply.error ?? 'Training worker failed'));
     };
     const error = (failure: Error) => { cleanup(); reject(failure); };
@@ -44,14 +44,17 @@ export function createTrainingPool(version: string, hash: string, count: number)
 
   return {
     async run(jobs: readonly TrainingJob[]) {
-      if (jobs.length !== 4) throw new Error('A matched fixture needs four jobs');
+      if (jobs.length < 4 || jobs.length % 2 !== 0 ||
+          jobs.some((job, index) => job.candidateSeat !== index % 2)) {
+        throw new Error('A matched fixture needs complete seat pairs');
+      }
       const pair = (seat: 0 | 1) => {
         const worker = pool[seat % pool.length], failure = failures.get(worker);
         if (failure) throw failure;
-        return runPair(worker, [jobs[seat], jobs[seat + 2]], seat);
+        return runSeat(worker, jobs.filter((_, index) => index % 2 === seat), seat);
       };
       const [first, second] = pool.length === 1 ? [await pair(0), await pair(1)] : await Promise.all([pair(0), pair(1)]);
-      return [first[0], second[0], first[1], second[1]];
+      return first.flatMap((result, index) => [result, second[index]]);
     },
     close,
   };

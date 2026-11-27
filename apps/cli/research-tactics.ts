@@ -1,8 +1,8 @@
 import { applyAction, createGame, DEFAULT_BOT_WEIGHTS, getPlayerView, rankBotActions, starterDeck } from '../../packages/engine/src/index.ts';
-import type { BotWeights, Catalog, GameState, Minion, PlayerId } from '../../packages/engine/src/index.ts';
+import type { BotOptions, BotWeights, Catalog, GameState, Minion, PlayerId, PlayerView } from '../../packages/engine/src/index.ts';
 import { visibleCounterattack } from '../../packages/engine/src/bot-counterattack.ts';
 import { mixResearchWeights } from './research-models.ts';
-import type { ResearchWeightRow } from './research-models.ts';
+import type { ResearchWeightRow, StrategyProbabilities } from './research-models.ts';
 
 const piece = (instanceId: string, attack: number, health: number, originalOwner: PlayerId): Minion => ({
   instanceId, cardId: 'recruit', attack, health, maxHealth: health, attacksRemaining: 1, originalOwner,
@@ -27,30 +27,36 @@ export function counterattackFixture(catalog: Catalog): GameState {
   return game;
 }
 
-export function playFixedTacticalTurn(game: GameState, policyVersion: 2 | 3 | 4 | 5, weights: Readonly<BotWeights> = DEFAULT_BOT_WEIGHTS): GameState {
+type CounterattackSettings = Pick<BotOptions, 'counterattackOrder' | 'counterattackSchedule'>;
+export function playFixedTacticalTurn(game: GameState, policyVersion: 2 | 3 | 4 | 5,
+  weights: Readonly<BotWeights> | ((view: PlayerView) => Readonly<BotWeights>) = DEFAULT_BOT_WEIGHTS,
+  search?: CounterattackSettings): GameState {
   let state = game;
   for (let step = 0; step < 10 && state.activePlayer === 0 && state.phase === 'playing'; step++) {
-    const [action] = rankBotActions(getPlayerView(state, 0), state.catalog, 0, 25,
-      { policyVersion, weights, nodeLimit: 65, responseLimit: 5 });
+    const view = getPlayerView(state, 0);
+    const [action] = rankBotActions(view, state.catalog, 0, 25,
+      { policyVersion, weights: typeof weights === 'function' ? weights(view) : weights, nodeLimit: 65, responseLimit: 5, ...search });
     if (!action) throw new Error('Fixed tactical fixture has no legal action');
     state = applyAction(state, 0, action);
   }
   return state;
 }
 
-export function passesResearchTactics(catalog: Catalog, row: ResearchWeightRow, settings?: {
-  policyVersion: 4 | 5; fixedWeights?: Readonly<BotWeights>;
+export function passesResearchTactics(catalog: Catalog, row: ResearchWeightRow, settings?: CounterattackSettings & {
+  policyVersion: 4 | 5; fixedWeights?: Readonly<BotWeights>; weightsForPrior?: (prior: StrategyProbabilities, view: PlayerView) => BotWeights;
 }): boolean {
   const counterattack = counterattackFixture(catalog);
   const immediate = structuredClone(counterattack);
   immediate.players[1].health = 6;
 
   const policy = settings?.policyVersion ?? 4;
+  const search = { counterattackOrder: settings?.counterattackOrder, counterattackSchedule: settings?.counterattackSchedule };
   return RESEARCH_TACTICAL_PRIORS.every(prior => {
-    const weights = settings?.fixedWeights ?? mixResearchWeights(row, prior);
-    const defended = playFixedTacticalTurn(counterattack, policy, weights);
+    const resolver = settings?.weightsForPrior;
+    const weights = settings?.fixedWeights ?? (resolver ? (view: PlayerView) => resolver(prior, view) : mixResearchWeights(row, prior));
+    const defended = playFixedTacticalTurn(counterattack, policy, weights, search);
     const survived = defended.winner === 0 || (defended.phase === 'playing' && defended.activePlayer === 1 &&
       !visibleCounterattack(0, 128, () => false)(defended));
-    return survived && playFixedTacticalTurn(immediate, policy, weights).winner === 0;
+    return survived && playFixedTacticalTurn(immediate, policy, weights, search).winner === 0;
   });
 }

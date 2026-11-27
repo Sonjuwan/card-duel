@@ -44,7 +44,16 @@
     "benchmark:card-value": "node apps/cli/benchmark-card-value.ts",
     "train:matchups": "node apps/cli/train-matchups.ts",
     "verify:integrated-ai": "node apps/cli/verify-integrated-ai.ts",
-    "diagnose:integrated-ai": "node apps/cli/diagnose-integrated-ai.ts"
+    "diagnose:integrated-ai": "node apps/cli/diagnose-integrated-ai.ts",
+    "calibrate:control-ai": "node apps/cli/calibrate-control-ai.ts",
+    "audit:control-ai": "node apps/cli/audit-control-ai.ts",
+    "benchmark:public-tactics": "node apps/cli/public-tactics-benchmark.ts",
+    "stress:control-ai": "node apps/cli/stress-control-ai.ts",
+    "study:control-inference": "node apps/cli/study-control-inference.ts",
+    "benchmark:public-tactics-replay": "node apps/cli/benchmark-public-tactics-replay.ts",
+    "study:control-reply-schedule": "node apps/cli/study-control-reply-schedule.ts",
+    "review:control-ai": "node apps/cli/review-control-ai.ts",
+    "study:control-evaluation": "node apps/cli/study-control-evaluation.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
