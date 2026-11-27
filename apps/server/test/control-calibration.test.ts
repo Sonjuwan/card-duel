@@ -17,7 +17,10 @@ import { benchmarkDeck } from '../../cli/research-benchmark-decks.ts';
 import { attenuatedResearchWeights, mixResearchWeights, resolveResearchWeights } from '../../cli/research-models.ts';
 import { isControlInferenceGroup, summarizeControlInference } from '../../cli/control-inference-study.ts';
 import { summarizeControlEvaluation } from '../../cli/control-evaluation-study.ts';
+import { exactPublicLethal } from '../../cli/public-tactics-reference.ts';
+import { counterattackFixture } from '../../cli/research-tactics.ts';
 import { runResearchFixtures } from '../../cli/run-research-fixtures.ts';
+import { visibleCounterattack } from '../../../packages/engine/src/bot-counterattack.ts';
 
 const { catalog } = new CardStore().read('v0.23.0.json');
 const checkpoint = createMatchupState(aiCatalogHash(catalog), 20261128);
@@ -195,6 +198,21 @@ test('phase gates use inclusive public health and mana thresholds and preserve o
   assert.equal(resolveAt(20, 0, 5).lowHealth, baseline.lowHealth);
   assert.ok(resolveAt(20, 0, 5).hand > baseline.hand);
   assert.equal(resolveAt(12, 0, 5).trade, baseline.trade);
+});
+
+test('the public tactics replay leaves a random start-of-turn unresolved and distinguishes a bounded search', () => {
+  const state = counterattackFixture(catalog);
+  const alarm = { instanceId: 'alarm', cardId: 'alarm_bot', originalOwner: 1 as const, attack: 0, health: 3,
+    maxHealth: 3, attacksRemaining: 0 };
+  state.players[1].board.push(alarm);
+  state.players[1].hand = [{ instanceId: 'hand-minion', cardId: 'wisp' }];
+  assert.equal(exactPublicLethal(state, 0, 100), null);
+  assert.equal(visibleCounterattack(0, 24, () => false, 'planned')(state), false);
+
+  state.players[1].board[1] = { ...alarm, silenced: true };
+  assert.equal(exactPublicLethal(state, 0, 0), null);
+  assert.equal(exactPublicLethal(state, 0, 100), true);
+  assert.equal(visibleCounterattack(0, 24, () => false, 'planned')(state), true);
 });
 
 test('research fixture reports resume from a whole completed group and reject a different suite', async () => {
