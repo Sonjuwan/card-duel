@@ -1,0 +1,55 @@
+name: Atomic save profile experiment
+on:
+  pull_request:
+    branches: [perf/v0.323-static-render]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  storage:
+    if: github.event.pull_request.head.ref == 'perf/v0.323-save-transaction'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: '2a971d23b472b9c1931444b97b824a5feb176d0a'
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run typecheck && npm run build:solo-app
+      - run: node --test apps/client/test/local-duel.test.ts
+      - run: npm ci && npm run build:solo-app
+        working-directory: baseline
+      - run: npx playwright install --with-deps chromium
+      - name: Compare committed profile transaction counts
+        shell: bash
+        run: |
+          for order in 'baseline candidate' 'candidate baseline' 'baseline candidate'; do
+            for kind in $order; do
+              dir=.
+              if [ "$kind" = baseline ]; then dir=baseline; fi
+              node scripts/performance-storage.mjs "$dir" | tee -a "/tmp/$kind.jsonl"
+            done
+          done
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const read=k=>readFileSync("/tmp/"+k+".jsonl","utf8").trim().split("\n").map(JSON.parse);
+            const a=read("baseline"),b=read("candidate");
+            assert.equal(a.length,3);assert.equal(b.length,3);
+            for(let i=0;i<3;i++){
+              assert.deepEqual(a[i].indexedDbPutCounts,b[i].indexedDbPutCounts);
+              assert.ok(a[i].indexedDbTransactionCounts.growthOnly>0);
+              assert.equal(b[i].indexedDbTransactionCounts.growthOnly,0);
+              assert.equal(a[i].indexedDbTransactionCounts.matchAndGrowth,b[i].indexedDbTransactionCounts.matchAndGrowth);
+              console.log(JSON.stringify({baseline:a[i],candidate:b[i]}));
+            }
+          '
+      - run: node --test apps/client/test/battle-immersive-browser.test.mjs apps/client/test/solo-app-browser.test.mjs
