@@ -22,3 +22,22 @@
 `npm run balance:sim -- --from v0.22.0.json --to v0.23.0.json --pairs 9 --level 11 --seed 20241122`
 
 출력은 JSON이며 stderr에 진행이 표시된다. `--focus wolf`로 특정 카드에 집중할 수 있다. 현재 활성 버전, 원본 파일, AI 체크포인트는 수정하지 않는다.
+
+## 통합 카드 가치 연구
+
+관리자 초안 분석의 종류·비용별 중앙값은 편집 전 참고 지표다. 통합 연구 점수는 실제 대전으로 따로 산출한다.
+
+```cmd
+npm run --silent benchmark:card-value -- --card flame_sphere --card wisp
+npm run --silent benchmark:card-value -- --all --repeats 3 --samples-dir card-research > card-values.json
+npm run --silent benchmark:card-value -- --all --repeats 3 --samples-dir card-research --export-only --format csv > card-values.csv
+npm run --silent benchmark:card-value -- --all --repeats 3 --samples-dir card-research --export-only --format html > card-values.html
+```
+
+연구용 풀은 선택한 활성 또는 명시적 `--catalog`의 합법 수집 카드 전체다. 계정의 보유 카드, 진행도와 무관하며 카드 출판·활성화, 학습 체크포인트 및 사용자 자료에 쓰지 않는다. 실험은 덱의 한 슬롯에서 합법 대체 카드와 평가 대상을 비교한다. 같은 덱 구조·상대·시드로 선후공을 교대한다. 카드 등급은 탐색 가점에 사용하지 않는다.
+
+카드 점수는 `100 + 100 × (원시 승점률 차이 − 기본 카드 전체의 원시 차이 평균)`이다. 기본 카드는 사용 횟수와 무관하게 한 장당 같은 비중이다. 기준 전체 표본이 모일 때까지 원시 지표만 표시한다. 100점은 같은 조건에서의 기본 카드 평균이며, 1점은 원시 승점 차이 1%p다. 결과는 지정 덱·대체 카드·고정 AI에 조건부인 추정치다. 경기 수와 원시 구간을 함께 읽는다.
+
+패치 비교에는 최초 충분히 검증된 JSON을 `--reference`로 전달할 수 있다. 동일 모델·프로토콜 및 해당 카드의 동일 경기 구성이 확인된 경우에 고정 기준 점수와 패치 차이를 출력한다. 새 카드는 현재 척도에서 평가할 수 있고, 일치하는 과거 검증 조합이 없으면 고정 비교는 비워 둔다.
+
+`--samples-dir`는 평가 방식·카드 해시·모델·프로토콜별 경로에 카드별 원시 묶음을 원자적으로 저장한다. 같은 옵션으로 다시 실행하면 완료한 카드를 이어받는다. `--export-only`는 이미 저장한 카드만 읽어 출력물을 재생성한다. 부분 보고서는 점수 기준이나 표본이 부족한 행을 구분한다.

@@ -123,5 +123,7 @@ ZIP을 복원한 경우 `data/ai`가 제공되어 있으며 이전 저장본에 
 - 브랜치 `ai-research-foundation`. 원본 기준 `641104107a1306c99c78487f57f355dec407889d`(v0.91.0). 재개 시 이 브랜치의 최신 검증 커밋과 `git status`를 확인한다.
 - 계획은 `MASTER_PLAN.md`, 항목 상태는 `docs/PROGRESS.md`, 실행 결과는 `docs/TEST_RESULTS.md`를 읽는다.
 - 연구 베이스라인을 재현하려면 `npm run benchmark:research -- 9 release`를 실행한다.
-- 다음 핵심 작업의 권장 추론 수준은 Extra High다. 정책 2와 3의 행동 차이를 고정 전술로 검증하고, 공개 카드 기반 추론에 전개·공격·자원 사용 신호를 추가하고, 별도 시드와 비표준 덱에서 정확도와 확률 보정을 검증한다. 기존 플레이 경로와 연구 저장 격리를 테스트한다.
+- 최종 수정 명령은 `MASTER_PLAN.md`에 통합했다. 연구 풀은 현재 합법 카드 전체이며 카드 점수는 기본 카드 전체 평균 100점의 단일 척도다. 실제 게임 진행·보유 카드 자료는 별도로 회귀 검사한다.
+- 공개 추론 검증을 재현하려면 `npm run benchmark:inference -- holdout 18` 및 `npm run benchmark:inference -- holdout 18 actions cards`를 실행한다. 카드 평가를 재현하려면 `npm run benchmark:card-value -- --card blizzard --card wisp`를 실행한다.
+- 다음 핵심 작업의 권장 추론 수준은 Extra High다. 보이는 다음 턴 치명 공격을 놓친 고정 상황을 `research-foundation.test.ts`에서 재현하고, 노드 예산 안의 방어적 판단을 추가로 검증한다. 이후 16개 상성 학습 엔진에서 후보·챔피언 상태와 평가 체크포인트를 격리한다. 카드 전수 평가의 반복 수·표본 예산과 고정 기준 승인, 보고서 화면 연결은 별도 수용 검증이 필요하다.
 - 재개 입력 예시 — “Card Duel 차세대 AI 연구를 ai-research-foundation의 HANDOFF.md부터 이어서 개발하고 검증해 주세요.”

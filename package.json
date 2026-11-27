@@ -39,7 +39,9 @@
     "web": "npm run build && npm run server",
     "balance": "node apps/admin/main.ts",
     "balance:sim": "node apps/cli/balance-sim.ts",
-    "benchmark:research": "node apps/cli/benchmark-research.ts"
+    "benchmark:research": "node apps/cli/benchmark-research.ts",
+    "benchmark:inference": "node apps/cli/benchmark-inference.ts",
+    "benchmark:card-value": "node apps/cli/benchmark-card-value.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

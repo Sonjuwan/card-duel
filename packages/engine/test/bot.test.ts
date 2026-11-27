@@ -70,13 +70,15 @@ test('expert searches two moves to clear a guard and preserve lethal damage',()=
   const after=applyAction(s,1,first);
   assert.equal(applyAction(after,1,rankBotActions(getPlayerView(after,1),s.catalog,1,5)[0]).winner,1);
 });
-test('level 25 finds three-attack lethal through taunt',()=>{
+test('both adaptive level 25 policies find three-attack lethal through taunt',()=>{
   const s=ready();s.players[0].health=5;
   s.players[0].board=[{...minion('guard',1,4),originalOwner:0,keywords:['taunt']}];
   s.players[1].board=[minion('big',5,6),minion('a',2,3),minion('b',2,3)];
-  let current=s;
-  for(let i=0;i<3;i++)current=applyAction(current,1,rankBotActions(getPlayerView(current,1),current.catalog,1,25)[0]);
-  assert.equal(current.winner,1);
+  for (const policyVersion of [2, 3] as const) {
+    let current=s;
+    for(let i=0;i<3;i++)current=applyAction(current,1,rankBotActions(getPlayerView(current,1),current.catalog,1,25,{policyVersion})[0]);
+    assert.equal(current.winner,1);
+  }
 });
 test('adaptive policy sees secret count but never the actual enemy secret or server RNG',()=>{
   const active=createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8')));

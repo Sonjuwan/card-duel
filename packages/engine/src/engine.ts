@@ -1,4 +1,4 @@
-import type { Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target } from './types.ts';
+import type { Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target, PublicEvent, PublicPlayTarget } from './types.ts';
 import { RULES, HERO_CLASSES, TRIBES, RuleError, requireRule, record, integer, isClass, other, validPlayer, random, setRuntime, opaqueId, emitVisual,maxCardCopies } from './rules.ts';
 import type { RuntimeOptions } from './rules.ts';
 import { chooseTarget, effectiveTargetRule, hasKeyword, hero, lookupTarget, resolveEffects, TARGET_RULES, KEYWORDS, validateEffects, minionDamageResult } from './effects.ts';
@@ -107,8 +107,11 @@ function instance(s: GameState, cardId: string): CardInstance {
 function blankPlayer(heroClass: HeroClass): Player {
   return { heroClass, health: RULES.heroHealth, mana: 0, maxMana: 0, armor:0, heroAttack:0, heroAttacksRemaining:0, heroPowerUsed:false, pendingOverload:0,lockedMana:0,cardsPlayedThisTurn:0,weapon:null, secrets:[], fatigue: 0, deck: [], hand: [], board: [], mulliganDone: false };
 }
-function log(s:GameState,player:PlayerId,message:string,playedCardId?:string):void{
-  s.history.push({turn:s.turn,player,message,...(playedCardId===undefined?{}:{playedCardId})});if(s.history.length>60)s.history.shift();
+function log(s:GameState,player:PlayerId,message:string,details?:Pick<PublicEvent,'playedCardId'|'evidence'>):void{
+  s.history.push({turn:s.turn,player,message,...details});if(s.history.length>60)s.history.shift();
+}
+function publicPlayTarget(target: Character, actor: PlayerId): PublicPlayTarget {
+  return `${target.player === actor ? 'friendly' : 'enemy'}-${target.kind}`;
 }
 function finish(s: GameState, winner: PlayerId|null, reason: NonNullable<GameState['reason']>): void {
   s.phase = 'finished'; s.winner = winner; s.reason = reason;
@@ -351,7 +354,12 @@ function playCard(s: GameState, id: PlayerId, instanceId: unknown, target:unknow
   p.mana -= cost;if(def.kind==='secret')delete p.nextSecretFree;if(def.kind==='spell'||def.kind==='coin'||def.kind==='secret')delete p.nextSpellDiscount;
   p.hand.splice(index, 1);
   const comboActive=p.cardsPlayedThisTurn>0;p.cardsPlayedThisTurn++;if(def.kind==='minion')p.minionsPlayedThisTurn=(p.minionsPlayedThisTurn??0)+1;
-  log(s,id,def.kind==='secret'?'비밀 설치':`${def.name} 사용${choice?` (${choice.label})`:''}`,def.kind==='secret'||def.kind==='coin'?undefined:def.id);
+  const publicDetails = def.kind==='secret'||def.kind==='coin' ? undefined : {
+    playedCardId:def.id,
+    evidence:{kind:'card' as const,manaPaid:cost,...(chosen ? {target:publicPlayTarget(chosen,id)} : {}),
+      ...(choice ? {choice:choiceIndex as number} : {})},
+  };
+  log(s,id,def.kind==='secret'?'비밀 설치':`${def.name} 사용${choice?` (${choice.label})`:''}`,publicDetails);
   const overloadCard=effects?.some(e=>e.kind==='overload');
   if(def.kind!=='minion'){const ops=resolution(s);ops.event({kind:'cardPlayed',owner:id});if(overloadCard)ops.event({kind:'overloadCardPlayed',owner:id});ops.settle();if(s.phase==='finished')return;}
   if(def.kind==='spell'||def.kind==='coin'||def.kind==='secret'){const ops=resolution(s);ops.event({kind:'spellPlayed',owner:id,target:chosen,cardId:def.id});if(def.kind==='secret')ops.event({kind:'secretPlayed',owner:id});ops.settle();if(s.phase==='finished')return;}
@@ -390,11 +398,17 @@ function attackTarget(s:GameState,id:PlayerId,target:unknown):Character {
   requireRule(!taunts.length||(d.kind==='minion'&&taunts.includes(d.minion)),'도발 하수인을 먼저 공격해야 합니다.');
   return d;
 }
-function combat(s:GameState,attacker:Character,defender:Character,attackValue:number):void {
+function couldChooseAttackTarget(s: GameState, actor: PlayerId): boolean {
+  const enemy = s.players[other(actor)];
+  const legalMinions = enemy.board.filter(minion => !minion.immuneThisTurn && !hasKeyword(minion,'stealth'));
+  return !enemy.heroImmuneThisTurn && legalMinions.length > 0 && !legalMinions.some(minion => hasKeyword(minion,'taunt'));
+}
+function combat(s:GameState,attacker:Character,defender:Character,attackValue:number,couldChooseEither:boolean):void {
   emitVisual(s,{kind:'combat',target:visualTarget(defender),side:defender.player});
   const retaliation=defender.kind==='minion'?defender.minion.attack:0;
   const name=(c:Character)=>c.kind==='hero'?'영웅':s.catalog[c.minion.cardId]?.name??'하수인';
-  log(s,attacker.player,`${name(attacker)} → ${name(defender)} 공격 (${attackValue})`);
+  log(s,attacker.player,`${name(attacker)} → ${name(defender)} 공격 (${attackValue})`,
+    {evidence:{kind:'attack',target:defender.kind,couldChooseEither}});
   const ops=resolution(s),dealt=ops.damage(defender,attackValue);let returned=false;
   if(retaliation>0){if(defender.kind==='minion'){defender.minion.keywords=defender.minion.keywords?.filter(k=>k!=='stealth');delete defender.minion.stealthUntilStartOf;}returned=ops.damage(attacker,retaliation);}
   minionDamageResult(s,attacker,defender,dealt);minionDamageResult(s,defender,attacker,returned);
@@ -407,8 +421,9 @@ function attack(s:GameState,id:PlayerId,attackerId:unknown,target:unknown):void 
   let d=attackTarget(s,id,target);const source:Character={kind:'minion',player:id,minion:a};
   a.attacksRemaining--;a.attacksMadeThisTurn=(a.attacksMadeThisTurn??0)+1;a.keywords=a.keywords?.filter(k=>k!=='stealth');
   delete a.stealthUntilStartOf;
+  const intended=d,couldChooseEither=couldChooseAttackTarget(s,id);
   const attackEvent={target:d};if(triggerSecrets(s,other(id),'enemyAttackAny',d,source,attackEvent))return;d=attackEvent.target;
-  if(s.phase==='playing'&&a.health>0&&s.players[id].board.includes(a)&&(d.kind==='hero'||s.players[d.player].board.includes(d.minion))){for(const owner of a.drawOnAttackOwners??[])if(s.phase==='playing')draw(s,owner);if(s.phase==='playing')combat(s,source,d,a.attack);}
+  if(s.phase==='playing'&&a.health>0&&s.players[id].board.includes(a)&&(d.kind==='hero'||s.players[d.player].board.includes(d.minion))){for(const owner of a.drawOnAttackOwners??[])if(s.phase==='playing')draw(s,owner);if(s.phase==='playing')combat(s,source,d,a.attack,couldChooseEither&&d===intended);}
 }
 function heroAttackLimit(s:GameState,id:PlayerId):number {const w=s.players[id].weapon,def=w?.cardId?s.catalog[w.cardId]:undefined;return def?.kind==='weapon'&&def.windfury?2:1;}
 function heroAttack(s:GameState,id:PlayerId,target:unknown):void {
@@ -418,6 +433,7 @@ function heroAttack(s:GameState,id:PlayerId,target:unknown):void {
   let d=attackTarget(s,id,target);const source=hero(id);p.heroAttacksRemaining--;p.heroAttacksMadeThisTurn=(p.heroAttacksMadeThisTurn??0)+1;
   const hadImmunity=p.heroImmuneThisTurn;let immune=false;
   try {
+  const intended=d,couldChooseEither=couldChooseAttackTarget(s,id);
   const attackEvent={target:d};if(triggerSecrets(s,other(id),'enemyAttackAny',d,source,attackEvent))return;d=attackEvent.target;
   if(s.phase==='finished')return;
   const ability=p.weapon?.cardId?s.catalog[p.weapon.cardId]:undefined;
@@ -427,7 +443,7 @@ function heroAttack(s:GameState,id:PlayerId,target:unknown):void {
   // June 2014: Longbow prevented combat retaliation, not the earlier
   // attack-triggered secret damage (that interaction changed in 2016).
   immune=ability?.kind==='weapon'&&ability.immuneWhileAttacking===true;if(immune)p.heroImmuneThisTurn=true;
-  combat(s,source,d,p.heroAttack+(weapon?.attack??0));
+  combat(s,source,d,p.heroAttack+(weapon?.attack??0),couldChooseEither&&d===intended);
   if(weapon&&p.weapon===weapon){if(ability?.kind==='weapon'&&ability.attackLossVsMinion&&d.kind==='minion'){weapon.attack--;if(weapon.attack<=0)p.weapon=null;}else{weapon.durability--;if(weapon.durability<=0)p.weapon=null;}refreshAuras(s);}
   }finally{if(immune&&!hadImmunity)delete p.heroImmuneThisTurn;p.heroAttacksRemaining=Math.max(0,heroAttackLimit(s,id)-(p.heroAttacksMadeThisTurn??0));}
 }
@@ -435,7 +451,7 @@ function heroPower(s:GameState,id:PlayerId,target:unknown):void {
   const p=s.players[id],power=getHeroPower(p);
   const reason=heroPowerReason(p);requireRule(!reason,reason??'영웅 능력을 사용할 수 없습니다.');
   const chosen=chooseTarget(s,id,power.targetRule,target,false,true);p.heroPowerUsed=true;p.mana-=power.cost;
-  log(s,id,`영웅 능력: ${power.name}`);
+  log(s,id,`영웅 능력: ${power.name}`,{evidence:{kind:'heroPower',manaPaid:power.cost}});
   runEffects(s,power.effects,{owner:id,chosen,spellPowerMultiplier:spellPowerMultiplier(s,id)});
 }
 /** Pure transaction: all invalid actions throw without altering the input state. */

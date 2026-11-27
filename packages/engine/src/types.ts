@@ -215,7 +215,19 @@ export interface GameState {
   history: PublicEvent[];
   pendingChoice?: {owner:PlayerId;cards:CardInstance[]};
 }
-export interface PublicEvent {turn:number;player:PlayerId;message:string;playedCardId?:string}
+export type PublicPlayTarget = 'friendly-hero' | 'friendly-minion' | 'enemy-hero' | 'enemy-minion';
+export type PublicActionEvidence =
+  | { kind: 'card'; manaPaid: number; target?: PublicPlayTarget; choice?: number }
+  | { kind: 'attack'; target: 'hero' | 'minion'; couldChooseEither: boolean }
+  | { kind: 'heroPower'; manaPaid: number };
+
+export interface PublicEvent {
+  turn: number;
+  player: PlayerId;
+  message: string;
+  playedCardId?: string;
+  evidence?: PublicActionEvidence;
+}
 export interface PublicPlayer {
   heroAttacksMadeThisTurn?:number;
   heroClass: HeroClass;
