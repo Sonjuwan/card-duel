@@ -149,15 +149,26 @@ export function inferOpponentStrategy(
   };
 }
 
-export function mixInitialResearchWeights(
-  own: ResearchStrategy, probabilities: Readonly<Record<ResearchStrategy, number>>,
-): BotWeights {
-  const result = initialResearchWeights(own, 'aggro');
-  const matchup = RESEARCH_STRATEGIES.map(strategy => ({
-    probability: probabilities[strategy], weights: initialResearchWeights(own, strategy),
-  }));
+export type ResearchWeightRow = Record<ResearchStrategy, Readonly<BotWeights>>;
+
+export function mixResearchWeights(row: ResearchWeightRow, probabilities: Readonly<StrategyProbabilities>): BotWeights {
+  const result = { ...row.aggro };
   for (const key of BOT_WEIGHT_KEYS) {
-    result[key] = matchup.reduce((total, model) => total + model.weights[key] * model.probability, 0);
+    result[key] = RESEARCH_STRATEGIES.reduce((total, strategy) =>
+      total + row[strategy][key] * probabilities[strategy], 0);
   }
   return result;
+}
+
+export function initialResearchRow(own: ResearchStrategy): ResearchWeightRow {
+  return {
+    aggro: initialResearchWeights(own, 'aggro'),
+    midrange: initialResearchWeights(own, 'midrange'),
+    control: initialResearchWeights(own, 'control'),
+    'big-deck': initialResearchWeights(own, 'big-deck'),
+  };
+}
+
+export function mixInitialResearchWeights(own: ResearchStrategy, probabilities: Readonly<StrategyProbabilities>): BotWeights {
+  return mixResearchWeights(initialResearchRow(own), probabilities);
 }

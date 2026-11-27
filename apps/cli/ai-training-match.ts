@@ -2,8 +2,9 @@ import { applyAction,createGame,getPlayerView,HERO_CLASSES,practiceDeck,starterD
 import type { BotDifficulty,BotWeights,Catalog,GameState,HeroClass,PlayerId,DeckStyle,Deck,PlayerView } from '../../packages/engine/src/index.ts';
 import {createTrainingScenarios,variedCatalog} from './ai-training-scenarios.ts';
 import type {OpponentTag,ScenarioOptions} from './ai-training-scenarios.ts';
-import { inferOpponentStrategy, mixInitialResearchWeights } from './research-models.ts';
-import type { InferenceMode } from './research-models.ts';
+import { inferOpponentStrategy, mixInitialResearchWeights, mixResearchWeights } from './research-models.ts';
+import type { BotOptions } from '../../packages/engine/src/index.ts';
+import type { InferenceMode, ResearchWeightRow } from './research-models.ts';
 import type { ResearchStrategy } from '../../packages/engine/src/deck-strategies.ts';
 export interface TrainingJob {
   seed:number; classes:[HeroClass,HeroClass]; styles:[boolean,boolean]; firstPlayer:PlayerId; candidateSeat:PlayerId;
@@ -14,7 +15,9 @@ export interface TrainingJob {
   /** Pin the transformation algorithm so future versions can preserve paired jobs. */
   variantVersion?:1;
   /** Missing means the previous policy; saved unfinished trials never silently change. */
-  policyVersion?:1|2;
+  policyVersion?:BotOptions['policyVersion'];
+  /** Role-based rows. Their mixture uses public evidence, regardless of the trial label. */
+  researchRows?: { candidate: ResearchWeightRow; opponent: ResearchWeightRow };
 }
 export interface TrainingResult {score:number; moves:number; turns:number; truncated:boolean; opponentEstimate?: Record<ResearchStrategy, number>; focusExposure?: { seen: boolean; played: boolean };}
 export function pairedJobs(seed:number,pairs:number,candidate:BotWeights,opponent:BotWeights,nodes:number,level:BotDifficulty,scenarios?:ScenarioOptions):TrainingJob[]{
@@ -51,7 +54,11 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
       ? view.self.hand.find(card => card.cardId === options?.focusCard) : undefined;
     if (focusedCard && focusExposure) focusExposure.seen = true;
     let weights = job.opponent;
-    if (actor === job.candidateSeat) {
+    if (job.researchRows) {
+      const estimate = inferOpponentStrategy(view, actor, s.catalog);
+      const row = actor === job.candidateSeat ? job.researchRows.candidate : job.researchRows.opponent;
+      weights = mixResearchWeights(row, estimate);
+    } else if (actor === job.candidateSeat) {
       weights = job.candidate;
       if (job.candidateStrategy !== undefined) {
         opponentEstimate = inferOpponentStrategy(view, actor, s.catalog, options?.candidateInference);

@@ -1,8 +1,9 @@
+import { counterattackFixture, FIXED_LETHAL_REPLY, playFixedTacticalTurn, RESEARCH_TACTICAL_PRIORS } from '../../cli/research-tactics.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CardStore } from '../card-store.ts';
 import { aiWeightFingerprint } from '../ai-profile-store.ts';
-import { HERO_CLASSES, validateDeck, applyAction, createGame, getPlayerView, rankBotActions, starterDeck } from '../../../packages/engine/src/index.ts';
+import { HERO_CLASSES, validateDeck, applyAction, createGame, getPlayerView } from '../../../packages/engine/src/index.ts';
 import { RESEARCH_STRATEGIES, researchDeck } from '../../../packages/engine/src/deck-strategies.ts';
 import { DEFAULT_BOT_WEIGHTS, validateBotWeights } from '../../../packages/engine/src/bot-profile.ts';
 import { initialResearchWeights, inferOpponentStrategy, mixInitialResearchWeights } from '../../cli/research-models.ts';
@@ -145,40 +146,18 @@ test('only optional attacks change the action model and old history still provid
   assert.deepEqual(predict(), inferOpponentStrategy(view, 0, catalog, 'profile'));
 });
 
-test('fixed lethal reply distinguishes two search policies and control-weight mixtures', () => {
-  let game = createGame(catalog, [starterDeck(catalog, 'mage'), starterDeck(catalog, 'warrior')],
-    { seed: 35, firstPlayer: 0 });
-  for (const actor of [0, 1] as const) game = applyAction(game, actor, { type: 'mulligan', replace: [] });
-  const minion = (instanceId: string, attack: number, health: number, originalOwner: 0 | 1) => ({
-    instanceId, cardId: 'recruit', attack, health, maxHealth: health, attacksRemaining: 1, originalOwner,
-  });
-  game.revision = 143;
-  Object.assign(game.players[0], { health: 6, mana: 7, maxMana: 7,
-    board: [minion('own0', 2, 5, 0), minion('own1', 6, 6, 0)],
-    hand: [{ instanceId: 'hand0', cardId: 'blizzard' }, { instanceId: 'hand1', cardId: 'flame_sphere' }] });
-  Object.assign(game.players[1], { health: 22, maxMana: 7, board: [minion('enemy0', 6, 2, 1)], hand: [],
-    deck: [{ instanceId: 'enemy-draw', cardId: 'wisp' }] });
+test('fixed lethal reply distinguishes search policies and control-weight mixtures', () => {
+  const game = counterattackFixture(catalog);
+  assert.equal(applyAction(playFixedTacticalTurn(game, 2), 1, FIXED_LETHAL_REPLY).winner, 1);
+  assert.equal(playFixedTacticalTurn(game, 3).players[1].board.length, 0);
 
-  const finishTurn = (policyVersion: 2 | 3, weights = DEFAULT_BOT_WEIGHTS) => {
-    let state = game;
-    for (let step = 0; step < 10 && state.activePlayer === 0 && state.phase === 'playing'; step++) {
-      const [action] = rankBotActions(getPlayerView(state, 0), state.catalog, 0, 25,
-        { policyVersion, weights, nodeLimit: 65, responseLimit: 5 });
-      assert.ok(action);
-      state = applyAction(state, 0, action);
-    }
-    assert.equal(state.activePlayer, 1);
-    assert.equal(state.phase, 'playing');
-    return state;
-  };
-  const reply = { type: 'attack', attackerId: 'enemy0', target: { kind: 'hero', player: 0 } };
-  assert.equal(applyAction(finishTurn(2), 1, reply).winner, 1);
-  assert.equal(finishTurn(3).players[1].board.length, 0);
-
-  const uniform = { aggro: .25, midrange: .25, control: .25, 'big-deck': .25 };
-  const aggroLikely = { aggro: .65, midrange: .15, control: .10, 'big-deck': .10 };
-  for (const probabilities of [uniform, aggroLikely]) {
+  for (const probabilities of RESEARCH_TACTICAL_PRIORS) {
     const weights = mixInitialResearchWeights('control', probabilities);
-    assert.equal(applyAction(finishTurn(3, weights), 1, reply).winner, 1);
+    assert.equal(applyAction(playFixedTacticalTurn(game, 3, weights), 1, FIXED_LETHAL_REPLY).winner, 1);
+    const defended = playFixedTacticalTurn(game, 4, weights);
+    assert.equal(defended.phase, 'playing');
+    assert.equal(defended.activePlayer, 1);
+    assert.equal(defended.players[1].board.length, 0);
+    assert.ok(defended.players[0].health > 0);
   }
 });

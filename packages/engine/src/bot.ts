@@ -1,4 +1,5 @@
 import { applyAction, RuleError } from './engine.ts';
+import { visibleCounterattack } from './bot-counterattack.ts';
 import { candidates } from './simulate.ts';
 import { snapshotBattleCatalog } from './catalog-snapshot.ts';
 import type { Action, CardInstance, Catalog, GameState, Player, PlayerId, PlayerView, PublicPlayer } from './types.ts';
@@ -135,7 +136,7 @@ function weightedValue(s:GameState,actor:PlayerId,w:Readonly<BotWeights>,adaptiv
   };
   return side(own,true)-side(enemy,false)+threat(enemy,own)-threat(own,enemy)+w.face*(30-enemy.health)+w.trade*(own.board.length-enemy.board.length);
 }
-type SearchNode={state:GameState;first:Action;value:number;bonus:number;rank:number;path?:Action[]};
+type SearchNode={state:GameState;first:Action;value:number;bonus:number;rank:number;path?:Action[];counterattack?:boolean};
 function stateKey(s:GameState):string{
   return JSON.stringify([s.phase,s.activePlayer,s.winner,s.players.map(p=>[p.health,p.armor,p.mana,p.heroAttack,p.heroAttacksRemaining,p.heroPowerUsed,p.pendingOverload,p.cardsPlayedThisTurn,p.weapon,p.hand.map(h=>h.cardId+':'+(h.costDiscount??0)).sort(),p.secrets.map(h=>h.cardId).sort(),p.board.map(m=>[m.cardId,m.attack,m.health,m.maxHealth,m.attacksRemaining,m.frozenThroughTurn,m.silenced,[...m.keywords??[]].sort()]),p.deck.length])]);
 }
@@ -219,11 +220,17 @@ function visibleSecretRisk(s:GameState,actor:PlayerId,path:Action[],count:number
 }
 function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotDifficulty,settings:BotOptions):Action[]{
   const w=settings.weights??DEFAULT_BOT_WEIGHTS,config=botSearchConfig(difficulty),end:Action={type:'endTurn'};
-  const policy=settings.policyVersion??(difficulty===25?2:1),adaptive=policy>=2,pairedRisk=policy===3;
+  const policy=settings.policyVersion??(difficulty===25?2:1),adaptive=policy>=2,pairedRisk=policy>=3;
   const getOptions=(s:GameState)=>adaptive?optimizedOptions(s,actor):options(s,actor,true);
   const deadline=settings.deadlineMs===undefined?Infinity:performance.now()+Math.max(50,settings.deadlineMs);
   const starts=getOptions(s),rootLimit=Math.max(starts.length,settings.nodeLimit??config.nodes);
-  const expired=()=>performance.now()>=deadline,known=new Set(view.self.hand.map(h=>h.instanceId)),base=weightedValue(s,actor,w,adaptive);
+  const expired=()=>performance.now()>=deadline,known=new Set(view.self.hand.map(h=>h.instanceId));
+  const evaluateCounter = policy === 4 ? visibleCounterattack(actor, Math.max(48,Math.min(128,rootLimit)), expired) : undefined;
+  const counterPenalty = 200000;
+  const passLoses = evaluateCounter?.(s) ?? false;
+  const base = weightedValue(s,actor,w,adaptive) - (passLoses ? counterPenalty : 0);
+  const lineLoses = (next: GameState) => evaluateCounter !== undefined &&
+    (next.phase === 'finished' ? next.winner === 1-actor : next.rng === s.rng && evaluateCounter(next));
   const valueFor=(r:GameState,path:Action[]):number=>{
     if(adaptive&&r.phase==='finished'&&r.winner===actor&&(view.opponent.secretCount>0||r.rng!==s.rng&&!confirmsLethal(s,actor,path,view.opponent.secretCount,expired)))return base+16;
     return weightedValue(r,actor,w,adaptive);
@@ -234,9 +241,10 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
     // partially evaluated legal root is better than blocking the entire game.
     if(used>0&&expired())break;
     const r=legalResult(s,actor,a);used++;if(!r)continue;
-    const path=adaptive?[a]:[],bonus=actionBonus(s,a,actor),v=valueFor(r,path)+bonus;
-    const node={state:r,first:a,value:v,bonus,rank:v,...(adaptive?{path}:{})};best.set(a,node);
-    if(r.phase==='finished'&&r.winner===actor&&(!adaptive||v>90000))return[a,end];
+    const path=adaptive?[a]:[],bonus=actionBonus(s,a,actor),raw=valueFor(r,path)+bonus;
+    if(r.phase==='finished'&&r.winner===actor&&(!adaptive||raw>90000))return[a,end];
+    const counterattack=lineLoses(r), v=raw-(counterattack?counterPenalty:0);
+    const node={state:r,first:a,value:v,bonus,rank:v,...(adaptive?{path}:{}),counterattack};best.set(a,node);
     if(r.phase==='playing'&&r.activePlayer===actor&&!r.pendingChoice)frontier.push(node);
   }
   const breadth=(nodes:SearchNode[])=>{
@@ -254,9 +262,10 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
         if(used>=rootLimit||expired())break;
         if(a.type==='playCard'&&!known.has(a.instanceId))continue;
         const r=legalResult(node.state,actor,a);used++;if(!r)continue;
-        const path=adaptive?[...node.path??[],a]:[],bonus=node.bonus+actionBonus(node.state,a,actor),v=valueFor(r,path)+bonus;
-        const child={state:r,first:node.first,value:v,bonus,rank:v+(30-r.players[(1-actor) as PlayerId].health)*.08,...(adaptive?{path}:{})};
-        if(r.phase==='finished'&&r.winner===actor&&(!adaptive||v>90000))return[node.first,...[...best.keys()].filter(a=>a!==node.first),end];
+        const path=adaptive?[...node.path??[],a]:[],bonus=node.bonus+actionBonus(node.state,a,actor),raw=valueFor(r,path)+bonus;
+        if(r.phase==='finished'&&r.winner===actor&&(!adaptive||raw>90000))return[node.first,...[...best.keys()].filter(a=>a!==node.first),end];
+        const counterattack=lineLoses(r), v=raw-(counterattack?counterPenalty:0);
+        const child={state:r,first:node.first,value:v,bonus,rank:v+(30-r.players[(1-actor) as PlayerId].health)*.08,...(adaptive?{path}:{}),counterattack};
         if(v>(best.get(node.first)?.value??-Infinity))best.set(node.first,child);
         if(r.phase==='playing'&&r.activePlayer===actor&&!r.pendingChoice)next.push(child);
       }
@@ -264,7 +273,9 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
     }
     frontier=breadth(next);
   }
-  const ranked=[...best.values()].sort((a,b)=>b.value-a.value);
+  const ordered=[...best.values()].sort((a,b)=>b.value-a.value);
+  const rescue=passLoses&&ordered.some(node=>!node.counterattack);
+  const ranked=rescue?ordered.filter(node=>!node.counterattack):ordered;
   const responses=Math.min(settings.responseLimit??config.responses,ranked.length);
   if(adaptive&&responses>0&&!expired()){
     const shortlist=ranked.slice(0,responses),cap=(x:number)=>Math.max(-14,x),sampleSalts=difficulty>=20?[43,991]:[43];
@@ -274,7 +285,7 @@ function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotD
     // cannot dominate guaranteed current-board improvements.
     const pass=risk(s),scores:SearchNode[]=[];
     for(const n of shortlist){if(expired())break;const change=risk(n.state)-pass;if(expired())break;
-      const secretRisk=view.opponent.secretCount>0?sampleSalts.reduce((sum,salt)=>sum+visibleSecretRisk(s,actor,n.path??[n.first],view.opponent.secretCount,salt,w,n.value),0)/sampleSalts.length:0;
+      const secretRisk=view.opponent.secretCount>0?sampleSalts.reduce((sum,salt)=>sum+visibleSecretRisk(s,actor,n.path??[n.first],view.opponent.secretCount,salt,w,n.value+(n.counterattack?counterPenalty:0)),0)/sampleSalts.length:0;
       scores.push({...n,rank:n.value+.28*change+.22*secretRisk});}
     if(scores.length===shortlist.length){scores.sort((a,b)=>b.rank-a.rank);const selected=scores.filter(x=>x.rank>base+.06&&x.value>base-.6);return [...selected.map(x=>x.first),...ranked.filter(x=>x.value>base+.06&&!selected.some(y=>y.first===x.first)).map(x=>x.first),end,...ranked.filter(x=>x.value<=base+.06&&!selected.some(y=>y.first===x.first)).map(x=>x.first)];}
   }

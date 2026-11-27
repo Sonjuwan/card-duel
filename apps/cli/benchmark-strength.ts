@@ -7,10 +7,13 @@ const {version,catalog}=new CardStore().read(),hash=aiCatalogHash(catalog);
 const pairs=Math.max(1,Math.min(100,Math.floor(Number(process.argv[2])||9))),opponents=(process.argv[3]??'3,6,11,18,24').split(',').map(Number);
 if(!opponents.every(isBotDifficulty))throw Error('Specify comma-separated opponent levels 1–25');
 const target=Number(process.argv[4]??25);if(!isBotDifficulty(target))throw Error('Invalid target difficulty');
-const policyNumber=Number(process.argv[5]??1);if(policyNumber!==1&&policyNumber!==2&&policyNumber!==3)throw Error('Specify policy 1, 2 or experimental 3');
-const policy:1|2|3=policyNumber,seedOffset=Number(process.argv[6]??0)||0;
-const opponentPolicyNumber=Number(process.argv[7]??1);if(opponentPolicyNumber!==1&&opponentPolicyNumber!==2&&opponentPolicyNumber!==3)throw Error('Specify opponent policy 1, 2 or experimental 3');
-const opponentPolicy:1|2|3=opponentPolicyNumber;
+function selectPolicy(value: string | undefined) {
+  const policy = Number(value ?? 1);
+  if (policy !== 1 && policy !== 2 && policy !== 3 && policy !== 4) throw Error('Specify policy 1–4');
+  return policy;
+}
+const policy=selectPolicy(process.argv[5]),seedOffset=Number(process.argv[6]??0)||0;
+const opponentPolicy=selectPolicy(process.argv[7]);
 if(!Number.isSafeInteger(seedOffset)||seedOffset<0)throw Error('Specify a nonnegative integer seed offset');
 function modelFor(selection:string){
   if(selection==='default')return {label:'default',weights:DEFAULT_BOT_WEIGHTS,promotions:0};
