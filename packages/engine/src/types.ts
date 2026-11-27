@@ -215,7 +215,7 @@ export interface GameState {
   history: PublicEvent[];
   pendingChoice?: {owner:PlayerId;cards:CardInstance[]};
 }
-export interface PublicEvent {turn:number;player:PlayerId;message:string}
+export interface PublicEvent {turn:number;player:PlayerId;message:string;playedCardId?:string}
 export interface PublicPlayer {
   heroAttacksMadeThisTurn?:number;
   heroClass: HeroClass;

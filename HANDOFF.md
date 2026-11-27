@@ -117,3 +117,11 @@
 4. 카드 판정 세부 회귀 검사. 온라인은 후순위.
 
 ZIP을 복원한 경우 `data/ai`가 제공되어 있으며 이전 저장본에 덮어쓰지 않는다. 다른 환경의 데이터는 `import-ai-data.cmd`를 이용한다. Git 기록은 ZIP의 Git bundle을 이용하거나 동일 소스 위에서 새 기록을 시작한다.
+
+## 차세대 독립 AI 연구 재개 지점
+
+- 브랜치 `ai-research-foundation`. 원본 기준 `641104107a1306c99c78487f57f355dec407889d`(v0.91.0). 재개 시 이 브랜치의 최신 검증 커밋과 `git status`를 확인한다.
+- 계획은 `MASTER_PLAN.md`, 항목 상태는 `docs/PROGRESS.md`, 실행 결과는 `docs/TEST_RESULTS.md`를 읽는다.
+- 연구 베이스라인을 재현하려면 `npm run benchmark:research -- 9 release`를 실행한다.
+- 다음 핵심 작업의 권장 추론 수준은 Extra High다. 정책 2와 3의 행동 차이를 고정 전술로 검증하고, 공개 카드 기반 추론에 전개·공격·자원 사용 신호를 추가하고, 별도 시드와 비표준 덱에서 정확도와 확률 보정을 검증한다. 기존 플레이 경로와 연구 저장 격리를 테스트한다.
+- 재개 입력 예시 — “Card Duel 차세대 AI 연구를 ai-research-foundation의 HANDOFF.md부터 이어서 개발하고 검증해 주세요.”

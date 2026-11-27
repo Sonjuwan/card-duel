@@ -107,8 +107,8 @@ function instance(s: GameState, cardId: string): CardInstance {
 function blankPlayer(heroClass: HeroClass): Player {
   return { heroClass, health: RULES.heroHealth, mana: 0, maxMana: 0, armor:0, heroAttack:0, heroAttacksRemaining:0, heroPowerUsed:false, pendingOverload:0,lockedMana:0,cardsPlayedThisTurn:0,weapon:null, secrets:[], fatigue: 0, deck: [], hand: [], board: [], mulliganDone: false };
 }
-function log(s:GameState,player:PlayerId,message:string):void{
-  s.history.push({turn:s.turn,player,message});if(s.history.length>60)s.history.shift();
+function log(s:GameState,player:PlayerId,message:string,playedCardId?:string):void{
+  s.history.push({turn:s.turn,player,message,...(playedCardId===undefined?{}:{playedCardId})});if(s.history.length>60)s.history.shift();
 }
 function finish(s: GameState, winner: PlayerId|null, reason: NonNullable<GameState['reason']>): void {
   s.phase = 'finished'; s.winner = winner; s.reason = reason;
@@ -351,7 +351,7 @@ function playCard(s: GameState, id: PlayerId, instanceId: unknown, target:unknow
   p.mana -= cost;if(def.kind==='secret')delete p.nextSecretFree;if(def.kind==='spell'||def.kind==='coin'||def.kind==='secret')delete p.nextSpellDiscount;
   p.hand.splice(index, 1);
   const comboActive=p.cardsPlayedThisTurn>0;p.cardsPlayedThisTurn++;if(def.kind==='minion')p.minionsPlayedThisTurn=(p.minionsPlayedThisTurn??0)+1;
-  log(s,id,def.kind==='secret'?'비밀 설치':`${def.name} 사용${choice?` (${choice.label})`:''}`);
+  log(s,id,def.kind==='secret'?'비밀 설치':`${def.name} 사용${choice?` (${choice.label})`:''}`,def.kind==='secret'||def.kind==='coin'?undefined:def.id);
   const overloadCard=effects?.some(e=>e.kind==='overload');
   if(def.kind!=='minion'){const ops=resolution(s);ops.event({kind:'cardPlayed',owner:id});if(overloadCard)ops.event({kind:'overloadCardPlayed',owner:id});ops.settle();if(s.phase==='finished')return;}
   if(def.kind==='spell'||def.kind==='coin'||def.kind==='secret'){const ops=resolution(s);ops.event({kind:'spellPlayed',owner:id,target:chosen,cardId:def.id});if(def.kind==='secret')ops.event({kind:'secretPlayed',owner:id});ops.settle();if(s.phase==='finished')return;}

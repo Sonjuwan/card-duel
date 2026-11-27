@@ -38,7 +38,8 @@
     "test:online-smoke": "npm run build && node --test apps/client/test/online-smoke.test.ts apps/client/test/server-process.test.ts apps/client/test/online-acceptance.test.ts",
     "web": "npm run build && npm run server",
     "balance": "node apps/admin/main.ts",
-    "balance:sim": "node apps/cli/balance-sim.ts"
+    "balance:sim": "node apps/cli/balance-sim.ts",
+    "benchmark:research": "node apps/cli/benchmark-research.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

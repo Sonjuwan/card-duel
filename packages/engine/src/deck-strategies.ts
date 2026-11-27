@@ -6,6 +6,8 @@ import {maxCardCopies,TRIBES} from './rules.ts';
 
 export const DECK_STYLES=['starter','practice','aggression','control','synergy','combo','legendary'] as const;
 export type DeckStyle=typeof DECK_STYLES[number];
+export const RESEARCH_STRATEGIES = ['aggro', 'midrange', 'control', 'big-deck'] as const;
+export type ResearchStrategy = typeof RESEARCH_STRATEGIES[number];
 export type CardRole={tempo:number;reach:number;removal:number;draw:number;sustain:number;synergy:number;value:number;};
 const empty=():CardRole=>({tempo:0,reach:0,removal:0,draw:0,sustain:0,synergy:0,value:0});
 function add(dst:CardRole,src:CardRole,scale=1){for(const k of Object.keys(dst) as (keyof CardRole)[])dst[k]+=src[k]*scale;return dst;}
@@ -75,6 +77,8 @@ export function cardRoles(c:Card,catalog:Catalog):CardRole{
   return r;
 }
 const configs={
+  midrange:{curve:[0,4,7,7,6,4,2],minions:23,roles:{tempo:1.45,reach:.35,removal:.65,draw:.35,sustain:.25,synergy:.45,value:.55}},
+  bigDeck:{curve:[0,3,5,4,3,4,11],minions:19,roles:{tempo:.7,reach:.2,removal:.8,draw:.55,sustain:1,synergy:.25,value:1.35}},
   aggression:{curve:[1,8,10,7,3,1,0],minions:20,roles:{tempo:1.3,reach:1.1,removal:.3,draw:.25,sustain:.1,synergy:.3,value:.15}},
   control:{curve:[0,3,5,5,6,4,7],minions:14,roles:{tempo:.55,reach:.25,removal:1.1,draw:.9,sustain:.8,synergy:.2,value:.9}},
   synergy:{curve:[0,5,8,7,5,2,3],minions:20,roles:{tempo:.85,reach:.4,removal:.4,draw:.5,sustain:.2,synergy:1.3,value:.4}},
@@ -88,6 +92,15 @@ export function strategicDeck(catalog:Catalog,heroClass:HeroClass,style:DeckStyl
   if(style==='starter')return starterDeck(catalog,heroClass);
   if(style==='practice')return practiceDeck(catalog,heroClass);
   if(style==='legendary')return legendaryPracticeDeck(catalog,heroClass);
+  return buildStrategyDeck(catalog,heroClass,style,seed);
+}
+
+export function researchDeck(catalog: Catalog, heroClass: HeroClass, strategy: ResearchStrategy): Deck {
+  const styles = {aggro: 'aggression', midrange: 'midrange', control: 'control', 'big-deck': 'bigDeck'} as const;
+  return buildStrategyDeck(catalog, heroClass, styles[strategy], 0);
+}
+
+function buildStrategyDeck(catalog: Catalog, heroClass: HeroClass, style: keyof typeof configs, seed: number): Deck {
   const cfg=configs[style],rng=seeded(seed),pool=deckCards(catalog,heroClass);
   const role=new Map(pool.map(c=>[c.id,cardRoles(c,catalog)]));
   const preferredTribes=TRIBES.filter(t=>t!=='none').map(t=>({t,score:pool.filter(c=>c.kind==='minion'&&c.tribe===t).length*.15+pool.filter(c=>c.kind==='minion'&&c.class===heroClass&&(c.tribe===t||c.auras?.some(a=>a.tribe===t)||c.chargeAuraTribe===t)).length*1.1+rng()*3})).sort((a,b)=>b.score-a.score);
@@ -104,7 +117,9 @@ export function strategicDeck(catalog:Catalog,heroClass:HeroClass,style:DeckStyl
       const boardNeed=(cfg.minions-minions)-(cfg.minions/30)*(30-cards.length);
       const minionScore=c.kind==='minion'?Math.min(4,boardNeed*.6):Math.max(-5,-boardNeed*.6);
       const tribal=style==='synergy'&&c.kind==='minion'?(c.tribe===tribe?2.3:0)+(c.auras?.some(a=>a.tribe===tribe)||c.chargeAuraTribe===tribe||c.attackPerOtherTribe?.tribe===tribe?2.5:0):0;
-      const score=quality*2+scarcity+minionScore+tribal+(c.class===heroClass?.7:0)+(jitter.get(c.id)??0)-count*1.8-(c.kind==='weapon'?Math.max(0,weapons-2)*2:0);
+      const largeMinion = style === 'bigDeck' && c.kind === 'minion' && c.cost >= 6
+        ? .32 * (c.attack + c.health) + .5 * (c.cost - 6) : 0;
+      const score=largeMinion+quality*2+scarcity+minionScore+tribal+(c.class===heroClass?.7:0)+(jitter.get(c.id)??0)-count*1.8-(c.kind==='weapon'?Math.max(0,weapons-2)*2:0);
       if(score>bestScore){bestScore=score;best=c;}
     }
     if(!best)throw Error('Not enough collectible cards for strategic deck');
