@@ -543,11 +543,17 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const nativeDrop=(e:DragEvent<HTMLDivElement>)=>{const d=dragRef.current;if(!d||!active)return;e.preventDefault();e.stopPropagation();const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,d);clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));};
   const nativeDragEnd=()=>{const unfinished=!!dragRef.current;clearDrag();if(unfinished&&active)setDropNotice('드래그 취소 · 카드와 마나는 그대로 유지됩니다.');};
   const touchMove=(e:PointerEvent<HTMLDivElement>)=>{
-    pointAim(e.clientX,e.clientY);
-    if(aimPress.current===e.pointerId){setDropTarget(stagedTargetAt(e.clientX,e.clientY));return;}
-    const g=touchRef.current;if(!g||g.pointerId!==e.pointerId)return;
+    if(aimPress.current===e.pointerId){
+      pointAim(e.clientX,e.clientY);
+      const target=stagedTargetAt(e.clientX,e.clientY);
+      setDropTarget(old=>old&&target&&sameTarget(old,target)?old:target);
+      return;
+    }
+    const g=touchRef.current;if(!g||g.pointerId!==e.pointerId){pointAim(e.clientX,e.clientY);return;}
     const next=advanceGesture(g,e.clientX,e.clientY,rules.revision);if(!next||!planDrag(rules,seat,catalog,g.drag.intent)){cancelActiveTouch();return;}touchRef.current=next;
-    if(next.phase!=='dragging')return;
+    if(next.phase!=='dragging'){pointAim(e.clientX,e.clientY);return;}
+    // dragPointer updates the aim after the cast/ghost coordinates are set.
+    // Do not query layout and write the SVG aim line twice per pointer event.
     if(g.phase!=='dragging'){
       try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}
       setSelected(null);setDrag(next.drag);dragRef.current=next.drag;
