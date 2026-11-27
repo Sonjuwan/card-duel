@@ -1,4 +1,4 @@
-import type { Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target, PublicEvent, PublicPlayTarget } from './types.ts';
+import type { Action, Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target, PublicEvent, PublicPlayTarget } from './types.ts';
 import { RULES, HERO_CLASSES, TRIBES, RuleError, requireRule, record, integer, isClass, other, validPlayer, random, setRuntime, opaqueId, emitVisual,maxCardCopies } from './rules.ts';
 import type { RuntimeOptions } from './rules.ts';
 import { chooseTarget, effectiveTargetRule, hasKeyword, hero, lookupTarget, resolveEffects, TARGET_RULES, KEYWORDS, validateEffects, minionDamageResult } from './effects.ts';
@@ -7,6 +7,7 @@ import { getHeroPower, HERO_TOKENS } from './hero-powers.ts';
 import { refreshAuras } from './auras.ts';
 import { currentCost } from './costs.ts';
 import { snapshotBattleCatalog } from './catalog-snapshot.ts';
+import { copySimulationData } from './simulation-copy.ts';
 import { spellRequirementReason, heroPowerReason } from './playability.ts';
 import {unknownCardFields} from './card-schema.ts';
 export { RULES, HERO_CLASSES, RuleError };
@@ -456,11 +457,20 @@ function heroPower(s:GameState,id:PlayerId,target:unknown):void {
 }
 /** Pure transaction: all invalid actions throw without altering the input state. */
 export function applyAction(state: GameState, actor: PlayerId, action: unknown, runtime?:RuntimeOptions): GameState {
+  return transition(state, actor, action, runtime, false);
+}
+
+/** Internal bot search path. It takes a projected, plain game state. */
+export function applySpeculativeAction(state: GameState, actor: PlayerId, action: Action): GameState {
+  return transition(state, actor, action, undefined, true);
+}
+
+function transition(state: GameState, actor: PlayerId, action: unknown, runtime: RuntimeOptions | undefined, speculative: boolean): GameState {
   requireRule(validPlayer(actor), '잘못된 플레이어');
   requireRule(state.phase !== 'finished', '이미 종료된 게임입니다.');
   requireRule(record(action), '잘못된 행동');
   const {catalog,...dynamic}=state;
-  const s:GameState={...structuredClone(dynamic),catalog:snapshotBattleCatalog(catalog)};
+  const s:GameState={...(speculative ? copySimulationData(dynamic) : structuredClone(dynamic)),catalog:snapshotBattleCatalog(catalog)};
   setRuntime(s,runtime);
   if (action.type === 'concede') {log(s,actor,'항복');finish(s, other(actor), 'concede');}
   else if (s.phase === 'mulligan') {

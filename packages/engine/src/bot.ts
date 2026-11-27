@@ -1,8 +1,9 @@
-import { applyAction, RuleError } from './engine.ts';
+import { applyAction, applySpeculativeAction, RuleError } from './engine.ts';
 import { visibleCounterattack } from './bot-counterattack.ts';
 import { candidates } from './simulate.ts';
+import { copySimulationData } from './simulation-copy.ts';
 import { snapshotBattleCatalog } from './catalog-snapshot.ts';
-import type { Action, CardInstance, Catalog, GameState, Player, PlayerId, PlayerView, PublicPlayer } from './types.ts';
+import type { Action, CardInstance, Catalog, GameState, HeroClass, Player, PlayerId, PlayerView, PublicPlayer } from './types.ts';
 import { botSearchConfig, DEFAULT_BOT_WEIGHTS } from './bot-profile.ts';
 import type { BotOptions, BotWeights } from './bot-profile.ts';
 import { practiceDeck } from './practice-decks.ts';
@@ -166,14 +167,28 @@ function actionBonus(s:GameState,a:Action,actor:PlayerId):number{
   return a.type==='heroPower' ? .06 : 0;
 }
 function legalResult(s:GameState,actor:PlayerId,a:Action):GameState|null{
-  try{return applyAction(s,actor,a);}catch(e){if(e instanceof RuleError)return null;throw e;}
+  // Combat history is output-only. Speculative nodes don't need to copy their
+  // ancestors' messages on every engine transition.
+  try{return applySpeculativeAction(s.history.length ? {...s,history:[]} : s,actor,a);}catch(e){if(e instanceof RuleError)return null;throw e;}
 }
 /** Sample a plausible opponent hand from its public class only. No actual
  * enemy hand/deck/secret or server random state can enter this function. */
+const sampledDecks = new WeakMap<Catalog, Map<HeroClass, readonly string[]>>();
 function sampleOpponent(s:GameState,actor:PlayerId,salt:number,pairedRevision=s.revision):GameState{
-  const {catalog,...dynamic}=s,n={...structuredClone(dynamic),catalog} as GameState,enemy=(1-actor) as PlayerId,p=n.players[enemy];
-  const deck=practiceDeck(catalog,p.heroClass).cards;let seed=(Math.imul(pairedRevision+1,2654435761)^salt)>>>0;
-  const pick=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return deck[seed%deck.length];};
+  const {catalog,...dynamic}=s,n={...copySimulationData(dynamic),catalog} as GameState,enemy=(1-actor) as PlayerId,p=n.players[enemy];
+  let byHero = sampledDecks.get(catalog);
+  if (!byHero) {
+    byHero = new Map();
+    sampledDecks.set(catalog, byHero);
+  }
+  let deck = byHero.get(p.heroClass);
+  if (!deck) {
+    deck = practiceDeck(catalog, p.heroClass).cards;
+    byHero.set(p.heroClass, deck);
+  }
+  const cards = deck;
+  let seed=(Math.imul(pairedRevision+1,2654435761)^salt)>>>0;
+  const pick=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return cards[seed%cards.length];};
   p.hand=p.hand.map(h=>h.instanceId.startsWith('__bot_')?{...h,cardId:pick()}:h);
   p.deck=p.deck.map(h=>({...h,cardId:pick()}));return n;
 }

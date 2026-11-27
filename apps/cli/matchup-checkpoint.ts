@@ -1,17 +1,13 @@
 import { validateBotWeights, RESEARCH_STRATEGIES } from '../../packages/engine/src/index.ts';
 import { aiWeightFingerprint } from '../server/ai-profile-store.ts';
-import { MATCHUPS, MATCHUP_PROTOCOL, STAGES } from './matchup-evolution.ts';
-import type { MatchupGroup, MatchupState, TrialEvidence } from './matchup-evolution.ts';
+import { isMatchupGroup, MATCHUPS, MATCHUP_PROTOCOL, STAGES } from './matchup-evolution.ts';
+import type { MatchupState, TrialEvidence } from './matchup-evolution.ts';
 import type { ResearchWeightRow } from './research-models.ts';
 
 const count = (n: unknown, max = Number.MAX_SAFE_INTEGER): n is number =>
   typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= max;
 const rate = (n: unknown, low = -1): n is number =>
   typeof n === 'number' && Number.isFinite(n) && n >= low && n <= 1;
-const scorePair = (scores: unknown) => Array.isArray(scores) && scores.length === 2 &&
-  scores.every(score => score === 0 || score === .5 || score === 1);
-const result = (group: MatchupGroup | null) =>
-  !!group && count(group.truncated, 4) && scorePair(group.control) && scorePair(group.candidate);
 const row = (weights: ResearchWeightRow | null) =>
   !!weights && RESEARCH_STRATEGIES.every(strategy => validateBotWeights(weights[strategy]) !== null);
 
@@ -46,7 +42,7 @@ export function parseMatchupState(raw: unknown, hash: string): MatchupState {
           row(pending.ownRow) && row(pending.opposingRow) && row(pending.priorOpposingRow) &&
           aiWeightFingerprint(pending.ownRow[MATCHUPS[index].opponent]) === aiWeightFingerprint(model.weights) &&
           Array.isArray(pending.results) && pending.results.length < STAGES[pending.stage].groups &&
-          pending.results.length * 4 <= model.games && pending.results.every(result);
+          pending.results.length * 4 <= model.games && pending.results.every(isMatchupGroup);
       })) throw new Error('Invalid or incompatible matchup checkpoint');
   return data as MatchupState;
 }

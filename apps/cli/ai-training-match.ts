@@ -1,5 +1,5 @@
 import { applyAction,createGame,getPlayerView,HERO_CLASSES,practiceDeck,starterDeck,strategicDeck,rankBotActions,RuleError } from '../../packages/engine/src/index.ts';
-import type { BotDifficulty,BotWeights,Catalog,GameState,HeroClass,PlayerId,DeckStyle,Deck,PlayerView } from '../../packages/engine/src/index.ts';
+import type { BotDifficulty,BotWeights,Catalog,GameState,HeroClass,PlayerId,DeckStyle,Deck,PlayerView,Action } from '../../packages/engine/src/index.ts';
 import {createTrainingScenarios,variedCatalog} from './ai-training-scenarios.ts';
 import type {OpponentTag,ScenarioOptions} from './ai-training-scenarios.ts';
 import { inferOpponentStrategy, mixInitialResearchWeights, mixResearchWeights } from './research-models.ts';
@@ -16,8 +16,9 @@ export interface TrainingJob {
   variantVersion?:1;
   /** Missing means the previous policy; saved unfinished trials never silently change. */
   policyVersion?:BotOptions['policyVersion'];
+  opponentPolicyVersion?:BotOptions['policyVersion'];
   /** Role-based rows. Their mixture uses public evidence, regardless of the trial label. */
-  researchRows?: { candidate: ResearchWeightRow; opponent: ResearchWeightRow };
+  researchRows?: { candidate: ResearchWeightRow; opponent?: ResearchWeightRow };
 }
 export interface TrainingResult {score:number; moves:number; turns:number; truncated:boolean; opponentEstimate?: Record<ResearchStrategy, number>; focusExposure?: { seen: boolean; played: boolean };}
 export function pairedJobs(seed:number,pairs:number,candidate:BotWeights,opponent:BotWeights,nodes:number,level:BotDifficulty,scenarios?:ScenarioOptions):TrainingJob[]{
@@ -36,6 +37,7 @@ export interface TrainingMatchOptions {
   observeDecision?: (view: PlayerView, actor: PlayerId) => void;
   candidateInference?: InferenceMode;
   focusCard?: string;
+  reuseDecisions?: Map<string, Action[]>;
   opponentResearch?: { strategy: ResearchStrategy; inference: InferenceMode };
 }
 
@@ -53,12 +55,12 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
     const focusedCard = focusExposure && actor === job.candidateSeat
       ? view.self.hand.find(card => card.cardId === options?.focusCard) : undefined;
     if (focusedCard && focusExposure) focusExposure.seen = true;
+    const isCandidate = actor === job.candidateSeat;
+    const row = isCandidate ? job.researchRows?.candidate : job.researchRows?.opponent;
     let weights = job.opponent;
-    if (job.researchRows) {
-      const estimate = inferOpponentStrategy(view, actor, s.catalog);
-      const row = actor === job.candidateSeat ? job.researchRows.candidate : job.researchRows.opponent;
-      weights = mixResearchWeights(row, estimate);
-    } else if (actor === job.candidateSeat) {
+    if (row) {
+      weights = mixResearchWeights(row, inferOpponentStrategy(view, actor, s.catalog));
+    } else if (isCandidate) {
       weights = job.candidate;
       if (job.candidateStrategy !== undefined) {
         opponentEstimate = inferOpponentStrategy(view, actor, s.catalog, options?.candidateInference);
@@ -68,7 +70,23 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
       const { strategy, inference } = options.opponentResearch;
       weights = mixInitialResearchWeights(strategy, inferOpponentStrategy(view, actor, s.catalog, inference));
     }
-    const actions=turnActions>=40&&s.phase==='playing'&&!s.pendingChoice?[{type:'endTurn'} as const]:rankBotActions(view,s.catalog,actor,job.level,{weights,nodeLimit:job.nodes,responseLimit:job.level===25?2:0,policyVersion:job.policyVersion??1});
+    let actions: Action[];
+    if (turnActions >= 40 && s.phase === 'playing' && !s.pendingChoice) {
+      actions = [{ type: 'endTurn' }];
+    } else {
+      const settings: BotOptions = { weights, nodeLimit: job.nodes, responseLimit: job.level === 25 ? 2 : 0,
+        policyVersion: (isCandidate ? job.policyVersion : job.opponentPolicyVersion ?? job.policyVersion) ?? 1 };
+      const cache = options?.reuseDecisions;
+      if (cache) {
+        // Ranking consumes the projected state and resolved weights. History
+        // has already been accounted for by the strategy estimator.
+        const { history: _, ...position } = view;
+        const key = JSON.stringify([position, actor, job.level, settings]);
+        const cached = cache.get(key);
+        actions = cached ?? rankBotActions(view, s.catalog, actor, job.level, settings);
+        if (cached === undefined) cache.set(key, actions);
+      } else actions = rankBotActions(view, s.catalog, actor, job.level, settings);
+    }
     let after:GameState|undefined;
     for(const action of actions){
       try {

@@ -42,7 +42,8 @@
     "benchmark:research": "node apps/cli/benchmark-research.ts",
     "benchmark:inference": "node apps/cli/benchmark-inference.ts",
     "benchmark:card-value": "node apps/cli/benchmark-card-value.ts",
-    "train:matchups": "node apps/cli/train-matchups.ts"
+    "train:matchups": "node apps/cli/train-matchups.ts",
+    "verify:integrated-ai": "node apps/cli/verify-integrated-ai.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

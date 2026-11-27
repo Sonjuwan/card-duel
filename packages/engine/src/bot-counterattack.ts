@@ -1,4 +1,4 @@
-import { applyAction, RuleError } from './engine.ts';
+import { applySpeculativeAction, RuleError } from './engine.ts';
 import { hasKeyword } from './effects.ts';
 import { getHeroPower } from './hero-powers.ts';
 import { candidates } from './simulate.ts';
@@ -37,7 +37,7 @@ export function visibleCounterattack(defender: PlayerId, limit: number, expired:
 
   function step(state: GameState, actor: PlayerId, action: Action): GameState | undefined {
     try {
-      const next = applyAction(state, actor, action);
+      const next = applySpeculativeAction(state.history.length ? { ...state, history: [] } : state, actor, action);
       return next.rng === state.rng ? next : undefined;
     } catch (error) {
       if (!(error instanceof RuleError)) throw error;

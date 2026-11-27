@@ -126,5 +126,5 @@ ZIP을 복원한 경우 `data/ai`가 제공되어 있으며 이전 저장본에 
 - 최종 수정 명령은 `MASTER_PLAN.md`에 통합했다. 연구 풀은 현재 합법 카드 전체이며 카드 점수는 기본 카드 전체 평균 100점의 단일 척도다. 실제 게임 진행·보유 카드 자료는 별도로 회귀 검사한다.
 - 공개 추론 검증을 재현하려면 `npm run benchmark:inference -- holdout 18` 및 `npm run benchmark:inference -- holdout 18 actions cards`를 실행한다. 카드 평가를 재현하려면 `npm run benchmark:card-value -- --card blizzard --card wisp`를 실행한다.
 - 정책 4의 공개 치명 반격과 연구 승격은 `npm run train:matchups -- --groups 16`으로 재현한다. 같은 경로에서 이어서 실행하면 유효 묶음 수와 후보 상태가 유지된다. 검증 결과는 `docs/TEST_RESULTS.md`에 있다.
-- 다음 핵심 작업의 권장 추론 수준은 Extra High다. 장기 실경기에서 후보의 중간·정밀 성능과 실제 승격을 확인하고, 16개 모델을 통합 검증하는 별도의 배포 심사를 구현한다. 더 넓은 전술군 및 상대 집단 일반화, 통합 관리 화면과 Windows 검증이 남았다.
+- 다음 핵심 작업의 권장 추론 수준은 Extra High다. 장기 실경기에서 독립 후보의 승격과 통합 배포 전 검증 결과를 확인한다. 기존 후보만 마무리할 때는 `train:matchups -- --finish-validation`, 통합 결과를 확인할 때는 `verify:integrated-ai`를 사용한다. 더 넓은 전술군 및 상대 집단 일반화, 통합 관리 화면과 Windows 검증이 남았다.
 - 재개 입력 예시 — “Card Duel 차세대 AI 연구를 ai-research-foundation의 HANDOFF.md부터 이어서 개발하고 검증해 주세요.”

@@ -66,7 +66,7 @@ export function createMatchupState(catalogHash: string, seed: number): MatchupSt
   };
 }
 
-function rowFor(state: MatchupState, own: ResearchStrategy, prior = false): ResearchWeightRow {
+export function rowFor(state: MatchupState, own: ResearchStrategy, prior = false): ResearchWeightRow {
   const base = RESEARCH_STRATEGIES.indexOf(own) * RESEARCH_STRATEGIES.length;
   const initial = initialResearchRow(own);
   const weights = (strategy: ResearchStrategy) => {
@@ -76,7 +76,9 @@ function rowFor(state: MatchupState, own: ResearchStrategy, prior = false): Rese
   return { aggro: weights('aggro'), midrange: weights('midrange'), control: weights('control'), 'big-deck': weights('big-deck') };
 }
 
-function fixtureSeed(seed: number, ordinal: number): number {
+export const RELEASE_FIXTURE_START = 0xffff0000;
+
+export function fixtureSeed(seed: number, ordinal: number): number {
   if (ordinal > 0xffffffff) throw new Error('Matchup fixture seed space exhausted');
   return (seed + Math.imul(ordinal, 0x9e3779b1)) >>> 0;
 }
@@ -105,7 +107,9 @@ export function matchupJobs(catalog: Catalog, state: MatchupState, index: number
   const stage = STAGES[trial.stage], { own, opponent } = MATCHUPS[index];
   if (!stage || group >= stage.groups) throw new Error('Completed matchup stage');
   const offset = STAGES.slice(0, trial.stage).reduce((sum, entry) => sum + entry.groups, 0);
-  const seed = fixtureSeed(state.seed, (model.attempts * MATCHUPS.length + index) * groupsPerTrial + offset + group);
+  const ordinal = (model.attempts * MATCHUPS.length + index) * groupsPerTrial + offset + group;
+  if (ordinal >= RELEASE_FIXTURE_START) throw new Error('Training fixture seed space exhausted');
+  const seed = fixtureSeed(state.seed, ordinal);
   const hero = HERO_CLASSES[(group + index + model.attempts) % HERO_CLASSES.length];
   const other = HERO_CLASSES[(group * 5 + index * 2 + model.attempts + 3) % HERO_CLASSES.length];
   const deck = (role: ResearchStrategy, cls: typeof hero, salt: number) => trial.stage === 0
@@ -130,13 +134,23 @@ export function matchupJobs(catalog: Catalog, state: MatchupState, index: number
   return jobs;
 }
 
-export function matchupGroup(results: readonly TrainingResult[]): MatchupGroup {
-  if (results.length !== 4) throw new Error('A matched fixture needs four games');
-  return { control: [results[0].score, results[1].score], candidate: [results[2].score, results[3].score],
-    truncated: results.filter(result => result.truncated).length };
+export function isMatchupGroup(value: unknown): value is MatchupGroup {
+  const group = value as Partial<MatchupGroup> | null;
+  const scorePair = (scores: unknown) => Array.isArray(scores) && scores.length === 2 &&
+    scores.every(score => score === 0 || score === .5 || score === 1);
+  return !!group && typeof group.truncated === 'number' && Number.isInteger(group.truncated) &&
+    group.truncated >= 0 && group.truncated <= 4 && scorePair(group.control) && scorePair(group.candidate);
 }
 
-function positiveSignTail(wins: number, losses: number): number {
+export function matchupGroup(results: readonly TrainingResult[]): MatchupGroup {
+  if (results.length !== 4) throw new Error('A matched fixture needs four games');
+  const group: MatchupGroup = { control: [results[0].score, results[1].score], candidate: [results[2].score, results[3].score],
+    truncated: results.filter(result => result.truncated).length };
+  if (!isMatchupGroup(group)) throw new Error('Invalid matched fixture result');
+  return group;
+}
+
+export function positiveSignTail(wins: number, losses: number): number {
   const trials = wins + losses;
   let mass = 2 ** -trials, tail = 0;
   for (let k = 0; k <= trials; k++) {
