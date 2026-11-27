@@ -128,3 +128,5 @@ ZIP을 복원한 경우 `data/ai`가 제공되어 있으며 이전 저장본에 
 - 정책 4의 공개 치명 반격과 연구 승격은 `npm run train:matchups -- --groups 16`으로 재현한다. 같은 경로에서 이어서 실행하면 유효 묶음 수와 후보 상태가 유지된다. 검증 결과는 `docs/TEST_RESULTS.md`에 있다.
 - 다음 핵심 작업의 권장 추론 수준은 Extra High다. 장기 실경기에서 독립 후보의 승격과 통합 배포 전 검증 결과를 확인한다. 기존 후보만 마무리할 때는 `train:matchups -- --finish-validation`, 통합 결과를 확인할 때는 `verify:integrated-ai`를 사용한다. 더 넓은 전술군 및 상대 집단 일반화, 통합 관리 화면과 Windows 검증이 남았다.
 - 재개 입력 예시 — “Card Duel 차세대 AI 연구를 ai-research-foundation의 HANDOFF.md부터 이어서 개발하고 검증해 주세요.”
+
+후속 AI 개발은 **Extra High**를 권장한다. 후보 및 현 챔피언 상태는 유지했다. 별도의 개발용 덱·시드에서 미드레인지의 기존 정책 4를 고정하고, 컨트롤만 대상으로 탐색 정책과 혼합 강도를 독립 비교한다. 통합 심사와 이번 확인 시드는 개발 후보 선정에서 제외한다. 개발용 결과에서 후보를 하나 고정한 후 새 확인 덱·시드에서 기존 승격·배포 허들을 적용한다. 재현 및 확인 명령은 `docs/AI_TRAINING.md`, 판정은 `docs/TEST_RESULTS.md`에 있다.

@@ -235,12 +235,12 @@ function visibleSecretRisk(s:GameState,actor:PlayerId,path:Action[],count:number
 }
 function strongSearch(view:PlayerView,s:GameState,actor:PlayerId,difficulty:BotDifficulty,settings:BotOptions):Action[]{
   const w=settings.weights??DEFAULT_BOT_WEIGHTS,config=botSearchConfig(difficulty),end:Action={type:'endTurn'};
-  const policy=settings.policyVersion??(difficulty===25?2:1),adaptive=policy>=2,pairedRisk=policy>=3;
+  const policy=settings.policyVersion??(difficulty===25?2:1),adaptive=policy>=2,pairedRisk=policy===3||policy===4;
   const getOptions=(s:GameState)=>adaptive?optimizedOptions(s,actor):options(s,actor,true);
   const deadline=settings.deadlineMs===undefined?Infinity:performance.now()+Math.max(50,settings.deadlineMs);
   const starts=getOptions(s),rootLimit=Math.max(starts.length,settings.nodeLimit??config.nodes);
   const expired=()=>performance.now()>=deadline,known=new Set(view.self.hand.map(h=>h.instanceId));
-  const evaluateCounter = policy === 4 ? visibleCounterattack(actor, Math.max(48,Math.min(128,rootLimit)), expired) : undefined;
+  const evaluateCounter = policy === 4 || policy === 5 ? visibleCounterattack(actor, Math.max(48,Math.min(128,rootLimit)), expired) : undefined;
   const counterPenalty = 200000;
   const passLoses = evaluateCounter?.(s) ?? false;
   const base = weightedValue(s,actor,w,adaptive) - (passLoses ? counterPenalty : 0);

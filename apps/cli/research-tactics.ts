@@ -27,7 +27,7 @@ export function counterattackFixture(catalog: Catalog): GameState {
   return game;
 }
 
-export function playFixedTacticalTurn(game: GameState, policyVersion: 2 | 3 | 4, weights: Readonly<BotWeights> = DEFAULT_BOT_WEIGHTS): GameState {
+export function playFixedTacticalTurn(game: GameState, policyVersion: 2 | 3 | 4 | 5, weights: Readonly<BotWeights> = DEFAULT_BOT_WEIGHTS): GameState {
   let state = game;
   for (let step = 0; step < 10 && state.activePlayer === 0 && state.phase === 'playing'; step++) {
     const [action] = rankBotActions(getPlayerView(state, 0), state.catalog, 0, 25,
@@ -38,16 +38,19 @@ export function playFixedTacticalTurn(game: GameState, policyVersion: 2 | 3 | 4,
   return state;
 }
 
-export function passesResearchTactics(catalog: Catalog, row: ResearchWeightRow): boolean {
+export function passesResearchTactics(catalog: Catalog, row: ResearchWeightRow, settings?: {
+  policyVersion: 4 | 5; fixedWeights?: Readonly<BotWeights>;
+}): boolean {
   const counterattack = counterattackFixture(catalog);
   const immediate = structuredClone(counterattack);
   immediate.players[1].health = 6;
 
+  const policy = settings?.policyVersion ?? 4;
   return RESEARCH_TACTICAL_PRIORS.every(prior => {
-    const weights = mixResearchWeights(row, prior);
-    const defended = playFixedTacticalTurn(counterattack, 4, weights);
+    const weights = settings?.fixedWeights ?? mixResearchWeights(row, prior);
+    const defended = playFixedTacticalTurn(counterattack, policy, weights);
     const survived = defended.winner === 0 || (defended.phase === 'playing' && defended.activePlayer === 1 &&
       !visibleCounterattack(0, 128, () => false)(defended));
-    return survived && playFixedTacticalTurn(immediate, 4, weights).winner === 0;
+    return survived && playFixedTacticalTurn(immediate, policy, weights).winner === 0;
   });
 }

@@ -15,6 +15,13 @@ export const RELEASE_SUITE = {
 export const RELEASE_GROUPS = MATCHUPS.length * RELEASE_SUITE.groupsPerMatchup;
 export type IntegratedMatrix = Record<ResearchStrategy, ResearchWeightRow>;
 
+export const WEAK_STRATEGY_CANDIDATE = 'weak-fixed-guarded-v1';
+
+export function releaseProfile(own: ResearchStrategy, trial: boolean) {
+  const guardedFixed = trial && (own === 'midrange' || own === 'control');
+  return { policyVersion: guardedFixed ? 5 as const : RELEASE_SUITE.policyVersion, useMatrix: !guardedFixed };
+}
+
 export function snapshotIntegrated(state: MatchupState) {
   const matrix: IntegratedMatrix = structuredClone({
     aggro: rowFor(state, 'aggro'), midrange: rowFor(state, 'midrange'),
@@ -28,13 +35,15 @@ export function snapshotIntegrated(state: MatchupState) {
 }
 
 export function releaseJobs(catalog: Catalog, trainingSeed: number, matrix: IntegratedMatrix,
-  baseline: BotWeights, index: number): TrainingJob[] {
+  baseline: BotWeights, index: number, holdout = false): TrainingJob[] {
   if (!Number.isInteger(index) || index < 0 || index >= RELEASE_GROUPS) throw new Error('Invalid release fixture index');
   const cell = index % MATCHUPS.length, block = Math.floor(index / MATCHUPS.length);
   const { own, opponent } = MATCHUPS[cell];
-  const seed = fixtureSeed(trainingSeed, RELEASE_FIXTURE_START + index);
-  const pilot = benchmarkDeck(catalog, HERO_CLASSES[(cell + block) % HERO_CLASSES.length], own, 'release', (seed ^ 0x530fce3a) >>> 0);
-  const rival = benchmarkDeck(catalog, HERO_CLASSES[(cell * 2 + block * 5 + 4) % HERO_CLASSES.length], opponent, 'release', (seed ^ 0xde9060a1) >>> 0);
+  const seed = fixtureSeed(trainingSeed, RELEASE_FIXTURE_START + (holdout ? RELEASE_GROUPS : 0) + index);
+  const split = holdout ? 'confirmation' : 'release';
+  const profile = releaseProfile(own, holdout);
+  const pilot = benchmarkDeck(catalog, HERO_CLASSES[(cell + block) % HERO_CLASSES.length], own, split, (seed ^ 0x530fce3a) >>> 0);
+  const rival = benchmarkDeck(catalog, HERO_CLASSES[(cell * 2 + block * 5 + 4) % HERO_CLASSES.length], opponent, split, (seed ^ 0xde9060a1) >>> 0);
   const jobs: TrainingJob[] = [];
   for (const treatment of [false, true]) {
     for (const candidateSeat of [0, 1] as const) {
@@ -42,9 +51,9 @@ export function releaseJobs(catalog: Catalog, trainingSeed: number, matrix: Inte
       jobs.push({ seed, firstPlayer: (block + cell) % 2 === 0 ? 0 : 1, candidateSeat, fixedDecks,
         classes: [fixedDecks[0].heroClass, fixedDecks[1].heroClass], styles: [false, false],
         candidate: baseline, opponent: baseline, level: RELEASE_SUITE.level, nodes: RELEASE_SUITE.nodes,
-        policyVersion: treatment ? RELEASE_SUITE.policyVersion : RELEASE_SUITE.baselinePolicy,
+        policyVersion: treatment ? profile.policyVersion : RELEASE_SUITE.baselinePolicy,
         opponentPolicyVersion: RELEASE_SUITE.baselinePolicy,
-        ...(treatment ? { researchRows: { candidate: matrix[own] } } : {}),
+        ...(treatment && profile.useMatrix ? { researchRows: { candidate: matrix[own] } } : {}),
       });
     }
   }

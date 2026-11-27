@@ -27,5 +27,5 @@ export interface BotOptions{
   deadlineMs?:number;
   responseLimit?:number;
   /** Pin exact training/benchmark decision semantics across engine releases. */
-  policyVersion?:1|2|3|4;
+  policyVersion?:1|2|3|4|5;
 }

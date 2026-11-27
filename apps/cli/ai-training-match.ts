@@ -35,6 +35,7 @@ export function pairedJobs(seed:number,pairs:number,candidate:BotWeights,opponen
 }
 export interface TrainingMatchOptions {
   observeDecision?: (view: PlayerView, actor: PlayerId) => void;
+  observeAction?: (view: PlayerView, actor: PlayerId, action: Action) => void;
   candidateInference?: InferenceMode;
   focusCard?: string;
   reuseDecisions?: Map<string, Action[]>;
@@ -87,16 +88,18 @@ export function playTrainingMatch(catalog:Catalog,job:TrainingJob,options?: Trai
         if (cached === undefined) cache.set(key, actions);
       } else actions = rankBotActions(view, s.catalog, actor, job.level, settings);
     }
-    let after:GameState|undefined;
+    let after:GameState|undefined, applied: Action | undefined;
     for(const action of actions){
       try {
         after=applyAction(s,actor,action);
+        applied = action;
         if (focusExposure && focusedCard && action.type === 'playCard' && view.self.hand.some(card =>
           card.instanceId === action.instanceId && card.cardId === options?.focusCard)) focusExposure.played = true;
         break;
       } catch(e) {if(!(e instanceof RuleError))throw e;}
     }
-    if(!after)throw Error('Training: no legal action at move '+moves);
+    if(!after || !applied)throw Error('Training: no legal action at move '+moves);
+    options?.observeAction?.(view, actor, applied);
     s=after;moves++;turnActions++;
   }
   return{score:s.phase!=='finished'||s.winner===null?.5:s.winner===job.candidateSeat?1:0,moves,turns:s.turn,truncated:s.phase!=='finished',...(opponentEstimate ? { opponentEstimate } : {}),...(focusExposure ? { focusExposure } : {})};

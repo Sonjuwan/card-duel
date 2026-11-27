@@ -6,6 +6,7 @@ import { DEFAULT_BOT_WEIGHTS, validateDeck } from '../../../packages/engine/src/
 import { createMatchupState, MATCHUPS, beginMatchupTrial, matchupJobs } from '../../cli/matchup-evolution.ts';
 import type { MatchupGroup } from '../../cli/matchup-evolution.ts';
 import { benchmarkDeck } from '../../cli/research-benchmark-decks.ts';
+import { passesResearchTactics } from '../../cli/research-tactics.ts';
 import { evaluateIntegrated, RELEASE_GROUPS, releaseJobs, snapshotIntegrated } from '../../cli/integrated-ai-validation.ts';
 
 const { catalog } = new CardStore().read('v0.23.0.json');
@@ -70,4 +71,29 @@ test('release gate requires complete, legal paired evidence, tactical safety and
   for (let index = 0; index < RELEASE_GROUPS; index += 16) rows[index] = lost;
   assert.ok(evaluateIntegrated(rows, tactics).reasons.includes('matchup-regression'));
   assert.ok(!evaluateIntegrated(rows, tactics).eligible);
+});
+
+test('guarded candidate keeps existing thresholds and uses a separate confirmation split', () => {
+  const checkpoint = state(), { matrix } = snapshotIntegrated(checkpoint);
+  const previousSeeds = new Set(Array.from({ length: RELEASE_GROUPS }, (_, index) =>
+    releaseJobs(catalog, checkpoint.seed, matrix, DEFAULT_BOT_WEIGHTS, index)[0].seed));
+  for (const [index, cell] of MATCHUPS.entries()) {
+    const jobs = releaseJobs(catalog, checkpoint.seed, matrix, DEFAULT_BOT_WEIGHTS, index, true);
+    assert.ok(!previousSeeds.has(jobs[0].seed));
+    const guarded = cell.own === 'midrange' || cell.own === 'control';
+    for (const seat of [0, 1] as const) {
+      const control = jobs[seat], treatment = jobs[seat + 2], pilot = treatment.fixedDecks![seat];
+      assert.equal(treatment.policyVersion, guarded ? 5 : 4);
+      assert.equal(treatment.researchRows?.candidate, guarded ? undefined : matrix[cell.own]);
+      assert.equal(control.policyVersion, 2);
+      assert.equal(control.nodes, treatment.nodes);
+      assert.equal(control.seed, treatment.seed);
+      assert.deepEqual(control.fixedDecks, treatment.fixedDecks);
+      const previous = benchmarkDeck(catalog, pilot.heroClass, cell.own, 'release', treatment.seed);
+      assert.notDeepEqual(previous.cards, pilot.cards);
+      if (guarded) {
+        assert.ok(passesResearchTactics(catalog, matrix[cell.own], { policyVersion: 5, fixedWeights: DEFAULT_BOT_WEIGHTS }));
+      }
+    }
+  }
 });

@@ -33,15 +33,15 @@ function priority(card: Card, strategy: ResearchStrategy): number {
 }
 
 /** The fixtures use separate quotas and selection rules from the AI's reference decks. */
-export function benchmarkDeck(catalog: Catalog, heroClass: HeroClass, strategy: ResearchStrategy, split: ResearchSplit | 'release', seed: number): Deck {
+export function benchmarkDeck(catalog: Catalog, heroClass: HeroClass, strategy: ResearchStrategy, split: ResearchSplit | 'release' | 'confirmation', seed: number): Deck {
   let state = seed >>> 0;
   const pool = deckCards(catalog, heroClass);
   // Distinct reserved slots keep the release fixtures outside both training holdouts.
-  const release = split === 'release';
-  const anchors = pool.filter(card => card.kind === 'minion' && manaBand(card.cost) === 2 && card.attack >= 2)
-    .slice(0, release ? 3 : 2);
-  const anchor = anchors[split === 'development' ? 0 : split === 'holdout' ? 1 : 2];
-  if (anchors.length < (release ? 3 : 2)) throw new Error(`Not enough mid-curve minions for the ${heroClass} validation fixtures`);
+  const anchorIndex = split === 'development' ? 0 : split === 'holdout' ? 1 : split === 'release' ? 2 : 3;
+  const required = Math.max(2, anchorIndex + 1);
+  const anchors = pool.filter(card => card.kind === 'minion' && manaBand(card.cost) === 2 && card.attack >= 2).slice(0, required);
+  if (anchors.length < required) throw new Error(`Not enough mid-curve minions for the ${heroClass} validation fixtures`);
+  const anchor = anchors[anchorIndex];
   const excluded = new Set(anchors.filter(card => card !== anchor).map(card => card.id));
   const ranked = pool.filter(card => !excluded.has(card.id)).map(card => {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
