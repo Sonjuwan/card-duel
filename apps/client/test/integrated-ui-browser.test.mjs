@@ -367,7 +367,7 @@ test('basic deck can be copied without replacing a named deck',{timeout:25000},a
     await page.getByRole('button',{name:/^기본 덱\s*30장$/}).tap();
     assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true);
     await page.getByRole('button',{name:'기본 덱 복제 · 편집'}).tap();
-    await page.getByRole('button',{name:'내 덱',exact:true}).tap();
+    await page.locator('.deck-sidebar').waitFor();
     assert.equal(await page.getByPlaceholder('저장할 덱 이름').inputValue(),'');
     await page.getByPlaceholder('저장할 덱 이름').fill('기본 덱 복제본');
     await page.getByRole('button',{name:'덱 저장',exact:true}).tap();
