@@ -15,7 +15,7 @@
 .battle-card.kind-secret{border-color:#606cad;background:linear-gradient(105deg,#877bb5,#d6d2ed 15%,#9fadd4 85%,#57668f)}
 .battle-card.kind-coin{border-color:#d4b164;background:linear-gradient(100deg,#b48a3b,#fbe2a2 15%,#d9ba61 85%,#8b6927)}
 .battle-card .card-art{flex:0 0 44%;border:2px solid #634621;border-radius:48% 48% 10% 10%/36% 36% 10% 10%;margin:1px 0 0;box-shadow:inset 0 0 0 1px #dfc184,0 1px 3px #674827;opacity:1}
-.battle-card.kind-spell .card-art,.battle-card.kind-secret .card-art{border-radius:6px;flex-basis:43%}
+.battle-card.kind-spell .card-art,.battle-card.kind-secret .card-art{border-radius:6px}
 .battle-card.kind-weapon .card-art{border-radius:47%}
 .battle-card .card-name{position:relative;margin:-1px -3px 0;z-index:1;padding:3px 3px;background:linear-gradient(#efdaac,#cbab6e);border:1px solid #7a552e;border-radius:5px;box-shadow:0 2px 3px #4b301b65;color:#402810;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px #ffebc7}
 .battle-card.kind-spell .card-name,.battle-card.kind-secret .card-name{background:linear-gradient(#dfd1eb,#b79ac9);border-color:#685079;color:#332441;text-shadow:0 1px #f6e7ff}

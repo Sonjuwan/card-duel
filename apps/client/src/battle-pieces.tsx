@@ -110,15 +110,24 @@ export function minionTags(m:Minion):string[]{return [
 export type Inspectable={card:Card;minion?:Minion;weapon?:{attack:number;durability:number};cost?:number;reason?:string;title?:string};
 type Interactive={enabled?:boolean;ready?:boolean;selected?:boolean;targeted?:boolean;dropTarget?:boolean;sourceId?:string;onClick?:(keyboard:boolean)=>void;onInspect?:(item:Inspectable)=>void;onDragStart?:(event:DragEvent<HTMLButtonElement>)=>void;onDragEnd?:()=>void;onDragOver?:(event:DragEvent<HTMLButtonElement>)=>void;onDrop?:(event:DragEvent<HTMLButtonElement>)=>void;};
 
+export function CardFace({card,name,cost=card.cost,attack,health}:{
+  card:Card;name:string;cost?:number;attack?:number;health?:number;
+}){
+  const rarity=card.kind==='coin'?'basic':card.rarity;
+  return <>
+    <span className={`card-mana${cost<card.cost?' discounted':cost>card.cost?' increased':''}`}>{cost}</span>
+    <span className="card-art"><LocalCardArt card={card}/></span>
+    <span className="card-name"><Sigil kind={cardFaction(card)} className="card-faction-mark"/>{name}</span>
+    <span className="card-rarity-anchor" aria-label={rarity==='legendary'?'전설 등급':rarity==='epic'?'영웅 등급':rarity==='rare'?'희귀 등급':rarity==='common'?'일반 등급':'기본 카드'}><span className="rarity-gem" aria-hidden="true"/></span>
+    <span className="card-copy">{cardDescription(card)}</span>
+    {(card.kind==='minion'||card.kind==='weapon')&&<span className="card-statline"><span className="stat stat-attack">{attack??card.attack}</span>{card.kind==='minion'&&card.tribe!=='none'&&tribes[card.tribe]&&<span className="card-tribe">{tribes[card.tribe]}</span>}<span className={card.kind==='weapon'?'stat stat-health stat-durability':'stat stat-health'}>{health??(card.kind==='minion'?card.health:card.durability)}</span></span>}
+  </>;
+}
+
 export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false,selected=false,previewOpen=false,onClick,onInspect,onDragStart,onDragEnd,mulligan=false,sourceId,onBlocked,actionLabel,displayOnly=false}:Omit<Interactive,'onClick'>&{onClick?:(keyboard:boolean,source:HTMLButtonElement)=>void;card:Card;cost?:number;reason?:string;mulligan?:boolean;onBlocked?:()=>void;previewOpen?:boolean;actionLabel?:string;displayOnly?:boolean}){
   const displayName=useCardName(card);const info={card,cost,reason};const rarity=card.kind==='coin'?'basic':card.rarity;const hover=useCardHover(info,sourceId?.startsWith('card:')?BATTLE_HOLD_DELAY:undefined,Boolean(sourceId?.startsWith('card:')&&!mulligan));
   return <button type="button" className={`battle-card faction-${cardFaction(card)} kind-${card.kind} rarity-${rarity}${ready?' is-ready':''}${selected?' is-selected':''}${previewOpen?' is-preview-expanded':''}${!enabled?' is-disabled':''}${mulligan&&selected?' is-replacing':''}`} data-preview-card={card.id} data-preview-cost={cost} data-action-source={sourceId} tabIndex={displayOnly?-1:undefined} aria-disabled={!enabled} aria-expanded={previewOpen||Boolean(sourceId?.startsWith('card:')&&selected)||undefined} aria-description={cardDescription(card)} aria-pressed={mulligan||sourceId?.startsWith('card:')?selected:undefined} aria-label={`${displayName}, 마나 ${cost}, ${cardKindLabel[card.kind]}${card.kind==='minion'?`, 공격력 ${card.attack}, 생명력 ${card.health}`:card.kind==='weapon'?`, 공격력 ${card.attack}, 내구도 ${card.durability}`:''}${reason?`, ${reason}`:''}${mulligan&&selected?', 교체 선택':''}${actionLabel?', '+actionLabel:''}`} onClick={e=>{if(hover.consumeTouchClick(e.nativeEvent))return;hover.clear();if(enabled)onClick?.(e.detail===0,e.currentTarget);else onBlocked?.();}} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.leave} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.leave} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd}>
-    <span className={`card-mana${cost<card.cost?' discounted':cost>card.cost?' increased':''}`}>{cost}</span>
-    <span className="card-art"><LocalCardArt card={card}/></span>
-    <span className="card-name"><Sigil kind={cardFaction(card)} className="card-faction-mark"/>{displayName}</span>
-    <span className="card-rarity-anchor" aria-label={rarity==='legendary'?'전설 등급':rarity==='epic'?'영웅 등급':rarity==='rare'?'희귀 등급':rarity==='common'?'일반 등급':'기본 카드'}><span className="rarity-gem" aria-hidden="true"/></span>
-    <span className="card-copy">{cardDescription(card)}</span>
-    {(card.kind==='minion'||card.kind==='weapon')&&<span className="card-statline"><span className="stat stat-attack">{card.attack}</span>{card.kind==='minion'&&card.tribe!=='none'&&tribes[card.tribe]&&<span className="card-tribe">{tribes[card.tribe]}</span>}<span className={card.kind==='weapon'?'stat stat-health stat-durability':'stat stat-health'}>{card.kind==='minion'?card.health:card.durability}</span></span>}
+    <CardFace card={card} name={displayName} cost={cost}/>
     {mulligan&&selected&&<span className="replace-banner mulligan-replace-cross" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M12 12 L88 88 M88 12 L12 88" /></svg></span>}
   </button>;
 }

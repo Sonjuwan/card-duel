@@ -4,10 +4,9 @@ import { createPortal } from 'react-dom';
 import { createHoverTiming } from './hover-timing.ts';
 import { HoverContext } from './hover-context.ts';
 import type { CardPreview } from './hover-context.ts';
-import { cardDescription, factionLabel, cardKindLabel, minionTags } from './battle-pieces.tsx';
+import { CardFace,cardDescription, factionLabel, cardKindLabel, minionTags } from './battle-pieces.tsx';
 import { useCardName } from './card-names.ts';
-import { LocalCardArt } from './local-art.tsx';
-import { tribes, keywords } from './data.ts';
+import { keywords } from './data.ts';
 import { cardSetLabel } from './card-sets.ts';
 import type { Keyword } from '../../../packages/engine/src/index.ts';
 
@@ -22,12 +21,7 @@ export function CardHoverPanel({preview,example=false}:{preview:CardPreview;exam
   if(minion?.auraCharge)powers.add('charge');if(minion?.auraWindfury)powers.add('windfury');if(minion?.stealthUntilStartOf!==undefined)powers.add('stealth');
   return <aside className={`card-hover-panel hover-${preview.side}${example?' hover-example':''}`} role="tooltip" aria-label={`${name} 확대 카드`} data-hover-preview>
     <div className={`battle-card hover-large-card faction-${card.kind==='coin'?'coin':card.class} kind-${card.kind} rarity-${rarity}`}>
-      <span className={`card-mana${cost!==undefined&&cost<card.cost?' discounted':cost!==undefined&&cost>card.cost?' increased':''}`}>{cost??card.cost}</span>
-      <span className="card-art"><LocalCardArt card={card}/></span>
-      <span className="card-name">{name}</span>
-      <span className="card-type">{cardKindLabel[card.kind]}{card.kind==='minion'&&tribes[card.tribe]?' · '+tribes[card.tribe]:''}</span>
-      <span className="card-copy">{cardDescription(card)}</span>
-      <span className={`card-statline${card.kind==='minion'||card.kind==='weapon'?'':' no-stats'}`}>{(card.kind==='minion'||card.kind==='weapon')&&<span className="stat stat-attack">{minion?.attack??weapon?.attack??card.attack}</span>}<span className="rarity-gem" aria-label={rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}/>{(card.kind==='minion'||card.kind==='weapon')&&<span className="stat stat-health">{card.kind==='minion'?minion?.health??card.health:weapon?.durability??card.durability}</span>}</span>
+      <CardFace card={card} name={name} cost={cost} attack={minion?.attack??weapon?.attack} health={minion?.health??weapon?.durability}/>
     </div>
     <div className="hover-details"><span className="hover-caption">카드 상세 · {cardSetLabel(card)}</span><strong>{name}</strong><span className="hover-class">{factionLabel(card)} · {cardKindLabel[card.kind]} · {rarity==='legendary'?'전설':rarity==='epic'?'영웅':rarity==='rare'?'희귀':rarity==='common'?'일반':'기본'}</span>
       <div className="hover-description">{cardDescription(card)}{minion?.silenced&&<small>침묵 (원래 카드 효과 제거)</small>}</div>
