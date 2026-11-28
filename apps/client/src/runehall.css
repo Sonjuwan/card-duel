@@ -144,3 +144,63 @@
   .lobby-main.preview-lobby .runehall-home .rh-main-actions button{min-height:clamp(30px,7.5dvh,40px)}
   .lobby-main.preview-lobby .runehall-home .rh-main-actions .rh-primary{min-height:37px}
 }
+
+.lobby-main:not(:has(.runehall-home)){
+  background:radial-gradient(ellipse at 50% 5%,#282734,#171923 56%,#121622);
+}
+.lobby-main :is(.lobby-dialog,.preview-progress,.slot-entry-card,.preview-developer,.deck-sidebar,.catalog-inline-filters),
+.lobby-main .collection-workspace .collection-book,.lobby-main .deck-builder .collection-book{
+  background:var(--rh-panel);border-color:var(--rh-edge);color:var(--rh-ink);
+}
+.lobby-main .lobby-dialog::backdrop{background:#090a12c9}
+.lobby-main .reward-road{
+  background:radial-gradient(ellipse at 50% 16%,#302c36,#1e1e2b 57%,#161923);
+  border-color:var(--rh-edge);color:var(--rh-ink);
+}
+.lobby-main :is(.road-progress,.road-marker){border-color:var(--rh-edge)}
+.lobby-main .quest-tile{
+  background:linear-gradient(152deg,color-mix(in srgb,var(--faction) 20%,#181a25),#1c1c28 65%);
+  border-color:color-mix(in srgb,var(--faction) 58%,var(--rh-edge));
+}
+.lobby-main .quest-empty{background:var(--rh-panel);border-color:var(--rh-edge)}
+.lobby-main .preview-deck-pages .preview-deck-empty{background:#201f2b;border-color:#55463f}
+.lobby-main .preview-hero-choice .preview-hero-tile,.lobby-main .preview-deck-pages .preview-deck-tile{
+  border-color:color-mix(in srgb,var(--faction,#ad8353) 71%,#312c32);color:#fff7ed;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--faction,#ad8353) 23%,#202032),#1c1d28);
+}
+.lobby-main .preview-hero-choice .preview-hero-tile:is(.chosen,:focus-visible),
+.lobby-main .preview-deck-pages .preview-deck-tile.chosen{
+  border-color:#edc889;box-shadow:inset 0 0 0 2px #d9aa65;
+}
+.lobby-main .preview-deck-pages .preview-deck-tile :is(strong,.preview-deck-name){color:#fff;font-weight:800}
+.lobby-main :is(.lobby-dialog,.preview-deck-actions,.preview-slot-grid,.preview-developer,.catalog-inline-filters,.floating-home,.lobby-settings-entry) .secondary,
+.lobby-main .preview-deck-pages>button:not(:disabled),
+.lobby-main .collection-workspace .collection-spread .book-edge:not(:disabled),
+.lobby-main .deck-builder .collection-spread .book-edge:not(:disabled),
+.lobby-main .reward-road .road-edge:not(:disabled){
+  background:var(--rh-metal);border-color:var(--rh-edge);color:var(--rh-ink);
+}
+.lobby-main .preview-deck-actions .slot-deck-primary:enabled,.lobby-main .slot-entry-choose:enabled,
+.lobby-main .preview-slot-grid .chosen{background:var(--rh-gold);border-color:#c79d67;color:var(--rh-ink)}
+.lobby-main .preview-deck-actions .deck-delete:enabled{background:var(--rh-danger);color:#ffe6df;border-color:#b16e6d}
+.lobby-main .preview-deck-actions button:disabled,.lobby-main .preview-deck-pages>button:disabled{
+  background:#262631;border-color:#5b5358;color:#ada5a8;
+}
+.lobby-main progress{accent-color:#d6ab67}
+.lobby-main .lobby-dialog input[type="range"],
+.game-main .battle-settings-dialog input[type="range"]{accent-color:#d6ab67}
+.lobby-main .collection-workspace .collection-copy-badge,.lobby-main .deck-builder .collection-copy-badge{
+  background:#25232f;color:#fff0d7;border-color:#947249;
+}
+#solo-app-banner button{accent-color:#d6ab67}
+:root #solo-app-banner{color:#fff0d8!important;background:#1c1e2cf5!important}
+.lobby-main .collection-workspace .battle-card.is-disabled{filter:none}
+#solo-game-update{
+  color:#fff0d8;background:linear-gradient(145deg,#2b293b,#1c1e29);
+  border-color:#ac8658;box-shadow:0 12px 40px #0b0d16c0;
+}
+#solo-game-update::backdrop{background:#0b0d16c9}
+#solo-game-update button{background:linear-gradient(#3a3740,#20212d);border-color:#9a7954;color:#fff0d8}
+#solo-game-update #solo-update-apply:enabled{background:linear-gradient(#9d6d39,#573a25);border-color:#d1a76a}
+#solo-game-update button:disabled{background:#32313d;color:#beb6bd;border-color:#5d535a}
+#solo-game-update progress{accent-color:#d6ab67}

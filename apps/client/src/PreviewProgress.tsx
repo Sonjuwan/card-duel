@@ -1,3 +1,4 @@
+import {careerOf,totalMatches,winPercentage} from '../../../packages/career.ts';
 import {QUEST_SLOTS} from '../../../packages/quest-types.ts';
 import {LocalHeroArt} from './local-art.tsx';
 import {useEffect,useRef,useState} from 'react';
@@ -15,7 +16,8 @@ export function PreviewRank({profile,growth}:{profile?:AccountProfile;growth?:Gr
   if(!profile||!growth)return <section className="preview-progress">성장 기록을 불러오는 중입니다.</section>;
   const rank=rankInfo(profile.rank,growth.ranks),next=growth.ranks.find(item=>item.rank===profile.rank+1);
   const target=next?.minimumXp??0;
-  const stats=profile.matchStats?.ranked;
+  const stats=careerOf(profile).record;
+  const rate=winPercentage(stats);
   return <section className="preview-progress rank-dashboard" aria-label="등급">
     <div className="preview-progress-feature"><RankCrest rank={rank}/><strong className="preview-progress-rank">{rankTitle(rank)}</strong><p>{profile.rank} / 25단계</p>
       <div className="rank-stars" aria-label={`승급 승리 ${profile.rankWins}/${growth.winsPerRank}`}>{Array.from({length:growth.winsPerRank},(_,i)=><span key={i} data-earned={i<profile.rankWins} aria-hidden="true">✦</span>)}</div>
@@ -23,7 +25,7 @@ export function PreviewRank({profile,growth}:{profile?:AccountProfile;growth?:Gr
     <div className="preview-progress-detail">{next?<><RankCrest rank={next}/><h3>{rankTitle(next)}까지</h3>
       <p>{Math.max(0,growth.winsPerRank-profile.rankWins)}승 · {profile.xp>=target?'XP 조건 충족':`${(target-profile.xp).toLocaleString('ko-KR')} XP 남음`}</p>
       <progress aria-label="승급 XP" max={Math.max(1,target)} value={target?Math.min(profile.xp,target):1}/>
-    </>:<h3>최고 등급</h3>}<p>전적 {stats?.wins??0}승 {stats?.losses??0}패 {stats?.draws??0}무</p></div>
+    </>:<h3>최고 등급</h3>}<p>{totalMatches(stats)}전 · {stats.wins}승 {stats.losses}패 {stats.draws}무 · 승률 {rate===null?'—':rate+'%'}</p></div>
   </section>;
 }
 

@@ -312,11 +312,10 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   const healing=browserCards.filter({hasText:'치유 토템'});
   await healing.getByRole('button').waitFor();
   assert.equal(await healing.locator('.collection-copy-badge').count(),0);
-  await healing.getByRole('button').click();
-  const detail=page.getByRole('dialog',{name:'카드 확대 상세'});
-  await detail.getByRole('group',{name:'카드 상세'}).getByText('내 턴이 끝날 때 모든 아군 하수인의 생명력을 1 회복합니다.',{exact:true}).waitFor();
-  await detail.getByRole('group',{name:'카드 상세'}).getByText('토템',{exact:true}).waitFor();
-  await detail.getByRole('button',{name:'닫기',exact:true}).click();
+  await healing.getByRole('button').click({force:true});
+  assert.equal(await page.getByRole('dialog',{name:'카드 확대 상세'}).count(),0);
+  await healing.getByText('내 턴이 끝날 때 모든 아군 하수인의 생명력을 1 회복합니다.',{exact:true}).waitFor();
+  await healing.getByText('토템',{exact:true}).waitFor();
   await openFilter();
   await search.fill('이번 턴에 마나 1을 얻습니다');
   await closeFilter();

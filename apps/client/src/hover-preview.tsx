@@ -33,17 +33,18 @@ export function CardHoverPanel({preview,example=false}:{preview:CardPreview;exam
   </aside>;
 }
 
-export function HoverPreviewProvider({children,resetKey,refreshKey}:{children:ReactNode;resetKey:string;refreshKey?:number|string}){
+export function HoverPreviewProvider({children,resetKey,refreshKey,enabled=true}:{children:ReactNode;resetKey:string;refreshKey?:number|string;enabled?:boolean}){
   const [preview,setPreview]=useState<CardPreview|null>(null);
   const controls=useMemo(()=>createHoverTiming<CardPreview>(setPreview),[]);
   // Clean synchronously before the next painted board; no stale battle states.
   useLayoutEffect(()=>{controls.clear();},[controls,resetKey]);
   useLayoutEffect(()=>{controls.refresh();},[controls,refreshKey]);
   useEffect(()=>{
+    if(!enabled)return;
     const close=()=>controls.clear(),outside=()=>controls.dismissPinned(),key=(e:KeyboardEvent)=>{if(e.key==='Escape')close();};
     window.addEventListener('pointerdown',outside,true);window.addEventListener('blur',close);window.addEventListener('keydown',key);window.addEventListener('resize',close);
     window.addEventListener('dragstart',close,true);document.addEventListener('visibilitychange',close);
     return()=>{window.removeEventListener('pointerdown',outside,true);window.removeEventListener('blur',close);window.removeEventListener('keydown',key);window.removeEventListener('resize',close);window.removeEventListener('dragstart',close,true);document.removeEventListener('visibilitychange',close);controls.clear();};
-  },[controls]);
-  return <HoverContext.Provider value={controls}>{children}{preview&&typeof document!=='undefined'&&createPortal(<CardHoverPanel preview={preview}/>,document.body)}</HoverContext.Provider>;
+  },[controls,enabled]);
+  return <HoverContext.Provider value={enabled?controls:null}>{children}{enabled&&preview&&typeof document!=='undefined'&&createPortal(<CardHoverPanel preview={preview}/>,document.body)}</HoverContext.Provider>;
 }

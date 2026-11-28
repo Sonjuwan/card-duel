@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 import {mkdirSync} from 'node:fs';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 
-test('mobile catalog and deck builder keep eight-card pages, read-only collection inspection and direct deck editing',{timeout:120000},async t=>{
+test('mobile catalog and deck builder keep eight-card pages, inline collection details and direct deck editing',{timeout:120000},async t=>{
   const server=createSoloAppServer();
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -94,12 +94,10 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
   await page.setViewportSize({width:1024,height:768});
   assert.equal(await catalog.locator('.catalog-inline-filters').isVisible(),true);
   await page.setViewportSize({width:844,height:390});
-  await cards.first().tap();
+  await cards.first().tap({force:true});
   const detail=page.getByRole('dialog',{name:'카드 확대 상세'});
-  await detail.waitFor();
-  assert.ok(await detail.locator('.battle-card .card-copy').isVisible());
-  assert.equal(await detail.getByRole('button',{name:'덱에 추가',exact:true}).count(),0);
-  await detail.getByRole('button',{name:'닫기',exact:true}).tap();
+  assert.equal(await detail.count(),0);
+  assert.ok(await cards.first().locator('.card-copy').isVisible());
   await page.getByRole('button',{name:'메인으로',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'새 덱 만들기',exact:true}).tap();
