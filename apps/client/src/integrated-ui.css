@@ -1199,11 +1199,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 /* The hand's painted art can span a rectangle without changing the card or
    the desktop illustration's original square height. The mana badge floats
    at its corner and the full preview stays separate from the hand card. */
-.game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-art {
-  width:100%;aspect-ratio:auto;
-}
-.game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-mana {
-  position:absolute;inset:4px auto auto 4px;pointer-events:none;
+@media (orientation:landscape){
+  .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-art {
+    width:100%;aspect-ratio:auto;
+  }
+  .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-mana {
+    position:absolute;inset:4px auto auto 4px;pointer-events:none;
+  }
 }
 @media (orientation:landscape) and (min-height:541px){
   .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card .card-art {
