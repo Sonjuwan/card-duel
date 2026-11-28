@@ -74,12 +74,13 @@ export function LandscapeExperience({menu,battleMenu}: {menu?:HTMLElement|null;b
       else if(!outcome.fullscreen)setNotice('가로 모드로 전환했어요. 이 브라우저에서는 전체화면이 제한되어 있어요.');
     }finally{requestPending.current=false;setBusy(false);}
   };
+  const fullscreenLabel=desktop?(fullscreen?'전체화면 종료':'전체화면'):'가로 전체화면';
   return <>
     {menu&&createPortal(<button type="button" className="landscape-menu-button"
-      onClick={()=>void requestLandscape()} disabled={busy}><span aria-hidden="true">⛶</span> <span>{desktop?(fullscreen?'전체화면 종료':'전체화면'):'가로 전체화면'}</span></button>,menu)}
+      onClick={()=>void requestLandscape()} disabled={busy}><span aria-hidden="true">⛶</span> <span>{fullscreenLabel}</span></button>,menu)}
     {battleMenu&&createPortal(<>
       <button type="button" className="secondary" disabled={busy} onClick={()=>void requestLandscape()}>
-        <span aria-hidden="true">⛶</span> {desktop?(fullscreen?'전체화면 종료':'전체화면'):'가로 전체화면'}
+        <span aria-hidden="true">⛶</span> {fullscreenLabel}
       </button>
       {notice&&<small role="status">{notice}</small>}
     </>,battleMenu)}

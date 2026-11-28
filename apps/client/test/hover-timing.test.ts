@@ -59,7 +59,7 @@ test('visible preview refreshes updated battle stats and disappears if source is
 test('stationary battle taps pin details without a timer or a follow-up click action',()=>{
   const f=fixture(),guard=createTouchPreviewGuard();
   guard.begin(1,10,10,0);assert.equal(guard.endTap(1,12,12,45),true);assert.equal(guard.suppress(46),true);
-  let value:string|null='card';f.hover.pin('source',()=>value);f.hover.leave('source');f.tick(10000);
+  let value:string|null='card';f.hover.pin('source',()=>value);f.hover.leave('source');f.hover.start('adjacent',()=> 'different card');f.tick(10000);
   assert.equal(f.current(),'card');assert.equal(f.timers.size,0);
   value='updated';f.hover.refresh();assert.equal(f.current(),'updated');
   f.hover.dismissPinned();assert.equal(f.current(),null);

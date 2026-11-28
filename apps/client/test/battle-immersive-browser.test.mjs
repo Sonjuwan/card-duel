@@ -309,10 +309,17 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     assert.ok(original);
     assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
     const description=await card.getAttribute('aria-description');
-    await page.touchscreen.tap(targets[0].x,targets[0].y);
+    const point=await card.evaluate(el=>{
+      const r=el.getBoundingClientRect(),y=r.top+r.height/2;
+      return [.12,.22,.45,.7].map(fraction=>({x:r.left+r.width*fraction,y}))
+        .find(({x,y})=>el.contains(document.elementFromPoint(x,y)));
+    });
+    assert.ok(point);
+    await page.touchscreen.tap(point.x,point.y);
     const detail=page.locator('[data-hover-preview]');
-    await detail.locator('.hover-description').filter({hasText:description}).waitFor({timeout:4000});
-    assert.equal(await detail.locator('.hover-description').textContent(),description);
+    const descriptionNode=detail.locator('.hover-description').filter({hasText:description});
+    await descriptionNode.waitFor({timeout:4000});
+    assert.equal(await descriptionNode.textContent(),description);
     assert.ok(await detail.locator('.hover-large-card .card-copy').isVisible());
     assert.deepEqual(await card.boundingBox(),original);
     assert.equal(await page.locator('.selected-card-use,.selection-cancel').count(),0);

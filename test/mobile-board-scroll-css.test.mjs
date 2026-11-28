@@ -50,7 +50,7 @@ test('target picker has a reachable close action without cancelling the selected
 
 test('Escape cancels the current target selection and restores focus',()=>{
   assert.match(battle,/if\(selected&&e.key==='Escape'\)\{/);
-  assert.match(battle,/setSelected\(null\);cancelActiveTouch\(\);source\?\.focus\(\)/);
+  assert.match(battle,/setSelected\(null\);cancelActiveTouch\(\);\s+if\(source\)requestAnimationFrame\(\(\)=>\{if\(source\.isConnected\)source\.focus\(\);\}\)/);
 });
 test('expanded target picker supports bounded arrow/Home/End keyboard focus without selecting a target',()=>{
   assert.match(pieces,/const navigateTargets=\(event:KeyboardEvent<HTMLDetailsElement>\)=>/);

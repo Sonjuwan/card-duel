@@ -33,7 +33,9 @@ export function createHoverTiming<T>(publish:(value:T|null)=>void,clock={set:(fn
     generation++;if(pending!==undefined)clock.clear(pending);pending=undefined;current=null;reader=null;opened=false;pinned=false;publish(null);
   }
   function start(key:string,read:()=>T|null,delay=CARD_HOVER_DELAY){
-    if(current===key)return;
+    // Touch inspection must survive incidental hover and focus until the
+    // next explicit interaction dismisses or replaces the pinned card.
+    if(pinned||current===key)return;
     clear();current=key;reader=read;const token=generation;
     pending=clock.set(()=>{if(token!==generation||current!==key)return;pending=undefined;const value=read();if(value===null){clear(key);return;}opened=true;publish(value);},delay);
   }
