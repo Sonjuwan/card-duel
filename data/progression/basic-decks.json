@@ -1,0 +1,11 @@
+{
+  "warrior": ["fatal_finish", "iron_axe", "twin_cleave", "charge_officer", "vanguard_elite", "great_waraxe", "recruit", "river_lizard", "reef_guard", "iron_bear", "dawn_cleric", "senior_inventor", "citadel_knight", "port_guard", "ogre"],
+  "shaman": ["frost_jolt", "stone_edge", "ember_totem", "toad_curse", "wind_oracle", "blood_ritual", "flame_spirit", "recruit", "river_lizard", "reef_guard", "iron_bear", "tower_mage", "senior_inventor", "citadel_guard", "port_guard"],
+  "rogue": ["precise_stab", "weapon_hone", "night_strike", "needle_cut", "knife_fan", "shadow_rapier", "recruit", "reef_charger", "river_lizard", "rust_collector", "mountain_rifleman", "iron_bear", "senior_inventor", "shadow_blade", "ogre"],
+  "paladin": ["light_guard", "dawn_mace", "valor_blessing", "judgment_hammer", "healing_hammer", "hallowed_ground", "crown_sentinel", "recruit", "reef_guard", "river_lizard", "dawn_cleric", "iron_bear", "senior_inventor", "citadel_knight", "ogre"],
+  "hunter": ["arcane_arrow", "forest_wolf", "wild_tracker", "companion_call", "double_volley", "beast_tamer", "tundra_beast", "wild_boar", "river_lizard", "wolf", "boar_trapper", "iron_bear", "senior_inventor", "port_guard", "core_hound"],
+  "druid": ["wild_growth", "thorn_claw", "root_bloom", "wild_mark", "raking_storm", "star_fall", "ironwood_guardian", "recruit", "reef_guard", "river_lizard", "iron_bear", "dawn_cleric", "senior_inventor", "citadel_knight", "ogre"],
+  "warlock": ["life_thread", "void_sentinel", "tempting_fiend", "life_siphon", "shadow_lance", "infernal_blast", "abyssal_colossus", "recruit", "river_lizard", "reef_guard", "iron_bear", "mountain_rifleman", "citadel_knight", "moon_healer", "ogre"],
+  "mage": ["starlight_barrage", "mirage_patrol", "ice_shard", "arcane_notes", "flame_sphere", "sheep_hex", "flame_tide", "reef_scout", "river_lizard", "reef_guard", "tower_mage", "iron_bear", "cave_mage", "citadel_knight", "ogre"],
+  "priest": ["healing_scholar", "sacred_spark", "weakpoint_sentence", "giant_sentence", "mental_glimpse", "radiant_wave", "recruit", "reef_guard", "river_lizard", "dawn_cleric", "iron_bear", "senior_inventor", "oasis_turtle", "port_guard", "ogre"]
+}
