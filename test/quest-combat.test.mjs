@@ -132,3 +132,18 @@ test('combo activates once, opponent decisions do not count and own scheduled re
   assert.equal(rogue.counts.kills,1);assert.equal(rogue.counts.spellKills,1);
   assert.equal(rogue.counts.selfDamage,undefined);assert.equal(rogue.counts.power,undefined);
 });
+
+test('copied summons count the applied shield once, including a shield granted by the original battlecry',()=>{
+  const battle=scene();
+  const secret={kind:'secret',id:'copy-fixture',class:'mage',rarity:'basic',name:'복사',cost:0,description:'',
+    trigger:'enemyPlayMinion',effects:[{kind:'copyEventMinion'}]};
+  const wolf={...battle.state.catalog.wolf,id:'shield-fixture',
+    battlecry:[{kind:'giveKeyword',target:'self',keyword:'divineShield'}]};
+  battle.state.catalog={...battle.state.catalog,[secret.id]:secret,[wolf.id]:wolf};
+  battle.play(battle.card(secret.id));
+  battle.step({type:'endTurn'});
+  battle.step({type:'playCard',instanceId:battle.card(wolf.id,1)},1);
+  assert.equal(battle.counts.summons,1);
+  assert.equal(battle.counts.shieldGain,1);
+  assert.ok(battle.state.players[0].board[0].keywords.includes('divineShield'));
+});

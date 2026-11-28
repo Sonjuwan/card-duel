@@ -129,6 +129,12 @@ test('real worker resumes a partial battle, settles quest XP once, restores sequ
   await button('항복하기').click();
   await page.getByRole('list',{name:'완료한 퀘스트'}).locator('li').nth(1).waitFor();
   await page.screenshot({path:'ui-evidence/quests-completed.png'});
+  await page.setViewportSize({width:844,height:390});
+  const result=page.getByRole('dialog',{name:'대전 결과'});
+  const size=await result.boundingBox();
+  assert.ok(size&&size.x>=0&&size.y>=0&&size.x+size.width<=844&&size.y+size.height<=390,JSON.stringify(size));
+  assert.equal(await result.getByRole('button',{name:'대전 준비로 돌아가기'}).isVisible(),true);
+  await page.screenshot({path:'ui-evidence/quests-completed-phone.png'});
   const [after,completed]=await read(),receipt=after.profile.recentMatches[0];
   assert.equal(completed.snapshot.summary.phase,'finished');
   assert.equal(after.profile.xp,13+rankedXpReward(1,'loss')+60);

@@ -14,7 +14,7 @@ export function countQuestEvent(counters:QuestCounters,seat:PlayerId,event:Comba
       add('discount',event.card.cost-event.paid);
       break;
     case 'summon':
-      for(const metric of summonMetrics(event.card))add(metric);
+      for(const metric of summonMetrics(event.card,event.shield))add(metric);
       break;
     case 'attack':
       if(event.source==='minion'&&event.target==='hero')add('faceAttacks');

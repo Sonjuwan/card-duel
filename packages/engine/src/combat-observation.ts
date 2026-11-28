@@ -4,7 +4,7 @@ export type CombatSource='spell'|'minion'|'weapon'|'power'|'card';
 export type CombatCause={owner:PlayerId;source:CombatSource;area?:boolean};
 export type CombatEvent=
   | {kind:'play';owner:PlayerId;card:Card;paid:number}
-  | {kind:'summon';owner:PlayerId;card:Extract<Card,{kind:'minion'}>}
+  | {kind:'summon';owner:PlayerId;card:Extract<Card,{kind:'minion'}>;shield:boolean}
   | {kind:'attack';owner:PlayerId;source:CombatSource;target:'hero'|'minion';tribe?:Tribe}
   | {kind:'damage';owner:PlayerId;source:CombatSource;target:'hero'|'minion';side:PlayerId;amount:number;ownTurn:number}
   | {kind:'death';owner:PlayerId;source:CombatSource;side:PlayerId;area?:boolean}
@@ -32,4 +32,8 @@ export function observeDamage(s:GameState,cause:CombatCause|undefined,side:Playe
   if(!cause||amount<=0)return;
   const ownTurn=s.activePlayer===cause.owner?Math.floor((s.turn+(s.firstPlayer===cause.owner?1:0))/2):0;
   emitCombat(s,{kind:'damage',owner:cause.owner,source:cause.source,target,side,amount,ownTurn});
+}
+export function observedSummon(s:GameState,owner:PlayerId,minion:Minion){
+  const card=s.catalog[minion.cardId];
+  if(card?.kind==='minion')emitCombat(s,{kind:'summon',owner,card,shield:minion.keywords?.includes('divineShield')??false});
 }

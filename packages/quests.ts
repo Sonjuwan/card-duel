@@ -80,13 +80,13 @@ function effectMetrics(e:Effect,rule:TargetRule|undefined,card:Card|undefined,lo
   if(e.condition?.kind==='combo'||e.kind==='damage'&&!!e.bonusIfCombo)metrics.push('combo');
   return metrics;
 }
-export function summonMetrics(card:Extract<Card,{kind:'minion'}>):QuestMetric[]{
+export function summonMetrics(card:Extract<Card,{kind:'minion'}>,shield=card.keywords?.includes('divineShield')??false):QuestMetric[]{
   const metrics:QuestMetric[]=['summons'];
   if(card.tribe==='totem')metrics.push('totems');
   if(card.tribe==='beast')metrics.push('beasts');
   if(card.tribe==='demon')metrics.push('demons');
   if(card.id==='__squire'||card.id==='silver_hand_recruit')metrics.push('recruits');
-  if(card.keywords?.includes('divineShield'))metrics.push('shieldGain');
+  if(shield)metrics.push('shieldGain');
   return metrics;
 }
 function cardCapabilities(card:Card,lookup:(id:string)=>Card|undefined){

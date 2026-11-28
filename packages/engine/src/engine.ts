@@ -1,4 +1,4 @@
-import {clearMortal,emitCombat,markMortal,observedDeath,observeDamage,observingCombat} from './combat-observation.ts';
+import {clearMortal,emitCombat,markMortal,observedDeath,observeDamage,observedSummon,observingCombat} from './combat-observation.ts';
 import type {CombatCause,CombatSource} from './combat-observation.ts';
 import type { Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target } from './types.ts';
 import { RULES, HERO_CLASSES, TRIBES, RuleError, requireRule, record, integer, isClass, other, validPlayer, random, setRuntime, opaqueId, emitVisual,log,maxCardCopies } from './rules.ts';
@@ -214,7 +214,7 @@ function damage(s:GameState,target:Character,amount:number,resolver?:Resolver,ca
     const before=m.health;m.health=s.players[target.player].protectMinionsThisTurn?Math.max(1,m.health-amount):m.health-amount;if(before>m.health){log(s,target.player,`${s.catalog[m.cardId].name} 피해 ${before-m.health}`);emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:before-m.health});if(cause){observeDamage(s,cause,target.player,'minion',before-Math.max(0,m.health));if(m.health<=0)markMortal(s,m,cause);}}else log(s,target.player,`${s.catalog[m.cardId].name} 생명력 보호`);return before>m.health;
   }
 }
-function summon(s:GameState,owner:PlayerId,cardId:string,card?:CardInstance,position?:number,source=owner):Minion|undefined {
+function summon(s:GameState,owner:PlayerId,cardId:string,card?:CardInstance,position?:number):Minion|undefined {
   const p=s.players[owner],def=s.catalog[cardId];
   requireRule(def?.kind==='minion','잘못된 소환 카드');
   if(p.board.length>=RULES.maxBoard)return;
@@ -222,7 +222,7 @@ function summon(s:GameState,owner:PlayerId,cardId:string,card?:CardInstance,posi
   const enteredOrder=s.nextEntryOrder??1;s.nextEntryOrder=enteredOrder+1;
   const m:Minion={...(card??instance(s,cardId)),originalOwner:owner,attack:def.attack,health:def.health,maxHealth:def.health,attacksRemaining:keywords.includes('charge')&&s.activePlayer===owner?(keywords.includes('windfury')?2:1):0,attacksMadeThisTurn:0,summonedTurn:s.turn,enteredOrder,keywords};
   delete m.costDiscount;
-  p.board.splice(position??p.board.length,0,m);if(!card)log(s,owner,`${def.name} 소환`);if(source===owner&&observingCombat(s))emitCombat(s,{kind:'summon',owner,card:def});return m;
+  p.board.splice(position??p.board.length,0,m);if(!card)log(s,owner,`${def.name} 소환`);return m;
 }
 /** Shared death queue: simultaneous deaths are removed before deathrattles; order of entry is independent of board position. */
 function entryOrder(a:Minion,b:Minion):number{return (a.enteredOrder??0)-(b.enteredOrder??0);}
@@ -251,7 +251,14 @@ function resolution(s:GameState):Resolver {
       }
     }
   };
-  const ops:Resolver={event:emit,overload:id=>emit({kind:'overload',owner:id}),deathPlacement:m=>placements.get(m),damage:(c,n,cause)=>{const dealt=damage(s,c,n,ops,cause);if(c.kind==='hero'&&dealt&&c.player!==s.activePlayer&&s.phase==='playing')heroSecretEvents.push({owner:c.player,target:c,amount:n});if(c.kind==='minion'&&dealt)emit({kind:'damage',owner:c.player,target:c});return dealt;},heal:(c,n,owner)=>{if(c.kind==='hero'){const p=s.players[c.player];const before=p.health;p.health=Math.min(p.maxHealth??RULES.heroHealth,p.health+n);if(p.health>before){emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:p.health-before});if(owner===c.player&&observingCombat(s))emitCombat(s,{kind:'heal',owner,amount:p.health-before});emit({kind:'heal',owner:c.player,target:c});}}else{const before=c.minion.health;c.minion.health=Math.min(c.minion.maxHealth,before+n);if(c.minion.health>before){if(c.minion.health>0&&observingCombat(s))clearMortal(s,c.minion);emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:c.minion.health-before});if(owner===c.player&&observingCombat(s))emitCombat(s,{kind:'minionHeal',owner,amount:c.minion.health-before});emit({kind:'heal',owner:c.player,target:c});}}},draw:(id,source)=>{effectDraw(id,source);},drawCard:effectDraw,summon:(id,c,card,position,source)=>{const m=summon(s,id,c,card,position,source);if(m)emit({kind:'summon',owner:id,target:{kind:'minion',player:id,minion:m}});return m;},addCard:(id,c)=>{if(s.players[id].hand.length<RULES.maxHand)s.players[id].hand.push(instance(s,c));},settle:()=>{
+  const ops:Resolver={event:emit,overload:id=>emit({kind:'overload',owner:id}),deathPlacement:m=>placements.get(m),damage:(c,n,cause)=>{const dealt=damage(s,c,n,ops,cause);if(c.kind==='hero'&&dealt&&c.player!==s.activePlayer&&s.phase==='playing')heroSecretEvents.push({owner:c.player,target:c,amount:n});if(c.kind==='minion'&&dealt)emit({kind:'damage',owner:c.player,target:c});return dealt;},heal:(c,n,owner)=>{if(c.kind==='hero'){const p=s.players[c.player];const before=p.health;p.health=Math.min(p.maxHealth??RULES.heroHealth,p.health+n);if(p.health>before){emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:p.health-before});if(owner===c.player&&observingCombat(s))emitCombat(s,{kind:'heal',owner,amount:p.health-before});emit({kind:'heal',owner:c.player,target:c});}}else{const before=c.minion.health;c.minion.health=Math.min(c.minion.maxHealth,before+n);if(c.minion.health>before){if(c.minion.health>0&&observingCombat(s))clearMortal(s,c.minion);emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:c.minion.health-before});if(owner===c.player&&observingCombat(s))emitCombat(s,{kind:'minionHeal',owner,amount:c.minion.health-before});emit({kind:'heal',owner:c.player,target:c});}}},draw:(id,source)=>{effectDraw(id,source);},drawCard:effectDraw,summon:(id,c,card,position,source=id,observe=true)=>{
+    const m=summon(s,id,c,card,position);
+    if(m){
+      if(observe&&source===id&&observingCombat(s))observedSummon(s,id,m);
+      emit({kind:'summon',owner:id,target:{kind:'minion',player:id,minion:m}});
+    }
+    return m;
+  },addCard:(id,c)=>{if(s.players[id].hand.length<RULES.maxHand)s.players[id].hand.push(instance(s,c));},settle:()=>{
     if(s.phase==='finished'||processingDamage)return;
     // Damage reactions resolve before removing mortally wounded minions, so
     // armor and draw effects can trigger on their source's lethal damage.
@@ -262,7 +269,14 @@ function resolution(s:GameState):Resolver {
       const next=damageQueue.shift()!;resolveEffects(s,next.effects,{owner:next.owner,source:next.source,eventTarget:next.eventTarget},ops);
     }
     processingDamage=false;
-    if((s as GameState).phase==='finished'){for(const p of s.players)p.board=p.board.filter(m=>m.health>0);return;}
+    if((s as GameState).phase==='finished'){
+      for(const side of [0,1] as const)s.players[side].board=s.players[side].board.filter(m=>{
+        if(m.health>0)return true;
+        if(observingCombat(s))observedDeath(s,m,side);
+        return false;
+      });
+      return;
+    }
     let changed:boolean;
     // Aura loss can cause additional death waves before any deathrattle runs.
     // Keep the initial positional anchors throughout that entire removal phase.
@@ -369,6 +383,7 @@ function playCard(s: GameState, id: PlayerId, instanceId: unknown, target:unknow
   switch(def.kind){
     case 'minion':{
       const m=summon(s,id,def.id,card,position as number|undefined)!;
+      if(observingCombat(s))observedSummon(s,id,m);
       const source:Character={kind:'minion',player:id,minion:m};const cardOps=resolution(s);cardOps.event({kind:'cardPlayed',owner:id,target:source});if(overloadCard)cardOps.event({kind:'overloadCardPlayed',owner:id,target:source});cardOps.settle();
       resolution(s).settle();
       if(effects&&s.phase==='playing'){

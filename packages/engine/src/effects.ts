@@ -1,4 +1,4 @@
-import {clearMortal,emitCombat,markMortal,observingCombat} from './combat-observation.ts';
+import {clearMortal,emitCombat,markMortal,observedSummon,observingCombat} from './combat-observation.ts';
 import type {CombatCause,CombatSource} from './combat-observation.ts';
 import type { Card, Catalog, Effect, GameState, Minion, PlayerId, Selector, TargetRule, Tribe } from './types.ts';
 import { emitVisual, log, RULES, TRIBES, integer, other, random, record, requireRule, validPlayer } from './rules.ts';
@@ -18,7 +18,7 @@ export interface EffectOps {
   heal(target:Character,amount:number,source?:PlayerId):void;
   draw(owner:PlayerId,source?:PlayerId):void;
   drawCard(owner:PlayerId):string|undefined;
-  summon(owner:PlayerId, cardId:string,card?:import('./types.ts').CardInstance,position?:number,source?:PlayerId):Minion|undefined;
+  summon(owner:PlayerId, cardId:string,card?:import('./types.ts').CardInstance,position?:number,source?:PlayerId,observe?:boolean):Minion|undefined;
   deathPlacement(minion:Minion):DeathPlacement|undefined;
   addCard(owner:PlayerId,cardId:string):void;
   overload(owner:PlayerId):void;
@@ -353,7 +353,7 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
       case 'reflectDamage':dealDamage(hero(other(ctx.owner)),ctx.eventDamage??0);break;
       case 'redirectAttackSummon':{const m=ops.summon(ctx.owner,e.cardId);if(m)ctx.redirected={kind:'minion',player:ctx.owner,minion:m};break;}
       case 'redirectAttackRandom':{const same=(a:Character,b?:Character)=>a.kind==='hero'?b?.kind==='hero'&&a.player===b.player:b?.kind==='minion'&&a.minion===b.minion;const pool=select(s,ctx,'allCharacters').filter(c=>!same(c,ctx.eventTarget)&&!same(c,ctx.eventAttacker));if(pool.length)ctx.redirected=pool[Math.floor(random(s)*pool.length)];break;}
-      case 'copyEventMinion':if(ctx.eventTarget?.kind==='minion'){const src=ctx.eventTarget.minion,m=ops.summon(ctx.owner,src.cardId);if(m){const {instanceId,originalOwner,attacksRemaining,summonedTurn,attacksMadeThisTurn,enteredOrder}=m;Object.assign(m,structuredClone(src),{instanceId,originalOwner,attacksRemaining,summonedTurn,attacksMadeThisTurn,enteredOrder});delete m.returnController;}}break;
+      case 'copyEventMinion':if(ctx.eventTarget?.kind==='minion'){const src=ctx.eventTarget.minion,m=ops.summon(ctx.owner,src.cardId,undefined,undefined,ctx.owner,false);if(m){const {instanceId,originalOwner,attacksRemaining,summonedTurn,attacksMadeThisTurn,enteredOrder}=m;Object.assign(m,structuredClone(src),{instanceId,originalOwner,attacksRemaining,summonedTurn,attacksMadeThisTurn,enteredOrder});delete m.returnController;if(tracking)observedSummon(s,ctx.owner,m);}}break;
       case 'reviveEventMinion':if(ctx.eventTarget?.kind==='minion'){const m=summonNear(ctx.eventTarget.minion.cardId,ctx.eventTarget);if(m)m.health=1;}break;
       case 'attackToHealth':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){c.minion.attack=c.minion.health+(c.minion.auraAttack??0);c.minion.temporaryAttack=0;}break;
       case 'buff':{
