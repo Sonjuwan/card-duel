@@ -1,2 +1,2 @@
-RUNEHALL v0.337.0.
+RUNEHALL v0.338.0.
 This play address keeps its existing slot-specific progress and deck library.
