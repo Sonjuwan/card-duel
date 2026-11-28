@@ -1,5 +1,2 @@
-Card Duel UI preview uses game code based on v0.297.
-The original live root index.html is v0.298 and remains untouched.
-NOTICE: Both addresses share the same sonjuwan.github.io origin.
-Open this preview in a private/incognito browser window to avoid
-accessing or altering the original site's saved games and decks.
+Card Duel v0.330.0 UI preview.
+This play address keeps its existing slot-specific progress and deck library.
