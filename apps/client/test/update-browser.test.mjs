@@ -117,6 +117,8 @@ test('installed game verifies and explicitly applies an update without reinstall
     const migrated=await oldSlot(first);
     assert.equal(migrated.profile.rewardRoad.paths.original.xp,historic.profile.xp);
     assert.equal(migrated.profile.rankWins,historic.profile.rankWins);
+    assert.equal(migrated.profile.career.record.wins,1);
+    assert.equal(migrated.profile.career.heroes.warrior.xp,30);
     assert.deepEqual(migrated.settledMatchIds,historic.settledMatchIds);
     assert.ok(historic.profile.ownedCards.every(id=>migrated.profile.ownedCards.includes(id)));
     await first.getByRole('button',{name:'메인으로',exact:true}).tap();

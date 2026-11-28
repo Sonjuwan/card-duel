@@ -199,7 +199,21 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const board=page.locator('.friendly-board');
     const before=await board.boundingBox();
     const compact=height<=540;
-    if(compact)await hand.tap();
+    if(compact){
+      assert.equal(await hand.locator('.folded-cards .painted-art').count(),3);
+      const rail=await page.evaluate(()=>{
+        const rect=selector=>document.querySelector(selector).getBoundingClientRect();
+        return {
+          enemyHand:rect('.arena-field > .hidden-hand').toJSON(),
+          ownHand:rect('.own-hand .folded-hand').toJSON(),
+          enemyMana:rect('.enemy-mana').toJSON(),
+          ownMana:rect('.own-mana').toJSON(),
+        };
+      });
+      assert.ok(Object.values(rail).every(box=>box.x>width/2),JSON.stringify(rail));
+      assert.ok(rail.enemyHand.bottom<=rail.enemyMana.top+1&&rail.ownMana.bottom<=rail.ownHand.top+1,JSON.stringify(rail));
+      await hand.tap();
+    }
     else assert.equal(await hand.isVisible(),false);
     const targets=await page.locator('.own-hand .battle-card').evaluateAll(cards=>cards.map(card=>{
       const rect=card.getBoundingClientRect();
@@ -284,6 +298,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     await page.screenshot({path:`ui-evidence/dense-${width}-hand.png`});
     const original=await card.boundingBox();
     assert.ok(original);
+    assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
     const description=await copy.textContent();
     await page.touchscreen.tap(original.x+original.width/2,original.y+original.height/2);
     const detail=page.locator('[data-hover-preview]');
@@ -292,7 +307,6 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     assert.ok(await detail.locator('.hover-large-card .card-copy').isVisible());
     assert.deepEqual(await card.boundingBox(),original);
     assert.equal(await page.locator('.selected-card-use,.selection-cancel').count(),0);
-    assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
     assert.deepEqual(await board.boundingBox(),before);
     await page.screenshot({path:`ui-evidence/dense-${width}.png`});
     await page.locator('.friendly-board').tap({position:{x:65,y:6}});

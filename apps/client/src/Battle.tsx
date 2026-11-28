@@ -728,7 +728,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
               toggleHand();
             }}
             onClick={toggleHand}>
-            <span className="folded-cards" aria-hidden="true">{Array.from({length:Math.min(3,hand.length)},(_,i)=><i key={i}/>)}</span>
+            <span className="folded-cards" aria-hidden="true">{hand.slice(0,3).map(({instanceId,cardId})=><i key={instanceId}><LocalCardArt card={catalog[cardId]}/></i>)}</span>
             <b>{hand.length}</b>
           </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}>{hand.map((c,i)=>{const reason=active?publicCardReason(rules,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId} data-drag-origin={currentDrag?.kind==='card'&&currentDrag.id===c.instanceId||undefined}><BattleCard sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(rules,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} onClick={keyboard=>{if(keyboard)applyIntent(planCard(rules,seat,catalog,c.instanceId,boardPosition),true);}} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/>{reservationBadge('playCard',c.instanceId)}</div>;})}{!hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
       </div>

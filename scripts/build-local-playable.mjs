@@ -50,12 +50,12 @@ function verifyOutputs(version,out){
   if(!html.includes(restoreSoloMusic(readFileSync(join(project,'dist/solo-app/game.js'),'utf8'),name=>readFileSync(join(project,'dist/solo-app',name))))||
      !html.includes(readFileSync(join(project,'dist/solo-app/game.css'),'utf8')))
     fail('Compiled standalone HTML does not match the new PWA executable.');
-  const target=join(out,`Card-Duel-v${version}-standalone.html`);
+  const target=join(out,`RUNEHALL-v${version}-standalone.html`);
   if(existsSync(target))fail(`Existing release must not be overwritten: ${target}`);
   cpSync(standalone,target);
   const pwa=packagePlayablePwa(out);
   if(pwa.version!==version)fail('PWA package version unexpectedly differs.');
-  const report=join(out,`Card-Duel-v${version}-VALIDATION.txt`);
+  const report=join(out,`RUNEHALL-v${version}-VALIDATION.txt`);
   writeFileSync(report,[
     `RUNEHALL v${version} — locally compiled playable candidate`,
     'Completed successfully: Node24 npm ci, data integrity, syntax, typecheck,',
@@ -80,8 +80,8 @@ function main(){
   const rawPkg=readFileSync(pkg,'utf8'),rawLock=readFileSync(lockfile,'utf8');
   const plan=planLocalBuild({nodeMajor:Number(process.versions.node.split('.')[0]),releaseStatus:status,manifest:JSON.parse(rawPkg),lock:JSON.parse(rawLock)});
   const output=resolve(process.argv[2]??join(project,'playable-release'));
-  if(existsSync(join(output,`Card-Duel-PWA-v${plan.version}-installer.zip`))||
-     existsSync(join(output,`Card-Duel-v${plan.version}-standalone.html`)))
+  if(existsSync(join(output,`RUNEHALL-PWA-v${plan.version}-installer.zip`))||
+     existsSync(join(output,`RUNEHALL-v${plan.version}-standalone.html`)))
     fail('That release already exists. Do not overwrite a previously verified artifact.');
   // A failed build must NEVER replace the old playable binary in the source ZIP.
   const temp=mkdtempSync(join(tmpdir(),'card-duel-safe-build-'));
@@ -126,9 +126,9 @@ function main(){
       if(hadSolo)cpSync(join(temp,'solo-offline.html'),oldSolo);
       else rmSync(oldSolo,{force:true});
       // Remove only outputs from this unsuccessful release, not other builds.
-      const zip=join(output,`Card-Duel-PWA-v${plan.version}-installer.zip`);
-      const html=join(output,`Card-Duel-v${plan.version}-standalone.html`);
-      const report=join(output,`Card-Duel-v${plan.version}-VALIDATION.txt`);
+      const zip=join(output,`RUNEHALL-PWA-v${plan.version}-installer.zip`);
+      const html=join(output,`RUNEHALL-v${plan.version}-standalone.html`);
+      const report=join(output,`RUNEHALL-v${plan.version}-VALIDATION.txt`);
       for(const file of [zip,html,report])if(existsSync(file))rmSync(file,{force:true});
       console.error('FAILED: original playable game and version metadata restored; no new release promoted.');
     }

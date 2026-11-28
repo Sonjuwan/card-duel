@@ -1,3 +1,9 @@
+## 2026-11-28 — RUNEHALL v0.337.0
+
+- The published PWA uses the Runehall brand, three-column home, independent phone layout, class growth and a shared visual theme. The original app identity, scope and slot keys continue to resolve the same data.
+- Account levels use existing lifetime XP. Class levels use eligible match and assigned quest XP. Earlier class records are restored from stored receipts. The baseline cards, unlock order and quest rewards are independent of these levels.
+- To adjust future pacing, edit `data/progression/levels.json`. For level n, the cost to reach n + 1 is `base + step × (n - 1)`. The five mastery thresholds are visual only.
+
 ## 2026-11-23 — v0.285.0 isolated card-inspector dialog candidate
 - Opening the public card inspector previously trapped keyboard Tab inside the dialog but left the original battle and mulligan UI accessible to other input/assistive-technology navigation. While inspection is active, the title, controls, battle arena, options history and mulligan arena are now `inert`; the inspector itself remains an independent accessible modal. Previously focused trigger receives focus **after React removes inert**, via requestAnimationFrame; Escape/close still does not play a card or change selection.
 - Updated existing inspector/history focus regressions and added two modal-isolation tests. Playable-core **631/631**, TS/TSX syntax-only **65/65**, catalog/AI hashes unchanged; no Node24 full React production build or live mobile verification.

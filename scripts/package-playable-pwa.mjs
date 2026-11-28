@@ -33,7 +33,7 @@ export function inspectPlayablePwa(dist=join(project,'dist/solo-app')){
 export function packagePlayablePwa(outputDir){
   const meta=inspectPlayablePwa();
   const folder=resolve(outputDir);mkdirSync(folder,{recursive:true});
-  const zip=join(folder,`Card-Duel-PWA-v${meta.version}-installer.zip`);
+  const zip=join(folder,`RUNEHALL-PWA-v${meta.version}-installer.zip`);
   assert(!existsSync(zip),'Refusing to overwrite an existing installable release');
   const staging=mkdtempSync(join(folder,'.pwa-install-'));const packageDir=join(staging,'card-duel-pwa');
   try{
