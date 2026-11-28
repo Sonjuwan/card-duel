@@ -1,3 +1,4 @@
+import {basicDeck} from '../../../packages/basic-decks.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
@@ -6,7 +7,6 @@ import type {Socket} from 'socket.io-client';
 import {createDuelServer,loadCatalog} from '../server.ts';
 import {LocalAccountStore} from '../account-store.ts';
 import {buildGrowth} from '../../../packages/progression.ts';
-import {practiceDeck} from '../../../packages/engine/src/index.ts';
 import type {AccountActiveRoom} from '../../../packages/account-protocol.ts';
 import type {ClientEvents,ServerEvents,Result,Session,RoomView} from '../../../packages/protocol.ts';
 
@@ -31,7 +31,7 @@ test('private active room presence follows persisted create, pause, resume and f
     const save=store.saveRoomSnapshot.bind(store);let entered!:()=>void,release!:()=>void;
     const started=new Promise<void>(resolve=>entered=resolve),held=new Promise<void>(resolve=>release=resolve);
     store.saveRoomSnapshot=async snapshot=>{entered();await held;await save(snapshot);};
-    const created=nextChange(phone),request=ack<Session>(cb=>pc.emit('room:ranked',{deck:practiceDeck(catalog,'warrior')},cb));
+    const created=nextChange(phone),request=ack<Session>(cb=>pc.emit('room:ranked',{deck:basicDeck(catalog,'warrior')},cb));
     try{await started;assert.equal(await get(phoneLogin.token),null);assert.equal(phoneEvents,0);}finally{release();}
     const session=await request;await created;store.saveRoomSnapshot=save;
     const initial={mode:'ranked',status:'playing',connected:true,rank:1,resumeAllowed:true};
@@ -45,9 +45,9 @@ test('private active room presence follows persisted create, pause, resume and f
     const finished=nextChange(pc);await ack<RoomView>(cb=>phone.emit('room:action',{revision:view.state!.revision,action:{type:'concede'}},cb));await finished;
     assert.equal(await get(owner.token),null);assert.equal(await get(phoneLogin.token),null);assert.equal(foreignEvents,0);
     await ack<null>(cb=>phone.emit('room:leave',cb));
-    const waiting=nextChange(phone),pvp=await ack<Session>(cb=>pc.emit('room:owned-create',{deck:practiceDeck(catalog,'warrior')},cb));await waiting;
+    const waiting=nextChange(phone),pvp=await ack<Session>(cb=>pc.emit('room:owned-create',{deck:basicDeck(catalog,'warrior')},cb));await waiting;
     assert.deepEqual(await get(phoneLogin.token),{mode:'pvp',status:'waiting',connected:true,resumeAllowed:true});assert.equal(await get(other.token),null);
-    const joined=nextChange(phone);await ack<Session>(cb=>foreign.emit('room:owned-join',{code:pvp.code,deck:practiceDeck(catalog,'mage')},cb));await joined;
+    const joined=nextChange(phone);await ack<Session>(cb=>foreign.emit('room:owned-join',{code:pvp.code,deck:basicDeck(catalog,'mage')},cb));await joined;
     assert.deepEqual(await get(phoneLogin.token),{mode:'pvp',status:'playing',connected:true,resumeAllowed:true});
     assert.deepEqual(await get(other.token),{mode:'pvp',status:'playing',connected:true,resumeAllowed:true});
   }finally{clients.forEach(c=>c.disconnect());await io.close();store.close();}

@@ -1,6 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
+import {basicDeck} from '../../../packages/basic-decks.ts';
+import {LocalDuel} from '../src/local-duel.ts';
+import {createOfflineRankedInput} from '../src/offline-growth.ts';
+import {createHash} from 'node:crypto';
+import {CardStore} from '../../server/card-store.ts';
 import {chromium} from 'playwright';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 import {loadCatalog} from '../../server/server.ts';
@@ -230,7 +235,9 @@ test('restored card rewards open each exact collection page without consuming ow
   const record=readOfflineGrowth(undefined,growth);
   const cards=growth.unlocks.filter(item=>!record.profile.ownedCards.includes(item.cardId)).slice(0,2);
   assert.equal(cards.length,2);
-  record.profile.xp=cards.at(-1).xp;
+  const xp=cards.at(-1).xp;
+  record.profile.xp=xp;
+  record.profile.rewardRoad.paths.original.xp=xp;
   const backup=createGrowthBackup(record,growth);
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.setDefaultTimeout(9000);
@@ -254,5 +261,86 @@ test('restored card rewards open each exact collection page without consuming ow
     await page.screenshot({path:`ui-evidence/reward-${cardId}.png`});
     await page.getByRole('button',{name:'메인으로',exact:true}).click();
     await openRewards();
+  }
+});
+
+test('saved match awards persist before each click-confirmed reveal on desktop, tablet and phone',{timeout:50000},async t=>{
+  const {browser,url}=await previewBrowser(t);
+  const {catalog,cards}=new CardStore().read();
+  const growth=offlineGrowth(catalog),hash=createHash('sha256').update(JSON.stringify(cards)).digest('hex');
+  const initial=readOfflineGrowth(undefined,growth);
+  initial.profile.xp=13;
+  initial.profile.rewardRoad.paths.original.xp=13;
+  const input=createOfflineRankedInput({
+    catalog,catalogHash:hash,deck:basicDeck(catalog,'warrior'),heroClass:'mage',difficulty:1,seed:3,code:'LOCAL-REWARD-CHECK'
+  },initial,growth);
+  const duel=new LocalDuel(input);
+  duel.act(0,{type:'mulligan',replace:[]});
+  duel.botStep();
+  const snapshot=duel.checkpoint();
+  snapshot.state.turn=snapshot.summary.turn=6;
+  const expected=growth.unlocks.slice(0,2).map(item=>item.cardId);
+  for (const [label,width,height,touch] of [['desktop',1280,800,false],['tablet',1024,768,true],['phone',844,390,true]]) {
+    const context=await browser.newContext({viewport:{width,height},isMobile:touch,hasTouch:touch});
+    try{
+      const page=await context.newPage();
+      page.setDefaultTimeout(7500);
+      page.on('dialog',dialog=>void dialog.accept());
+      await page.goto(url);
+      await page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+      await page.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
+      await page.evaluate(async({initial,snapshot})=>{
+        const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+        const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+        await new Promise((resolve,reject)=>{
+          const tx=db.transaction(['growth','matches'],'readwrite');
+          tx.objectStore('growth').put(initial,'player');
+          tx.objectStore('matches').put({hash:snapshot.catalogHash,owner:'fixture',snapshot});
+          tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);
+        });
+        db.close();
+      },{initial,snapshot});
+      await page.reload();
+      await page.getByRole('button',{name:'대전',exact:true}).click();
+      await page.getByRole('button',{name:'새로운 게임 시작'}).click();
+      const overlay=page.getByRole('dialog',{name:'새 카드 획득'});
+      const card=overlay.locator('[data-preview-card]');
+      await overlay.waitFor();
+      const press=()=>touch?page.touchscreen.tap(20,Math.floor(height/2)):page.mouse.click(20,Math.floor(height/2));
+      await press();
+      const ready=overlay.and(page.locator('[data-ready="true"]'));
+      await ready.waitFor();
+      await page.waitForTimeout(2450);
+      assert.equal(await card.getAttribute('data-preview-card'),expected[0],label);
+      const bounds=await card.boundingBox();
+      assert.ok(bounds&&bounds.height>=192&&bounds.y>=0&&bounds.y+bounds.height<=height,label+' '+JSON.stringify(bounds));
+      const record=()=>page.evaluate(async()=>{
+        const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+        const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+        try{
+          return await new Promise((resolve,reject)=>{
+            const read=db.transaction('growth').objectStore('growth').get('player');
+            read.onsuccess=()=>resolve(read.result);read.onerror=()=>reject(read.error);
+          });
+        }finally{db.close();}
+      });
+      const saved=await record();
+      assert.equal(saved.profile.xp,28);
+      assert.deepEqual(saved.settledMatchIds,[input.code]);
+      assert.ok(expected.every(id=>saved.profile.ownedCards.includes(id)));
+      if(touch){await press();await press();}
+      else await page.mouse.dblclick(20,Math.floor(height/2));
+      await overlay.locator(`[data-preview-card="${expected[1]}"]`).waitFor();
+      await ready.waitFor();
+      assert.equal(await card.count(),1);
+      if(label==='phone'){
+        await page.reload();
+        await page.getByRole('button',{name:/경험치 · 카드 획득/}).waitFor();
+      }else{
+        await press();
+        await overlay.waitFor({state:'detached'});
+      }
+      assert.deepEqual(await record(),saved,label);
+    }finally{await context.close();}
   }
 });

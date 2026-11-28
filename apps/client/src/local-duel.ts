@@ -18,6 +18,7 @@ export interface LocalDuelInput{
   developerTest?:OfflineDeveloperContext;
   developerFree?:true;
   developerOpponentDeck?:Deck;
+  practiceOpponentDeck?:Deck;
 }
 export interface LocalSaveSummary{catalogHash:string;code:string;heroClass:HeroClass;opponent:HeroClass;difficulty:BotDifficulty;turn:number;phase:GameState['phase'];revision:number;savedAt:string;rank?:number;developerFree?:true;testRank?:number;testExperiment?:'mixture-v1';}
 export interface LocalSlotOverview{initialized:boolean;rank:number;xp:number;ownedCards:number;save:LocalSaveSummary|null;otherSaves:number;otherActiveRanked:boolean;}
@@ -65,7 +66,9 @@ export class LocalDuel{
     if(ranked&&input.developerTest||ranked&&!integer(ranked.profileRevision,0)||tier&&(!integer(tier.rank,1,25)||!integer(tier.deckPower,1,25)||tier.intelligence!==input.difficulty||tier.opponentDeck?.heroClass!==input.heroClass))throw new RuleError('저장 랭크 설정이 손상되었습니다.');
     const chosenOpponent=input.developerOpponentDeck;
     if(chosenOpponent&&(!input.developerFree||chosenOpponent.heroClass!==input.heroClass))throw new RuleError('상대 AI 직업과 덱이 일치하지 않습니다.');
-    const opponent=tier?.opponentDeck??chosenOpponent??strategicDeck(input.catalog,input.heroClass,this.style,this.input.deckSeed);
+    const practiceOpponent=input.practiceOpponentDeck;
+    if(practiceOpponent&&(tier||input.developerFree||practiceOpponent.heroClass!==input.heroClass))throw new RuleError('상대 AI 직업과 연습 덱이 일치하지 않습니다.');
+    const opponent=tier?.opponentDeck??chosenOpponent??practiceOpponent??strategicDeck(input.catalog,input.heroClass,this.style,this.input.deckSeed);
     validateDeck(opponent,input.catalog);
     this.state=createGame(input.catalog,[input.deck,opponent],{seed:input.seed,firstPlayer:input.firstPlayer,runtime:{instanceId:opaqueCardId}});
   }

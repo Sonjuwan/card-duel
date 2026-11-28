@@ -48,6 +48,18 @@ function orderCards(cards: DeckCard[], order: RewardPathDefinition['order']): De
   return result;
 }
 
+// Keep the first two card milestones and the original completion XP. With all
+// Basic cards granted immediately, distribute the remaining milestones across
+// the existing XP curve.
+function originalXpCosts(cardCount:number,legacy:readonly CardUnlock[]) {
+  if(cardCount<3||cardCount>=legacy.length)return legacy.map((card,i)=>card.xp-(legacy[i-1]?.xp??0));
+  const milestones=Array.from({length:cardCount},(_,i)=>{
+    const previousIndex=i<2?i:1+Math.floor((i-1)*(legacy.length-2)/(cardCount-2));
+    return legacy[previousIndex].xp;
+  });
+  return milestones.map((xp,i)=>xp-(milestones[i-1]??0));
+}
+
 export function buildRewardPaths(
   cards: DeckCard[],
   starter: ReadonlySet<string>,
@@ -77,11 +89,11 @@ export function buildRewardPaths(
     const assigned = path.cardIds ? new Set(path.cardIds) : undefined;
     const members = cards.filter(card=>assigned ? assigned.has(card.id) : !usedCards.has(card.id));
     const pathCards = orderCards(members.filter(card=>!starter.has(card.id)),path.order);
+    const originalCosts=path.id===ORIGINAL_REWARD_PATH?originalXpCosts(pathCards.length,legacyXp):[];
     let xp = 0;
     const unlocks = pathCards.map((card,index)=>{
       const power = overrides[card.id] ?? 2+Math.floor(index*24/pathCards.length);
-      const oldCost = legacyXp[index] ? legacyXp[index].xp - (legacyXp[index-1]?.xp ?? 0) : undefined;
-      const cost = path.xpCosts?.[card.id] ?? (path.id === ORIGINAL_REWARD_PATH ? oldCost : undefined) ?? xpCost(power);
+      const cost = path.xpCosts?.[card.id] ?? originalCosts[index] ?? xpCost(power);
       if (!Number.isSafeInteger(cost) || cost < 1 || !Number.isSafeInteger(xp+cost)) throw Error(`Invalid reward XP: ${card.id}`);
       xp += cost;
       return {cardId:card.id,power,xp};

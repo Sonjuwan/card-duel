@@ -1,6 +1,6 @@
+import {basicDeck} from '../../packages/basic-decks.ts';
 import {io as connect} from 'socket.io-client';
 import type {Socket} from 'socket.io-client';
-import {practiceDeck} from '../../packages/engine/src/index.ts';
 import type {Action,Catalog,HeroClass} from '../../packages/engine/src/index.ts';
 import type {AccountView,GrowthView} from '../../packages/account-protocol.ts';
 import {decodeAccountView,decodeActivePresence} from '../client/src/account-status.ts';
@@ -66,7 +66,7 @@ export async function runOnlineAcceptance(url:string,credentialsA:Credentials,cr
     check((await presence(pcCookie)).room===null&&(await presence(otherCookie)).room===null,'시험 계정에 진행 중인 대전이 있습니다.');
     const pc=await open(pcCookie),phone=await open(phoneCookie),other=await open(otherCookie);
     // Three authenticated clients solely for the designated disposable users.
-    const hero=growth.questOrder[0] as HeroClass,deck=practiceDeck(catalog,hero),name='배포 승인 시험 덱';
+    const hero=growth.questOrder[0] as HeroClass,deck=basicDeck(catalog,hero),name='배포 승인 시험 덱';
     // Deliberately pair the wrong displayed identity with test account B's cookie.
     await (await request('/api/account/export',409,{cookie:otherCookie,accountId:pcAccount.id})).body?.cancel();
     await (await request('/api/account/deck',409,{cookie:otherCookie,method:'PUT',accountId:pcAccount.id,body:{name,expected:null,deck}})).body?.cancel();

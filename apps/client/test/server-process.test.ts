@@ -14,6 +14,7 @@ import {loadCatalog} from '../../server/server.ts';
 import {loadGrowth} from '../../server/growth-store.ts';
 import {runOnlineSmoke} from '../../cli/online-smoke.ts';
 import {practiceDeck} from '../../../packages/engine/src/index.ts';
+import {basicDeck} from '../../../packages/basic-decks.ts';
 import type {AccountView,DeveloperStatus} from '../../../packages/account-protocol.ts';
 import {io as connect} from 'socket.io-client';
 import type {Socket} from 'socket.io-client';
@@ -62,7 +63,7 @@ test('production entry starts from an existing database, keeps maintenance and a
     const smoke=await runOnlineSmoke(url,{email,password});assert.equal(typeof smoke.accountCheck==='object'?smoke.accountCheck.role:null,'developer');
     await toggle(false);
     const pc=await socket();let game!:Session,revision=0;
-    try{game=await ack<Session>(reply=>pc.emit('room:ranked',{deck:practiceDeck(catalog,'warrior')},reply));const view=await ack<RoomView>(reply=>pc.emit('room:sync',reply));revision=view.state!.revision;await ack<null>(reply=>pc.emit('room:account-pause',reply));}finally{pc.disconnect();}
+    try{game=await ack<Session>(reply=>pc.emit('room:ranked',{deck:basicDeck(catalog,'warrior')},reply));const view=await ack<RoomView>(reply=>pc.emit('room:sync',reply));revision=view.state!.revision;await ack<null>(reply=>pc.emit('room:account-pause',reply));}finally{pc.disconnect();}
     await stop(child!);child=undefined;
     await start();assert.equal((await status()).maintenance,false);const me=await fetch(url+'/api/account/me',{headers});assert.equal(me.status,200);assert.deepEqual((await me.json() as AccountView).profile,account.profile);
     const active=await fetch(url+'/api/account/active-room',{headers});assert.equal(active.status,200);assert.deepEqual((await active.json()).room,{mode:'ranked',status:'playing',connected:false,rank:account.profile.rank,resumeAllowed:true});

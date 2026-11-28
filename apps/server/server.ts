@@ -16,7 +16,7 @@ import {gameSecurityHeaders} from './security-headers.ts';
 import type {AccountBackend} from './account-store.ts';
 import {AccountError} from './account-store.ts';
 import type {AccountActiveRoom,AccountRole,AccountView,GrowthView} from '../../packages/account-protocol.ts';
-import {buildGrowth} from '../../packages/progression.ts';
+import {buildGrowth,syncOwned} from '../../packages/progression.ts';
 import type {BotExecutor} from './bot-executor.ts';
 import project from '../../package.json' with {type:'json'};
 const publicDir=fileURLToPath(new URL('../../dist/client/',import.meta.url));
@@ -233,7 +233,20 @@ export function createDuelServer(catalog:Catalog,options:{trustedOrigin?:string;
       finally{authenticating=false;}
     }
     socket.on('room:create',(input,reply)=>guard(reply,()=>{const wrapped=input&&typeof input==='object'&&'deck'in input;const data=rooms.withTicket(socket.id,wrapped?input.ticket:undefined,()=>rooms.create(socket.id,wrapped?input.deck:input));return{data,code:data.code};}));
-    socket.on('room:bot',(input,reply)=>guard(reply,()=>{const data=rooms.withTicket(socket.id,input?.ticket,()=>rooms.createBot(socket.id,input));return{data,code:data.code};}));
+    socket.on('room:bot',(input,reply)=>{
+      if(growth&&tokenFrom(socket.request)){
+        void withAccount(reply,account=>{
+          const collection=account.role==='developer'?undefined:{growth,profile:syncOwned(account.profile,growth)};
+          const data=rooms.withTicket(socket.id,input?.ticket,()=>rooms.createBot(socket.id,input,collection));
+          return {data,code:data.code};
+        },input?.expectedAccountId);
+      }else if(input?.expectedAccountId!==undefined){
+        reply?.({ok:false,error:'대전 연결의 로그인 계정이 변경되었습니다. 계정을 다시 확인하세요.',code:'accountChanged'});
+      }else guard(reply,()=>{
+        const data=rooms.withTicket(socket.id,input?.ticket,()=>rooms.createBot(socket.id,input,'basic'));
+        return {data,code:data.code};
+      });
+    });
     socket.on('room:ranked',(input,reply)=>{void withAccount(reply,account=>{if(!growth)throw new RuleError('랭크 모드가 활성화되지 않았습니다.');const data=rooms.withTicket(socket.id,input?.ticket,()=>{requireAccountMatchOpen();return rooms.createRanked(socket.id,input,account,growth);},account.id);return{data,code:data.code};},input?.expectedAccountId);});
     socket.on('room:developer-test',(input,reply)=>{void withAccount(reply,account=>{if(!growth||account.role!=='developer')throw new RuleError('개발자 권한이 필요합니다.');const data=rooms.withTicket(socket.id,input?.ticket,()=>{requireAccountMatchOpen();return rooms.createDeveloperTest(socket.id,input,account,growth);},account.id,account.role);return{data,code:data.code};},input?.expectedAccountId);});
     socket.on('room:owned-create',(input,reply)=>{void withAccount(reply,account=>{if(!growth)throw new RuleError('계정 대전이 활성화되지 않았습니다.');const data=rooms.withTicket(socket.id,input?.ticket,()=>{requireAccountMatchOpen();return rooms.createOwnedPvp(socket.id,input,account,growth);},account.id);return{data,code:data.code};},input?.expectedAccountId);});

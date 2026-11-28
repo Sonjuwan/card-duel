@@ -45,7 +45,7 @@ export interface JoinTicket {ticket:string}
 export interface ClientEvents {
   'account:watch':(reply:(result:Result<null>)=>void)=>void;
   'room:create':(deck:Deck|({deck:Deck}&JoinTicket),reply:(result:Result<Session>)=>void)=>void;
-  'room:bot':(input:{deck:Deck;heroClass:HeroClass;difficulty?:BotDifficulty;style?:DeckStyle;firstPlayer?:PlayerId;deckSeed?:number;ticket?:string},reply:(result:Result<Session>)=>void)=>void;
+  'room:bot':(input:{deck:Deck;heroClass:HeroClass;difficulty?:BotDifficulty;style?:DeckStyle;firstPlayer?:PlayerId;deckSeed?:number;ticket?:string;expectedAccountId?:string},reply:(result:Result<Session>)=>void)=>void;
   'room:ranked':(input:{deck:Deck;ticket?:string;expectedAccountId?:string},reply:(result:Result<Session>)=>void)=>void;
   'room:developer-test':(input:{deck:Deck;rank:number;ticket?:string;expectedAccountId?:string},reply:(result:Result<Session>)=>void)=>void;
   'room:owned-create':(input:{deck:Deck;ticket?:string;expectedAccountId?:string},reply:(result:Result<Session>)=>void)=>void;

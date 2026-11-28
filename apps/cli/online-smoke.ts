@@ -1,3 +1,4 @@
+import {rewardPaths} from '../../packages/reward-road.ts';
 import {validateBotWeights} from '../../packages/engine/src/index.ts';
 import {aiWeightFingerprint} from '../server/ai-profile-store.ts';
 import {publishedReleaseIdentity,sha256Text as hash} from '../server/release-identity.ts';
@@ -102,7 +103,7 @@ export async function runOnlineSmoke(url:string,credentials?:Credentials,expecte
       requireCheck(!!a.id&&a.id===b.id&&['player','developer'].includes(a.role)&&a.role===b.role&&Number.isInteger(a.profile?.revision)&&JSON.stringify(a.profile)===JSON.stringify(b.profile),'두 로그인 세션의 계정 진행 기록 불일치 (테스트 계정이 다른 기기에서 변경 중인지 확인하세요)');
       const mismatch=await request('/api/account/export',409,{cookie:sessions[0],accountId:a.id+'-different'});await mismatch.body?.cancel();
       const growth=decodeGrowthView(await json<unknown>('/api/account/growth',200,sessions[0],a.id));
-      requireCheck(hash(JSON.stringify(growth))===version.growthHash&&growth.ranks.length===25&&growth.questOrder.length===9&&growth.starterIds.length+growth.unlocks.length===collectibleCards,'서버 성장 설정 불일치');
+      requireCheck(hash(JSON.stringify(growth))===version.growthHash&&growth.ranks.length===25&&growth.questOrder.length===9&&rewardPaths(growth).reduce((total,path)=>total+path.cardIds.length,0)===collectibleCards,'서버 성장 설정 불일치');
       const presence=decodeActivePresence(await json<unknown>('/api/account/active-room',200,sessions[0],a.id));
       requireCheck(presence===null||!Object.hasOwn(presence,'token')&&!Object.hasOwn(presence,'code'),'활성 대전 정보 오류');
       if(a.role==='developer'){const dev=decodeDeveloperStatus(await json<unknown>('/api/account/developer',200,sessions[0],a.id));requireCheck(dev.role==='developer'&&dev.version===version.version&&dev.growthHash===version.growthHash,'개발자 권한/버전 불일치');}

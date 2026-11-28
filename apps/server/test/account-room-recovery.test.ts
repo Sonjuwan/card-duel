@@ -1,3 +1,4 @@
+import {basicDeck} from '../../../packages/basic-decks.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
@@ -9,7 +10,6 @@ import type {Socket} from 'socket.io-client';
 import {createDuelServer,loadCatalog} from '../server.ts';
 import {LocalAccountStore,newProfile} from '../account-store.ts';
 import {buildGrowth} from '../../../packages/progression.ts';
-import {practiceDeck} from '../../../packages/engine/src/index.ts';
 import type {GameState} from '../../../packages/engine/src/index.ts';
 import type {ClientEvents,ServerEvents,Result,RoomView,Session} from '../../../packages/protocol.ts';
 import type {AccountRoomSnapshot} from '../rooms.ts';
@@ -23,7 +23,7 @@ test('all account room entry modes reject a different expected account before co
   const store=new LocalAccountStore(':memory:',growth),server=await open(store);
   try{
     const a=await store.register('socket-a@example.test','test-password'),b=await store.register('socket-b@example.test','test-password'),client=await server.client(a.token);
-    const deck=practiceDeck(catalog,'warrior'),ticket='ab'.repeat(32),expectedAccountId=b.account.id;
+    const deck=basicDeck(catalog,'warrior'),ticket='ab'.repeat(32),expectedAccountId=b.account.id;
     // Each request is issued sequentially to avoid the per-socket auth lock.
     const results=[await ack<Session>(cb=>client.emit('room:ranked',{deck,ticket,expectedAccountId},cb))];
     results.push(await ack<Session>(cb=>client.emit('room:developer-test',{deck,rank:1,ticket,expectedAccountId},cb)));
@@ -45,7 +45,7 @@ async function open(store:LocalAccountStore,restoreRooms:AccountRoomSnapshot[]=[
 test('ranked room is durably stored before ack and restored from the same database on restart',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'duel-room-'));const path=join(dir,'accounts.sqlite');let store=new LocalAccountStore(path,growth);let server=await open(store);
   try{
-    const account=await store.register('restart@example.test','test-password'),client=await server.client(account.token);const session=success(await ack<Session>(cb=>client.emit('room:ranked',{deck:practiceDeck(catalog,'warrior')},cb)));
+    const account=await store.register('restart@example.test','test-password'),client=await server.client(account.token);const session=success(await ack<Session>(cb=>client.emit('room:ranked',{deck:basicDeck(catalog,'warrior')},cb)));
     const view=success(await ack<RoomView>(cb=>client.emit('room:action',{revision:0,action:{type:'mulligan',replace:[]}},cb)));
     success(await ack<null>(cb=>client.emit('room:account-pause',cb)));assert.equal((await ack<RoomView>(cb=>client.emit('room:sync',cb))).ok,false);
     const saved=(await store.loadRoomSnapshots())[0];assert.equal(saved.code,session.code);assert.equal(saved.room?.state?.revision,view.state?.revision);assert.ok(!Object.hasOwn(saved.room!.state!,'catalog'));assert.ok(!Object.hasOwn(saved.room!.members[0],'socketId'));
@@ -57,7 +57,7 @@ test('ranked room is durably stored before ack and restored from the same databa
 test('pending ranked award survives restart and is applied exactly once when storage recovers',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'duel-result-'));const path=join(dir,'accounts.sqlite');let store=new LocalAccountStore(path,growth);let server=await open(store);
   try{
-    const account=await store.register('pending@example.test','test-password'),client=await server.client(account.token);const session=success(await ack<Session>(cb=>client.emit('room:ranked',{deck:practiceDeck(catalog,'mage')},cb)));
+    const account=await store.register('pending@example.test','test-password'),client=await server.client(account.token);const session=success(await ack<Session>(cb=>client.emit('room:ranked',{deck:basicDeck(catalog,'mage')},cb)));
     // Simulate only reward ledger failure: room snapshots still succeed.
     store.recordMatch=async()=>{throw new Error('fixture: ledger temporarily unavailable');};
     const room=(server.rooms as unknown as {rooms:Map<string,{state:GameState}>}).rooms.get(session.code)!;
@@ -76,7 +76,7 @@ test('account game success waits for durable write and a catalogue-incompatible 
     const account=await store.register('wait@example.test','test-password'),client=await server.client(account.token);
     let release!:()=>void,entered!:()=>void;const held=new Promise<void>(resolve=>{release=resolve;}),started=new Promise<void>(resolve=>{entered=resolve;});
     const save=store.saveRoomSnapshot.bind(store);store.saveRoomSnapshot=async(snapshot)=>{entered();await held;await save(snapshot);};
-    let finished=false;const request=ack<Session>(cb=>client.emit('room:ranked',{deck:practiceDeck(catalog,'warrior')},cb)).then(result=>{finished=true;return result;});
+    let finished=false;const request=ack<Session>(cb=>client.emit('room:ranked',{deck:basicDeck(catalog,'warrior')},cb)).then(result=>{finished=true;return result;});
     await started;assert.equal(finished,false);assert.equal((await store.loadRoomSnapshots()).length,0);release();const room=success(await request);assert.equal((await store.loadRoomSnapshots())[0].code,room.code);
     const snapshot=(await store.loadRoomSnapshots())[0],differentVersion=new RoomService(catalog);
     assert.equal(differentVersion.restoreAccountSnapshot(snapshot,'0'.repeat(64)),false);assert.throws(()=>differentVersion.resumeAccount('phone',account.account.id),/이어할/);
@@ -86,7 +86,7 @@ test('PvP result keeps both independent account awards through a partial ledger 
   const dir=mkdtempSync(join(tmpdir(),'duel-pvp-history-')),path=join(dir,'accounts.sqlite');let store=new LocalAccountStore(path,growth);let server=await open(store);
   try{
     const [first,second]=await Promise.all([store.register('pvp-first@example.test','test-password'),store.register('pvp-second@example.test','test-password')]);
-    const a=await server.client(first.token),b=await server.client(second.token),deck=practiceDeck(catalog,'warrior');
+    const a=await server.client(first.token),b=await server.client(second.token),deck=basicDeck(catalog,'warrior');
     const session=success(await ack<Session>(cb=>a.emit('room:owned-create',{deck},cb)));success(await ack<Session>(cb=>b.emit('room:owned-join',{code:session.code,deck},cb)));
     const record=store.recordMatch.bind(store);store.recordMatch=async(id,...args)=>{if(id===second.account.id)throw new Error('fixture: one account ledger temporarily unavailable');return record(id,...args);};
     success(await ack<null>(cb=>a.emit('room:leave',cb)));
@@ -98,7 +98,7 @@ test('PvP result keeps both independent account awards through a partial ledger 
   }finally{await server.close();store.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('restore fails closed rather than discarding valid rooms when startup capacity is lower',()=>{
-  let now=100000000;const source=new RoomService(catalog,{clock:()=>now}),hash='a'.repeat(64),deck=practiceDeck(catalog,'warrior');
+  let now=100000000;const source=new RoomService(catalog,{clock:()=>now}),hash='a'.repeat(64),deck=basicDeck(catalog,'warrior');
   const account=(id:string)=>({id,email:id+'@example.test',role:'player' as const,profile:newProfile()});
   const first=source.createRanked('pc',{deck},account('first'),growth),second=source.createRanked('mobile',{deck},account('second'),growth);
   const a=source.accountSnapshot(first.code,hash)!,b=source.accountSnapshot(second.code,hash)!;
@@ -116,7 +116,7 @@ test('duplicate or malformed stored awards stop restoration without double-count
 test('restored ranked battles retain generated hero-power minions and can summon them again',()=>{
   const hash='a'.repeat(64),account={id:'hero-token-player',email:'test@example.test',role:'player' as const,profile:newProfile()};
   for(const heroClass of ['paladin','shaman'] as const){
-    const source=new RoomService(catalog),deck=practiceDeck(catalog,heroClass),session=source.createRanked('pc',{deck},account,growth);
+    const source=new RoomService(catalog),deck=basicDeck(catalog,heroClass),session=source.createRanked('pc',{deck},account,growth);
     const stateOf=(service:RoomService)=>(service as unknown as {rooms:Map<string,{state:GameState}>}).rooms.get(session.code)!.state;
     const prepare=(state:GameState)=>{state.phase='playing';state.activePlayer=0;state.turn=4;state.players.forEach(player=>player.mulliganDone=true);state.players[0].mana=2;state.players[0].maxMana=2;state.players[0].heroPowerUsed=false;};
     prepare(stateOf(source));source.act('pc',{revision:stateOf(source).revision,action:{type:'heroPower'}});
@@ -128,7 +128,7 @@ test('restored ranked battles retain generated hero-power minions and can summon
   }
 });
 test('corrupt stored battle metadata fails closed without partially inserting pending rewards',()=>{
-  const hash='a'.repeat(64),source=new RoomService(catalog),account={id:'fixture',email:'test@example.test',role:'player' as const,profile:newProfile()},deck=practiceDeck(catalog,'warrior'),session=source.createRanked('pc',{deck},account,growth);
+  const hash='a'.repeat(64),source=new RoomService(catalog),account={id:'fixture',email:'test@example.test',role:'player' as const,profile:newProfile()},deck=basicDeck(catalog,'warrior'),session=source.createRanked('pc',{deck},account,growth);
   const valid=source.accountSnapshot(session.code,hash)!;
   for(const corrupt of [
     (s:AccountRoomSnapshot)=>{s.room!.ranked!.accountId='foreign';},

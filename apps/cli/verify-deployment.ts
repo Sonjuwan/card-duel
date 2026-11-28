@@ -1,3 +1,4 @@
+import {rewardPaths} from '../../packages/reward-road.ts';
 import {existsSync} from 'node:fs';
 import {publishedReleaseIdentity} from '../server/release-identity.ts';
 import {verifyRankedDecks} from '../../packages/progression.ts';
@@ -13,7 +14,7 @@ try{
   const catalog=loadCatalog(),growth=loadGrowth(catalog),checked=verifyRankedDecks(catalog,growth);
   if(!existsSync(new URL('../../dist/client/index.html',import.meta.url)))throw new Error('먼저 npm run build를 실행하세요.');
   const expected=publishedReleaseIdentity(catalog,growth);
-  console.log(`v${project.version}: 랭크 ${growth.ranks.length}단계 · 합법 AI 덱 ${checked}개 · 카드 ${growth.starterIds.length+growth.unlocks.length}장 · 성장 버전 ${expected.growthHash.slice(0,12)}`);
+  console.log(`v${project.version}: 랭크 ${growth.ranks.length}단계 · 합법 AI 덱 ${checked}개 · 카드 ${rewardPaths(growth).reduce((total,path)=>total+path.cardIds.length,0)}장 · 성장 버전 ${expected.growthHash.slice(0,12)}`);
   const audit=auditRankedDecks(catalog,growth);
   console.log(`4개 시드 덱 전력 비교 ${audit.checked}개 · 증가 ${audit.increased}/${audit.compared} · 동일 ${audit.unchanged} · 감소 ${audit.decreased} (설정 점수, 실제 승률 아님)`);
   if(audit.decreased||audit.unchanged||growth.ranks.some((rank,i)=>i>0&&rank.intelligence<=growth.ranks[i-1].intelligence))console.warn('랭크별 전력 또는 AI 지능에 동일/하락 단계가 있습니다. 의도한 설정인지 확인하세요.');

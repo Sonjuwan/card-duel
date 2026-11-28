@@ -1,3 +1,4 @@
+import {basicDeck} from '../../packages/basic-decks.ts';
 import {collectionBotDeck} from '../../packages/collection-bot-deck.ts';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { applyAction, createGame, getPlayerView, RuleError, validateDeck, HERO_CLASSES, strategicDeck, DECK_STYLES, rankBotActions, isBotDifficulty, turnTimeLimitSeconds } from '../../packages/engine/src/index.ts';
@@ -131,7 +132,7 @@ export class RoomService {
     let code:string;do{code=Array.from({length:6},()=>ALPHABET[randomInt(ALPHABET.length)]).join('');}while(this.rooms.has(code)||[...this.rankedResults.values()].some(result=>result.code===code));
     const r:Room={code,members:[{token:token(),socketId:null,deck:d}],state:null,lastActive:this.clock()};this.rooms.set(code,r);return this.bind(r,0,socketId);
   }
-  createBot(socketId:string,input:unknown):Session{
+  createBot(socketId:string,input:unknown,collection?:{growth:GrowthView;profile:AccountProfile}|'basic'):Session{
     this.ensureFree(socketId);assert(object(input)&&HERO_CLASSES.includes(input.heroClass as HeroClass),'잘못된 AI 직업입니다.');
     const difficulty=input.difficulty===undefined?3:input.difficulty;
     assert(isBotDifficulty(difficulty),'AI 난이도는 1~25 사이 정수여야 합니다.');
@@ -139,11 +140,14 @@ export class RoomService {
     assert(DECK_STYLES.includes(style as DeckStyle),'잘못된 AI 덱 유형입니다.');
     assert(input.firstPlayer===undefined||input.firstPlayer===0||input.firstPlayer===1,'잘못된 선후공 설정입니다.');
     assert(input.deckSeed===undefined||typeof input.deckSeed==='number'&&Number.isSafeInteger(input.deckSeed)&&input.deckSeed>=0&&input.deckSeed<=0xffffffff,'잘못된 AI 덱 시드입니다.');
-    const d=this.deck(input.deck),b=strategicDeck(this.catalog,input.heroClass as HeroClass,style as DeckStyle,input.deckSeed as number|undefined??randomInt(0,4294967296));
+    const d=this.deck(input.deck),hero=input.heroClass as HeroClass;
+    const b=collection==='basic'?basicDeck(this.catalog,hero):collection
+      ?collectionBotDeck(this.catalog,collection.growth,hero,collection.profile)
+      :strategicDeck(this.catalog,hero,style as DeckStyle,input.deckSeed as number|undefined??randomInt(0,4294967296));
     const champion=readGameChampion(aiCatalogHash(this.catalog));
     const state=createGame(this.catalog,[d,b],{seed:randomInt(0,4294967296),firstPlayer:input.firstPlayer as PlayerId|undefined,runtime});
     const session=this.create(socketId,d),r=this.get(session.code);
-    r.members[1]={token:token(),socketId:null,deck:b};r.state=state;r.bot={turn:0,actions:0,difficulty,weights:champion?.weights,generation:champion?.promotions??0,style:style as DeckStyle};return session;
+    r.members[1]={token:token(),socketId:null,deck:b};r.state=state;r.bot={turn:0,actions:0,difficulty,weights:champion?.weights,generation:champion?.promotions??0,style:collection==='basic'?'starter':collection?'practice':style as DeckStyle};return session;
   }
   createRanked(socketId:string,input:unknown,account:AccountView,growth:GrowthView):Session{
     this.cleanup();this.ensureFree(socketId);assert(object(input),'잘못된 랭크 요청입니다.');

@@ -1,9 +1,10 @@
+import {basicDeck} from '../../packages/basic-decks.ts';
 import {once} from 'node:events';
 import assert from 'node:assert/strict';
 import {io as connect} from 'socket.io-client';
 import type {Socket} from 'socket.io-client';
 import type {Action} from '../../packages/engine/src/index.ts';
-import {getHeroPower,heroPowerReason,legalPublicTargets,practiceDeck} from '../../packages/engine/src/index.ts';
+import {getHeroPower,heroPowerReason,legalPublicTargets} from '../../packages/engine/src/index.ts';
 import type {HeroClass} from '../../packages/engine/src/index.ts';
 import {snapshotBattleCatalog} from '../../packages/engine/src/catalog-snapshot.ts';
 import type {ClientEvents,ServerEvents,Result,RoomView,Session} from '../../packages/protocol.ts';
@@ -43,7 +44,7 @@ async function usePower(client:Client,view:RoomView):Promise<RoomView|undefined>
   const result=await act(client,action);observeTokens(result);return result;
 }
 async function aiMatch(user:Awaited<ReturnType<typeof open>>){
-  const {client,developer,id,index}=user,deck=practiceDeck(catalog,loadClasses[index%loadClasses.length]);
+  const {client,developer,id,index}=user,deck=basicDeck(catalog,loadClasses[index%loadClasses.length]);
   if(developer)success(await ack<Session>(cb=>client.emit('room:developer-test',{rank:25,deck,expectedAccountId:id},cb)));else success(await ack<Session>(cb=>client.emit('room:ranked',{deck,expectedAccountId:id},cb)));
   await sync(client);await act(client,{type:'mulligan',replace:[]});
   let next=await wait(()=>{const v=current(client);return v?.state?.phase==='playing'&&v.state.activePlayer===0?v:undefined;});
@@ -59,7 +60,7 @@ async function aiMatch(user:Awaited<ReturnType<typeof open>>){
   const final=await store.session(user.token);assert.ok(final);if(developer)assert.equal(final.profile.matchStats?.ranked.losses,undefined);else assert.equal((final.profile.matchStats?.ranked.losses??0)+(final.profile.matchStats?.ranked.wins??0)+(final.profile.matchStats?.ranked.draws??0),1);
 }
 async function pvpMatch(a:Awaited<ReturnType<typeof open>>,b:Awaited<ReturnType<typeof open>>){
-  const deck=practiceDeck(catalog,'paladin'),opponent=practiceDeck(catalog,'shaman'),session=success(await ack<Session>(cb=>a.client.emit('room:owned-create',{deck,expectedAccountId:a.id},cb)));
+  const deck=basicDeck(catalog,'paladin'),opponent=basicDeck(catalog,'shaman'),session=success(await ack<Session>(cb=>a.client.emit('room:owned-create',{deck,expectedAccountId:a.id},cb)));
   success(await ack<Session>(cb=>b.client.emit('room:owned-join',{code:session.code,deck:opponent,expectedAccountId:b.id},cb)));
   await sync(a.client);await sync(b.client);await act(a.client,{type:'mulligan',replace:[]});await sync(b.client);await act(b.client,{type:'mulligan',replace:[]});
   for(let turn=0;turn<4;turn++){

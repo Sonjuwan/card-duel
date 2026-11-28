@@ -185,7 +185,7 @@ test('account watch automatically notifies both devices but not other accounts o
   }finally{clients.forEach(client=>client.disconnect());await io.close();store.close();}
 });
 test('a patch preserves incompatible historic account decks while permitting new legal saves and explicit repair',async()=>{
-  const catalog=loadCatalog(),growth=buildGrowth(catalog),base=practiceDeck(catalog,'mage'),retired=growth.unlocks.find(({cardId})=>{const card=catalog[cardId];return card.kind!=='coin'&&card.class==='neutral';})!.cardId;
+  const catalog=loadCatalog(),growth=buildGrowth(catalog),base=practiceDeck(catalog,'mage'),retired=growth.unlocks.find(({cardId})=>{const card=catalog[cardId];return card.kind!=='coin'&&card.class==='neutral'&&!base.cards.includes(cardId);})!.cardId;
   const legacy={name:'이전 덱',deck:{...base,cards:[...base.cards.slice(1),retired]}};validateDeck(legacy.deck,catalog);
   const patched={...catalog};delete patched[retired];const repaired=repairDeck(patched,legacy.deck);assert.deepEqual(repaired.discarded,[retired]);assert.equal(repaired.deck.cards.length,29);
   const store=new LocalAccountStore(':memory:'),account=await store.register(credentials.email,credentials.password);await store.updateDecks(account.account.id,0,[legacy]);

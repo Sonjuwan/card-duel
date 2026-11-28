@@ -5,7 +5,7 @@ import {io as connect} from 'socket.io-client';
 import type {Socket} from 'socket.io-client';
 import type {ClientEvents,ServerEvents,Result,RoomView,Session} from '../../../packages/protocol.ts';
 import type {DeveloperStatus} from '../../../packages/account-protocol.ts';
-import {practiceDeck} from '../../../packages/engine/src/index.ts';
+import {basicDeck} from '../../../packages/basic-decks.ts';
 import {buildGrowth} from '../../../packages/progression.ts';
 import {createDuelServer,loadCatalog} from '../server.ts';
 import {AccountError,LocalAccountStore} from '../account-store.ts';
@@ -24,7 +24,7 @@ test('maintenance is developer-only, blocks new account matches and preserves ex
   const status=async()=>{const res=await fetch(url+'/api/account/developer',{headers:{Cookie:`duel_account=${dev.token}`}});assert.equal(res.status,200);return (await res.json() as DeveloperStatus).runtime!;};
   try{
     const [d,a,m,p1,p2,n,w,g]=await Promise.all([socket(dev.token),socket(ranked.token),socket(phone.token),socket(pvpA.token),socket(pvpB.token),socket(fresh.token),socket(waiting.token),socket()]);
-    const deck=practiceDeck(catalog,'warrior'),rank=success(await ack<Session>(cb=>a.emit('room:ranked',{deck},cb)));
+    const deck=basicDeck(catalog,'warrior'),rank=success(await ack<Session>(cb=>a.emit('room:ranked',{deck},cb)));
     const pvp=success(await ack<Session>(cb=>p1.emit('room:owned-create',{deck},cb)));success(await ack<Session>(cb=>p2.emit('room:owned-join',{code:pvp.code,deck},cb)));
     const waitRoom=success(await ack<Session>(cb=>w.emit('room:owned-create',{deck},cb)));
     assert.equal((await toggle(fresh.token,true)).status,403);assert.equal((await toggle(dev.token,'yes')).status,400);assert.equal((await toggle(dev.token,true,'https://evil.example')).status,403);
@@ -59,7 +59,7 @@ test('maintenance persists across server restart, fails closed and never reports
     try{
       await started;const state=await status();assert.equal(state.maintenance,true);assert.equal(state.maintenanceSaving,true);assert.equal(state.readyForPatch,false);
       assert.equal((await toggle(false)).status,409);
-      assert.equal((await ack<Session>(cb=>client.emit('room:ranked',{deck:practiceDeck(catalog,'mage')},cb))).ok,false);
+      assert.equal((await ack<Session>(cb=>client.emit('room:ranked',{deck:basicDeck(catalog,'mage')},cb))).ok,false);
     }finally{release();}
     assert.equal((await pending).status,503);let state=await status();assert.equal(state.maintenance,true);assert.equal(state.maintenanceSaved,false);assert.equal(state.readyForPatch,false);
     assert.equal(await store.initializeMaintenance(true),false);
@@ -94,7 +94,7 @@ test('patch maintenance drains in-flight credential changes and blocks new passw
 test('patch maintenance drains already accepted deck saves and rejects new edits through both API versions',{timeout:15000},async()=>{
   const catalog=loadCatalog(),growth=buildGrowth(catalog),store=new LocalAccountStore(':memory:',growth),{http,io}=createDuelServer(catalog,{accounts:store,growth});http.listen(0,'127.0.0.1');await once(http,'listening');const addr=http.address();assert.ok(addr&&typeof addr==='object');const url=`http://127.0.0.1:${addr.port}`;
   const dev=await store.register('deck-dev@example.test','test-password'),player=await store.register('deck-player@example.test','test-password');store.setRole(dev.account.email,'developer');
-  const deck=practiceDeck(catalog,'warrior'),call=(path:string,method:string,body:unknown,token:string)=>fetch(url+'/api/account/'+path,{method,headers:{'Content-Type':'application/json',Origin:url,Cookie:`duel_account=${token}`},body:JSON.stringify(body)});
+  const deck=basicDeck(catalog,'warrior'),call=(path:string,method:string,body:unknown,token:string)=>fetch(url+'/api/account/'+path,{method,headers:{'Content-Type':'application/json',Origin:url,Cookie:`duel_account=${token}`},body:JSON.stringify(body)});
   const status=async()=>{const response=await fetch(url+'/api/account/developer',{headers:{Cookie:`duel_account=${dev.token}`}});assert.equal(response.status,200);return (await response.json() as DeveloperStatus).runtime!;};
   const update=store.updateDecks.bind(store);let entered!:()=>void,release!:()=>void;const started=new Promise<void>(resolve=>entered=resolve),held=new Promise<void>(resolve=>release=resolve);store.updateDecks=async(...args)=>{entered();await held;return update(...args);};
   try{

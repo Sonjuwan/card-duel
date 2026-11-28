@@ -36,7 +36,12 @@ function legacyUnlocks(catalog:Catalog,collectible:Exclude<Card,{kind:'coin'}>[]
 export function buildGrowth(catalog:Catalog,overrides:Readonly<Record<string,number>>={},rankTuning:Readonly<Record<string,RankTuning>>={},unlockXp:Readonly<UnlockXp>=DEFAULT_UNLOCK_XP,definitions:readonly RewardPathDefinition[]=DEFAULT_REWARD_PATHS):GrowthView{
   if(![unlockXp.base,unlockXp.perPower].every(v=>Number.isInteger(v)&&v>=1&&v<=1000))throw new Error('Invalid unlock XP costs');
   const collectible=Object.values(catalog).filter((c):c is Exclude<Card,{kind:'coin'}>=>c.kind!=='coin'&&c.collectible!==false);
-  const starter=new Set(collectible.filter(c=>c.rarity==='basic').map(c=>c.id));
+  const basic=collectible.filter(c=>c.rarity==='basic');
+  const starter=new Set(basic.map(c=>c.id));
+  // Historical admin catalog snapshots may predate full class Basic pools.
+  if(HERO_CLASSES.some(hero=>basic.filter(card=>card.class===hero||card.class==='neutral').reduce((sum,card)=>sum+maxCardCopies(card),0)<30)){
+    for(const hero of HERO_CLASSES)for(const id of practiceDeck(catalog,hero).cards)starter.add(id);
+  }
   for(const [id,power] of Object.entries(overrides)){
     if(!collectible.some(c=>c.id===id)||!Number.isInteger(power)||power<1||power>25||starter.has(id)&&power!==1)throw new Error(`Invalid card power override: ${id}`);
     if(power===1)starter.add(id);
@@ -49,8 +54,7 @@ export function buildGrowth(catalog:Catalog,overrides:Readonly<Record<string,num
   for(const [rank,tuning] of Object.entries(rankTuning))if(!/^(?:[1-9]|1[0-9]|2[0-5])$/.test(rank)||!tuning||![tuning.deckPower,tuning.intelligence].every(v=>Number.isInteger(v)&&v>=1&&v<=25))throw new Error(`Invalid rank tuning: ${rank}`);
   let minimumXp=0;
   const ranks=RANKS.map(r=>{const tuning=rankTuning[String(r.rank)],tier=tuning?{...r,...tuning}:{...r};
-    // A player needs at least one card at the next opponent's assigned power,
-    // or the full lower tier when that exact power has no collectible cards.
+    // Keep the existing lifetime XP requirement when collection rules change.
     const target=tier.deckPower===1?0:legacy.find(c=>c.power===tier.deckPower)?.xp??legacy.filter(c=>c.power<tier.deckPower).at(-1)?.xp??0;
     minimumXp=r.rank===1?0:Math.max(minimumXp,target);return {...tier,minimumXp};});
   return {ranks,unlocks:paths[0].unlocks,rewardPaths:paths,starterIds:[...starter].sort(),questOrder:[...HERO_CLASSES],questLength:QUEST_LENGTH,winsPerRank:WINS_PER_RANK};

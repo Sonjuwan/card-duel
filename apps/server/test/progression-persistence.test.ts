@@ -21,7 +21,7 @@ test('all 25 ranks, 9-class quests and the entire card collection persist across
   try{
     const pc=await store.register('long-growth@example.test','test-password'),phone=await store.login(pc.account.email,'test-password');
     const id=pc.account.id;let account=pc.account,first:MatchAward|undefined,allCardsAt:number|undefined;
-    const tiers:number[]=[],quests=new Set<string>(),power=new Map(growth.unlocks.map(card=>[card.cardId,card.power]));
+    const tiers:number[]=[],quests=new Set<string>();
     function checkRoom(current:AccountView){
       const rank=current.profile.rank;if(tiers.includes(rank))return;tiers.push(rank);
       const tier=growth.ranks[rank-1],hero=questStatus(current.profile.questGames).heroClass,deck=recommendedOwnedDeck(catalog,growth,hero,current.profile,rank);
@@ -29,7 +29,7 @@ test('all 25 ranks, 9-class quests and the entire card collection persist across
       const rooms=new RoomService(catalog),session=rooms.createRanked('fixture-player',{deck},current,growth),view=rooms.view('fixture-player');
       assert.equal(view.ranked?.rank,rank);assert.equal(view.ranked?.deckPower,tier.deckPower);assert.equal(view.botDifficulty,tier.intelligence);
       const opponent=rooms.accountSnapshot(session.code,'a'.repeat(64))?.room?.members[1]?.deck;assert.ok(opponent);validateDeck(opponent,catalog);
-      assert.ok(opponent.cards.every(card=>(power.get(card)??1)<=tier.deckPower));
+      assert.ok(opponent.cards.every(card=>current.profile.ownedCards.includes(card)));
     }
     checkRoom(account);
     for(let game=1;game<=forecast.games;game++){

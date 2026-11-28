@@ -1,3 +1,4 @@
+import {basicDeck} from '../../../packages/basic-decks.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -21,7 +22,7 @@ import type {DeckLibraryBackup} from '../src/named-decks.ts';
 
 const catalog={...createCatalog(JSON.parse(readFileSync(new URL('../../../data/cards/v0.23.0.json',import.meta.url),'utf8'))),...Object.fromEntries(HERO_TOKENS.map(c=>[c.id,c]))};
 const input:LocalDuelInput={catalog,deck:practiceDeck(catalog,'mage'),heroClass:'warrior',difficulty:3,seed:729,code:'LOCAL-TEST',style:'aggression',generation:4};
-const hash='a'.repeat(64),savedInput={...input,catalogHash:hash,firstPlayer:0 as const};
+const hash='a'.repeat(64),savedInput={...input,deck:basicDeck(catalog,'mage'),catalogHash:hash,firstPlayer:0 as const};
 
 test('developer free battles use the exact selected deck and reject class mismatches',()=>{
   const opponent=practiceDeck(catalog,'warrior');
@@ -151,12 +152,12 @@ test('actual workers bind exactly one slot database; invalid initial selection n
   }
 });
 
-test('offline ranked matches use the actual tier deck and intelligence, never practice settings',()=>{
+test('offline ranked matches use collection decks and tier intelligence, never practice settings',()=>{
   const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth);assert.equal(initial.profile.rank,1);assert.equal(initial.profile.xp,0);
   assert.ok(initial.profile.ownedCards.length<growth.starterIds.length+growth.unlocks.length);
   for(const tier of growth.ranks){const record={...initial,profile:{...initial.profile,rank:tier.rank}},ranked=createOfflineRankedInput({...savedInput,difficulty:25,style:'legendary',deviceMode:'fast'},record,growth),duel=new LocalDuel(ranked),checkpoint=duel.checkpoint()!;
     assert.equal(duel.view().ranked?.rank,tier.rank);assert.equal(duel.view().botDifficulty,tier.intelligence);assert.equal(ranked.firstPlayer,undefined);assert.equal(ranked.deviceMode,'auto');
-    assert.deepEqual(ranked.ranked!.opponentDeck,rankedBotDeck(catalog,growth,ranked.heroClass,tier.deckPower,ranked.deckSeed!));
+    assert.deepEqual(ranked.ranked!.opponentDeck,basicDeck(catalog,ranked.heroClass));
     assert.deepEqual(LocalDuel.restore(checkpoint,catalog,hash).checkpoint(Date.parse(checkpoint.summary.savedAt)),checkpoint);
   }
   const locked=growth.unlocks.find(c=>catalog[c.cardId].kind!=='coin'&&['mage','neutral'].includes((catalog[c.cardId] as {class?:string}).class??''))!;
@@ -182,7 +183,7 @@ test('experimental ladder is explicitly developer-only, preserves its checkpoint
 
 test('offline ledger preserves old receipts, guards duplicate settlement and carries ownership across patches',()=>{
   const growth=offlineGrowth(catalog);let record=readOfflineGrowth(undefined,growth);let oldest:ReturnType<typeof createOfflineRankedInput>['ranked'];
-  for(let i=0;i<45;i++){const ranked=createOfflineRankedInput({...savedInput,code:`offline-${i}`,deck:practiceDeck(catalog,'warrior')},record,growth);const context=ranked.ranked!;if(i===0)oldest=context;
+  for(let i=0;i<45;i++){const ranked=createOfflineRankedInput({...savedInput,code:`offline-${i}`,deck:basicDeck(catalog,'warrior')},record,growth);const context=ranked.ranked!;if(i===0)oldest=context;
     record=settleOfflineRanked(record,growth,context,{matchId:ranked.code,rank:context.rank,heroClass:'warrior',mode:'ranked',outcome:'win',eligible:true,completedAt:i,turns:12});
   }
   assert.equal(record.profile.revision,45);assert.equal(record.profile.recentMatches?.length,30);assert.equal(record.settledMatchIds.length,45);assert.ok(record.profile.rank>1);assert.ok(record.profile.xp>0);
@@ -190,7 +191,7 @@ test('offline ledger preserves old receipts, guards duplicate settlement and car
   assert.throws(()=>settleOfflineRanked(record,growth,oldest!,{...duplicate,matchId:'new-but-stale'}),/변경/);
   const patched=readOfflineGrowth(structuredClone(record),{...growth,unlocks:growth.unlocks.map(c=>({...c,xp:c.xp+99999}))});assert.deepEqual(patched.profile.ownedCards,record.profile.ownedCards);
   assert.throws(()=>readOfflineGrowth({...record,settledMatchIds:[]},growth),/원장/);
-  ownedDeck(practiceDeck(catalog,'mage'),catalog,record.profile);assert.equal(rankInfo(record.profile.rank,growth.ranks).rank,record.profile.rank);
+  ownedDeck(basicDeck(catalog,'mage'),catalog,record.profile);assert.equal(rankInfo(record.profile.rank,growth.ranks).rank,record.profile.rank);
 });
 
 test('144 synthetic offline ranked results reach the complete ladder, cycle nine quests, and survive backup reloads',()=>{
@@ -225,7 +226,7 @@ for(const atomic of [false,true])test('offline ranked worker saves results with 
 });
 
 test('a real completed offline ranked match feeds the same XP and unlock rules, and a backup restores only a fresh profile',()=>{
-  const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth),ranked=createOfflineRankedInput({...savedInput,deck:practiceDeck(catalog,'warrior')},initial,growth),duel=new LocalDuel(ranked);
+  const growth=offlineGrowth(catalog),initial=readOfflineGrowth(undefined,growth),ranked=createOfflineRankedInput({...savedInput,deck:basicDeck(catalog,'warrior')},initial,growth),duel=new LocalDuel(ranked);
   let steps=0;for(;steps<650;steps++){const s=duel.view().state!;if(s.phase==='finished')break;if(duel.botReady()){assert.ok(duel.botStep());continue;}let acted=false;for(const action of rankBotActions(s,catalog,0,3)){try{duel.act(s.revision,action);acted=true;break;}catch{}}assert.ok(acted);}
   const award=duel.rankedAward();assert.ok(award&&award.eligible&&steps>5);const record=settleOfflineRanked(initial,growth,ranked.ranked!,award);assert.ok(record.profile.xp>0);assert.equal(record.profile.questGames,1);
   assert.equal(canRestoreGrowth(initial),true);assert.equal(canRestoreGrowth(record),false);const backup=createGrowthBackup(record,growth);assert.deepEqual(decodeGrowthBackup(JSON.parse(JSON.stringify(backup)),growth),record);

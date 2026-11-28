@@ -4,7 +4,7 @@ import {once} from 'node:events';
 import {io as connect} from 'socket.io-client';
 import type {Socket} from 'socket.io-client';
 import type {ClientEvents,ServerEvents,Result,Session,RoomView} from '../../../packages/protocol.ts';
-import {practiceDeck} from '../../../packages/engine/src/index.ts';
+import {basicDeck} from '../../../packages/basic-decks.ts';
 import {buildGrowth} from '../../../packages/progression.ts';
 import {createDuelServer,loadCatalog} from '../server.ts';
 import {LocalAccountStore} from '../account-store.ts';
@@ -18,7 +18,7 @@ async function setup(recheck:number){
   http.listen(0,'127.0.0.1');await once(http,'listening');const addr=http.address();assert.ok(addr&&typeof addr==='object');const url=`http://127.0.0.1:${addr.port}`,clients:Client[]=[];
   const client=async(token?:string)=>{const c:Client=connect(url,{forceNew:true,transports:['websocket'],extraHeaders:token?{Cookie:`duel_account=${token}`}:{}});clients.push(c);await new Promise<void>((resolve,reject)=>{c.once('connect',resolve);c.once('connect_error',reject);});return c;};
   const close=async()=>{clients.forEach(c=>c.disconnect());await io.close();await flush();store.close();};
-  return{store,client,close,rooms,deck:practiceDeck(catalog,'warrior'),url};
+  return{store,client,close,rooms,deck:basicDeck(catalog,'warrior'),url};
 }
 test('externally revoked account session cannot act in an existing room, but another valid device can resume',{timeout:15000},async()=>{
   const {store,client,close,rooms,deck}=await setup(0);
