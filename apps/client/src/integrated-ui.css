@@ -1179,3 +1179,10 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     --impact-size:clamp(32px,6.5dvh,70px);--impact-count:5;
   }
 }
+
+.discard-reveal>.battle-card .card-art{
+  width:100%;height:auto;min-height:18%;flex:0 1 42%;aspect-ratio:auto;
+}
+.discard-reveal>.battle-card .card-name{white-space:normal;overflow-wrap:anywhere}
+.discard-reveal>.battle-card .card-copy{flex:0 0 auto;font-size:clamp(7px,8cqi,13px);line-height:1.12}
+.discard-reveal>.battle-card .card-statline{margin-top:auto}
