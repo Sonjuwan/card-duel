@@ -1,2 +1,2 @@
-Card Duel v0.332.0 UI preview.
+Card Duel v0.333.0 UI preview.
 This play address keeps its existing slot-specific progress and deck library.
