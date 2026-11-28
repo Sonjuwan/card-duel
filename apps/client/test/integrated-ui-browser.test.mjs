@@ -9,7 +9,7 @@ import {CardStore} from '../../server/card-store.ts';
 import {chromium} from 'playwright';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 import {loadCatalog} from '../../server/server.ts';
-import {createGrowthBackup,offlineGrowth,readOfflineGrowth} from '../src/offline-growth.ts';
+import {offlineGrowth,readOfflineGrowth} from '../src/offline-growth.ts';
 
 async function previewBrowser(t){
   const server=createSoloAppServer(process.env.CARD_DUEL_GEOMETRY_BASELINE);
@@ -69,6 +69,8 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.screenshot({path:'ui-evidence/audio-'+label+'.png'});
     await settings.getByRole('button',{name:'닫기',exact:true}).click();
     await page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+    assert.equal(await page.locator('input[type=file]').count(),0);
+    assert.equal(await page.getByRole('button',{name:/백업|복원/}).count(),0);
     const reward=await page.locator('.road-stop .battle-card').first().boundingBox();
     assert.ok(reward&&Math.abs(reward.width/reward.height-1/1.55)<.025,label+' reward ratio '+JSON.stringify(reward));
     await page.getByRole('button',{name:'다음 보상 구간'}).click();
@@ -143,7 +145,7 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await selected.click();assert.equal(await selected.getAttribute('aria-pressed'),'false');
     const battleSettings=page.getByRole('button',{name:'전투 설정'});
     await battleSettings.click();
-    const toolbar=page.locator('.duel-toolbar');
+    const toolbar=page.locator('.battle-settings-dialog');
     for(const heading of ['오디오','전투 연출','게임 관리']){
       assert.equal(await toolbar.getByRole('heading',{name:heading,exact:true}).count(),1);
     }
@@ -156,6 +158,15 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       const section=await toolbar.getByRole('heading',{name,exact:true}).boundingBox();
       assert.ok(section&&section.x>=panel.x&&section.x+section.width<=panel.x+panel.width,JSON.stringify({label,name,panel,section}));
     }
+    assert.equal(await toolbar.evaluate(el=>el.scrollHeight>el.clientHeight+2),false,label+' settings fit');
+    assert.equal(await toolbar.getByRole('button',{name:'기록',exact:true}).count(),0);
+    const sound=toolbar.getByRole('button',{name:/^효과음 (켜짐|꺼짐)$/});
+    const allMute=toolbar.getByRole('button',{name:'전체 음소거'});
+    await sound.click();
+    assert.equal(await sound.getAttribute('aria-pressed'),'false');
+    assert.equal(await allMute.getAttribute('aria-pressed'),'false');
+    await toolbar.getByRole('button',{name:'기본 설정으로 복원'}).click();
+    assert.equal(await sound.getAttribute('aria-pressed'),'true');
     await page.screenshot({path:'ui-evidence/battle-settings-'+label+'.png'});
     const quality=toolbar.getByRole('combobox',{name:'전투 연출 품질',exact:true});
     const initialQuality=await quality.inputValue();
@@ -257,7 +268,7 @@ test('all nine class portraits fit the requested landscape viewports',{timeout:9
 });
 
 
-test('restored card rewards open each exact collection page without consuming ownership',{timeout:30000},async t=>{
+test('previously saved card rewards open each exact collection page without consuming ownership',{timeout:30000},async t=>{
   const {browser,url}=await previewBrowser(t);
   const growth=offlineGrowth(loadCatalog());
   const record=readOfflineGrowth(undefined,growth);
@@ -265,18 +276,28 @@ test('restored card rewards open each exact collection page without consuming ow
   assert.equal(cards.length,2);
   const xp=cards.at(-1).xp;
   record.profile.xp=xp;
+  record.profile.ownedCards.push(...cards.map(item=>item.cardId));
   record.profile.rewardRoad.paths.original.xp=xp;
-  const backup=createGrowthBackup(record,growth);
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.setDefaultTimeout(9000);
   await page.goto(url);
   const openRewards=()=>page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
   await openRewards();
-  page.once('dialog',dialog=>void dialog.accept());
-  await page.getByLabel('미진행 슬롯에 성장 백업 복원').setInputFiles({
-    name:'growth-fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))
-  });
-  assert.match(await page.locator('.game-error-toast').textContent(),/성장 백업을 복원했습니다/);
+  await page.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
+  await page.evaluate(async record=>{
+    const request=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+    const db=await new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction('growth','readwrite');
+        tx.objectStore('growth').put(record,'player');
+        tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);
+      });
+    }finally{db.close();}
+  },record);
+  await page.reload();
+  await openRewards();
+  assert.equal(await page.locator('input[type=file]').count(),0);
   mkdirSync('ui-evidence',{recursive:true});
   for(const {cardId} of cards){
     const reward=page.locator(`.road-stop[data-state="owned"] button[data-preview-card="${cardId}"]`);
@@ -392,9 +413,14 @@ test('basic deck can be copied without replacing a named deck',{timeout:25000},a
     await page.goto(url);
     await page.getByRole('button',{name:'대전',exact:true}).tap();
     await page.getByRole('button',{name:'마법사',exact:true}).tap();
-    await page.getByRole('button',{name:/^기본 덱\s*30장$/}).tap();
+    await page.getByRole('button',{name:'기본 덱',exact:true}).tap();
     assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true);
-    await page.getByRole('button',{name:'기본 덱 복제 · 편집'}).tap();
+    assert.equal(await page.getByRole('button',{name:'편집',exact:true}).isDisabled(),true);
+    await page.getByRole('button',{name:'새 덱 만들기',exact:true}).tap();
+    await page.getByRole('button',{name:'덱 관리',exact:true}).tap();
+    const deckManagement=page.getByRole('dialog',{name:'덱 관리',exact:true});
+    await deckManagement.getByRole('button',{name:'기본 덱 복제',exact:true}).tap();
+    await deckManagement.getByRole('button',{name:'닫기',exact:true}).tap();
     await page.locator('.deck-sidebar').waitFor();
     assert.equal(await page.getByPlaceholder('저장할 덱 이름').inputValue(),'');
     await page.getByPlaceholder('저장할 덱 이름').fill('기본 덱 복제본');
@@ -404,4 +430,62 @@ test('basic deck can be copied without replacing a named deck',{timeout:25000},a
     assert.deepEqual(saved.find(entry=>entry.name===prior.name),prior);
     assert.deepEqual(saved.find(entry=>entry.name==='기본 덱 복제본').deck,original);
   }finally{await context.close();}
+});
+
+test('both home entries and the editor share the same class deck picker on desktop and phone',{timeout:45000},async t=>{
+  const {browser,url}=await previewBrowser(t);
+  const key='card-duel-ui-preview-slot-1:card-duel-saved-decks';
+  const source=basicDeck(loadCatalog(),'mage');
+  const fixtures=Array.from({length:10},(_,index)=>({name:'마법사 덱 '+(index+1),deck:source}));
+  mkdirSync('ui-evidence',{recursive:true});
+  for(const [label,width,height,touch] of [['pc',1366,768,false],['phone',844,390,true]]){
+    const context=await browser.newContext({viewport:{width,height},hasTouch:touch,isMobile:touch});
+    try{
+      await context.addInitScript(({key,fixtures})=>{
+        if(localStorage.getItem(key)===null)localStorage.setItem(key,JSON.stringify(fixtures));
+      },{key,fixtures});
+      const page=await context.newPage();
+      page.setDefaultTimeout(6500);
+      await page.goto(url);
+      const button=name=>page.getByRole('button',{name,exact:true});
+      const picker=page.locator('.preview-deck-select');
+      const grid=picker.locator('.preview-deck-grid');
+      await button('덱 목록').click();
+      await button('마법사').click();
+      const first=await grid.locator('button').first().boundingBox();
+      assert.equal(await grid.locator(':scope > button').count(),9);
+      const change=await button('← 직업 변경').boundingBox();
+      const settings=await button('설정').boundingBox();
+      const start=await button('선택한 덱으로 대전 시작').boundingBox();
+      assert.ok(Math.abs(start.x+start.width/2-width/2)<2,label+' centered start');
+      assert.ok(settings.x+settings.width<=change.x,label+' gear and back clear each other');
+      const actions=await picker.locator('.preview-deck-shortcuts button').evaluateAll(items=>items.map(item=>{
+        const box=item.getBoundingClientRect();return [Math.round(box.width),Math.round(box.height)];
+      }));
+      assert.ok(actions.every(size=>Math.abs(size[0]-actions[0][0])<=1&&size[1]===actions[0][1]));
+      await page.screenshot({path:`ui-evidence/deck-select-${label}.png`});
+      await button('다음 덱 페이지').click();
+      const last=grid.locator('button').first();
+      assert.equal(await grid.locator(':scope > *').count(),9);
+      const lastSize=await last.boundingBox();
+      assert.deepEqual([lastSize.width,lastSize.height],[first.width,first.height]);
+      await last.click();
+      await button('편집').click();
+      assert.equal(await page.getByPlaceholder('저장할 덱 이름').inputValue(),fixtures[9].name);
+      assert.equal(await page.locator('.deck-live-count').textContent(),'30/30');
+      await button('← 덱 목록').click();
+      assert.equal(await grid.locator('button[aria-pressed=true] strong').textContent(),fixtures[9].name);
+      page.once('dialog',dialog=>void dialog.accept());
+      await button('덱 삭제').click();
+      await page.waitForFunction(key=>JSON.parse(localStorage.getItem(key)).length===9,key);
+      assert.deepEqual(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key),fixtures.slice(0,9));
+      await button('메인으로').click();
+      await button('대전').click();
+      await button('마법사').click();
+      assert.equal(await grid.locator(':scope > button').count(),9);
+      await button('기본 덱').click();
+      assert.equal(await button('편집').isDisabled(),true);
+      assert.equal(await page.locator('[data-deck-screen=saved]').count(),0);
+    }finally{await context.close();}
+  }
 });

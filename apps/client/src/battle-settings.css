@@ -1,0 +1,79 @@
+.battle-settings-dialog{
+  box-sizing:border-box;
+  width:min(900px,calc(100dvw - 24px));
+  max-width:none;max-height:calc(100dvh - 24px);
+  margin:auto;padding:clamp(10px,2dvh,22px);
+  overflow:auto;overscroll-behavior:contain;
+  border:1px solid #a98c65;border-radius:15px;
+  background:#262129;color:#f5e9d4;
+  box-shadow:0 12px 44px #0a080bc9;
+}
+.battle-settings-dialog::backdrop{background:#130f16bf}
+.battle-settings-header{
+  display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+  padding-bottom:clamp(6px,1.6dvh,16px);
+}
+.battle-settings-header h2{margin:0;font-size:clamp(19px,3.4dvh,30px)}
+.battle-settings-header button{grid-column:3}
+.battle-settings-columns{
+  display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:clamp(6px,1.4dvh,14px);
+}
+.battle-settings-dialog .battle-setting-group{
+  display:grid;align-content:start;gap:clamp(5px,1.25dvh,12px);
+  min-width:0;padding:clamp(7px,1.5dvh,15px);
+  border:1px solid #615545;border-radius:10px;background:#312b31;
+}
+.battle-settings-dialog h3{margin:0;color:#f4d59d;font-size:clamp(13px,2.6dvh,18px)}
+.battle-settings-dialog :is(button,select){
+  min-height:36px;min-width:0;max-width:100%;padding:4px 8px;
+  border-radius:7px;font-size:clamp(11px,2.3dvh,15px);line-height:1.2;
+}
+.battle-settings-dialog button.secondary{background:#3c3541;color:#f5e9d4;border-color:#817285}
+.battle-settings-dialog .settings-primary{background:#e5bd73;color:#332211;border:1px solid #f6d69c}
+.battle-settings-dialog button[aria-pressed=true]{
+  border-color:#8ebb93;background:#34483c;color:#e7f9e7;
+}
+.battle-settings-dialog button.danger{border-color:#c46c6f;background:#51282e;color:#fff0ed}
+.battle-settings-dialog .audio-mixer{display:grid;grid-template-columns:1fr;width:100%}
+.battle-settings-dialog .audio-mixer label{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;font-size:clamp(11px,2.25dvh,15px);
+}
+.battle-settings-dialog .audio-mixer output{text-align:right;min-width:4ch;font-variant-numeric:tabular-nums}
+.battle-settings-dialog .audio-mixer input{width:100%;height:20px;margin:0;accent-color:#e5bd73}
+.battle-settings-dialog :is(.audio-mixer-actions,.battle-setting-buttons){
+  display:flex;flex-wrap:wrap;gap:5px;
+}
+.battle-settings-dialog .battle-setting-select{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);align-items:center;gap:5px;
+  font-size:clamp(11px,2.25dvh,15px);
+}
+.battle-settings-dialog select{width:100%;background:#211d24;color:#f5e9d4;border:1px solid #817285}
+.battle-settings-management{margin-top:clamp(6px,1.4dvh,14px)}
+.battle-settings-management>div{display:flex;gap:6px;flex-wrap:wrap}
+.game-main .duel-title:not(.compact-title) .compact-settings-trigger{display:inline-grid;place-items:center}
+@media (orientation:landscape) and (max-height:540px){
+  .battle-settings-dialog{
+    width:min(740px,calc(100dvw - 2 * max(10px,env(safe-area-inset-left),env(safe-area-inset-right))));
+    max-height:calc(100dvh - 2 * max(8px,env(safe-area-inset-top),env(safe-area-inset-bottom)));
+    padding:8px;
+  }
+  .battle-settings-columns{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .battle-settings-dialog .battle-setting-group{gap:4px;padding:6px}
+  .battle-settings-dialog :is(button,select){min-height:30px}
+  .battle-settings-dialog .audio-mixer{row-gap:3px}
+  .battle-settings-dialog .audio-mixer input{height:16px}
+  .battle-settings-dialog .battle-settings-management{
+    grid-template-columns:auto 1fr;align-items:center;
+  }
+  .battle-settings-management>div{justify-content:end}
+}
+@media (orientation:portrait) and (max-width:620px){
+  .battle-settings-columns{grid-template-columns:minmax(0,1fr)}
+}
+@media (orientation:landscape) and (max-height:340px){
+  .battle-settings-dialog{padding:6px}
+  .battle-settings-header{padding-bottom:4px}
+  .battle-settings-dialog :is(button,select){min-height:28px}
+  .battle-settings-dialog .audio-mixer input{height:13px}
+  .battle-settings-management{margin-top:4px}
+}

@@ -16,3 +16,4 @@ import './integrated-ui.css';
 import './collection-layout.css';
 
 import './card-materials.css';
+import './battle-settings.css';

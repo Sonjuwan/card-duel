@@ -1,6 +1,5 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {chromium} from 'playwright';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 
@@ -29,7 +28,7 @@ test('installed landscape solo app caches the game and resumes a ranked checkpoi
     })),{module:true,sheet:true,artRules:true,assetFailed:false},'all offline-split game resources load in a real browser');
     await page.waitForFunction(()=>navigator.serviceWorker.controller!==null);
     await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
-    await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();await page.getByText('자동 저장됨',{exact:true}).waitFor();
+    await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();await page.getByRole('button',{name:'전투 설정'}).click();await page.getByText('자동 저장됨',{exact:true}).waitFor();
     await context.setOffline(true);await page.reload();await page.getByRole('button',{name:'대전',exact:true}).waitFor();await openRecords();
     assert.equal(await page.evaluate(()=>document.querySelector('link[href="game.css"]')?.sheet!==null),true,'card art stylesheet survives offline reload');
     await page.getByText('진행 중인 랭크 대전',{exact:true}).waitFor();
@@ -41,17 +40,20 @@ test('installed landscape solo app caches the game and resumes a ranked checkpoi
     assert.equal(await page.getByText('진행 중인 랭크 대전',{exact:true}).count(),0);
     await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
     await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
+    await page.getByRole('button',{name:'전투 설정'}).click();
     await page.getByRole('button',{name:'저장 후 나가기'}).click();
     await openRecords();
     await page.getByText('진행 중인 랭크 대전',{exact:true}).waitFor();
     const codes=await page.evaluate(async()=>Promise.all(['card-duel-solo-saves-v1','card-duel-solo-saves-v1-slot-2'].map(name=>new Promise((resolve,reject)=>{const request=indexedDB.open(name,2);request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction('matches','readonly'),all=tx.objectStore('matches').getAll();tx.oncomplete=()=>{db.close();const snapshot=all.result[0]?.snapshot;if(name.endsWith('slot-2')&&snapshot)localStorage.setItem('card-duel-slot-2:card-duel-saved-decks',JSON.stringify([{name:'백업 시험 덱',deck:snapshot.input.deck}]));resolve(snapshot?.summary.code);};tx.onerror=()=>reject(tx.error);};}))));assert.ok(codes[0]&&codes[1]&&codes[0]!==codes[1]);
-    await page.getByText('성장 기록 백업 및 복원',{exact:true}).click();
-    const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'성장+덱 통합 백업 다운로드',exact:true}).click()]);
-    const file=await download.path(),backup=JSON.parse(await readFile(file,'utf8'));assert.equal(backup.sourceSlot,2);assert.equal(backup.growth.record.profile.xp,0);assert.equal('state' in backup,false);assert.equal(backup.decks.decks[0].name,'백업 시험 덱');
-    await page.getByRole('button',{name:'슬롯 3',exact:true}).click();await openRecords(true);await page.getByText('저장 슬롯 3 · XP 0',{exact:true}).waitFor();
-    await page.getByText('성장 기록 백업 및 복원',{exact:true}).click();page.once('dialog',dialog=>dialog.accept());await page.getByLabel('미진행 슬롯에 성장 백업 복원',{exact:true}).setInputFiles(file);
-    await page.getByText('통합 백업의 성장 기록을 복원했습니다. 저장 덱 1개 추가',{exact:false}).waitFor();assert.equal(await page.getByText('진행 중인 랭크 대전',{exact:true}).count(),0);
-    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('card-duel-slot-3:card-duel-saved-decks'))),backup.decks.decks);
+    assert.equal(await page.getByRole('button',{name:/백업|복원/}).count(),0);
+    assert.equal(await page.locator('input[type=file]').count(),0);
+    await page.getByRole('button',{name:'슬롯 3',exact:true}).click();await openRecords(true);
+    await page.getByText('저장 슬롯 3 · XP 0',{exact:true}).waitFor();
+    assert.equal(await page.getByText('진행 중인 랭크 대전',{exact:true}).count(),0);
+    assert.deepEqual(await page.evaluate(()=>{
+      const get=slot=>JSON.parse(localStorage.getItem(`card-duel-slot-${slot}:card-duel-saved-decks`)??'[]').map(deck=>deck.name);
+      return [get(2),get(3)];
+    }),[['백업 시험 덱'],[]]);
     await page.getByRole('button',{name:'슬롯 2',exact:true}).click();await openRecords(true);await page.getByText('진행 중인 랭크 대전',{exact:true}).waitFor();
     await page.reload();await page.getByRole('button',{name:'대전',exact:true}).waitFor();await openRecords();await page.getByText('저장 슬롯 2 · XP 0',{exact:true}).waitFor();
     // Simulate an older card-hash ranked checkpoint in another slot. Only

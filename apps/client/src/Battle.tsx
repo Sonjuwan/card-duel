@@ -8,13 +8,12 @@ import type { DragEvent,PointerEvent,MouseEvent,KeyboardEvent as ReactKeyboardEv
 import { BOT_DIFFICULTY_NAMES, cardChoiceReason, heroPowerReason, publicCardCost, publicCardReason, sameTarget } from '../../../packages/engine/src/index.ts';
 import type { Action, PlayerId, Target } from '../../../packages/engine/src/index.ts';
 import type { RoomView } from '../../../packages/protocol.ts';
-import { catalog, catalogHash } from './data.ts';
-import { formatBattleReport } from './battle-report.ts';
+import { catalog } from './data.ts';
 import { hasRemainingBattleAction, planAttack, planCard, planDrag, planPower, selectionCard, repositionSelection, toggleActionSelection, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from './battle-actions.ts';
 import type { DragIntent, DragState, Intent, Selection } from './battle-actions.ts';
 import { BattleCard, BattleMinion, CardInspector, DeckPile, HeroPortrait, HeroPower, HiddenHand, ManaDisplay, Secrets, Sigil, targetRowText, WeaponSlot } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
-import { ClassicNamesContext, displayCardName, classicHistoryText } from './card-names.ts';
+import { ClassicNamesContext, displayCardName } from './card-names.ts';
 import { fanSlot, deriveTableMotion } from './table-visuals.ts';
 import type { TableMotion } from './table-visuals.ts';
 import { TableDecor } from './table-decor.tsx';
@@ -23,10 +22,9 @@ import { HoverPreviewProvider } from './hover-preview.tsx';
 import { useBattlePlayback,freshAcceptedAnimation } from './battle-playback.ts';
 import type { PlaybackCue } from './battle-playback.ts';
 import { BattleEffects } from './battle-fx.tsx';
-import { battleSoundEnabled, subscribeBattleSound, setBattleSound, resultSoundTransition,playBattleResultSound,playBattleSound,playBattleDepartureSound,stopBattleSound,playCinematicSound,playTurnReadySound } from './battle-sound.ts';
+import { resultSoundTransition,playBattleResultSound,playBattleSound,playBattleDepartureSound,stopBattleSound,playCinematicSound,playTurnReadySound } from './battle-sound.ts';
 import type {ResultSoundState} from './battle-sound.ts';
 import {animationTheme,impactChanges,impactFeedback,departureSoundKind} from './battle-fx-model.ts';
-import {DECK_STYLE_LABELS} from './solo-settings.ts';
 import {rankInfo} from '../../../packages/progression.ts';
 import {intentFromSource,advanceGesture,finishGesture,interruptTouch,isCaptureHandoff,canPanBoard,boardEdgePanDelta,nearestVisibleBoardSlot,nearestTouchTarget,pointerDrop,dropFeedbackText} from './touch-gesture.ts';
 import type {TouchGesture,TouchHit,DropFeedback} from './touch-gesture.ts';
@@ -34,13 +32,13 @@ import {useBattleDialogue,DialogueCaptions,DialogueSettings,readCaptionMode,writ
 import type {CaptionMode} from './battle-dialogue-ui.tsx';
 import {stopDialogueVoice} from './dialogue-voice.ts';
 import {playBattleHaptic,stopBattleHaptics} from './battle-haptics.ts';
-import {ImpactHistory,ImpactRail,useImpactHistory} from './battle-impact-history.tsx';
+import {ImpactRail,useImpactHistory} from './battle-impact-history.tsx';
 import {independentActivation} from './hover-timing.ts';
 import {secondsUntilDeadline,watchDeadlineSeconds} from './battle-clock.ts';
 import {TurnCountdown} from './battle-countdown.tsx';
 
 
-type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;intentEpoch?:number;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;lastSavedAt?:string;compactUi?:boolean};
+type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;intentEpoch?:number;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;compactUi?:boolean};
 export function Battle(props:BattleProps){
   const attackTimes=useRef(new WeakMap<BattleIntent,number>());
   const attackCredit=useRef<{revision:number;actor:number;wait:number}|null>(null);
@@ -108,21 +106,17 @@ export function Battle(props:BattleProps){
     <BattleView {...props} send={submit} room={playback.room} busy={props.busy||playback.playing||pending>0} inputBlocked={inputBlocked} pending={pending} reservations={reservations} projected={projected} acceptedRoom={props.room} deadline={props.room.turnDeadlineMs} intentNotice={intentNotice} cancelPending={cancelPending} cue={playback.cue} playing={playback.playing}/>
   </HoverPreviewProvider>;
 }
-function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,lastSavedAt,compactUi=false,connected,busy,inputBlocked,pending,reservations,projected,acceptedRoom,deadline,intentNotice,cancelPending,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean;inputBlocked:boolean;pending:number;reservations:BattleIntent[];projected?:PlayerView;acceptedRoom:RoomView;deadline?:number;intentNotice:string;cancelPending:()=>void}){
+function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,compactUi=false,connected,busy,inputBlocked,pending,reservations,projected,acceptedRoom,deadline,intentNotice,cancelPending,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean;inputBlocked:boolean;pending:number;reservations:BattleIntent[];projected?:PlayerView;acceptedRoom:RoomView;deadline?:number;intentNotice:string;cancelPending:()=>void}){
   const classicNames=useContext(ClassicNamesContext);
   const [selected,setSelected]=useState<Selection|null>(null);
-  const [sound,setSound]=useState(battleSoundEnabled);
-  useEffect(()=>subscribeBattleSound(()=>setSound(battleSoundEnabled())),[]);
   const [captionMode,setCaptionMode]=useState(readCaptionMode);
   const changeCaptionMode=(mode:CaptionMode)=>{writeCaptionMode(mode);setCaptionMode(mode);};
-  const toggleSound=()=>{setBattleSound(!sound);setSound(!sound);if(sound)stopDialogueVoice();};
   const [replace,setReplace]=useState<string[]>([]);
   const [mulliganInspectId,setMulliganInspectId]=useState<string|null>(null);
-  const [compactSettingsOpen,setCompactSettingsOpen]=useState(false);
-  const [battleToolsOpen,setBattleToolsOpen]=useState(false);
-  const toolsCloseRef=useRef<HTMLButtonElement>(null),toolsReturnRef=useRef<HTMLElement|null>(null);
-  const openBattleTools=()=>{toolsReturnRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setBattleToolsOpen(true);};
-  const closeBattleTools=()=>setBattleToolsOpen(false);
+  const settingsRef=useRef<HTMLDialogElement>(null);
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const openSettings=()=>{settingsRef.current?.showModal();setSettingsOpen(true);};
+  const closeSettings=()=>{settingsRef.current?.close();setSettingsOpen(false);};
   const [position,setPosition]=useState<number|null>(null);
   // A non-actionable board minion still needs a tap-to-read path on a tiny
   // landscape field. Never convert an available attack/target tap to inspect.
@@ -172,8 +166,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const edgePanRef=useRef<{frame:number;row:HTMLElement;drag:DragState;x:number;y:number;direction:number;started:number;last:number;refresh:()=>void}|null>(null);
   const [dropFeedback,setDropFeedback]=useState<DropFeedback|null>(null),[dropNotice,setDropNotice]=useState('');
   useEffect(()=>{if(!dropNotice)return;const timer=setTimeout(()=>setDropNotice(''),2200);return()=>clearTimeout(timer);},[dropNotice]);
-  const [reportMessage,setReportMessage]=useState(''),[roomCopied,setRoomCopied]=useState(false);
-  const reportRef=useRef<HTMLTextAreaElement>(null);
+  const [roomCopied,setRoomCopied]=useState(false);
   const arenaRef=useRef<HTMLDivElement>(null),messageRef=useRef<HTMLDivElement>(null),aimRef=useRef<SVGLineElement>(null);
   const focusRequest=useRef<'card'|'cardChoice'|null>(null);
   const choiceRef=useRef<HTMLDivElement>(null),choiceReturn=useRef<string|null>(null);
@@ -227,14 +220,6 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const presentingResult=s?.phase==='finished'&&!playing&&!shattering;
   useEffect(()=>setInspectedOverlay(null),[room.code,s?.revision]);
   useEffect(()=>{if(inspectedOverlay)inspectCloseRef.current?.focus();},[inspectedOverlay]);
-  useEffect(()=>{
-    if(battleToolsOpen){toolsCloseRef.current?.focus();return;}
-    // React must first clear `inert` on the opening toolbar before it can
-    // receive focus again, including iOS standalone PWA activation.
-    const returnTo=toolsReturnRef.current;toolsReturnRef.current=null;
-    if(returnTo?.isConnected){const frame=requestAnimationFrame(()=>{if(returnTo.isConnected)returnTo.focus();});return()=>cancelAnimationFrame(frame);}
-  },[battleToolsOpen]);
-  useEffect(()=>setBattleToolsOpen(false),[room.code,s?.phase]);
   const dialogue=useBattleDialogue(room,cue,connected,catalog,card=>displayCardName(card,classicNames));
   const acceptedImpactHistory=useImpactHistory(acceptedRoom,connected,catalog,card=>displayCardName(card,classicNames));
   const impactHistory=useMemo(()=>acceptedImpactHistory.filter(entry=>entry.revision<=(s?.revision??0)),[acceptedImpactHistory,s?.revision]);
@@ -341,16 +326,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     const frame=requestAnimationFrame(()=>{const point=pointerPoint.current;if(point)pointAim(point.x,point.y);});
     return ()=>cancelAnimationFrame(frame);
   },[casting,drag,rulesView]);
-  const report=useMemo(()=>formatBattleReport(room,catalog,catalogHash),[room,catalog,catalogHash]);
-  const battleLogRows=useMemo(()=>s?.history.slice().reverse().map((entry,i)=>
-    <div className="log-entry" key={`${entry.turn}-${i}`}>
-      <small>턴 {entry.turn} · {entry.player===seat?'나':'상대'}</small>　{classicHistoryText(entry.message,catalog)}
-    </div>
-  ),[s?.history,seat,catalog]);
   if(!s)return <section className="panel waiting waiting-arena"><span className="waiting-sigil"><Sigil kind="deck"/></span><p className="eyebrow">{room.ownedPvp?'ACCOUNT PVP':'PRIVATE MATCH'}</p><h2>{room.ownedPvp?'다른 유저를 기다리는 중':'친구를 기다리는 중'}</h2><strong className="room-code">{room.code}</strong><p>{room.ownedPvp?'상대가 참가하면 보유 카드 대전이 시작됩니다. 친구에게 계정 대전 코드를 공유할 수도 있습니다.':'친구에게 방 코드를 알려주세요. 참가하면 자동으로 대전이 시작됩니다.'}</p><div className="waiting-actions"><button onClick={copyRoom}>{roomCopied?'코드 복사됨':'방 코드 복사'}</button><button className="secondary" onClick={leave}>방 나가기</button></div></section>;
   const rules=rulesView??s;
   const hand=s.self.hand.filter(card=>rules.self.hand.some(real=>real.instanceId===card.instanceId));
-  const copyReport=async()=>{try{await navigator.clipboard.writeText(report);setReportMessage('기록 복사 완료');}catch{reportRef.current?.focus();reportRef.current?.select();setReportMessage('기록을 선택했습니다. Ctrl+C를 누르세요.');}};
   const applyIntent=(intent:Intent|null,keyboard=false)=>{if(!active||!intent)return;if(intent.action)perform(intent.action,keyboard);else{if(keyboard&&(intent.selection.kind==='card'||intent.selection.kind==='cardChoice'))focusRequest.current=intent.selection.kind;setSelected(old=>toggleActionSelection(old,intent.selection));}};
   const pendingPosition=selected?.kind==='card'||selected?.kind==='cardChoice'?selected.position:undefined;
   const boardPosition=Math.min(pendingPosition??position??rules.self.board.length,rules.self.board.length);
@@ -646,33 +624,46 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const status=s.phase==='finished'?'대전 종료':!connected?'서버 재연결 대기':!opponentReady?'상대 재접속 대기 중':playing?'전투 연출 재생 중':busy?'행동 처리 중':s.choicePending?(s.self.pendingChoice?'덱 카드 선택 중':`${turnLabel} · 덱 카드 선택 중`):currentDrag&&dropFeedback?(tauntBlocking&&dropFeedback==='invalid'?'도발 하수인을 먼저 공격해야 합니다.':dropFeedbackText(dropFeedback,touchSlot,dropLabel)):dropNotice?dropNotice:choiceCard?'카드 효과를 선택하세요.'+(pendingPosition===undefined?'':` · 배치 ${boardPosition+1}번`):currentDrag?.kind==='card'&&highlight?.kind==='cardChoice'?'전장에 놓은 뒤 카드 효과를 선택하세요.':stagedMinion?'소환할 하수인에서 효과 대상으로 화살표를 끌어 놓으세요.':highlight?.kind==='attack'||highlight?.kind==='heroAttack'?`공격 대상 ${legalTargets.length}개 · 강조된 대상 선택`:highlight?`선택할 대상 ${legalTargets.length}개${pendingPosition===undefined?'':` · 배치 ${boardPosition+1}번`} · 강조된 대상 선택`:currentDrag?.kind==='card'?'내 전장 또는 유효한 대상에 카드를 놓으세요.':active?'초록색으로 빛나는 카드와 하수인을 사용할 수 있습니다.':'상대방의 행동을 기다리는 중';
   const confirmConcede=()=>{
     if(!window.confirm('항복하시겠습니까?'))return;
-    setCompactSettingsOpen(false);
-    setBattleToolsOpen(false);
+    closeSettings();
     perform({type:'concede'});
   };
   const ownHeroTarget:Target={kind:'hero',player:seat},enemyHeroTarget:Target={kind:'hero',player:enemy};
   const mulliganInspectable=s.self.hand.find(c=>c.instanceId===mulliganInspectId)??s.self.hand[0];
   const tier=room.ranked??room.developerTest;
-  const homeControl=compactUi&&presentingResult&&!compactSettingsOpen&&!battleToolsOpen&&!ownChoiceOpen&&!inspectedOverlay
+  const homeControl=compactUi&&presentingResult&&!settingsOpen&&!ownChoiceOpen&&!inspectedOverlay
     ? <button className="compact-home-trigger secondary" type="button" aria-label="홈으로 돌아가기" disabled={busy||shattering} onClick={leave}>⌂</button>
     : null;
-  const title=<div className={`duel-title${compactUi?' compact-title':''}`} data-settings-open={compactSettingsOpen} inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay}>
-    {compactUi&&<button className="compact-settings-trigger secondary" type="button" aria-label="전투 설정" aria-expanded={compactSettingsOpen} onClick={()=>setCompactSettingsOpen(old=>!old)}>⚙</button>}
-    <div className="duel-summary"><p className="eyebrow">{tier?`${room.developerTest?.experiment?'실험 AI · ':room.developerTest?'개발자 시험 · ':''}${rankInfo(tier.rank).name} · 랭크 AI ${tier.intelligence}단계`:room.mode==='bot'?`${room.developerFree?'개발자 자유 대전':'AI 대전'} · ${room.botDifficulty??3}단계 ${BOT_DIFFICULTY_NAMES[room.botDifficulty??3]}`:room.ownedPvp?'계정 PvP':`ROOM ${room.code}`} · TURN {s.turn}</p><h2>{label}</h2></div>
-    <div className="duel-toolbar" role="group" aria-label="대전 설정 및 저장">
-      <div className="duel-indicators"><span className={room.opponentConnected?'good':'warn'}>{room.mode==='bot'?(room.botEngine==='device'?'기기 AI':'서버 AI')+(room.developerTest?` · 덱 전력 ${room.developerTest.deckPower}`:!room.ranked&&room.botDeckStyle?' · '+DECK_STYLE_LABELS[room.botDeckStyle]:'')+(room.botTrainingGeneration?' · 학습 '+room.botTrainingGeneration+'세대':''):room.opponentConnected?'상대 연결됨':'상대 연결 끊김'}</span>
-        {autoSaved!==undefined&&<small role="status" aria-atomic="true" className={`save-indicator ${savePending?'warn':autoSaved?'good':'warn'}`}>{savePending?'저장 확인 중…':autoSaved?'자동 저장됨':saveRetryable?'저장 오류 · 재시도 가능':'자동 저장 사용 불가'}</small>}{lastSavedAt&&Number.isFinite(Date.parse(lastSavedAt))&&<small className="last-saved-at">최근 저장 <time dateTime={lastSavedAt}>{new Date(lastSavedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</time></small>}</div>
-      <div className="duel-actions">{compactUi&&<h3 className="battle-settings-management-title">게임 관리</h3>}{onRetrySave&&saveRetryable&&<button type="button" className="secondary retry-save" aria-label="저장 다시 시도" disabled={busy} onClick={onRetrySave}><span className="battle-action-full">저장 다시 시도</span><span className="battle-action-short" aria-hidden="true">저장 재시도</span></button>}{onPause&&(s.phase!=='finished'||saveRetryable)&&<button type="button" className="secondary pause-save" aria-label={saveRetryable?'저장 재시도 후 나가기':'저장 후 나가기'} disabled={busy} onClick={onPause}><span className="battle-action-full">{saveRetryable?'저장 재시도 후 나가기':'저장 후 나가기'}</span><span className="battle-action-short" aria-hidden="true">저장·나가기</span></button>}{s.phase!=='mulligan'&&<button type="button" className="secondary battle-tools-toggle" aria-label="전투 기록과 도움말 열기" onClick={openBattleTools}>기록</button>}
-        {compactUi?<div className="battle-sound-menu battle-sound-flat"><div className="sound-settings"><DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing} flat effectControl={{enabled:sound,toggle:toggleSound}}/></div></div>:<details className="battle-sound-menu" onKeyDown={e=>{
-          if(!e.currentTarget.open)return;
-          if(e.key==='Escape'){e.preventDefault();e.stopPropagation();e.currentTarget.open=false;e.currentTarget.querySelector<HTMLElement>('summary')?.focus();return;}
-          if(e.key!=='Tab')return;
-          const controls=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('summary,button:not([disabled]):not([tabindex="-1"]),input:not([disabled]),select:not([disabled])')).filter(el=>el.getClientRects().length>0);
-          const first=controls[0],last=controls[controls.length-1];
-          if(first&&last&&e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
-          else if(first&&last&&!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
-        }}><summary>소리·연출</summary><button type="button" className="battle-sound-dismiss" tabIndex={-1} aria-hidden="true" onClick={e=>{const details=e.currentTarget.closest<HTMLDetailsElement>('.battle-sound-menu');if(details){details.open=false;details.querySelector<HTMLElement>('summary')?.focus();}}}/><div className="sound-settings"><button type="button" className="secondary sound-toggle" aria-pressed={sound} onClick={toggleSound}>효과음 {sound?'켜짐':'꺼짐'}</button><DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing}/></div></details>}{compactUi&&s.phase!=='finished'&&<button className="secondary danger" type="button" disabled={busy} onClick={confirmConcede}>항복하기</button>}{!compactUi&&!battleToolsOpen&&s.phase==='playing'&&<button className="secondary danger desktop-concede" type="button" disabled={!connected||busy} onClick={confirmConcede}>항복</button>}{!compactUi&&<button className="secondary" disabled={busy} onClick={leave}>나가기</button>}</div>{compactUi&&<button type="button" className="secondary compact-settings-close" onClick={()=>setCompactSettingsOpen(false)}>게임 계속하기</button>}
-    </div></div>;
+  const title=<>
+    <div className={`duel-title${compactUi?' compact-title':''}`} inert={ownChoiceOpen||!!inspectedOverlay}>
+      <button className="compact-settings-trigger secondary" type="button" aria-label="전투 설정"
+        aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={openSettings}>⚙</button>
+      <div className="duel-summary">
+        <p className="eyebrow">{tier?`${room.developerTest?.experiment?'실험 AI · ':room.developerTest?'개발자 시험 · ':''}${rankInfo(tier.rank).name} · 랭크 AI ${tier.intelligence}단계`:room.mode==='bot'?`${room.developerFree?'개발자 자유 대전':'AI 대전'} · ${room.botDifficulty??3}단계 ${BOT_DIFFICULTY_NAMES[room.botDifficulty??3]}`:room.ownedPvp?'계정 PvP':`ROOM ${room.code}`} · TURN {s.turn}</p>
+        <h2>{label}</h2>
+      </div>
+    </div>
+    <dialog className="battle-settings-dialog" ref={settingsRef} aria-labelledby="battle-settings-title" onClose={()=>setSettingsOpen(false)}>
+      <header className="battle-settings-header">
+        <h2 id="battle-settings-title">설정</h2>
+        {autoSaved!==undefined&&<small role="status" aria-atomic="true" className={`save-indicator ${savePending?'warn':autoSaved?'good':'warn'}`}>
+          {savePending?'저장 확인 중…':autoSaved?'자동 저장됨':saveRetryable?'저장 오류 · 재시도 가능':'자동 저장 사용 불가'}
+        </small>}
+        <button type="button" className="settings-primary" autoFocus onClick={closeSettings}>게임 계속하기</button>
+      </header>
+      <DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing}/>
+      <section className="battle-setting-group battle-settings-management" aria-label="게임 관리">
+        <h3>게임 관리</h3>
+        <div>
+          {onRetrySave&&saveRetryable&&<button type="button" className="secondary retry-save" disabled={busy} onClick={onRetrySave}>저장 다시 시도</button>}
+          {onPause&&(s.phase!=='finished'||saveRetryable)&&<button type="button" className="settings-primary pause-save" disabled={busy} onClick={onPause}>
+            {saveRetryable?'저장 재시도 후 나가기':'저장 후 나가기'}
+          </button>}
+          {!onPause&&<button type="button" className="secondary" disabled={busy} onClick={leave}>나가기</button>}
+          {s.phase!=='finished'&&<button className="secondary danger" type="button" disabled={!connected||busy} onClick={confirmConcede}>항복하기</button>}
+        </div>
+      </section>
+    </dialog>
+  </>;
   const inspectDialog=inspectedOverlay&&!ownChoiceOpen&&<div className="board-inspect-backdrop" role="presentation" onClick={e=>{if(e.target===e.currentTarget)closeBoardInspector();}}>
       <section className="board-inspect-dialog" role="dialog" aria-modal="true" aria-label="카드 상세" onKeyDownCapture={e=>{
         if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeBoardInspector();}
@@ -694,8 +685,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     }}>확정 ({replace.length}장 교체)</button><div className="mulligan-self"><HeroPortrait player={s.self} label="나"/></div></div>{inspectDialog}</section>;
   return <section data-casting={casting||undefined} data-card-drop={!!draggedMinion||!!currentDrag&&currentDrag.kind==='card'&&!!dragPlan?.action||undefined} data-animation-speed={room.animationSpeed??"normal"} className={`battle duel-screen phase-${s.phase}${compactUi?' preview-compact':''}${active?' my-turn':''}${currentDrag?' is-dragging':''}${highlight?' has-selection':''}${playing?' is-playing-fx':''}${room.animation?.revision===s.revision?' has-fx-revision':''}`}>
     {title}{homeControl}
-    <div className="arena-message" inert={ownChoiceOpen||battleToolsOpen||!!inspectedOverlay} ref={messageRef} onKeyDownCapture={targetKeys} data-drop-feedback={currentDrag?dropFeedback??undefined:dropNotice?'notice':undefined}><span className={`turn-lamp${active?' live':''}`}/><span role="status" aria-live={currentDrag?"off":"polite"}>{status}{intentNotice&&<small> · {intentNotice}</small>}{selected&&!currentDrag&&legalTargets.length>0&&<small className="target-key-hint"> · 방향키/Enter</small>}</span>{pending>0&&<button className="secondary" type="button" onClick={cancelPending} aria-label={`예약 ${pending}개 취소`}>예약 {pending} · 취소</button>}{connected&&!opponentReady&&reconnectLeft!==null&&<small className="reconnect-countdown" aria-live="off"> · 남은 재접속 시간 {Math.floor(reconnectLeft/60)}분 {reconnectLeft%60}초</small>}</div>
-    <div className="battle-arena classic-table" inert={battleToolsOpen||!!inspectedOverlay} ref={arenaRef} onKeyDownCapture={targetKeys} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={nativeDragOver} onDropCapture={nativeDrop} onDragLeave={e=>{if(!e.relatedTarget||!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget)){setDropFeedback(null);setTouchSlot(undefined);setDropTarget(undefined);hideAim();}}} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();if(selected?.kind==='cardChoice')cancelCardChoice();else{setSelected(null);clearDrag();}}}}>
+    <div className="arena-message" inert={ownChoiceOpen||!!inspectedOverlay} ref={messageRef} onKeyDownCapture={targetKeys} data-drop-feedback={currentDrag?dropFeedback??undefined:dropNotice?'notice':undefined}><span className={`turn-lamp${active?' live':''}`}/><span role="status" aria-live={currentDrag?"off":"polite"}>{status}{intentNotice&&<small> · {intentNotice}</small>}{selected&&!currentDrag&&legalTargets.length>0&&<small className="target-key-hint"> · 방향키/Enter</small>}</span>{pending>0&&<button className="secondary" type="button" onClick={cancelPending} aria-label={`예약 ${pending}개 취소`}>예약 {pending} · 취소</button>}{connected&&!opponentReady&&reconnectLeft!==null&&<small className="reconnect-countdown" aria-live="off"> · 남은 재접속 시간 {Math.floor(reconnectLeft/60)}분 {reconnectLeft%60}초</small>}</div>
+    <div className="battle-arena classic-table" inert={!!inspectedOverlay} ref={arenaRef} onKeyDownCapture={targetKeys} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={nativeDragOver} onDropCapture={nativeDrop} onDragLeave={e=>{if(!e.relatedTarget||!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget)){setDropFeedback(null);setTouchSlot(undefined);setDropTarget(undefined);hideAim();}}} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();if(selected?.kind==='cardChoice')cancelCardChoice();else{setSelected(null);clearDrag();}}}}>
       {casting&&<div className="spell-cast-anchor" ref={attachCastAnchor} data-tone={selectedCard?.kind==='spell'?selectedCard.class:undefined} aria-hidden="true"/>}
       {touchGhost&&!casting&&<div className="touch-drag-ghost" ref={attachDragGhost} aria-hidden="true"><BattleCard card={catalog[s.self.hand.find(h=>h.instanceId===touchGhost)?.cardId??'']??catalog.__coin}/></div>}
       <TableDecor/><BattleEffects cue={cue} arenaRef={arenaRef} catalog={catalog}/>
@@ -767,6 +758,6 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
       })}</div><button className="secondary" onClick={cancelCardChoice}>취소</button></div></div>}
       {presentingResult&&<div className="battle-overlay result-overlay"><div className={`result-window ${s.winner===seat?'victory':s.winner===null?'draw':'defeat'}`} role="dialog" aria-modal="true" aria-label="대전 결과" tabIndex={-1} ref={resultRef} onKeyDownCapture={resultKeys}><Sigil kind={s.winner===seat?'paladin':s.winner===null?'neutral':'shield'}/><h3>{result}</h3><p>{resultReason} · {s.turn}턴</p>{room.developerTest&&<p>개발자 시험 완료 · {room.botEngine==='device'?'로컬':'계정'} 성장 및 전적 변경 없음</p>}{room.ranked&&<p>{room.ranked.reward==='saved'?room.botEngine==='device'?'기기 XP·퀘스트 기록 저장 완료':'계정 XP·퀘스트 기록 저장 완료':room.ranked.reward==='notEligible'?'조기 항복은 XP 보상에 포함되지 않습니다.':room.botEngine==='device'?(autoSaved?'기기에서 랭크 대전 결과 저장 중…':'성장 기록 저장에 실패했습니다. 저장 경기를 다시 열어 확인하세요.'):'서버에서 랭크 대전 결과 저장 중…'}</p>}{room.ranked?.reward==='saved'&&room.ranked.rewardDetails&&<section className="ranked-reward" aria-label="대전 보상"><strong>+{room.ranked.rewardDetails.xp.toLocaleString('ko-KR')} XP</strong>{room.ranked.rewardDetails.questAdvanced&&<p>{room.ranked.rewardDetails.questCompleted?`직업 퀘스트 완료 · 보너스 +${room.ranked.rewardDetails.questBonusXp??0} XP 포함`:'직업 퀘스트 +1판'}</p>}{(room.ranked.rewardDetails.rankAfter??0)>room.ranked.rank&&<p>승급! {rankInfo(room.ranked.rewardDetails.rankAfter!).name}</p>}{!!room.ranked.rewardDetails.unlockedCards?.length&&<p>새 카드 {room.ranked.rewardDetails.unlockedCards.length}종 해금: {room.ranked.rewardDetails.unlockedCards.slice(0,4).map(id=>catalog[id]?.name??id).join(', ')}{room.ranked.rewardDetails.unlockedCards.length>4&&' 외'}</p>}</section>}{room.pvpReward&&<p>{room.pvpReward==='saved'?'계정 PvP 전적 저장 완료':'서버에서 유저 대전 결과 저장 중…'}</p>}{onRematch&&<button onClick={onRematch}>{room.developerFree?'같은 설정으로 재대전':'같은 상대와 재대전'}</button>}<button className="secondary" onClick={leave}>{room.mode==='bot'?'대전 준비로 돌아가기':'덱 편집으로 돌아가기'}</button></div></div>}
     </div>
-    <div className="battle-utilities" data-tools-open={battleToolsOpen} inert={ownChoiceOpen||!!inspectedOverlay} role={battleToolsOpen?'dialog':undefined} aria-modal={battleToolsOpen||undefined} aria-label={battleToolsOpen?'전투 기록과 도움말':undefined} onKeyDownCapture={e=>{if(!battleToolsOpen)return;if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeBattleTools();return;}if(e.key!=='Tab')return;const focusable=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),summary,select,textarea,input,[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length>0);if(!focusable.length){e.preventDefault();return;}const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}}><button type="button" className="battle-tools-close secondary" ref={toolsCloseRef} onClick={closeBattleTools}>전투 기록 닫기 <kbd>Esc</kbd></button><ImpactHistory entries={impactHistory} catalog={catalog}/><details className="battle-log"><summary>최근 전투 기록 ({s.history.length}/60)</summary>{battleLogRows}</details><details className="battle-report"><summary>오류 신고용 전투 기록</summary><p>공개 정보만 기록합니다. 방 코드, 양쪽 손패의 카드 이름 및 미발동 비밀은 포함하지 않습니다.</p><textarea readOnly aria-label="오류 신고용 전투 기록" ref={reportRef} value={report}/><div className="controls"><button className="secondary" onClick={copyReport}>전투 기록 복사</button>{reportMessage&&<small role="status">{reportMessage}</small>}</div></details>{s.phase==='playing'&&<button type="button" className="secondary danger compact-concede" disabled={!connected||busy} onClick={confirmConcede}>항복</button>}</div>
+
   </section>;
 }

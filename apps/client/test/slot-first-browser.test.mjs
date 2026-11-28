@@ -331,8 +331,8 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.getByRole('button',{name:/개발자 모드/}).click();
   await page.getByRole('button',{name:'시험 덱 구성'}).click();
   assert.equal(await page.getByText(entries[0].name,{exact:true}).count(),0,'player deck library is isolated');
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
   await page.getByRole('button',{name:'새 덱 만들기',exact:true}).click();
-  await page.getByRole('button',{name:/마법사/}).first().click();
   await page.getByRole('button',{name:'덱 관리',exact:true}).click();
   await page.getByRole('button',{name:'추천 덱',exact:true}).click();
   await page.getByRole('dialog',{name:'덱 관리',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();

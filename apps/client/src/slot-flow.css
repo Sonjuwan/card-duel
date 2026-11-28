@@ -422,11 +422,6 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
   display:flex;justify-content:space-between;gap:6px;padding:5px;
   background:#39313a;border-radius:6px;font-size:12px;
 }
-.lobby-main.preview-lobby .preview-reward-backups{
-  display:flex;justify-content:flex-end;gap:6px;padding:0 10px;
-  flex:none;
-}
-.lobby-main.preview-lobby .preview-reward-backups button{font-size:11px;min-height:27px;padding:3px 7px}
 .lobby-main.preview-lobby .preview-placeholder{
   flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:10px;

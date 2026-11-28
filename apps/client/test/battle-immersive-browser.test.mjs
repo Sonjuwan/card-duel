@@ -37,7 +37,7 @@ test('phone/tablet combat uses entire available height instead of three redundan
       const style=selector=>getComputedStyle(document.querySelector(selector));
       const base='.game-main>.screen-content>.duel-screen.phase-playing';
       const title=base+'>.duel-title',message=base+'>.arena-message';
-      const arena=rect(base+'>.battle-arena'),main=rect('.game-main'),button=rect('.duel-actions>button:last-child'),turn=rect('.end-turn');
+      const arena=rect(base+'>.battle-arena'),main=rect('.game-main'),button=rect('.compact-settings-trigger'),turn=rect('.end-turn');
       return {
         viewportWidth:innerWidth,viewportHeight:innerHeight,
         documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight,
@@ -45,7 +45,7 @@ test('phone/tablet combat uses entire available height instead of three redundan
         titlePosition:style(title).position,
         messagePosition:style(message).position,
         boardHeight:rect('.enemy-board').height+rect('.friendly-board').height,arenaTop:arena?.top,arenaHeight:arena?.height,mainTop:main?.top,mainHeight:main?.height,
-        leaveTouch:button?.height??0,endTurnTouch:turn?.height??0,
+        settingsTouch:button?.height??0,endTurnTouch:turn?.height??0,
         statusVisible:style(message+'>span:nth-child(2)').clipPath,
       };
     });
@@ -55,7 +55,7 @@ test('phone/tablet combat uses entire available height instead of three redundan
     assert.equal(result.messagePosition,'absolute',label+' hint floating');
     assert.ok(result.arenaHeight>=result.viewportHeight*.79,label+' battle should receive most viewport '+JSON.stringify(result));
     assert.ok(result.arenaTop<=result.viewportHeight*.09,label+' no three bars above the board '+JSON.stringify(result));
-    assert.ok(result.leaveTouch>=36,label+' exit accessible');
+    assert.ok(result.settingsTouch>=36,label+' settings accessible');
     assert.ok(result.endTurnTouch>=36,label+' end turn accessible');
     assert.ok(result.documentWidth<=result.viewportWidth+2,label+' no horizontal page scroll');
     assert.ok(result.documentHeight<=result.viewportHeight+2,label+' no vertical page scroll');
@@ -300,8 +300,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   }
   assert.equal(new Set(crops.values()).size,classes.length,'each class has its own focal point');
   await page.evaluate(()=>window.denseBoard(7,10,undefined,'first'));
-  const report=page.locator('.battle-report textarea');
-  await page.waitForFunction(()=>document.querySelector('.battle-report textarea')?.value.includes('PERF_LOG_MARKER first 59'));
+  assert.equal(await page.locator('.battle-report textarea').count(),0);
   await page.evaluate(()=>{window.logTranslations=0;});
   for(let i=0;i<3;i++){
     await page.locator('.folded-hand').tap();
@@ -313,10 +312,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     return value;
   });
   t.diagnostic('Public log translations across three hand toggles: '+translations);
-  assert.equal(translations,0,'hand UI must reuse the unchanged public history and report');
-  assert.match(await report.inputValue(),/PERF_LOG_MARKER first 59/);
-  await page.evaluate(()=>window.denseBoard(7,10,undefined,'updated'));
-  await page.waitForFunction(()=>document.querySelector('.battle-report textarea')?.value.includes('PERF_LOG_MARKER updated 59'));
+  assert.equal(translations,0,'hand UI must not build the removed record panes');
   const unitSizes=[];
   for(let count=1;count<=10;count++){
     await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);

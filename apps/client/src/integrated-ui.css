@@ -298,26 +298,36 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .rank-stars{font-size:clamp(16px,5dvh,38px);color:#74667a;letter-spacing:.18em}
 .rank-stars [data-earned=true]{color:#ffdc78;text-shadow:0 0 8px #e3a044}
 .reward-road{
-  width:min(100%,1270px);margin:auto;position:relative;padding:6px clamp(24px,5vw,58px) 10px;overflow:hidden;
-  text-align:center;touch-action:pan-y;
+  --road-gap:clamp(4px,1.1dvw,14px);
+  display:flex;flex:1 1 0;min-height:0;justify-content:center;flex-direction:column;
+  width:min(100%,1440px);margin:0 auto;position:relative;
+  padding:6px clamp(28px,5dvw,64px);overflow:hidden;text-align:center;touch-action:pan-y;
 }
-.reward-road header{margin-bottom:clamp(9px,3dvh,25px)}
-.reward-road header strong{font-size:clamp(19px,5dvh,40px);color:#ffe3a4}
-.road-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(4px,1.1vw,14px);align-items:end}
-.road-stop{position:relative;min-width:0;display:grid;justify-items:center;gap:5px}
+.reward-road header{margin-bottom:clamp(4px,1.5dvh,14px);padding-inline:22px}
+.reward-road header h2{margin:0;font-size:clamp(14px,3dvh,24px)}
+.reward-road header strong{font-size:clamp(19px,4dvh,36px);color:#ffe3a4}
+.reward-road header p{margin:0;font-size:clamp(11px,2.5dvh,16px)}
+.road-cards{
+  position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:var(--road-gap);align-items:end;
+}
+.road-stop{position:relative;min-width:0;display:grid;justify-items:center;gap:4px}
 .road-stop>.battle-card{
-  box-sizing:border-box;width:min(100%,175px,calc((100dvh - 135px) / 1.55));height:auto;min-height:0;max-height:none;flex:none;aspect-ratio:var(--full-card-ratio);
+  box-sizing:border-box;width:min(100%,252px,calc((100dvh - 131px) / 1.55));
+  height:auto;min-height:0;max-width:none;min-width:0;max-height:none;flex:none;aspect-ratio:var(--full-card-ratio);
 }
 .road-stop[data-state=next]>.battle-card{outline:2px solid #fdd588;box-shadow:0 0 21px #e8a94d95}
-.road-stop[data-state=locked]>.battle-card{opacity:.74}
-.road-marker{position:relative;width:24px;height:24px;border-radius:50%;background:#362e3a;border:1px solid #b69765;display:grid;place-items:center;color:#ffe5a2;isolation:isolate}
-.road-marker::before{content:"";position:absolute;width:23vw;height:3px;background:#786451;z-index:-1;left:50%;top:50%}
-.road-stop:last-child .road-marker::before{display:none}
-.road-stop[data-state=owned] .road-marker::before{background:#e8bc62}
-.road-stop small{z-index:1;background:#26202b;padding:2px 4px}
-.reward-road .road-edge{position:absolute;top:0;bottom:0;width:clamp(21px,4vw,45px);min-width:0;padding:0}
-.road-edge.previous{left:0}.road-edge.next{right:0}
-.reward-road header h2{margin:0 0 .3rem;font-size:clamp(14px,3dvh,22px)}
+.road-stop[data-state=locked]>.battle-card{opacity:.76}
+.road-marker{
+  position:relative;width:22px;height:22px;border-radius:50%;background:#362e3a;
+  border:1px solid #b69765;display:grid;place-items:center;color:#ffe5a2;
+}
+.road-stop small{z-index:1;background:#26202b;padding:2px 4px;line-height:16px}
+.reward-road .road-edge{
+  position:absolute;top:50%;transform:translateY(-50%);width:clamp(24px,4dvw,48px);
+  min-width:0;min-height:44px;padding:0;
+}
+.road-edge.previous{left:2px}.road-edge.next{right:2px}
 .reward-path-picker{display:flex;align-items:center;justify-content:center;gap:.5rem;flex-wrap:wrap;margin-block:.25rem}
 .preview-card-reward-overlay[data-ready=true]{cursor:pointer}
 .preview-card-reward-popup.reward-reveal{
@@ -344,9 +354,12 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   .mulligan-card-frame,.mulligan-card-back,.hero-portrait[data-shattered=true],.hero-shard,.hero-crack,.hero-break>i,.reward-reveal>*{animation:none!important}
   .hero-portrait[data-shattered=true]>.hero-emblem,.hero-break{visibility:hidden}
 }
-.road-cards{position:relative}
-.road-progress{position:absolute;left:10%;right:10%;bottom:27px;height:4px;border-radius:4px;background:linear-gradient(90deg,#e8bc62 var(--road-progress),#786451 var(--road-progress));pointer-events:none}
-.road-marker::before{display:none}
+.road-progress{
+  position:absolute;inset:auto calc((100% - 4 * var(--road-gap)) / 10) 33px;
+  height:4px;border-radius:4px;
+  background:linear-gradient(90deg,#e8bc62 var(--road-progress),#786451 var(--road-progress));
+  pointer-events:none;
+}
 .promotion-crest{display:grid;place-items:center;isolation:isolate}
 .promotion-crest>span{grid-area:1/1}
 .promotion-previous{animation:promotion-out .9s ease both}
@@ -358,7 +371,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .lobby-main.preview-lobby .integrated-browser .card-browser-controls{
   max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin
 }
-.reward-road header{padding-inline-end:clamp(48px,12vw,112px)}
 @media(orientation:landscape) and (max-height:460px){
   .lobby-main.preview-lobby .integrated-browser .catalog-filters .controls{
     display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px

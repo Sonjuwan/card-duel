@@ -23,11 +23,15 @@ export function normalSoundVolume(raw:unknown){
   if(typeof raw!=='number'&&(typeof raw!=='string'||raw.trim()===''))return 100;
   const value=Number(raw);return Number.isFinite(value)?Math.round(Math.max(0,Math.min(100,value))):100;
 }
+let effectsEnabled=true;
 let volume=75,masterVolume=100,voiceBus:GainNode|undefined,voiceVolume=90;
 function storedVolume(key:string,fallback:number){
   try{const value=globalThis.localStorage?.getItem(key);return value==null?fallback:normalSoundVolume(value);}catch{return fallback;}
 }
-try{muted=globalThis.localStorage?.getItem('card-duel-sound')==='off';}catch{}
+try{
+  muted=globalThis.localStorage?.getItem('card-duel-sound')==='off';
+  effectsEnabled=globalThis.localStorage?.getItem('card-duel-sound-effects')!=='off';
+}catch{}
 volume=storedVolume('card-duel-sound-volume',75);
 masterVolume=storedVolume('card-duel-master-volume',100);
 voiceVolume=storedVolume('card-duel-dialogue-volume',90);
@@ -42,6 +46,13 @@ export function subscribeBattleSound(listener:()=>void){
   return ()=>{muteListeners.delete(listener);};
 }
 export function battleSoundEnabled(){return !muted;}
+export function battleEffectsSoundEnabled(){return effectsEnabled;}
+export function setBattleEffectsSound(enabled:boolean){
+  effectsEnabled=enabled;
+  try{localStorage.setItem('card-duel-sound-effects',enabled?'on':'off');}catch{}
+  updateGain();
+  if(!enabled)stopBattleSound();
+}
 export function battleSoundVolume(){return volume;}
 export type ResultSoundState={code:string;seat:PlayerId;phase:GameState['phase'];winner:GameState['winner']};
 export type ResultSound='win'|'loss'|'draw';
@@ -51,7 +62,7 @@ export function resultSoundTransition(previous:ResultSoundState|null,current:Res
   if(!previous||previous.code!==current.code||previous.seat!==current.seat||previous.phase==='finished'||current.phase!=='finished')return null;
   return current.winner===null?'draw':current.winner===current.seat?'win':'loss';
 }
-const gainForSettings=()=>muted?0:.32*volume*masterVolume/10000;
+const gainForSettings=()=>muted||!effectsEnabled?0:.32*volume*masterVolume/10000;
 function updateGain(){
   if(master&&context&&context.state!=='closed')try{
     master.gain.setTargetAtTime(gainForSettings(),context.currentTime,.025);
@@ -121,11 +132,11 @@ export function departureSoundLayers(kind:'death'|'exit'):readonly SoundLayer[]{
 /** Schedule through the audio graph so visibility cancellation can stop even
  * a not-yet-started departure; no additional UI timer or playback delay. */
 export function playBattleDepartureSound(kind:'death'|'exit'|null){
-  if(!kind||muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  if(!kind||muted||!effectsEnabled||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{playLayers(departureSoundLayers(kind),.12);}catch{/* Optional audio never interrupts the game. */}
 }
 export function playBattleResultSound(result:ResultSound){
-  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  if(muted||!effectsEnabled||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{
     if(result==='win'){[392,523,659,784].forEach((f,i)=>tone(f,f,.46,.16,'sine',i*.12));tone(196,196,.58,.18,'triangle',.24);}
     else if(result==='loss'){[392,330,262].forEach((f,i)=>tone(f,f*.97,.42,.11,'triangle',i*.13));tone(131,98,.5,.12,'sine',.1);}
@@ -133,7 +144,7 @@ export function playBattleResultSound(result:ResultSound){
   }catch{/* Result sound must not interrupt gameplay or saving. */}
 }
 export function playBattleSound(a:BattleAnimation,theme:FxTheme,beat:'start'|'lunge'|'impact',feedback?:ImpactFeedback){
-  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  if(muted||!effectsEnabled||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{
     if(beat==='lunge'){noise(.13,600,3900,.28,0,'bandpass');return;}
     if(beat==='start'){
@@ -196,12 +207,12 @@ export async function playEmbeddedVoice(bytes:ArrayBuffer,active:()=>boolean,onE
 }
 
 export function playCardPickup(){
-  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  if(muted||!effectsEnabled||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{noise(.085,1500,580,.12,0,'bandpass');tone(350,260,.075,.05,'triangle');}catch{}
 }
 
 export function playCinematicSound(kind:'xp'|'card'|'rare'|'rank'|'tier'|'shatter'){
-  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  if(muted||!effectsEnabled||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{
     if(kind==='shatter'){
       noise(.43,1900,140,.42,.27,'bandpass');
@@ -220,6 +231,6 @@ export function playCinematicSound(kind:'xp'|'card'|'rare'|'rank'|'tier'|'shatte
 }
 
 export function playTurnReadySound(){
-  if(muted||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
+  if(muted||!effectsEnabled||volume===0||!context||context.state!=='running'||globalThis.document?.hidden)return;
   try{tone(440,660,.18,.17,'triangle');tone(659,880,.26,.13,'sine',.10);tone(1047,1047,.32,.08,'sine',.19);}catch{}
 }
