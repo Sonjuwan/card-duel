@@ -554,3 +554,47 @@ test('ordinary ranked saves validate growth without rewriting an unchanged ledge
     assert.equal(record.settledMatchIds.length,1);
   }finally{if(original)Object.defineProperty(globalThis,'indexedDB',original);else Reflect.deleteProperty(globalThis,'indexedDB');}
 });
+
+test('a failed ranked result write does not pay its quest receipt until the fenced retry commits',async t=>{
+  const growth=offlineGrowth(catalog);
+  let record=readOfflineGrowth(undefined,growth);
+  record.profile.quests!.active.basic!.progress=9;
+  const ranked=createOfflineRankedInput({...savedInput,deck:basicDeck(catalog,'warrior')},record,growth);
+  const seeded=new LocalDuel(ranked).checkpoint()!;
+  Object.assign(seeded.state,{phase:'playing',turn:7,activePlayer:0});
+  Object.assign(seeded.summary,{phase:'playing',turn:7});
+  let entry:Entry={hash,owner:'seed',snapshot:seeded};
+  let rejectResult=true;
+  const store:LocalSaveStore={
+    async read(){return structuredClone(entry.snapshot);},
+    async readGrowth(){return structuredClone(record);},
+    async write(){assert.fail('ranked saves must use the atomic operation');},
+    async writeRanked(snapshot,owner,claim,expected,write){
+      if(!saveWriteAllowed(entry,owner,claim,expected))return null;
+      if(write.award&&rejectResult)throw Error('write failed before commit');
+      const next=write.award?settleOfflineRanked(record,write.growth,snapshot.input.ranked!,write.award,snapshot.questCounters):record;
+      entry={hash,owner,snapshot:structuredClone(snapshot)};record=next;
+      return structuredClone(record.profile);
+    },
+    async remove(){return false;},
+  };
+  let receive:(event:LocalResponse)=>void=()=>{};
+  const scope:LocalDuelScope={postMessage:event=>receive(event),onmessage:()=>{}};
+  t.after(attachLocalDuel(scope,store,'quest-owner'));
+  const send=(request:LocalRequest)=>new Promise<LocalResponse>(resolve=>{receive=resolve;scope.onmessage({data:request});});
+  assert.equal((await send({type:'resume',catalog,catalogHash:hash})).type,'view');
+  const failure=await send({type:'act',requestId:1,revision:seeded.summary.revision,action:{type:'concede'}});
+  assert.equal(failure.saveRetryable,true);
+  assert.equal(entry.snapshot.summary.phase,'playing');
+  assert.equal(record.profile.xp,0);
+  assert.equal(record.profile.quests!.active.basic!.progress,9);
+  rejectResult=false;
+  await send({type:'retrySave',requestId:2});
+  assert.equal(entry.snapshot.summary.phase,'finished');
+  assert.equal(record.profile.xp,rankedXpReward(1,'loss')+30);
+  assert.equal(record.profile.recentMatches?.[0].completedQuests?.length,1);
+  const paid=record;
+  await send({type:'retrySave',requestId:3});
+  assert.equal(record,paid);
+  assert.deepEqual(record.settledMatchIds,[ranked.code]);
+});
