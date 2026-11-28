@@ -1,3 +1,4 @@
+import type {RankedRewardSummary} from '../../../packages/account-protocol.ts';
 import {collectionBotDeck} from '../../../packages/collection-bot-deck.ts';
 import {syncOwned} from '../../../packages/progression.ts';
 import {basicDeck} from '../../../packages/basic-decks.ts';
@@ -293,23 +294,22 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [account,setAccount]=useState<AccountView|null>(null);
   const [offlineProfile,setOfflineProfile]=useState<AccountProfile>();
   const [unreadCards,setUnreadCards]=useState<string[]>(()=>syncNewCards(undefined,storage));
-  const unreadRef=useRef(unreadCards);
   const [rewardPopup,setRewardPopup]=useState<string[]>([]);
   const [catalogFocus,setCatalogFocus]=useState<string>();
-  const previousRank=useRef<number|undefined>(undefined);
   const [promotion,setPromotion]=useState<{before:number;after:number}>();
+  const revealedMatches=useRef(new Set<string>());
+  const queueRewardReveal=(code:string,rank:number,reward:RankedRewardSummary)=>{
+    if(revealedMatches.current.has(code))return;
+    revealedMatches.current.add(code);
+    const cards=reward.unlockedCards?.filter(id=>!!catalog[id])??[];
+    if(cards.length)setRewardPopup(cards);
+    if(reward.rankAfter&&reward.rankAfter>rank)setPromotion({before:rank,after:reward.rankAfter});
+  };
   useEffect(()=>{
     const next=syncNewCards(offlineProfile,storage);
-    const gained=next.filter(id=>!unreadRef.current.includes(id));
-    unreadRef.current=next;setUnreadCards(next);
-    if(gained.length)setRewardPopup(previous=>[...new Set([...previous,...gained])]);
-    if(offlineProfile){
-      const before=previousRank.current;
-      previousRank.current=offlineProfile.rank;
-      if(before!==undefined&&offlineProfile.rank>before&&room)setPromotion({before,after:offlineProfile.rank});
-    }
+    setUnreadCards(next);
   },[offlineProfile?.revision,storage]);
-  const onViewNewCard=(id:string)=>{const next=markCardViewed(id,storage);unreadRef.current=next;setUnreadCards(next);};
+  const onViewNewCard=(id:string)=>setUnreadCards(markCardViewed(id,storage));
   const [previewEditHero,setPreviewEditHero]=useState<HeroClass|null>(null);
   const [previewEditName,setPreviewEditName]=useState('');
   const [offlineMode,setOfflineMode]=useState<OfflineMode>(initialOfflineMode);
@@ -521,8 +521,14 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
           acknowledgeWorker();
           setError(data.error);changeBusy(false);return;
         }
+        if(data.type==='forfeited'){
+          const reward=data.profile?.recentMatches?.find(match=>match.matchId===data.save.code&&match.eligible);
+          if(reward)queueRewardReveal(data.save.code,reward.rank,reward);
+        }
         if(data.type==='paused'||data.type==='discarded'||data.type==='forfeited'){if(data.requestId!==localRequestId.current)return;acknowledgeWorker();worker.terminate();workerRef.current=null;setRoom(null);setLobbyView(practiceLobby);updateSave(data.save,data.type==='paused'||data.type==='forfeited'||(data.type==='discarded'&&data.available));if(data.type==='paused')setToast({text:'경기를 저장했습니다. 대전 준비에서 이어할 수 있습니다.',kind:'success'});else if(data.type==='forfeited')setToast({text:'기존 경기가 패배로 정산되었습니다.',kind:'info'});changeBusy(false);return;}
         if(data.type!=='view')return;
+        const ranked=data.view.ranked;
+        if(ranked?.reward==='saved'&&ranked.rewardDetails)queueRewardReveal(data.view.code,ranked.rank,ranked.rewardDetails);
         const firstView=!hasView;hasView=true;
         if(firstView)onFirstView?.();
         updateSave(data.save,data.saveAvailable);
@@ -636,10 +642,8 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [intentEpoch,setIntentEpoch]=useState(0);
   const send=(action:Action)=>{if(!room?.state||busyRef.current)return;if(workerRef.current){setError('');changeBusy(true);const command:LocalRequest={type:'act',requestId:++localRequestId.current,revision:room.state.revision,action};clearWatchdog();workerWatchdog.current=setTimeout(()=>markWorkerStalled('기기 AI 응답이 지연되고 있습니다.'),12000);try{workerRef.current.postMessage(command);}catch{recoverLocalWorker('기기 AI 행동 요청을 전달하지 못했습니다.');}return;}const socket=socketRef.current;if(!connected||!releaseReady()||!socket?.connected)return;setError('');changeBusy(true);const epoch=connectionEpoch.current;socket.timeout(room.ranked||room.ownedPvp||room.developerTest?30000:8000).emit('room:action',{revision:room.state.revision,action},(err,r)=>{if(epoch!==connectionEpoch.current)return;if(err){setIntentEpoch(n=>n+1);if(socket.connected)sync(socket);else changeBusy(false);return;}if(r.ok){acceptView(r.data);changeBusy(false);return;}if(r.code==='staleRevision'||r.code==='opponentDisconnected'||r.error.includes('오래된 게임 화면')){setIntentEpoch(n=>n+1);sync(socket);return;}changeBusy(false);if(terminalSessionFailure(r.code))clearServerRoom();setError(r.error);});};
   const leave=()=>{if(workerRef.current){if(busyRef.current)return;if(lossOnExit){localCommand('pause');return;}if(saveRetryable){localCommand('pause');return;}if(room?.ranked&&room.status==='playing'&&saveAvailable){localCommand('pause');return;}if(room?.status==='finished'&&saveAvailable){localCommand('pause');return;}if(shouldConfirmUnstoredResultExit(room,saveAvailable)&&!window.confirm('경기 결과가 저장되지 않았습니다. 지금 나가면 결과를 복구하지 못할 수 있습니다. 그래도 나갈까요?'))return;if(room?.status==='playing'&&!window.confirm('이 경기를 포기하고 저장 데이터를 제거할까요? 이어하려면 저장 후 나가기를 선택하세요.'))return;localCommand('discard');return;}const socket=socketRef.current;if(!connected||!releaseReady()||!socket?.connected||busyRef.current)return;if(room?.status==='playing'&&!window.confirm('방을 나가면 항복 처리됩니다. 나가시겠습니까?'))return;changeBusy(true);const epoch=connectionEpoch.current;socket.timeout(room?.ranked||room?.ownedPvp||room?.developerTest?30000:8000).emit('room:leave',(err,r)=>{if(epoch!==connectionEpoch.current)return;changeBusy(false);if(err){setConnected(false);setError('방 나가기 응답이 지연됩니다. 연결 재시도로 상태를 확인하세요.');return;}if(r.ok){
-      const reward=room?.ranked?.reward==='saved'?room.ranked.rewardDetails:undefined;
-      const cards=reward?.unlockedCards?.filter(id=>!!catalog[id])??[];
-      if(cards.length)setRewardPopup(cards);
-      if(room?.ranked&&reward?.rankAfter&&reward.rankAfter>room.ranked.rank)setPromotion({before:room.ranked.rank,after:reward.rankAfter});
+      const ranked=room?.ranked;
+      if(room&&ranked?.reward==='saved'&&ranked.rewardDetails)queueRewardReveal(room.code,ranked.rank,ranked.rewardDetails);
       setLobbyView(room?.state?.phase==='finished'?'decks':'play');clearServerRoom();setError('');
     }else{if(terminalSessionFailure(r.code))clearServerRoom();setError(r.error);}});};
   const onDevice=room?.botEngine==='device';
