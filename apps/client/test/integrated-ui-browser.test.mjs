@@ -217,10 +217,22 @@ test('preview book, audio settings and saved match work across desktop, tablet a
       await hand.waitFor({state:'hidden'});
     }else if(!hasTouch){
       await hand.waitFor();
+      await page.mouse.move(3,3);
       const before=await hand.boundingBox();
+      const mana=await page.locator('.battle-mana .mana-display').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().toJSON()));
       await hand.hover();
-      await page.locator('[data-hover-preview]').waitFor();
-      assert.deepEqual(await hand.boundingBox(),before,label+' hover leaves the hand card in place');
+      if(process.env.CARD_DUEL_GEOMETRY_BASELINE){
+        await page.locator('[data-hover-preview]').waitFor();
+        assert.deepEqual(await hand.boundingBox(),before);
+      }else{
+        await page.waitForFunction(width=>document.querySelector('.own-hand .hand-card-slot .battle-card').getBoundingClientRect().width>width*1.2,before.width);
+        const expanded=await hand.boundingBox();
+        assert.ok(expanded.y<before.y&&expanded.width/before.width<1.24,`${label} ${JSON.stringify(expanded)}`);
+        assert.ok(await hand.locator('.card-copy').isVisible());
+        assert.deepEqual(await page.locator('.battle-mana .mana-display').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().toJSON())),mana);
+        await page.mouse.move(3,3);
+        await page.waitForFunction(width=>Math.abs(document.querySelector('.own-hand .hand-card-slot .battle-card').getBoundingClientRect().width-width)<1,before.width);
+      }
     }else{
       assert.equal(await page.locator('.folded-hand').isVisible(),false,label+' large-screen layout');
       await hand.waitFor();
