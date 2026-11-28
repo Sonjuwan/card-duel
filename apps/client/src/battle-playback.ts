@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { scaledBattleTiming } from '../../../packages/protocol.ts';
 import type { BattleAnimation, RoomView } from '../../../packages/protocol.ts';
 
+export const discardRevealDuration=(speed:RoomView['animationSpeed'])=>speed==='fast'?1375:2500;
 export type PlaybackCue={windup?:number;animation:BattleAnimation;before:RoomView;after:RoomView;duration:number;impact:number};
 export function freshAcceptedAnimation(before:RoomView,after:RoomView):BattleAnimation|null{
   if(before.code!==after.code||before.seat!==after.seat||before.state?.phase!=='playing'||!after.state||after.state.revision!==before.state.revision+1||after.animation?.revision!==after.state.revision)return null;
@@ -53,10 +54,12 @@ export class PlaybackTimeline {
       playback.duration-=credit;
     }
     this.running=true;this.onCue(playback);
-    this.timers.push(this.clock.schedule(()=>this.show(next),playback.impact));
+    const discardCount=playback.animation.events?.filter(event=>event.kind==='discard').length??0;
+    const end=playback.duration+discardCount*discardRevealDuration(next.animationSpeed);
+    this.timers.push(this.clock.schedule(()=>this.show(next),discardCount?end:playback.impact));
     this.timers.push(this.clock.schedule(()=>{
       this.onCue(null);this.timers=[];this.running=false;this.process();
-    },playback.duration));
+    },end));
   }
   receive(incoming:RoomView,connected:boolean){
     const previous=this.latest;

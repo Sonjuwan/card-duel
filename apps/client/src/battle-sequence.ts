@@ -13,6 +13,7 @@ export function battleSequence(cue:PlaybackCue):string[]{
       case 'deathrattle':return '죽음의 메아리';
       case 'death':return '하수인 사망';
       case 'secretTriggered':return '비밀 발동';
+      case 'discard':return '손패 카드 버림';
     }
   });
   const before=cue.before.state,after=cue.after.state;

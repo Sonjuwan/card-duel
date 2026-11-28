@@ -179,7 +179,8 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     }
     const share=dimensions.rows.reduce((sum,{row})=>sum+row.height,0)/dimensions.height;
     t.diagnostic(width+'px board share '+(share*100).toFixed(1)+'%');
-    assert.ok(share>=.38, String(share));
+    assert.ok(share>=(height<=540?.38:.36), String(share));
+    if(height>540)assert.ok(dimensions.zones.every(zone=>Math.abs(zone.height-dimensions.zones[0].height)<2));
     if(height<=540)for(const [index,zone] of dimensions.zones.entries()){
       assert.ok(Math.abs(zone.height-dimensions.arena.height/4)<1.5,JSON.stringify({width,index,zone}));
       assert.ok(Math.abs(zone.top-dimensions.arena.top-index*zone.height)<1.5,JSON.stringify({width,index,zone}));
@@ -633,4 +634,74 @@ test('real worker queues two attacks while a staged battlecry validates its targ
 
 
   await context.close();
+});
+
+test('desktop displays both sides’ sequential discards and scrollable public action icons',{timeout:45000},async t=>{
+  const server=createSoloAppServer();
+  server.prependListener('request',req=>{
+    if(req.url.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>{server.closeAllConnections();server.close();});
+  const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
+  t.after(()=>browser.close());
+  const page=await browser.newPage({viewport:{width:1366,height:768}});
+  await page.addInitScript(()=>{
+    const BaseWorker=window.Worker;
+    window.Worker=class extends BaseWorker{
+      set onmessage(handler){
+        super.onmessage=event=>{
+          if(window.freezeFixture&&event.data.type==='view')return;
+          if(event.data.type==='view'&&event.data.view.state?.phase==='playing'){
+            const last=structuredClone(event.data);
+            window.playPublicFixture=(events=[])=>{
+              window.freezeFixture=true;
+              last.view.state.revision++;
+              last.view.animationSpeed=events.length?'fast':'instant';
+              last.view.animation={revision:last.view.state.revision,actor:0,kind:'spell',cardId:'soul_flame',events};
+              handler.call(this,new MessageEvent('message',{data:structuredClone(last)}));
+            };
+          }
+          handler.call(this,event);
+        };
+      }
+    };
+  });
+  await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
+  for(const name of ['대전','전사','선택한 덱으로 대전 시작'])await page.getByRole('button',{name,exact:true}).click();
+  await page.locator('.mulligan-confirm').click();
+  await page.waitForFunction(()=>Boolean(window.playPublicFixture));
+  await page.locator('.battle.phase-playing').waitFor();
+  await page.evaluate(()=>window.playPublicFixture([
+    {kind:'discard',side:0,cardId:'wolf'},
+    {kind:'discard',side:1,cardId:'flame_sphere'},
+  ]));
+  const active=side=>page.locator(`.discard-reveal[data-discard-side="${side}"]:visible`);
+  await active('own').waitFor();
+  assert.equal(await active('opponent').count(),0);
+  await page.screenshot({path:'ui-evidence/discard-own-v0330.png'});
+  await active('opponent').waitFor();
+  assert.equal(await active('own').count(),0);
+  await page.screenshot({path:'ui-evidence/discard-opponent-v0330.png'});
+  await page.locator('.discard-reveals').waitFor({state:'detached'});
+  const rail=page.locator('.arena-left .impact-rail');
+  for(let count=2;count<=7;count++){
+    await page.evaluate(()=>window.playPublicFixture());
+    await page.waitForFunction(count=>document.querySelectorAll('.arena-left .impact-icon').length>=count,count);
+  }
+  assert.ok(await rail.evaluate(el=>el.scrollHeight>el.clientHeight));
+  assert.ok(await rail.evaluate(el=>[...el.querySelectorAll('.impact-icon')].filter(button=>button.getBoundingClientRect().bottom<=el.getBoundingClientRect().bottom+1).length>=3));
+  const visibleIcons=()=>rail.evaluate(el=>[...el.querySelectorAll('.impact-icon')].filter(button=>{
+    const r=button.getBoundingClientRect();
+    const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return !!top&&button.contains(top);
+  }).length);
+  assert.ok(await visibleIcons()>=3,JSON.stringify(await rail.evaluate(el=>[el.parentElement.parentElement,...el.querySelectorAll('.impact-icon')].map(node=>{
+    const r=node.getBoundingClientRect(),top=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+    return [r.toJSON(),top?.className,getComputedStyle(node).visibility,getComputedStyle(node).zIndex];
+  }))));
+  await rail.evaluate(el=>el.scrollTop=el.scrollHeight);
+  assert.ok(await rail.evaluate(el=>el.scrollTop>0));
+  assert.ok(await visibleIcons()>=3);
+  await page.screenshot({path:'ui-evidence/desktop-public-rail-v0330.png'});
 });

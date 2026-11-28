@@ -1,3 +1,4 @@
+import {DiscardReveal} from './discard-reveal.tsx';
 import {heroShatterMs,lethalPortraits,mulliganSlots} from './battle-cinematics.ts';
 import {LocalCardArt} from './local-art.tsx';
 import type {BattleIntent} from './battle-intents.ts';
@@ -697,7 +698,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     <div className="battle-arena classic-table" inert={battleToolsOpen||!!inspectedOverlay} ref={arenaRef} onKeyDownCapture={targetKeys} onPointerDown={touchDown} onPointerMove={touchMove} onPointerUp={touchUp} onPointerCancel={stopTouch} onLostPointerCapture={stopTouch} onClickCapture={guardClick} onPointerLeave={hideAim} onDragOverCapture={nativeDragOver} onDropCapture={nativeDrop} onDragLeave={e=>{if(!e.relatedTarget||!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget)){setDropFeedback(null);setTouchSlot(undefined);setDropTarget(undefined);hideAim();}}} onContextMenu={e=>{if(selected||currentDrag){e.preventDefault();if(selected?.kind==='cardChoice')cancelCardChoice();else{setSelected(null);clearDrag();}}}}>
       {casting&&<div className="spell-cast-anchor" ref={attachCastAnchor} data-tone={selectedCard?.kind==='spell'?selectedCard.class:undefined} aria-hidden="true"/>}
       {touchGhost&&!casting&&<div className="touch-drag-ghost" ref={attachDragGhost} aria-hidden="true"><BattleCard card={catalog[s.self.hand.find(h=>h.instanceId===touchGhost)?.cardId??'']??catalog.__coin}/></div>}
-      <TableDecor/><BattleEffects cue={cue} arenaRef={arenaRef} catalog={catalog}/>{visual?.turn&&<div className={`turn-flash ${visual.turn}`} role="status">{visual.turn==='own'?'내 턴':'상대 턴'}</div>}
+      <TableDecor/><BattleEffects cue={cue} arenaRef={arenaRef} catalog={catalog}/>
+      {cue?.animation.events?.some(event=>event.kind==='discard')&&<DiscardReveal key={cue.animation.revision} cue={cue} catalog={catalog} seat={seat} arena={arenaRef}/>}{visual?.turn&&<div className={`turn-flash ${visual.turn}`} role="status">{visual.turn==='own'?'내 턴':'상대 턴'}</div>}
       {aimVisible&&<svg className={`aim-overlay${highlight?.kind==='attack'||highlight?.kind==='heroAttack'?' attack-aim':''}`} key={aimSource} aria-hidden="true"><defs><marker id="duel-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="currentColor"/></marker></defs><line ref={aimRef} visibility="hidden" markerEnd="url(#duel-arrow)" stroke="currentColor" strokeWidth="7" strokeLinecap="round"/></svg>}
       <aside className="arena-left" inert={ownChoiceOpen} aria-label="전투 기록">
         <ImpactRail entries={impactHistory} catalog={catalog}/>

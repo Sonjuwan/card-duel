@@ -1,5 +1,5 @@
 import type { Card, Catalog, Effect, GameState, Minion, PlayerId, Selector, TargetRule, Tribe } from './types.ts';
-import { emitVisual, RULES, TRIBES, integer, other, random, record, requireRule, validPlayer } from './rules.ts';
+import { emitVisual, log, RULES, TRIBES, integer, other, random, record, requireRule, validPlayer } from './rules.ts';
 import {unknownEffectFields,unknownConditionFields} from './card-schema.ts';
 
 export const TARGET_RULES = ['anyCharacter','enemyCharacter','friendlyCharacter','anyHero','anyMinion','enemyMinion','friendlyMinion','damagedMinion','enemyDamagedMinion','undamagedMinion','lowAttackEnemyMinion','highAttackEnemyMinion','lowAttackMinion','highAttackMinion','friendlyBeastMinion','demonMinion','attackAtLeast7Minion','enemyAttackAtMost2Minion','murlocMinion','tauntMinion','enemyTauntMinion'] as const;
@@ -384,7 +384,14 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
       case 'overload':p.pendingOverload=Math.min(RULES.maxMana,p.pendingOverload+e.amount);ops.overload(ctx.owner);break;
       case 'loseCrystal':p.maxMana=Math.max(0,p.maxMana-e.amount);p.mana=Math.min(p.mana,p.maxMana);p.lockedMana=Math.min(p.lockedMana,p.maxMana);break;
       case 'drawTribe':for(let i=0;i<e.count;i++){const choices=p.deck.map((card,index)=>({card,index})).filter(({card})=>{const d=s.catalog[card.cardId];return d.kind==='minion'&&d.tribe===e.tribe;});if(choices.length){const [card]=p.deck.splice(choices[Math.floor(random(s)*choices.length)].index,1);const burned=p.hand.length>=RULES.maxHand;emitVisual(s,{kind:'draw',side:ctx.owner,burned});if(!burned)p.hand.push(card);}else if(e.fallbackCardId)ops.addCard(ctx.owner,e.fallbackCardId);}break;
-      case 'discard':for(let i=0;i<e.amount&&p.hand.length;i++)p.hand.splice(Math.floor(random(s)*p.hand.length),1);break;
+      case 'discard':{
+        for(let i=0;i<e.amount&&p.hand.length;i++){
+          const [discarded]=p.hand.splice(Math.floor(random(s)*p.hand.length),1);
+          emitVisual(s,{kind:'discard',side:ctx.owner,cardId:discarded.cardId});
+          log(s,ctx.owner,`${s.catalog[discarded.cardId].name} 버림`);
+        }
+        break;
+      }
       case 'addRandomCard':case 'addCard':{const owners=e.side==='both'?[ctx.owner,other(ctx.owner)]:[e.side==='enemy'?other(ctx.owner):ctx.owner];for(const owner of owners)for(let i=0;i<e.count;i++)ops.addCard(owner,e.kind==='addCard'?e.cardId:e.cardIds[Math.floor(random(s)*e.cardIds.length)]);break;}
       case 'addCardNextTurn':p.nextTurnCards=[...(p.nextTurnCards??[]),e.cardId];break;
       case 'destroyWeapon':s.players[e.side==='friendly'?ctx.owner:other(ctx.owner)].weapon=null;break;

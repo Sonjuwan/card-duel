@@ -31,3 +31,7 @@ export function random(s: GameState): number {
   s.rng = (Math.imul(1664525, s.rng) + 1013904223) >>> 0;
   return s.rng / 4294967296;
 }
+
+export function log(s:GameState,player:PlayerId,message:string):void{
+  s.history.push({turn:s.turn,player,message});if(s.history.length>60)s.history.shift();
+}

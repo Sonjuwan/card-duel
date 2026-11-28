@@ -61,6 +61,13 @@ export function advanceImpactHistory(before:RoomView|null,after:RoomView,previou
     const card=catalog[revealed.cardId];
     effects.unshift({cardId:card.id,label:`${name(card)} · 비밀 발동`});
   }
+  for(const event of a.events??[]){
+    if(event.kind!=='discard')continue;
+    const card=catalog[event.cardId];
+    if(!card)continue;
+    const label=`${event.side===seat?'나':enemy} · ${name(card)} 버림`;
+    lines.push(label);effects.push({cardId:card.id,label});
+  }
   if(!lines.length)lines.push(source?.label??(a.kind==='secret'?'비밀 설치':a.kind==='turn'?'턴 변경':'행동 완료'));
   return [{revision:a.revision,turn:after.state.turn,actor,kind:a.kind,mark,source,target,effects,lines},...previous];
 }

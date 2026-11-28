@@ -1,5 +1,5 @@
 import type { Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target } from './types.ts';
-import { RULES, HERO_CLASSES, TRIBES, RuleError, requireRule, record, integer, isClass, other, validPlayer, random, setRuntime, opaqueId, emitVisual,maxCardCopies } from './rules.ts';
+import { RULES, HERO_CLASSES, TRIBES, RuleError, requireRule, record, integer, isClass, other, validPlayer, random, setRuntime, opaqueId, emitVisual,log,maxCardCopies } from './rules.ts';
 import type { RuntimeOptions } from './rules.ts';
 import { chooseTarget, effectiveTargetRule, hasKeyword, hero, lookupTarget, resolveEffects, TARGET_RULES, KEYWORDS, validateEffects, minionDamageResult } from './effects.ts';
 import type { Character, EffectContext, EffectOps, DeathPlacement, DeathSlot } from './effects.ts';
@@ -106,9 +106,6 @@ function instance(s: GameState, cardId: string): CardInstance {
 }
 function blankPlayer(heroClass: HeroClass): Player {
   return { heroClass, health: RULES.heroHealth, mana: 0, maxMana: 0, armor:0, heroAttack:0, heroAttacksRemaining:0, heroPowerUsed:false, pendingOverload:0,lockedMana:0,cardsPlayedThisTurn:0,weapon:null, secrets:[], fatigue: 0, deck: [], hand: [], board: [], mulliganDone: false };
-}
-function log(s:GameState,player:PlayerId,message:string):void{
-  s.history.push({turn:s.turn,player,message});if(s.history.length>60)s.history.shift();
 }
 function finish(s: GameState, winner: PlayerId|null, reason: NonNullable<GameState['reason']>): void {
   s.phase = 'finished'; s.winner = winner; s.reason = reason;

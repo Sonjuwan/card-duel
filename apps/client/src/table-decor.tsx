@@ -17,19 +17,14 @@ export const TableDecor=memo(function TableDecor(){
     <rect x="0" y="0" width="1400" height="800" fill="#33291f"/>
     <rect x="12" y="10" width="1376" height="780" rx="54" fill={`url(#${wood})`} stroke="#281b13" strokeWidth="10"/>
     <path d="M55 50H1345L1300 108 100 108ZM55 750H1345L1300 698H100Z" fill="#3c2819" opacity=".65"/>
-    <path d="M155 104Q182 80 245 87H1156Q1223 80 1246 104L1310 681Q1315 704 1280 715H120Q87 710 91 681Z" fill={`url(#${stone})`} stroke="#352619" strokeWidth="9"/>
-    <path d="M174 119Q195 96 247 103H1150Q1205 96 1227 119L1289 663Q1291 685 1263 692H137Q111 684 113 663Z" fill={`url(#${cloth})`} stroke="#674a2d" strokeWidth="5"/>
-    <path d="M174 119Q194 100 247 103H1150Q1205 97 1227 119M137 692H1263" stroke="#eed4a2" strokeWidth="3" fill="none" opacity=".45"/>
-    <g opacity=".16" stroke="#785431" fill="none" strokeLinecap="round">
-      <path d="M211 150Q404 166 581 145M813 151Q1006 161 1178 143M147 627Q330 605 528 629M885 628Q1097 603 1256 628" strokeWidth="4"/>
-      <path d="M213 301Q430 290 623 303T1177 299M205 357Q470 369 692 354T1194 359" strokeWidth="2"/>
-      <ellipse cx="700" cy="328" rx="233" ry="103" strokeWidth="3"/>
-      <ellipse cx="700" cy="328" rx="218" ry="91"/>
-      <path d="M700 263 744 328 700 393 656 328Z"/>
-      <circle cx="700" cy="328" r="18"/>
+    <rect x="96" y="80" width="1208" height="640" rx="40" fill={`url(#${stone})`} stroke="#352619" strokeWidth="9"/>
+    <rect x="118" y="101" width="1164" height="598" rx="29" fill={`url(#${cloth})`} stroke="#674a2d" strokeWidth="5"/>
+    <g opacity=".17" stroke="#705530" fill="none">
+      <ellipse cx="700" cy="400" rx="233" ry="103" strokeWidth="3"/>
+      <ellipse cx="700" cy="400" rx="218" ry="91"/>
+      <path d="M700 335 744 400 700 465 656 400Z"/>
+      <circle cx="700" cy="400" r="18"/>
     </g>
-    <path d="M145 328H1254" stroke="#705530" strokeWidth="3" opacity=".37"/>
-    <path d="M145 331H1254" stroke="#f3d8a1" strokeWidth="2" opacity=".45"/>
     {/* Four independent ornamental corner elements. */}
     <g transform="translate(20 24)" stroke="#382b1d" strokeWidth="4">
       <ellipse cx="90" cy="104" rx="87" ry="62" fill={`url(#${grass})`}/>

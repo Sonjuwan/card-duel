@@ -184,7 +184,7 @@ export interface Player {
 }
 export type Target = { kind: 'hero'; player?: PlayerId } | { kind: 'minion'; instanceId: string };
 /** Optional presentation trace. Targets are already public characters, never
- * hand/deck objects. It is not stored in authoritative game state. */
+ * hidden hand/deck objects. Discards expose only the removed card definition. It is not stored in authoritative game state. */
 export type BattleVisualEvent =
   | {kind:'damage';target:Target;side:PlayerId;amount:number;armorAbsorbed?:number}
   | {kind:'heal';target:Target;side:PlayerId;amount:number}
@@ -192,7 +192,8 @@ export type BattleVisualEvent =
   | {kind:'draw';side:PlayerId;burned:boolean}
   | {kind:'fatigue';side:PlayerId;target:Target;amount:number}
   | {kind:'combat';target:Target;side:PlayerId}
-  | {kind:'secretTriggered';cardId:string;side:PlayerId};
+  | {kind:'secretTriggered';cardId:string;side:PlayerId}
+  | {kind:'discard';cardId:string;side:PlayerId};
 export type Action =
   | { type: 'mulligan'; replace: string[] }
   | { type: 'playCard'; instanceId: string; target?: Target; position?: number; choice?:number }

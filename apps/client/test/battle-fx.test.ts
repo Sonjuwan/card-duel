@@ -580,3 +580,32 @@ test('single-pass impact feedback matches v0.323 reference for mixed events',()=
     assert.deepEqual(impactFeedback(animation,impacts),reference(animation,impacts),'seeded case '+i);
   }
 });
+
+test('accepted discards reveal only removed card definitions to both seats and queue each reveal',()=>{
+  const state=ready();
+  const discardSpell=catalog.doom_guard;
+  assert.ok(discardSpell);
+  state.players[0].hand=[{instanceId:'cast',cardId:discardSpell.id},...['wolf','flame_sphere','ice_shard'].map((cardId,index)=>({cardId,instanceId:'private-'+index}))];
+  const events:BattleVisualEvent[]=[];
+  const action={type:'playCard',instanceId:'cast'} as const;
+  const after=applyAction(state,0,action,{visualEvent:event=>events.push(event)});
+  const animation=describeAcceptedAction(state,after,0,action,events)!;
+  const discarded=animation.events!.filter(event=>event.kind==='discard');
+  assert.equal(discarded.length,2);
+  assert.equal(after.players[0].hand.length,1);
+  for(const event of discarded){
+    assert.deepEqual(Object.keys(event).sort(),['cardId','kind','side']);
+    assert.ok(!after.players[0].hand.some(card=>card.cardId===event.cardId));
+  }
+  for(const seat of [0,1] as const){
+    const before=room(state,seat),next=room(after,seat,animation);
+    const history=advanceImpactHistory(before,next,[],catalog,card=>card.name);
+    assert.equal(history[0].lines.filter(line=>line.endsWith('버림')).length,2);
+    const scheduled:number[]=[];
+    new PlaybackTimeline(before,()=>{},()=>{},{
+      schedule:(_fn,delay)=>{scheduled.push(delay);return 1 as unknown as ReturnType<typeof setTimeout>;},
+      cancel:()=>{},
+    }).receive(next,true);
+    assert.deepEqual(scheduled,[1,1].map(()=>scaledBattleTiming(animation,next.animationSpeed).duration+(next.animationSpeed==='fast'?2750:5000)));
+  }
+});
