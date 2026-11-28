@@ -9,7 +9,7 @@
 .faction-mage{--frame-material:url('./assets/frame-mage.webp')}
 .faction-priest{--frame-material:url('./assets/frame-priest.webp')}
 
-.battle-card[class*="faction-"]:not(.is-ready,.is-selected,:focus-visible){
+.battle-card.faction-neutral:not(.is-ready,.is-selected,:focus-visible){
   outline:1px solid color-mix(in srgb,var(--frame-shine,#dec490),transparent 38%);
   outline-offset:-4px;
 }
@@ -24,9 +24,24 @@
 }
 .battle-card.faction-neutral .card-faction-mark{display:none}
 .battle-card:not(.faction-neutral,.faction-coin){
-  background-image:linear-gradient(140deg,var(--frame-edge) 2%,transparent 23%,transparent 75%,var(--frame-edge)),var(--frame-material);
-  background-size:cover;
+  --frame-luster:color-mix(in srgb,var(--frame-shine),white 12%);
+  border-color:transparent!important;
+  background:linear-gradient(155deg,var(--paper-dark),var(--paper));
+  box-shadow:0 3px 6px #131d2191;
 }
+/* The painted bevel occupies the same-width rim on all four sides. The
+   existing layout box still owns the art, name and description dimensions. */
+.battle-card:not(.faction-neutral,.faction-coin)::before,
+.compact-hand-thumbnail:not(.faction-neutral,.faction-coin)::before{
+  content:"";position:absolute;inset:-1px;z-index:1;pointer-events:none;
+  border-radius:inherit;padding:clamp(3px,4.3cqi,9px);
+  background:linear-gradient(144deg,var(--frame-luster) 0%,transparent 24%,transparent 67%,#100b17be 100%),
+    var(--frame-material) center/140px;
+  box-shadow:inset 0 0 0 1px var(--frame-edge),inset 0 0 0 2px #ffedc358;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude;
+}
+.compact-hand-thumbnail:not(.faction-neutral,.faction-coin)::before{inset:0;padding:2px}
 .battle-card:not(.faction-neutral,.faction-coin) .card-art{
   outline:1px solid var(--frame-shine);outline-offset:-1px;
 }
