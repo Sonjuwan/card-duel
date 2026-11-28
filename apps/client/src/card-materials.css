@@ -1,26 +1,46 @@
-/* Shared front-card materials retain the existing faction palette and gem. */
+/* Nine source textures share the existing card surfaces and class palette. */
+.faction-warrior{--frame-material:url('./assets/frame-warrior.webp')}
+.faction-shaman{--frame-material:url('./assets/frame-shaman.webp')}
+.faction-rogue{--frame-material:url('./assets/frame-rogue.webp')}
+.faction-paladin{--frame-material:url('./assets/frame-paladin.webp')}
+.faction-hunter{--frame-material:url('./assets/frame-hunter.webp')}
+.faction-druid{--frame-material:url('./assets/frame-druid.webp')}
+.faction-warlock{--frame-material:url('./assets/frame-warlock.webp')}
+.faction-mage{--frame-material:url('./assets/frame-mage.webp')}
+.faction-priest{--frame-material:url('./assets/frame-priest.webp')}
+
 .battle-card[class*="faction-"]:not(.is-ready,.is-selected,:focus-visible){
   outline:1px solid color-mix(in srgb,var(--frame-shine,#dec490),transparent 38%);
   outline-offset:-4px;
 }
-.battle-card.faction-neutral:not(.kind-coin){
-  --paper:#dedbd3;--paper-dark:#8d8e88;--frame-edge:#464d4c;--frame-shine:#b7bbb3;--banner:#a2a6a0;
-  border-color:#66706b;
-  background:repeating-linear-gradient(153deg,#50585330 0 1px,transparent 1px 11px),
-    linear-gradient(110deg,#8b908a,#e5e1d6 13%,#d7d4cb 85%,#7a847d);
-  box-shadow:0 4px 7px #111a17ba,inset 0 0 0 2px #b6b6a7,inset 0 0 0 4px #59635e;
+.battle-card.faction-neutral{
+  --paper:#e8e4dc;--paper-dark:#b7b6ac;--frame-edge:#686863;--frame-shine:#d4cdc0;--banner:#acaca4;
+  border-color:#767971;
+  background:linear-gradient(155deg,#f0ece4,#d7d6ce);
+  box-shadow:0 3px 6px #131d21a3,inset 0 0 0 1px #fcf9ec;
 }
-.battle-card.faction-neutral .card-name{background:linear-gradient(#515b56,#323c38 65%,#48524c)}
-.battle-card.faction-warrior{--material:repeating-linear-gradient(125deg,#ffcc9c26 0 1px,transparent 1px 5px)}
-.battle-card.faction-shaman{--material:repeating-linear-gradient(65deg,#c0fbff28 0 2px,transparent 2px 8px)}
-.battle-card.faction-rogue{--material:repeating-linear-gradient(40deg,#14151848 0 1px,transparent 1px 4px)}
-.battle-card.faction-paladin{--material:linear-gradient(135deg,#ffdf8412 32%,#fff5ab75 48%,transparent 62%)}
-.battle-card.faction-hunter{--material:repeating-linear-gradient(32deg,#42551842 0 2px,transparent 2px 8px)}
-.battle-card.faction-druid{--material:repeating-linear-gradient(86deg,#5730173b 0 1px,transparent 1px 6px)}
-.battle-card.faction-warlock{--material:radial-gradient(ellipse at 72% 103%,#1200229e,transparent 68%)}
-.battle-card.faction-mage{--material:linear-gradient(135deg,transparent 29%,#b3ceff80 49%,transparent 71%)}
-.battle-card.faction-priest{--material:linear-gradient(135deg,#fff6bd60,transparent 48%,#fffdfc80)}
-.battle-card:not(.faction-neutral) .card-name{
-  background:linear-gradient(#17101747,#17101765),var(--material,linear-gradient(transparent,transparent)),
-    linear-gradient(110deg,var(--card-ribbon),color-mix(in srgb,var(--card-ribbon),#13111a 28%));
+.battle-card.faction-neutral .card-name{
+  background:#515a59;color:#fff5e8;padding-inline:4%;
+}
+.battle-card.faction-neutral .card-faction-mark{display:none}
+.battle-card:not(.faction-neutral,.faction-coin){
+  background-image:linear-gradient(140deg,var(--frame-edge) 2%,transparent 23%,transparent 75%,var(--frame-edge)),var(--frame-material);
+  background-size:cover;
+}
+.battle-card:not(.faction-neutral,.faction-coin) .card-art{
+  outline:1px solid var(--frame-shine);outline-offset:-1px;
+}
+.battle-card:not(.faction-neutral,.faction-coin) .card-copy{
+  background:linear-gradient(140deg,var(--paper),color-mix(in srgb,var(--paper) 92%,white));
+  border-radius:0 0 3px 3px;
+}
+.battle-card:not(.faction-neutral,.faction-coin) .card-name,
+.compact-hand-thumbnail:not(.faction-neutral,.faction-coin) .card-name{
+  background-image:linear-gradient(110deg,#1a142760,#120f1b80),var(--frame-material);
+  background-size:cover;background-position:center 39%;
+  color:#fff8ea;text-shadow:0 1px 2px #0c1222;
+}
+.battle-card.faction-priest .card-name,.compact-hand-thumbnail.faction-priest .card-name{
+  background-image:linear-gradient(#fbedd64d,#c9bba437),var(--frame-material);
+  color:#30291d;text-shadow:0 1px 1px #faf3e4;
 }

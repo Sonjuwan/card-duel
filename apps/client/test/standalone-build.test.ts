@@ -11,8 +11,10 @@ const css=html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
 test('standalone embeds the app, all registered illustrations and no external HTML resources',()=>{
   assert.ok(js&&css);
   const backgrounds=['hall','hall-small','gallery','gallery-small','archive','archive-small','arena','arena-small','board'].map(name=>'runehall-'+name+'.webp');
-  assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458+backgrounds.length);
-  for(const file of backgrounds){
+  const materials=['warrior','shaman','rogue','paladin','hunter','druid','warlock','mage','priest'].map(hero=>'frame-'+hero+'.webp');
+  const textures=[...backgrounds,...materials];
+  assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458+textures.length);
+  for(const file of textures){
     const content=readFileSync(new URL('../src/assets/'+file,import.meta.url)).toString('base64');
     assert.ok(css.includes('data:image/webp;base64,'+content),file+' must be available offline');
   }

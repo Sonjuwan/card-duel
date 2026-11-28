@@ -104,7 +104,7 @@
   .compact-hand-thumbnail .card-art{grid-area:1/1;position:relative;overflow:hidden}
   .compact-hand-thumbnail .card-art .painted-art{display:block;position:absolute;inset:0}
   .compact-hand-thumbnail .card-name{
-    grid-area:2/1;background:var(--card-ribbon,#473f39);color:#fff;overflow:hidden;
+    grid-area:2/1;background-color:var(--card-ribbon,#473f39);color:#fff;overflow:hidden;
     font-size:3px;font-weight:800;line-height:1.2;padding:1px 0;white-space:nowrap;text-align:center;
   }
   .compact-hand-thumbnail .card-mana,.compact-hand-thumbnail .card-statline>.stat{
