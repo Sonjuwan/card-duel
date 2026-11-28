@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 import {mkdirSync} from 'node:fs';
 import {createSoloAppServer} from '../../cli/serve-solo-app.mjs';
 
-test('mobile catalog and deck builder keep eight-card pages and read-only inspection distinct from addition',{timeout:120000},async t=>{
+test('mobile catalog and deck builder keep eight-card pages, read-only collection inspection and direct deck editing',{timeout:120000},async t=>{
   const server=createSoloAppServer();
   server.prependListener('request',req=>{if(req.url?.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -59,7 +59,7 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
       const save=workspace.querySelector('.deck-save-primary');
       let saveTextFits=true;
       if(save?.getBoundingClientRect().width){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
-      return {badBadges,badgeCount:badges.length,badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
+      return {badBadges,badgeCount:badges.length,badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:(innerHeight<=540||left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5))&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
     },mode);
     const msg=JSON.stringify({mode,width,height,...geometry});
     await page.screenshot({path:'ui-evidence/'+mode+'-'+width+'x'+height+'.png'});
@@ -102,12 +102,24 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await count.waitFor({state:'attached'});
   assert.equal(await count.textContent(),'0/30');
   const card=builder.locator('.collection-book .battle-card').first();
-  await card.tap();await detail.waitFor();
-  assert.equal(await count.textContent(),'0/30','inspection must not add a card');
-  await detail.getByRole('button',{name:'덱에 추가',exact:true}).tap();
-  await page.waitForFunction(()=>document.querySelector('.deck-live-count')?.textContent==='1/30');
-  await detail.getByRole('button',{name:'닫기',exact:true}).tap();
-  await page.locator('.collection-detail-dialog .collection-detail-body').waitFor({state:'detached'});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await card.tap();
+  const flying=page.locator('.deck-motion-ghost');
+  await flying.waitFor();
+  await flying.waitFor({state:'detached'});
+  assert.equal(await count.textContent(),'1/30');
+  assert.equal(await detail.count(),0);
+  await card.tap();await card.tap();
+  assert.equal(await count.textContent(),'2/30','the copy limit applies to consecutive taps');
+  await builder.getByRole('button',{name:'공용',exact:true}).tap();
+  await builder.locator('.deck-inspect-row').first().tap();
+  assert.equal(await builder.locator('.deck-card-located').count(),1);
+  assert.equal(await count.textContent(),'2/30','locating a card does not change the deck');
+  await builder.locator('.deck-remove').first().tap();
+  await flying.first().waitFor();
+  await flying.first().waitFor({state:'detached'});
+  assert.equal(await count.textContent(),'1/30');
+  await page.emulateMedia({reducedMotion:'reduce'});
   for(const [width,height] of sizes)await checkWorkspace('builder',width,height);
   const tabs=builder.locator('.book-class-tabs button');
   const next=builder.getByRole('button',{name:'다음 페이지',exact:true}),previous=builder.getByRole('button',{name:'이전 페이지',exact:true});

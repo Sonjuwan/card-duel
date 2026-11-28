@@ -74,10 +74,8 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await savedTile.click();
   assert.equal(await savedTile.getAttribute('aria-pressed'),'true');
   await edit.click();
-  await page.getByRole('button',{name:'내 덱',exact:true}).click();
   assert.equal(await page.getByPlaceholder('저장할 덱 이름').inputValue(),entries[1].name);
   assert.equal(await page.locator('.deck-live-count').textContent(),'30/30');
-  await page.getByRole('dialog',{name:'내 덱',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
   await page.getByRole('button',{name:'메인으로'}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).count(),0,'slot management is not on the play screen');
@@ -157,9 +155,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   assert.equal(await builder.getByRole('button',{name:'다음 페이지'}).isEnabled(),true);
   await builder.getByRole('button',{name:'다음 페이지'}).click();
   assert.match(await builder.locator('.book-page-status').textContent(),/^2 \/ /);
-  await builder.getByRole('button',{name:'내 덱',exact:true}).click();
   assert.equal(await builder.getByRole('button',{name:'덱 저장',exact:true}).evaluate(button=>getComputedStyle(button).whiteSpace),'nowrap');
-  await page.getByRole('dialog',{name:'내 덱',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
   const growthRecord=()=>page.evaluate(async()=>{
     const request=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
     const db=await new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
@@ -330,14 +326,12 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.getByRole('button',{name:'덱 관리',exact:true}).click();
   await page.getByRole('button',{name:'추천 덱',exact:true}).click();
   await page.getByRole('dialog',{name:'덱 관리',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
-  await page.getByRole('button',{name:'내 덱',exact:true}).click();
   await page.locator('.deck-builder .deck-live-count').getByText('30/30',{exact:true}).waitFor();
   const playerDecks=await page.evaluate(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks'));
   await page.getByPlaceholder('저장할 덱 이름').fill('개발자 시험 덱');
   await page.getByRole('button',{name:'덱 저장',exact:true}).click();
   await page.waitForFunction(()=>localStorage.getItem('card-duel-ui-preview-slot-1:developer:card-duel-saved-decks')?.includes('개발자 시험 덱'));
   assert.equal(await page.evaluate(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks')),playerDecks);
-  await page.getByRole('dialog',{name:'내 덱',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
   await page.getByRole('button',{name:'메인으로'}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
   await page.waitForFunction(()=>document.activeElement?.getAttribute('data-lobby-tab')==='developer');

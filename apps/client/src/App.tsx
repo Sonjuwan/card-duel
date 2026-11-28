@@ -69,7 +69,7 @@ function useDeckLibraryAutoRefresh(storage:SlotStorage,saved:NamedDeck[],setSave
   useEffect(()=>watchDeckLibraryChanges({store:storage,current:()=>latestRef.current,canRefresh:()=>callbacks.current.canRefresh(),onChange:next=>{latestRef.current=next;setSaved(next);callbacks.current.onChanged();},onError:message=>callbacks.current.onError(message),onRecovered:message=>callbacks.current.onRecovered(message)}),[storage,setSaved,refreshWhenReady]);
 }
 export function DeckEditor(props:DeckEditorProps){
-  return <HoverPreviewProvider resetKey={props.deck.heroClass}><DeckEditorView {...props}/></HoverPreviewProvider>;
+  return <DeckEditorView {...props}/>;
 }
 function useCompactCollection(){
   const [compact,setCompact]=useState(false);

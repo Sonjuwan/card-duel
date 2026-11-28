@@ -1,5 +1,5 @@
 /* Shared front-card materials retain the existing faction palette and gem. */
-.battle-card[class*="faction-"]{
+.battle-card[class*="faction-"]:not(.is-ready,.is-selected,:focus-visible){
   outline:1px solid color-mix(in srgb,var(--frame-shine,#dec490),transparent 38%);
   outline-offset:-4px;
 }
@@ -10,7 +10,7 @@
     linear-gradient(110deg,#8b908a,#e5e1d6 13%,#d7d4cb 85%,#7a847d);
   box-shadow:0 4px 7px #111a17ba,inset 0 0 0 2px #b6b6a7,inset 0 0 0 4px #59635e;
 }
-.battle-card.faction-neutral .card-name{background:linear-gradient(#b3bbb5,#e4e3da 50%,#8c9890)}
+.battle-card.faction-neutral .card-name{background:linear-gradient(#515b56,#323c38 65%,#48524c)}
 .battle-card.faction-warrior{--material:repeating-linear-gradient(125deg,#ffcc9c26 0 1px,transparent 1px 5px)}
 .battle-card.faction-shaman{--material:repeating-linear-gradient(65deg,#c0fbff28 0 2px,transparent 2px 8px)}
 .battle-card.faction-rogue{--material:repeating-linear-gradient(40deg,#14151848 0 1px,transparent 1px 4px)}
@@ -21,5 +21,6 @@
 .battle-card.faction-mage{--material:linear-gradient(135deg,transparent 29%,#b3ceff80 49%,transparent 71%)}
 .battle-card.faction-priest{--material:linear-gradient(135deg,#fff6bd60,transparent 48%,#fffdfc80)}
 .battle-card:not(.faction-neutral) .card-name{
-  background:var(--material,linear-gradient(transparent,transparent)),linear-gradient(0deg,var(--banner),var(--paper) 56%,var(--banner));
+  background:linear-gradient(#17101747,#17101765),var(--material,linear-gradient(transparent,transparent)),
+    linear-gradient(110deg,var(--card-ribbon),color-mix(in srgb,var(--card-ribbon),#13111a 28%));
 }
