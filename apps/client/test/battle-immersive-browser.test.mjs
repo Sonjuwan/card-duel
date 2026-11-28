@@ -156,7 +156,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   await page.locator('.friendly-board .battle-minion').nth(6).waitFor();
   await page.evaluate(async()=>{if(document.fullscreenElement)await document.exitFullscreen();});
   await metrics.detach();
-  for(const [width,height] of [[640,360],[780,360],[844,390],[932,430],[1024,768]]){
+  for(const [width,height] of [[640,360],[780,360],[844,390],[932,430],[1024,768],[1366,768]]){
     await page.setViewportSize({width,height});
     const dimensions=await page.evaluate(()=>{
       const box=selector=>document.querySelector(selector).getBoundingClientRect().toJSON();
@@ -191,7 +191,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const hand=page.locator('.folded-hand');
     const board=page.locator('.friendly-board');
     const before=await board.boundingBox();
-    const compact=width!==1024;
+    const compact=height<=540;
     if(compact)await hand.tap();
     else assert.equal(await hand.isVisible(),false);
     const targets=await page.locator('.own-hand .battle-card').evaluateAll(cards=>cards.map(card=>{
@@ -204,13 +204,16 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
       const boxes=[...document.querySelectorAll('.battle-mana,.deck-pile,.folded-hand')].filter(el=>el.getClientRects().length).map(rect);
       const cards=[...document.querySelectorAll('.own-hand .battle-card')].map(rect);
       const overlap=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+      const settings=rect(document.querySelector('.compact-settings-trigger'));
+      const opponentInfo=[...document.querySelectorAll('.hidden-hand .hand-count,.enemy-mana .mana-display')];
       return {cards:cards.every(card=>boxes.every(resource=>!overlap(card,resource))),
+        opponentInfo:opponentInfo.length===2&&opponentInfo.every(el=>rect(el).width>0&&!overlap(rect(el),settings)),
         stats:[...document.querySelectorAll('.battle-minion .minion-statline .stat')].every(el=>{
           const style=getComputedStyle(el);
           return style.borderRadius==='50%'&&parseFloat(style.fontSize)>=18&&style.backgroundColor!=='rgba(0, 0, 0, 0)';
         })};
     });
-    assert.deepEqual(resourceGeometry,{cards:true,stats:true},String(width));
+    assert.deepEqual(resourceGeometry,{cards:true,opponentInfo:true,stats:true},String(width));
     const card=page.locator('.own-hand .battle-card').first();
     await page.screenshot({path:`ui-evidence/dense-${width}-hand.png`});
     const original=await card.boundingBox();

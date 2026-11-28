@@ -41,6 +41,11 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await context.addInitScript(({entries,trialDecks})=>{
     localStorage.setItem('card-duel-ui-preview-slot-1:card-duel-saved-decks',JSON.stringify([entries[0],...Array.from({length:9},(_,i)=>({...entries[0],name:'마법사 시험덱 '+(i+2)}))]));
     localStorage.setItem('card-duel-ui-preview-slot-2:card-duel-saved-decks',JSON.stringify([entries[1]]));
+    const slot2='card-duel-ui-preview-slot-2:';
+    if(!localStorage.getItem(slot2+'card-duel-last-draft')){
+      localStorage.setItem(slot2+'card-duel-last-draft','legacy-catalog');
+      localStorage.setItem(slot2+'card-duel-draft-legacy-catalog',JSON.stringify(entries[1].deck,null,2));
+    }
     localStorage.setItem('card-duel-ui-preview-slot-1:developer:card-duel-saved-decks',JSON.stringify(trialDecks));
   },{entries,trialDecks});
   const page=await context.newPage();
@@ -54,6 +59,10 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.reload();
   await openSlots();
   assert.ok(await page.getByRole('button',{name:'슬롯 2 · 선택됨',exact:true}).isDisabled());
+  assert.deepEqual(await page.evaluate(()=>{
+    const prefix='card-duel-ui-preview-slot-2:';
+    return [localStorage.getItem(prefix+'card-duel-last-draft'),localStorage.getItem(prefix+'card-duel-draft-legacy-catalog')];
+  }),['legacy-catalog',JSON.stringify(entries[1].deck,null,2)]);
   await page.getByRole('button',{name:'메인으로',exact:true}).click();
   assert.equal(await page.locator('.preview-lobby > .app-header').evaluate(el=>getComputedStyle(el).display),'none','the large header is removed');
   await page.getByRole('button',{name:'덱 목록',exact:true}).click();
@@ -295,7 +304,8 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await closeFilter();
   const browserCards=page.locator('.card-browser .collection-item');
   const healing=browserCards.filter({hasText:'치유 토템'});
-  await healing.getByText('비수집 생성 카드').waitFor();
+  await healing.getByRole('button').waitFor();
+  assert.equal(await healing.locator('.collection-copy-badge').count(),0);
   await healing.getByRole('button').click();
   const detail=page.getByRole('dialog',{name:'카드 확대 상세'});
   await detail.getByRole('group',{name:'카드 상세'}).getByText('내 턴이 끝날 때 모든 아군 하수인의 생명력을 1 회복합니다.',{exact:true}).waitFor();
@@ -305,7 +315,8 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await search.fill('이번 턴에 마나 1을 얻습니다');
   await closeFilter();
   const coin=browserCards.filter({hasText:'동전'});
-  await coin.getByText('비수집 생성 카드').waitFor();
+  await coin.getByRole('button').waitFor();
+  assert.equal(await coin.locator('.collection-copy-badge').count(),0);
   await openFilter();
   await search.fill('치유 토템');
   await closeFilter();
