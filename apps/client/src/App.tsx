@@ -382,7 +382,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     }catch{clearTimeout(timer);finish(null,false);}
     return ()=>{clearTimeout(timer);probe?.terminate();};
   },[lossOnExit,lobbyView,offlineMode,room,busy,slot,baseWorkerFactory]);
-  const [toast,setToast]=useState<{text:string;kind:'success'|'info'}|null>(null);
+  const [toast,setToast]=useState<{text:string;kind:'success'|'info';homeOnly?:boolean}|null>(null);
   useEffect(()=>{
     if(!toast)return;
     const id=setTimeout(()=>setToast(null),2600);
@@ -394,7 +394,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
       const key='card-duel-local-storage-intro';
       if(!localStorage.getItem(key)){
         localStorage.setItem(key,'1');
-        setToast({text:'경기와 덱은 이 브라우저의 선택한 슬롯에 저장됩니다.',kind:'info'});
+        setToast({text:'경기와 덱은 이 브라우저의 선택한 슬롯에 저장됩니다.',kind:'info',homeOnly:true});
       }
     }catch{}
   },[standalone]);
@@ -638,7 +638,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><h1>Card Duel</h1></div></div><div className="connection"><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
     <div className="screen-content" id="card-duel-screen" ref={screenScrollRef}>
     {!room&&<div className="lobby-settings-entry"><LobbyDialog label="설정" icon="⚙"><AudioMixer/>{standalone&&<OfflineStatus/>}<small>Card Duel v{project.version}</small></LobbyDialog></div>}
-    {toast&&!error&&!room&&<ToastNotice key={toast.text} kind={toast.kind}>{toast.text}</ToastNotice>}
+    {toast&&!error&&!room&&(!toast.homeOnly||lobbyView==='home')&&<ToastNotice key={toast.text} kind={toast.kind}>{toast.text}</ToastNotice>}
     {(error||workerStalled)&&<div className="error game-error-toast" role="alert">{error||'기기 AI 작업 응답을 기다리는 중입니다.'}{workerStalled?<><small>응답을 기다리거나 마지막으로 저장된 상태를 복구할 수 있습니다.</small><button type="button" className="secondary" onClick={recoverStalledWorker}>마지막 저장으로 복구</button></>:<button className="secondary" onClick={()=>setError('')}>닫기</button>}</div>}
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}

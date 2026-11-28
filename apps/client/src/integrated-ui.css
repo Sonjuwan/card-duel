@@ -1182,7 +1182,8 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .arena-field .minion-row .battle-minion{max-height:100%}
   .game-main .duel-screen .battle-arena.classic-table{
-    --side-gutter:max(11%,min(20dvw,33dvh));
+    --own-mana-width:min(15dvw,29dvh);
+    --side-gutter:max(11%,calc(var(--own-mana-width) + 16px));
     --away-hand-left:max(53px,7.5%);
     --away-hand-top:max(5px,1%);
     --away-card-width:min(9.5dvh,7.6dvw);
@@ -1211,6 +1212,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .battle-mana .mana-number{font-size:clamp(13px,2.2dvh,24px)}
   .game-main .duel-screen .battle-mana .mana-crystal{height:min(2.3dvh,1.6dvw)}
+  .game-main .duel-screen .own-mana .mana-display{width:var(--own-mana-width)!important}
   .game-main .duel-screen .own-mana{
     inset:auto var(--resource-inset) max(5px,env(safe-area-inset-bottom)) auto!important;
   }
