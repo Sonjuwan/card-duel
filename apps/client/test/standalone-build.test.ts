@@ -9,7 +9,13 @@ const html=readFileSync('solo-offline.html','utf8');
 const js=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 const css=html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
 test('standalone embeds the app, all registered illustrations and no external HTML resources',()=>{
-  assert.ok(js&&css);assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458);
+  assert.ok(js&&css);
+  const backgrounds=['runehall-hall.webp','runehall-hall-small.webp'];
+  assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458+backgrounds.length);
+  for(const file of backgrounds){
+    const content=readFileSync(new URL('../src/assets/'+file,import.meta.url)).toString('base64');
+    assert.ok(css.includes('data:image/webp;base64,'+content),file+' must be available offline');
+  }
   assert.ok(html.includes(`<title>RUNEHALL v${JSON.parse(readFileSync('package.json','utf8')).version} · 오프라인 솔로</title>`));
   assert.doesNotMatch(css,/url\(["']?(?:https?:|\/\/|\.\/assets)/);
   assert.doesNotMatch(html.slice(0,html.indexOf('<script type="module">')),/<(?:link|script)\b[^>]*(?:src|href)=/);
