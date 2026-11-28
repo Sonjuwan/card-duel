@@ -1,2 +1,2 @@
-v0.339.0 fully built in Node24 and passed automated gates. Browser validation used Chromium.
-Build baseline: PREVIOUS VERIFIED v0.338.0.
+v0.340.0 fully built in Node24 and passed automated gates. Browser validation used Chromium.
+Build baseline: PREVIOUS VERIFIED v0.339.0.
