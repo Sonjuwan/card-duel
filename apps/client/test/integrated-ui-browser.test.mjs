@@ -69,7 +69,7 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     assert.equal(await effects.inputValue(),'75');
     await page.screenshot({path:'ui-evidence/audio-'+label+'.png'});
     await settings.getByRole('button',{name:'닫기',exact:true}).click();
-    await page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+    await page.getByRole('button',{name:/보상의 길|경험치 · 카드 획득/}).click();
     assert.equal(await page.locator('input[type=file]').count(),0);
     assert.equal(await page.getByRole('button',{name:/백업|복원/}).count(),0);
     const reward=await page.locator('.road-stop .battle-card').first().boundingBox();
@@ -283,7 +283,7 @@ test('previously saved card rewards open each exact collection page without cons
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.setDefaultTimeout(9000);
   await page.goto(url);
-  const openRewards=()=>page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+  const openRewards=()=>page.getByRole('button',{name:/보상의 길|경험치 · 카드 획득/}).click();
   await openRewards();
   await page.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
   await page.evaluate(async record=>{
@@ -338,7 +338,7 @@ test('saved match awards persist before each click-confirmed reveal on desktop, 
       page.setDefaultTimeout(7500);
       page.on('dialog',dialog=>void dialog.accept());
       await page.goto(url);
-      await page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
+      await page.getByRole('button',{name:/보상의 길|경험치 · 카드 획득/}).click();
       await page.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
       await page.evaluate(async({initial,snapshot})=>{
         const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
@@ -392,7 +392,7 @@ test('saved match awards persist before each click-confirmed reveal on desktop, 
       assert.equal(await card.count(),1);
       if(label==='phone'){
         await page.reload();
-        await page.getByRole('button',{name:/경험치 · 카드 획득/}).waitFor();
+        await page.getByRole('button',{name:/보상의 길|경험치 · 카드 획득/}).waitFor();
       }else{
         await press();
         await overlay.waitFor({state:'detached'});

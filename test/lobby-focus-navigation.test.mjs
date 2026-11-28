@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
+const home=readFileSync(new URL('../apps/client/src/RunehallHome.tsx',import.meta.url),'utf8');
 const app=readFileSync(new URL('../apps/client/src/App.tsx',import.meta.url),'utf8');
 test('the home menu opens each independent screen with focus restoration',()=>{
   assert.match(app,/lobbyView==='home'/);
@@ -18,7 +19,8 @@ test('navigation from unmounted panels returns focus to the matching persistent 
 });
 
 test('slot and growth are a separate preview home destination, not a play support button',()=>{
-  assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
+  assert.match(home,/data-lobby-tab="slots" onClick=\{\(\)=>onOpen\('slots'\)\}/);
+  assert.match(app,/lobbyView==='growth'&&lossOnExit\?<PlayerGrowth/);
   assert.match(app,/lobbyView==='slots'&&lossOnExit\?<section className="preview-slot-only"/);
   assert.match(app,/!lossOnExit&&<LobbyDialog label="슬롯 · 성장 · 저장 경기">/);
   assert.match(app,/readSelectedSlot\(\)/);

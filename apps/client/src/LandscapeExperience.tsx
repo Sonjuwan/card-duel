@@ -5,6 +5,8 @@ import {isInstalledGameDisplay,requestLandscapeFeatures} from './landscape-mode.
 /** The browser may refuse fullscreen or orientation lock. Neither is needed to
  * play: the same layout is available by turning the device physically. */
 export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
+  const [desktop,setDesktop]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(pointer: fine)').matches);
+  const [fullscreen,setFullscreen]=useState(false);
   const [notice,setNotice]=useState('');
   const [busy,setBusy]=useState(false);
   const requestPending=useRef(false),lockedByUs=useRef(false);
@@ -12,11 +14,14 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
   const alreadyAppWindow=()=>isInstalledGameDisplay(query=>Boolean(window.matchMedia?.(query)?.matches),
     (navigator as Navigator & {standalone?:boolean}).standalone===true);
   useEffect(()=>{
-    const sync=()=>{const full=Boolean(document.fullscreenElement);
+    const pointer=window.matchMedia('(pointer: fine)');
+    const syncPointer=()=>setDesktop(pointer.matches);
+    const sync=()=>{const full=Boolean(document.fullscreenElement);setFullscreen(full);
       if(!full&&lockedByUs.current){lockedByUs.current=false;try{(screen.orientation as ScreenOrientation & {unlock?:()=>void}|undefined)?.unlock?.();}catch{}}
     };
     document.addEventListener('fullscreenchange',sync);sync();
-    return ()=>document.removeEventListener('fullscreenchange',sync);
+    pointer.addEventListener('change',syncPointer);
+    return ()=>{document.removeEventListener('fullscreenchange',sync);pointer.removeEventListener('change',syncPointer);};
   },[]);
   useEffect(()=>{
     const media=window.matchMedia('(pointer: coarse) and (orientation: portrait)');
@@ -43,6 +48,13 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
     if(requestPending.current)return;
     requestPending.current=true;setBusy(true);setNotice('');
     try{
+      if(desktop){
+        try{
+          if(document.fullscreenElement)await document.exitFullscreen();
+          else await document.documentElement.requestFullscreen();
+        }catch{setNotice('이 브라우저에서는 전체화면 전환이 제한됩니다.');}
+        return;
+      }
       const outcome=await requestLandscapeFeatures(
         async()=>{
           if(document.fullscreenElement||window.matchMedia('(display-mode: fullscreen)').matches)return true;
@@ -64,7 +76,7 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
   };
   return <>
     {menu&&createPortal(<button type="button" className="landscape-menu-button"
-      onClick={()=>void requestLandscape()} disabled={busy}><span aria-hidden="true">⛶</span> <span>가로 전체화면</span></button>,menu)}
+      onClick={()=>void requestLandscape()} disabled={busy}><span aria-hidden="true">⛶</span> <span>{desktop?(fullscreen?'전체화면 종료':'전체화면'):'가로 전체화면'}</span></button>,menu)}
     {notice&&<div className="landscape-fullscreen-feedback" role="status">
       <span>{notice}</span><button type="button" className="secondary" aria-label="전체화면 안내 닫기" onClick={()=>setNotice('')}>닫기</button>
     </div>}

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 
 const load=(s)=>readFileSync(new URL(`../apps/client/src/${s}`,import.meta.url),'utf8');
-const app=load('App.tsx'),shell=load('landscape-shell.css'),component=load('LandscapeExperience.tsx');
+const app=load('App.tsx'),shell=load('landscape-shell.css'),home=load('RunehallHome.tsx'),component=load('LandscapeExperience.tsx');
 test('online and offline both import the complete landscape shell last',()=>{
   for(const entry of ['main.tsx','offline-main.tsx']){
     const source=load(entry);
@@ -23,7 +23,7 @@ test('game and deck modes share a clipped viewport and independently scrolling a
 test('game menu exposes a dedicated slot/progression page outside the play setup',()=>{
   const menu=app.indexOf('aria-label="게임 메뉴"');
   assert.ok(menu>0&&menu<app.indexOf("lobbyView==='play'?<div className=\"play-hub\""));
-  assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
+  assert.match(home,/data-lobby-tab="slots" onClick=\{\(\)=>onOpen\('slots'\)\}/);
   assert.match(app,/lobbyView==='slots'&&lossOnExit\?<section className="preview-slot-only"/);
   assert.match(shell,/\.lobby-tabs\[aria-label="게임 메뉴"\]\{[^}]*position:sticky/);
 });
@@ -43,8 +43,8 @@ test('portrait guide offers manual rotation and fullscreen only through direct i
 });
 test('battle, deck maker and card catalog are actual switched game screens',()=>{
   assert.match(app,/initialLobbyView='home'/);
-  assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
-  for(const part of ['등급','퀘스트','경험치 · 카드 획득','개발자 모드'])assert.ok(app.includes(part));
+  assert.match(home,/data-lobby-tab="slots" onClick=\{\(\)=>onOpen\('slots'\)\}/);
+  for(const part of ['등급','퀘스트','보상의 길','개발자 모드','직업별 성장'])assert.ok(home.includes(part));
   assert.match(app,/lobbyView==='catalog'\?<CardBrowser\b[^>]*\bfocusCardId=\{catalogFocus\}[^>]*\bunreadIds=/);
   assert.match(app,/data-lobby-tab="play".*setEnterDeckEditor\(false\);openLobbyView\('decks',true\)/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);

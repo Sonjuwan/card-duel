@@ -112,7 +112,7 @@ test('installed game verifies and explicitly applies an update without reinstall
     await dialog.getByRole('button',{name:'업데이트 확인',exact:true}).tap();
     await dialog.getByRole('button',{name:'최신 버전 적용',exact:true}).tap();
     await select(first,1);
-    await first.getByRole('button',{name:/경험치 · 카드 획득/}).tap();
+    await first.getByRole('button',{name:/보상의 길/}).tap();
     await first.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
     const migrated=await oldSlot(first);
     assert.equal(migrated.profile.rewardRoad.paths.original.xp,historic.profile.xp);

@@ -5,7 +5,7 @@ const source=readFileSync(new URL('../scripts/package-source-candidate.mjs',impo
 test('candidate packaging refuses dirty trees, mislabeled compiled assets and mismatched versions',()=>{
   assert.match(source,/git\('status','--porcelain'\)===''/);
   assert.match(source,/HEAD must identify the candidate version/);
-  assert.match(source,/installer\.includes\(`Card Duel v\$\{release\}`\)/);
+  assert.match(source,/\['RUNEHALL','Card Duel'\]\.some\(name=>installer\.includes\(`\${name} v\${release}`\)/);
   assert.match(source,/SOURCE-ONLY candidate/);
   assert.match(source,/PREVIOUS VERIFIED/);
 });
