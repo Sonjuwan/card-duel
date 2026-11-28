@@ -43,7 +43,8 @@ test('shield silhouettes, legal targets and stacked statuses track updates on la
                 unit('ice',{keywords:['taunt'],...(cleared?{}:{frozenThroughTurn:state.turn+1})}),
                 unit('wind',{keywords:cleared?['windfury']:['windfury','divineShield']}),
                 unit('hidden',{keywords:['stealth','poisonous']}),
-                unit('rush',{keywords:['charge']}),
+                unit('rush',{cardId:'grommash_hellscream',keywords:['charge'],maxHealth:9,
+                  health:cleared?9:4,attack:cleared?4:10}),
                 unit('silenced',{silenced:true}),
               ];
               state.self.board=Array.from({length:7},(_,i)=>unit('ally-'+i));
@@ -66,6 +67,13 @@ test('shield silhouettes, legal targets and stacked statuses track updates on la
     await page.setViewportSize({width,height});
     await page.evaluate(()=>window.renderStatusFixture());
     await minion('warded').locator('[data-minion-status=shield]').waitFor();
+    const marks=id=>minion(id).locator('[data-minion-status]').evaluateAll(nodes=>nodes.map(node=>node.dataset.minionStatus));
+    assert.deepEqual(await marks('warded'),['shield','death']);
+    assert.deepEqual(await marks('ice'),['frost']);
+    assert.deepEqual(await marks('wind'),['shield','wind']);
+    assert.deepEqual(await marks('hidden'),['stealth','poison']);
+    assert.deepEqual(await marks('rush'),['charge','enrage']);
+    assert.deepEqual(await marks('silenced'),['silence']);
     const measurements=await page.locator('.enemy-board .battle-minion').evaluateAll(units=>{
       const rect=node=>node.getBoundingClientRect();
       const overlaps=(a,b)=>a.left<b.right-.5&&a.right>b.left+.5&&a.top<b.bottom-.5&&a.bottom>b.top+.5;
@@ -95,6 +103,7 @@ test('shield silhouettes, legal targets and stacked statuses track updates on la
     assert.equal(await minion('ice').locator('[data-minion-status=frost]').count(),0);
     assert.equal(await minion('wind').locator('[data-minion-status=wind]').count(),1);
     assert.equal(await minion('wind').locator('[data-minion-status=shield]').count(),0);
+    assert.deepEqual(await marks('rush'),['charge']);
   }
   await context.close();
 });
