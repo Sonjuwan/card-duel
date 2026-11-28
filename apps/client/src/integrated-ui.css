@@ -1169,21 +1169,76 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     background:linear-gradient(transparent 3px,#775934 3px 5px,transparent 5px);
   }
   .game-main .duel-screen .arena-field .minion-row .battle-minion{max-height:100%}
+  .game-main .duel-screen .battle-arena.classic-table{
+    --side-gutter:max(11%,min(20dvw,33dvh));
+    --away-hand-left:max(53px,7.5%);
+    --away-hand-top:max(5px,1%);
+    --away-card-width:min(9.5dvh,7.6dvw);
+    --away-card-height:min(13.5dvh,11dvw);
+    --away-deck-step:min(1.65dvh,1.22dvw);
+    --resource-inset:max(10px,env(safe-area-inset-right));
+  }
   .game-main .duel-screen .arena-field>.hidden-hand{
-    inset:1% auto auto 7.5%!important;height:16dvh!important;max-width:29%;
+    inset:var(--away-hand-top) auto auto var(--away-hand-left)!important;
+    height:var(--away-card-height)!important;max-width:none;
   }
   .game-main .duel-screen .hidden-hand .opponent-card-slot{
-    flex:0 0 10dvh;width:10dvh!important;height:15dvh!important;margin-left:-8.2dvh!important;
+    flex:0 0 var(--away-card-width);width:var(--away-card-width)!important;
+    height:var(--away-card-height)!important;
+    margin-left:calc(var(--away-deck-step) - var(--away-card-width))!important;
   }
   .game-main .duel-screen .hidden-hand .hand-count{
-    font-size:clamp(15px,2.6dvh,25px);font-weight:900;
+    font-size:clamp(14px,2.3dvh,24px);font-weight:900;
     padding:2px 6px;border-radius:5px;background:#2c231bdc;color:#ffebc2;
   }
-  .game-main .duel-screen .battle-arena.classic-table>.arena-left{
-    display:block!important;visibility:visible!important;top:21%!important;
+  .game-main .duel-screen .enemy-mana{
+    inset:calc(var(--away-hand-top) + var(--away-card-height) + 3px) auto auto var(--away-hand-left)!important;
   }
-  .game-main .duel-screen .impact-rail-shell{
-    --impact-size:clamp(32px,6.5dvh,70px);--impact-count:5;
+  .game-main .duel-screen .battle-mana .mana-display{
+    width:min(17dvw,29dvh)!important;padding:2px 5px;gap:2px;
+  }
+  .game-main .duel-screen .battle-mana .mana-number{font-size:clamp(13px,2.2dvh,24px)}
+  .game-main .duel-screen .battle-mana .mana-crystal{height:min(2.3dvh,1.6dvw)}
+  .game-main .duel-screen .own-mana{
+    inset:auto var(--resource-inset) max(5px,env(safe-area-inset-bottom)) auto!important;
+  }
+  .game-main .duel-screen .arena-field .own-hand .battle-hand{
+    inset:0 var(--side-gutter)!important;
+  }
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot{
+    width:min(calc((100% - 22px) / var(--hand-count)),15.5dvh)!important;
+  }
+  .game-main .duel-screen .arena-right{
+    position:absolute!important;inset:10% var(--resource-inset) 10% auto!important;
+    width:clamp(66px,10.5dvh,115px);height:auto!important;
+    display:grid!important;grid-template:repeat(3,minmax(0,1fr)) / minmax(0,1fr);place-items:center;
+    z-index:9;pointer-events:none;padding:0!important;gap:0!important;
+  }
+  .game-main .duel-screen .arena-right>:is(.resource-block,.turn-control){
+    position:relative!important;inset:auto!important;transform:none!important;translate:none;
+    grid-column:1!important;order:0;margin:0;min-width:0;justify-self:center!important;pointer-events:auto;
+  }
+  .game-main .duel-screen .arena-right>.opponent-resources{grid-row:1!important}
+  .game-main .duel-screen .arena-right>.turn-control{grid-row:2!important}
+  .game-main .duel-screen .arena-right>.own-resources{grid-row:3!important}
+  .game-main .duel-screen .arena-right>.resource-block,
+  .game-main .duel-screen .arena-right>.turn-control{
+    display:flex!important;flex-direction:column;align-items:center;justify-content:center;width:100%!important;
+  }
+  .game-main .duel-screen .arena-right>.resource-block .deck-pile{
+    display:flex;width:100%;min-width:0;align-items:center;justify-content:center;
+  }
+  .game-main .duel-screen .battle-arena.classic-table>.arena-left{
+    display:block!important;visibility:visible!important;top:27%!important;
+    width:calc(var(--impact-size) + 12px)!important;
+    --impact-size:clamp(32px,6.5dvh,70px);
+  }
+  .game-main .duel-screen .impact-rail-shell{--impact-size:inherit;--impact-count:5}
+  .game-main .duel-screen .enemy-hero-zone .battle-dialogue-captions{
+    inset:0 auto auto calc(50% + 25dvh);width:min(18dvw,230px);
+  }
+  .game-main .duel-screen .self-hero-zone .battle-dialogue-captions{
+    inset:auto calc(50% + 25dvh) 0 auto;width:min(18dvw,230px);
   }
 }
 

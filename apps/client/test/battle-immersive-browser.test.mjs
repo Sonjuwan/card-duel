@@ -170,7 +170,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         scroll:[document.documentElement.scrollWidth,document.documentElement.scrollHeight],
         rail:getComputedStyle(document.querySelector('.arena-right')).display};
     });
-    assert.equal(dimensions.rail,'contents');
+    assert.equal(dimensions.rail,height>540?'grid':'contents');
     assert.deepEqual(dimensions.scroll,[dimensions.width,dimensions.height]);
     for(const {row,units} of dimensions.rows){
       assert.equal(units.length,7);
@@ -217,6 +217,27 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         })};
     });
     assert.deepEqual(resourceGeometry,{cards:true,opponentInfo:true,stats:true},String(width));
+    if(!compact){
+      const alignment=await page.evaluate(()=>{
+        const rect=selector=>document.querySelector(selector).getBoundingClientRect();
+        const center=box=>box.x+box.width/2;
+        const hero=rect('.self-hero-zone .hero-portrait');
+        const enemy=rect('.enemy-hero-zone .hero-portrait');
+        const hand=rect('.own-hand .battle-hand');
+        const away=rect('.arena-field > .hidden-hand');
+        const mana=rect('.enemy-mana');
+        const decks=['.opponent-resources .deck-pile','.arena-right .own-resources .deck-pile'].map(rect);
+        const turn=rect('.turn-control');
+        const rail=rect('.arena-left');
+        const ownMana=rect('.own-mana');
+        return {hand:Math.abs(center(hero)-center(hand)),hero:Math.abs(center(hero)-center(enemy)),
+          deck:Math.abs(center(decks[0])-center(decks[1])), turn:Math.abs(center(decks[0])-center(turn)),
+          awayMana:mana.top>=away.bottom-1&&Math.abs(mana.left-away.left)<3,
+          log:rail.width>=32&&rail.top>=mana.bottom-2,ownMana:ownMana.bottom<=innerHeight};
+      });
+      assert.ok(alignment.hand<3&&alignment.hero<2&&alignment.deck<3&&alignment.turn<3&&
+        alignment.awayMana&&alignment.log&&alignment.ownMana,JSON.stringify({width,...alignment}));
+    }
     const card=page.locator('.own-hand .battle-card').first();
     const copy=card.locator('.card-copy');
     assert.equal(await copy.isVisible(),!compact);
