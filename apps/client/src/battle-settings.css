@@ -50,7 +50,10 @@
 .battle-settings-dialog select{width:100%;background:#211d24;color:#f5e9d4;border:1px solid #817285}
 .battle-settings-management{margin-top:clamp(6px,1.4dvh,14px)}
 .battle-settings-management>div{display:flex;gap:6px;flex-wrap:wrap}
-.game-main .duel-title:not(.compact-title) .compact-settings-trigger{display:inline-grid;place-items:center}
+.game-main .duel-title:not(.compact-title) .compact-settings-trigger{
+  display:inline-grid;place-items:center;pointer-events:auto;
+  width:44px;height:44px;min-height:44px;padding:2px;font-size:25px;line-height:1;
+}
 @media (orientation:landscape) and (max-height:540px){
   .battle-settings-dialog{
     width:min(740px,calc(100dvw - 2 * max(10px,env(safe-area-inset-left),env(safe-area-inset-right))));
