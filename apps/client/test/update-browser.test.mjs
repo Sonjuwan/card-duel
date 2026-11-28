@@ -87,13 +87,18 @@ test('installed game verifies and explicitly applies an update without reinstall
         read.onsuccess=()=>resolve(read.result);read.onerror=()=>reject(read.error);
       });}finally{db.close();}
     });
-    await first.getByRole('button',{name:/경험치 · 카드 획득/}).tap();
+    await first.getByRole('button',{name:/보상의 길|경험치 · 카드 획득/}).tap();
     await first.getByRole('region',{name:'보상의 길'}).waitFor();
     const historic=await oldSlot(first);
     Object.assign(historic.profile,{xp:30,rankWins:1,revision:1,ownedCards:[...new Set([...historic.profile.ownedCards,'cairne_bloodhoof'])].sort(),
       matchStats:{ranked:{wins:1,losses:0,draws:0},pvp:{wins:0,losses:0,draws:0}},
       recentMatches:[{matchId:'legacy-verified',mode:'ranked',rank:1,rankAfter:1,heroClass:'warrior',outcome:'win',completedAt:1700000000000,xp:30,questAdvanced:false,eligible:true}]});
     delete historic.profile.rewardRoad;
+    delete historic.profile.career;
+    if(historic.profile.quests?.active.basic){
+      historic.profile.quests.active.basic.progress=4;
+      historic.profile.quests.active.basic.xp=30;
+    }
     historic.settledMatchIds=['legacy-verified'];
     await first.evaluate(async legacy=>{
       const open=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
@@ -119,6 +124,10 @@ test('installed game verifies and explicitly applies an update without reinstall
     assert.equal(migrated.profile.rankWins,historic.profile.rankWins);
     assert.equal(migrated.profile.career.record.wins,1);
     assert.equal(migrated.profile.career.heroes.warrior.xp,30);
+    if(historic.profile.quests?.active.basic){
+      assert.equal(migrated.profile.quests.active.basic.progress,4);
+      assert.equal(migrated.profile.quests.active.basic.xp,600);
+    }
     assert.deepEqual(migrated.settledMatchIds,historic.settledMatchIds);
     assert.ok(historic.profile.ownedCards.every(id=>migrated.profile.ownedCards.includes(id)));
     await first.getByRole('button',{name:'메인으로',exact:true}).tap();

@@ -158,9 +158,9 @@ const family=(metric:QuestMetric)=>metricFamily[metric]??metric;
 
 type QuestChargeOptions={now?:number;zone?:string;starterOffset?:number};
 
-export function fillQuests(state:QuestProgress,catalog:Catalog,ownedCards:readonly string[],{now=Date.now(),zone=questTimeZone(),starterOffset}:QuestChargeOptions={}):QuestProgress {
+export function fillQuests(state:QuestProgress,catalog:Catalog,ownedCards:readonly string[],{now=Date.now(),zone,starterOffset}:QuestChargeOptions={}):QuestProgress {
   const stored=state.calendar;
-  const activeZone=stored?.zone??zone,today=questDay(now,activeZone);
+  const activeZone=stored?.zone??zone??questTimeZone(),today=questDay(now,activeZone);
   if(stored&&stored.lastDay>=today)return state;
   // Pre-calendar profiles start on their migration day. The former basic
   // quest offset is the only legacy progress that needs a new active item.
@@ -264,7 +264,7 @@ export function validQuestProgress(x:unknown):x is QuestProgress{
       serialId(id,Number(x.serial))&&object(q)&&heroValid(q.hero)&&int(q.xp,0,100000)&&q.rewarded===true))&&
     validTally(x.issued,tallyKey)&&validTally(x.completed,tallyKey)&&object(x.recent)&&
     Object.entries(x.recent).every(([slot,q])=>slotValid(slot)&&object(q)&&heroValid(q.hero)&&typeof q.metric==='string'&&counters.has(q.metric))&&
-    object(x.active)&&Object.entries(x.active).every(([slot,q])=>slotValid(slot)&&object(q)&&typeof q.id==='string'&&serialId(q.id,Number(x.serial))&&(!object(x.payments)||!Object.hasOwn(x.payments,q.id))&&typeof q.definitionId==='string'&&q.definitionId.length<=80&&heroValid(q.hero)&&
+    object(x.active)&&new Set(Object.values(x.active).map(q=>object(q)?q.id:undefined)).size===Object.keys(x.active).length&&Object.entries(x.active).every(([slot,q])=>slotValid(slot)&&object(q)&&typeof q.id==='string'&&serialId(q.id,Number(x.serial))&&(!object(x.payments)||!Object.hasOwn(x.payments,q.id))&&typeof q.definitionId==='string'&&q.definitionId.length<=80&&heroValid(q.hero)&&
       typeof q.metric==='string'&&counters.has(q.metric)&&typeof q.title==='string'&&q.title.length<=160&&typeof q.unit==='string'&&
       int(q.target,1,100000)&&int(q.progress,0,q.target-1)&&int(q.xp,0,100000));
 }

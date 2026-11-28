@@ -1,3 +1,9 @@
+## 2026-11-28 — RUNEHALL v0.338.0
+
+- Daily quest slots recharge at midnight in the time zone recorded with each save. A new slot begins with one quest. Empty slots catch up by day, and a full board does not bank new quests. Active legacy goals keep their progress and are repriced to 300, 600 or 900 XP. Paid receipts retain their original amounts.
+- The existing home and card illustrations are preserved. New gallery, archive, notice-board and arena artwork is packaged locally, with smaller variants for short screens.
+- The desktop battlefield leaves independent mana lanes and expands the centered hand without resizing cards by count. The compact battle hand uses artwork, name, cost and applicable stats. Inspection and reveals still render the complete card.
+
 ## 2026-11-28 — RUNEHALL v0.337.0
 
 - The published PWA uses the Runehall brand, three-column home, independent phone layout, class growth and a shared visual theme. The original app identity, scope and slot keys continue to resolve the same data.
