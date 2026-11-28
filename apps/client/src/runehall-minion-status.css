@@ -1,0 +1,71 @@
+/* Portrait masks fill the original slot. The metal silhouette, statuses and
+   damage numbers are separate layers and never participate in hit testing. */
+.game-main .duel-screen .arena-field .battle-minion.has-taunt .minion-medallion{
+  border:0!important;border-radius:inherit!important;box-shadow:none;
+  clip-path:polygon(50% 3%,73% 6%,96% 14%,96% 57%,87% 76%,70% 88%,50% 98%,30% 88%,13% 76%,4% 57%,4% 14%,27% 6%);
+}
+.game-main .duel-screen .arena-field .battle-minion.has-taunt{box-shadow:none}
+.game-main .duel-screen .arena-field .minion-taunt-frame{
+  position:absolute;inset:0;z-index:3;pointer-events:none;--taunt-metal:#bdd1df;
+}
+.minion-taunt-frame>svg{width:100%;height:100%;overflow:visible}
+.minion-taunt-frame>svg path{
+  fill:none;stroke:var(--taunt-metal);stroke-width:4.8;
+  paint-order:stroke fill;filter:drop-shadow(0 1px 1px #152335);
+}
+.taunt-medal{
+  position:absolute;inset:2% auto auto 1%;display:grid;place-items:center;
+  width:clamp(12px,22%,24px);aspect-ratio:1;border:1px solid #e0eafb;
+  color:#e5f3ff;background:linear-gradient(#4c657d,#27394d);
+  border-radius:35% 35% 52% 52%;
+}
+.taunt-medal .sigil{display:block;width:83%;height:83%;stroke-width:5}
+.battle-minion[data-taunt-target="true"] .minion-taunt-frame{--taunt-metal:#fff1a6}
+.battle-minion[data-taunt-target="true"] .taunt-medal{color:#fff5be;border-color:#fff1a6;background:#56607b}
+.battle-minion.is-attack-blocked .minion-taunt-frame{opacity:.67}
+@media(prefers-reduced-motion:no-preference){
+  .minion-taunt-frame>svg{animation:taunt-form .27s ease-out both}
+  @keyframes taunt-form{
+    from{opacity:.6;filter:brightness(1.75)}
+    to{opacity:1;filter:none}
+  }
+}
+
+.game-main .duel-screen .arena-field .battle-minion.has-shield::before{
+  inset:0;border:2px solid #f5d779;box-shadow:inset 0 0 7px #fbe69c66;
+}
+.game-main .duel-screen .arena-field .battle-minion.has-taunt.has-shield::before{
+  inset:2%;z-index:4;background:radial-gradient(ellipse at 50% 41%,transparent 46%,#e8c4645c 62%,transparent 72%);
+  border:0;box-shadow:none;
+}
+.game-main .duel-screen .arena-field .battle-minion .shield-ring{
+  inset:1%;border:2px solid #f3d779;background:none;box-shadow:inset 0 0 6px #ffe7a470;
+}
+.game-main .duel-screen .arena-field .battle-minion.has-stealth .minion-medallion .painted-art{opacity:.68}
+.game-main .duel-screen .arena-field .battle-minion.has-enrage .minion-medallion{
+  box-shadow:inset 0 -10px 15px -9px #ff7543;
+}
+.game-main .duel-screen .arena-field .battle-minion .minion-status-icons{
+  inset:2% 2% auto auto;max-width:74%;justify-content:flex-end;flex-wrap:wrap;gap:1px;pointer-events:none;
+}
+.game-main .duel-screen .arena-field .minion-status-icons>i{
+  box-sizing:border-box;display:grid;place-items:center;position:relative;
+  width:clamp(10px,1.75dvh,18px);aspect-ratio:1;padding:1px;
+  background:#1d2939ed;border:1px solid currentColor;border-radius:3px;color:var(--mark,#cfdae9);
+  font-size:clamp(7px,1dvh,11px);
+}
+.minion-status-icons>i .sigil{display:block;width:100%;height:100%;stroke-width:5.5}
+.minion-status-icons>i>b{
+  position:absolute;right:0;bottom:0;padding:0 1px;font-size:.72em;background:#253149;border-radius:2px;
+}
+.status-shield{--mark:#ffe088}
+.status-frost{--mark:#a6ebff}
+.status-stealth{--mark:#d0b8f6}
+.status-wind{--mark:#b6f3fa}
+.status-charge{--mark:#ffc481}
+.status-poison{--mark:#c4f285}
+.status-death{--mark:#f5e2d6}
+.status-enrage{--mark:#ff9978}
+.status-silence{--mark:#f7c5e5}
+.status-magic{--mark:#e8bbff}
+.status-persistent{--mark:#ffdeac}

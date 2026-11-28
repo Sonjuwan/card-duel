@@ -355,3 +355,28 @@ test('each of the 25 rank crests preserves its viewport and shows division-speci
     assert.equal(markup.match(/data-rank-jewel=/g)?.length,6-rank.division);
   }
 });
+
+test('stacked status markers follow the live minion after buffs, silence, healing and transformation',()=>{
+  const original=Object.values(catalog).find(card=>card.kind==='minion'&&card.enrageWindfury);
+  assert.ok(original&&original.kind==='minion');
+  const minion={instanceId:'layered',cardId:original.id,attack:3,health:1,maxHealth:3,attacksRemaining:1,
+    auraWindfury:true,auraCharge:true,keywords:['taunt','divineShield','poisonous'] as const,
+    frozenThroughTurn:3,deathrattleSummons:['wolf']};
+  const base={...minion,keywords:[...minion.keywords]};
+  const paint=(card:typeof catalog.wolf,state:Parameters<typeof BattleMinion>[0]['minion'])=>
+    renderToStaticMarkup(<BattleMinion minion={state} card={card} catalog={catalog} ownTurn priorityTaunt={state.keywords?.includes('taunt')}/>);
+  const stacked=paint(original,base);
+  assert.match(stacked,/minion-taunt-frame/);
+  assert.match(stacked,/data-taunt-target="true"/);
+  for(const name of ['shield','frost','wind','charge','poison','death','enrage'])assert.ok(stacked.includes(`data-minion-status="${name}"`),name);
+  const healed=paint(original,{...base,health:3,auraWindfury:false});
+  assert.doesNotMatch(healed,/data-minion-status="(?:enrage|wind)"/);
+  const silenced=paint(original,{...base,keywords:[],silenced:true,frozenThroughTurn:undefined,deathrattleSummons:undefined,auraWindfury:false,auraCharge:false});
+  assert.match(silenced,/data-minion-status="silence"/);
+  assert.doesNotMatch(silenced,/minion-taunt-frame|data-minion-status="(?:enrage|frost|shield|death|poison)"/);
+  const granted=paint(original,{...base,keywords:['taunt'],silenced:true,deathrattleSummons:['wolf']});
+  assert.match(granted,/minion-taunt-frame/);
+  assert.match(granted,/data-minion-status="death"/);
+  const transformed=paint(catalog.wolf,{...base,cardId:'wolf',keywords:[],frozenThroughTurn:undefined,deathrattleSummons:undefined,auraWindfury:false,auraCharge:false});
+  assert.doesNotMatch(transformed,/minion-taunt-frame|data-minion-status=/);
+});

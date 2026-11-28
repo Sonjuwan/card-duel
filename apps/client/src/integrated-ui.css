@@ -454,7 +454,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .status-wait{color:#c4d1ee}.status-persistent{color:#e3bf8b}
 .game-main .battle-minion.has-windfury .minion-medallion::after{
   content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid transparent;
-  border-inline-color:#c6f3ffa3;pointer-events:none;animation:minion-wind 6s linear infinite
+  border-inline-color:#c6f3ffa3;pointer-events:none
 }
 .game-main .battle-minion .minion-medallion::before{
   content:"";position:absolute;inset:0;border-radius:inherit;z-index:1;pointer-events:none;
@@ -464,7 +464,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 }
 .game-main .battle-minion.is-frozen .minion-medallion::before{opacity:1}
 .game-main .battle-minion .shield-ring{animation:shield-form .48s ease-out both}
-@keyframes minion-wind{to{transform:rotate(1turn)}}
 @keyframes shield-form{from{opacity:.3;transform:scale(.84)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){
   .game-main .battle-minion.has-windfury .minion-medallion::after,.game-main .battle-minion .shield-ring{animation:none}

@@ -1,3 +1,4 @@
+import {minionVisualState} from './minion-visual-state.ts';
 import {BATTLE_HOLD_DELAY} from './hover-timing.ts';
 import { memo, useContext, useRef } from 'react';
 import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
@@ -45,7 +46,7 @@ export function PlacementPicker({view,seat,catalog,selection,position,onChoose}:
   return <label className="placement-picker"><span>배치 {position+1}/{options.length}</span><select aria-label="하수인 배치 위치 선택" value={position} onChange={e=>{const next=Number(e.currentTarget.value);if(options.some(o=>o.position===next))onChoose(next);}}>{options.map(o=><option key={o.position} value={o.position}>{o.position+1}번 · {o.leftCardId&&o.rightCardId?`${name(o.leftCardId)} / ${name(o.rightCardId)} 사이`:o.leftCardId?'오른쪽 끝':'왼쪽 끝'}</option>)}</select></label>;
 }
 
-type Glyph = HeroClass|'neutral'|'minion'|'spell'|'weapon'|'secret'|'coin'|'deck'|'blood'|'life'|'shield'|'mana'|'beast'|'demon'|'dragon'|'murloc'|'pirate'|'totem';
+type Glyph = HeroClass|'neutral'|'minion'|'spell'|'weapon'|'secret'|'coin'|'deck'|'blood'|'life'|'shield'|'mana'|'beast'|'demon'|'dragon'|'murloc'|'pirate'|'totem'|'frost'|'wind'|'charge'|'poison'|'silence'|'veil'|'enrage'|'ward';
 const glyphs:Record<Glyph,ReactNode>={
   warrior:<><path d="m13 12 33 33-8 8L5 20zM38 14 16 36m28-16L22 42M8 46l10 10 10-10"/><path d="m45 5 10 4-4 10-7 1-4-4z"/></>,
   shaman:<><path d="M34 4 12 35h19l-2 25 23-34H33z"/><path d="m9 9 5 7m42 35-6-6"/></>,
@@ -72,6 +73,14 @@ const glyphs:Record<Glyph,ReactNode>={
   blood:<path d="M32 4c-5 15-21 26-21 39a21 21 0 0 0 42 0C53 30 37 19 32 4Z"/>,
   life:<path d="M32 56 8 31C-7 7 23-2 32 17 41-2 71 7 56 31Z"/>,
   shield:<path d="M32 5 55 14v19c0 12-12 21-23 27C21 54 9 45 9 33V14Z"/>,
+  frost:<path d="M32 5v54M9 18l46 28M55 18 9 46M25 12l7 7 7-7m-14 40 7-7 7 7M11 26l10-3-3-10m35 25-10 3 3 10M46 13l-3 10 10 3M18 51l3-10-10-3"/>,
+  wind:<path d="M6 20h34c14 0 14-14 5-14-5 0-7 3-7 6M6 32h46c9 0 9 13 1 13h-7M6 44h25c11 0 11 14 2 14-5 0-7-3-7-6"/>,
+  charge:<path d="m6 21 20 11L6 43m16-30 27 19-27 19m16-39 20 20-20 20"/>,
+  poison:<path d="M25 5h15m-13 1v14L12 42c-4 7 1 15 9 15h24c7 0 12-8 8-15L38 20V6M16 38h32m-24 8h6m7 5h5"/>,
+  silence:<path d="M6 27h11l13-12v34L17 37H6Zm34-6 17 22m0-22L40 43"/>,
+  veil:<path d="M6 33c13-21 39-21 52 0-13 21-39 21-52 0Zm26-9a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM9 56 55 10"/>,
+  enrage:<path d="M34 5c4 19-14 21-14 34-7-2-7-8-7-10-10 16 0 29 19 29s29-18 17-33c0 8-5 10-7 10 4-15-1-25-8-30Z"/>,
+  ward:<path d="M7 44h50V31C57 17 46 7 32 7S7 17 7 31Zm9 11h32m-16-32v14m-7-7h14"/>,
   mana:<path d="M32 3 54 19v26L32 61 10 45V19Z M32 3v58M10 19l22 13 22-13M10 45l22-13 22 13"/>,
 };
 export const Sigil=memo(function Sigil({kind,className:extra=''}:{kind:Glyph;className?:string}){
@@ -145,19 +154,42 @@ export function BattleCard({card,cost=card.cost,reason,enabled=false,ready=false
 }
 export function statTone(current:number,base:number){return current>base?'increased':current<base?'reduced':'normal';}
 
-export function BattleMinion({card,minion,catalog,ownTurn,turn,enabled=false,ready=false,selected=false,targeted=false,dropTarget=false,onClick,onInspect,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,entering=false,delta=0,preparing=false,remainingAttacks=minion.attacksRemaining,blocked=false,attackChanged=false}:Interactive&{card:Card;minion:Minion;catalog:Catalog;ownTurn:boolean;turn?:number;entering?:boolean;delta?:number;preparing?:boolean;remainingAttacks?:number;blocked?:boolean;attackChanged?:boolean}){
-  const displayName=useCardName(card);const tags=minionTags(minion),status=minion.frozenThroughTurn!==undefined?'빙결':card.kind==='minion'&&card.noAttack&&!minion.silenced?'공격 불가':ownTurn&&canAttackMinion(minion,catalog)?`공격 가능 ${minion.attacksRemaining}회`:'대기';
+function MinionMark({id,glyph,count}:{id:string;glyph:Glyph;count?:number}){
+  return <i className={`status-${id}`} data-minion-status={id}><Sigil kind={glyph}/>{count!==undefined&&<b>{count}</b>}</i>;
+}
+
+export function BattleMinion({card,minion,catalog,ownTurn,turn,enabled=false,ready=false,selected=false,targeted=false,dropTarget=false,onClick,onInspect,onDragStart,onDragEnd,onDragOver,onDrop,sourceId,entering=false,delta=0,preparing=false,remainingAttacks=minion.attacksRemaining,blocked=false,attackChanged=false,priorityTaunt=false}:Interactive&{card:Card;minion:Minion;catalog:Catalog;ownTurn:boolean;turn?:number;entering?:boolean;delta?:number;preparing?:boolean;remainingAttacks?:number;blocked?:boolean;attackChanged?:boolean;priorityTaunt?:boolean}){
+  const displayName=useCardName(card);const traits=minionVisualState(card,minion);
+  const tags=minionTags(minion);
+  if(traits.death&&!minion.deathrattleSummons?.length)tags.push('죽음의 메아리');
+  if(traits.enrage)tags.push('격노 활성');
+  const status=minion.frozenThroughTurn!==undefined?'빙결':card.kind==='minion'&&card.noAttack&&!minion.silenced?'공격 불가':ownTurn&&canAttackMinion(minion,catalog)?`공격 가능 ${minion.attacksRemaining}회`:'대기';
   const attackTone=card.kind==='minion'?statTone(minion.attack,card.attack):'normal';
   const healthTone=minion.health<minion.maxHealth?'reduced':card.kind==='minion'?statTone(minion.maxHealth,card.health):'normal';
   const info={card,minion};const hover=useCardHover(info,BATTLE_HOLD_DELAY,!targeted);
-  const magic=!minion.silenced&&card.kind==='minion'?(card.spellDamage??0)+(minion.bonusSpellDamage??0):0;
   const waiting=ownTurn&&turn!==undefined&&minion.summonedTurn===turn&&minion.attacksRemaining===0&&
     (minion.attacksMadeThisTurn??0)===0&&!minion.auraCharge&&!minion.keywords?.includes('charge');
-  const persistent=!minion.silenced&&card.kind==='minion'&&Boolean(card.auras?.length||card.costAuras?.length||card.startTurn?.length||card.endTurn?.length||card.endAnyTurn?.length);
-  const taunt=minion.keywords?.includes('taunt'),shield=minion.keywords?.includes('divineShield'),stealth=minion.keywords?.includes('stealth')||minion.stealthUntilStartOf!==undefined;
-  return <button type="button" className={`battle-minion faction-${cardFaction(card)}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${dropTarget?' is-drop-target':''}${taunt?' has-taunt':''}${shield?' has-shield':''}${stealth?' has-stealth':''}${minion.keywords?.includes('windfury')||minion.auraWindfury?' has-windfury':''}${minion.frozenThroughTurn!==undefined?' is-frozen':''}${minion.silenced?' is-silenced':''}${minion.immuneThisTurn?' is-immune':''}${entering?' is-entering':''}${preparing?' is-preparing':''}${blocked?' is-attack-blocked':''}${magic?' has-spell-power':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-preview-card={card.id} data-preview-minion={minion.instanceId} data-action-source={sourceId} aria-disabled={!enabled} aria-pressed={sourceId&&!targeted?selected:undefined} aria-description={[minion.silenced?'침묵 (효과 제거)':cardDescription(card),targeted?'선택 가능한 대상':selected?'공격 선택 중, 다시 누르면 취소':ready?'공격 가능':''].filter(Boolean).join(' · ')} aria-label={`${displayName}, 공격력 ${minion.attack}, 생명력 ${minion.health}, ${[...tags,status].join(', ')}`} onClick={e=>{if(hover.consumeTouchClick(e.nativeEvent))return;hover.clear();if(enabled)onClick?.(e.detail===0);}} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.leave} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.leave} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
+  const {taunt,shield,stealth,wind,frozen,charge,poison,death,enrage,magic,persistent}=traits;
+  return <button type="button" className={`battle-minion faction-${cardFaction(card)}${ready?' is-ready':''}${selected?' is-selected':''}${targeted?' is-targeted':''}${dropTarget?' is-drop-target':''}${taunt?' has-taunt':''}${shield?' has-shield':''}${stealth?' has-stealth':''}${wind?' has-windfury':''}${frozen?' is-frozen':''}${enrage?' has-enrage':''}${minion.silenced?' is-silenced':''}${minion.immuneThisTurn?' is-immune':''}${entering?' is-entering':''}${preparing?' is-preparing':''}${blocked?' is-attack-blocked':''}${magic?' has-spell-power':''}${delta<0?' is-hit':delta>0?' is-healed':''}`} data-taunt-target={priorityTaunt||undefined} data-preview-card={card.id} data-preview-minion={minion.instanceId} data-action-source={sourceId} aria-disabled={!enabled} aria-pressed={sourceId&&!targeted?selected:undefined} aria-description={[minion.silenced?'침묵 (효과 제거)':cardDescription(card),targeted?'선택 가능한 대상':selected?'공격 선택 중, 다시 누르면 취소':ready?'공격 가능':''].filter(Boolean).join(' · ')} aria-label={`${displayName}, 공격력 ${minion.attack}, 생명력 ${minion.health}, ${[...tags,status].join(', ')}`} onClick={e=>{if(hover.consumeTouchClick(e.nativeEvent))return;hover.clear();if(enabled)onClick?.(e.detail===0);}} onFocus={e=>{onInspect?.(info);if(e.currentTarget.matches(':focus-visible'))hover.start(e.currentTarget);}} onBlur={hover.leave} onPointerEnter={e=>{onInspect?.(info);if(e.pointerType!=='touch')hover.start(e.currentTarget);}} onPointerLeave={hover.leave} onContextMenu={e=>{if(e.nativeEvent instanceof PointerEvent&&e.nativeEvent.pointerType!=='mouse')e.preventDefault();}} {...hover.touchProps} draggable={enabled&&!!onDragStart} onDragStart={e=>{hover.clear();onDragStart?.(e);}} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}>
     <span className="minion-medallion"><LocalCardArt card={card}/>{shield&&<span className="shield-ring"/>}<span className="stealth-veil" aria-hidden="true"/></span>
-    <span className="minion-status-icons" aria-hidden="true">{(minion.keywords?.includes('windfury')||minion.auraWindfury)&&<i className="status-wind">≋{ownTurn?remainingAttacks:null}</i>}{!minion.silenced&&(card.kind==='minion'&&!!card.deathrattle||!!minion.deathrattleSummons?.length)&&<i className="status-death">☠</i>}{!minion.silenced&&((card.kind==='minion'?card.spellDamage??0:0)+(minion.bonusSpellDamage??0)>0)&&<i className="status-magic">✦</i>}{minion.keywords?.includes('poisonous')&&<i className="status-poison">☣</i>}{(minion.keywords?.includes('charge')||minion.auraCharge)&&<i className="status-charge">➤</i>}{minion.silenced&&<i className="status-silence">⊘</i>}{waiting&&<i className="status-wait">Zz</i>}{persistent&&<i className="status-persistent">◈</i>}</span>
+    {taunt&&<span className="minion-taunt-frame" aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M50 3 73 6 96 14V57L87 76 70 88 50 98 30 88 13 76 4 57V14L27 6Z"/></svg>
+      <span className="taunt-medal"><Sigil kind="shield"/></span>
+    </span>}
+    <span className="minion-status-icons" aria-hidden="true">
+      {shield&&<MinionMark id="shield" glyph="ward"/>}
+      {frozen&&<MinionMark id="frost" glyph="frost"/>}
+      {stealth&&<MinionMark id="stealth" glyph="veil"/>}
+      {wind&&<MinionMark id="wind" glyph="wind" count={ownTurn?remainingAttacks:undefined}/>}
+      {charge&&<MinionMark id="charge" glyph="charge"/>}
+      {poison&&<MinionMark id="poison" glyph="poison"/>}
+      {death&&<MinionMark id="death" glyph="pirate"/>}
+      {enrage&&<MinionMark id="enrage" glyph="enrage"/>}
+      {minion.silenced&&<MinionMark id="silence" glyph="silence"/>}
+      {magic&&<MinionMark id="magic" glyph="spell"/>}
+      {waiting&&<i className="status-wait" data-minion-status="wait">Zz</i>}
+      {persistent&&<MinionMark id="persistent" glyph="neutral"/>}
+    </span>
     <span className="minion-statline" aria-hidden="true"><span className="stat stat-attack" data-stat-tone={attackTone} data-stat-changed={attackChanged||undefined}>{minion.attack}</span><span className={`stat stat-health${minion.health<minion.maxHealth?' damaged':''}`} data-stat-tone={healthTone} data-stat-changed={delta!==0||undefined}>{minion.health}</span></span>{delta!==0&&<span className={`motion-delta ${delta<0?'damage':'heal'}`} aria-hidden="true">{delta>0?'+':''}{delta}</span>}
   </button>;
 }
