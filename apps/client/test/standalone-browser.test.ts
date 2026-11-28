@@ -1,3 +1,4 @@
+import {openLegacyPlayOptions} from './deck-selection-browser.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
@@ -300,7 +301,7 @@ test('desktop native drag shares the mobile placement and rejected-control feedb
       };
     },{...deck,cards:deck.cards.map(id=>id==='recruit'?'wisp':id)});
     await page.goto(`http://127.0.0.1:${address.port}/`);
-    await page.getByRole('button',{name:'대전',exact:true}).click();
+    await openLegacyPlayOptions(page);
     await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기',exact:true}).click();
     const slots=page.getByRole('dialog',{name:'슬롯 · 성장 · 저장 경기',exact:true});
     await slots.getByRole('button',{name:'개발자 모드',exact:true}).click();

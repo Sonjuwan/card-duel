@@ -1,3 +1,4 @@
+import {chooseBasicDeck} from './deck-selection-browser.ts';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
@@ -185,7 +186,7 @@ test('installed game verifies and explicitly applies an update without reinstall
   await desktopDialog.waitFor();
   await desktopDialog.getByRole('button',{name:'닫기',exact:true}).click();
   await second.getByRole('button',{name:'대전',exact:true}).tap();
-  await second.getByRole('button',{name:'전사',exact:true}).tap();
+  await chooseBasicDeck(second,'전사');
   await second.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
   await second.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
 

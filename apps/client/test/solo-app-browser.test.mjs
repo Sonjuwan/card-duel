@@ -1,3 +1,4 @@
+import {openLegacyPlayOptions} from './deck-selection-browser.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
@@ -16,7 +17,7 @@ test('installed landscape solo app caches the game and resumes a ranked checkpoi
     const openRecords=async(fresh=false)=>{
       const home=page.getByRole('button',{name:'대전',exact:true});
       if(fresh)await home.waitFor();
-      if(await home.isVisible())await home.click();
+      if(await home.isVisible())await openLegacyPlayOptions(page);
       await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
     };
     await page.goto(url);await page.getByRole('button',{name:'대전',exact:true}).waitFor();await openRecords();await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).waitFor();

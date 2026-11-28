@@ -1,3 +1,4 @@
+import {openLegacyPlayOptions} from './deck-selection-browser.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
@@ -27,7 +28,7 @@ test('landscape mobile PWA stays within one screen from lobby through first turn
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(`http://127.0.0.1:${addr.port}/`);
-  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await openLegacyPlayOptions(page);
   await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
   await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).waitFor();
 

@@ -1,3 +1,4 @@
+import {chooseBasicDeck} from './deck-selection-browser.ts';
 import {musicAssets} from '../solo-app/music-assets.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,7 +49,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
     });
   });
   await page.getByRole('button',{name:'대전',exact:true}).click();
-  await page.getByRole('button',{name:'마법사',exact:true}).click();
+  await chooseBasicDeck(page,'마법사');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.getByRole('button',{name:/^확정 \(\d+장 교체\)$/}).click();
@@ -57,7 +58,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('button',{name:'항복하기',exact:true}).click();
   await page.getByRole('dialog',{name:'대전 결과'}).waitFor({timeout:20000});
   await page.getByRole('button',{name:'대전 준비로 돌아가기'}).click();
-  await page.getByRole('button',{name:'마법사',exact:true}).click();
+  await chooseBasicDeck(page,'마법사');
   const start=page.getByRole('button',{name:'선택한 덱으로 대전 시작'});
   await start.waitFor();
   const diag=await page.evaluate(()=>({error:document.querySelector('.error')?.textContent??'',hashes:localStorage.getItem('card-duel-saved-decks'),databases:[]})); 
@@ -73,7 +74,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('button',{name:'전투 설정'}).click();
   await page.getByRole('button',{name:'저장 후 나가기'}).click();
   await page.getByRole('button',{name:'새로운 게임 시작'}).click();
-  await page.getByRole('button',{name:'마법사',exact:true}).click();
+  await chooseBasicDeck(page,'마법사');
   const conceded=await page.evaluate(async()=>{
     const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
     const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});

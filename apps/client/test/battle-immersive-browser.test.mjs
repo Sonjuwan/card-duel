@@ -1,3 +1,4 @@
+import {chooseBasicDeck,openLegacyPlayOptions} from './deck-selection-browser.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,readFileSync} from 'node:fs';
@@ -26,7 +27,7 @@ test('phone/tablet combat uses entire available height instead of three redundan
     const page=await context.newPage();
     const errors=[];page.on('pageerror',err=>errors.push(err.message));
     await page.goto('http://127.0.0.1:'+addr.port+'/');
-    await page.getByRole('button',{name:'대전',exact:true}).click();
+    await openLegacyPlayOptions(page);
     await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).click();
     await page.getByRole('button',{name:'솔로 랭크 대전 시작'}).click();
     await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
@@ -117,7 +118,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
             for(const [i,side] of [view.self,view.opponent].entries()){
               if(classes)side.heroClass=classes[i];
               side.board=Array.from({length:units},(_,j)=>({cardId:'wolf',instanceId:`fixture-${i}-${j}`,attack:12,health:18,maxHealth:18,attacksRemaining:1,keywords:j===0?['taunt','divineShield']:j===1?['stealth','windfury']:[]}));
-              side.handCount=10;
+              side.handCount=hand;
             side.mana=side.maxMana=10;
             }
             view.self.handCount=hand;
@@ -145,7 +146,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   await portraitButton.waitFor({state:'hidden'});
   assert.match(await menu.textContent(),/가로 전체화면/);
   await page.getByRole('button',{name:'대전',exact:true}).tap();
-  await page.getByRole('button',{name:'전사',exact:true}).tap();
+  await chooseBasicDeck(page,'전사');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
   if(enteredFullscreen)assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true);
   t.diagnostic(enteredFullscreen?'Chromium Fullscreen API entered and persisted':'Chromium showed manual rotation guidance');
@@ -182,7 +183,10 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const share=dimensions.rows.reduce((sum,{row})=>sum+row.height,0)/dimensions.height;
     t.diagnostic(width+'px board share '+(share*100).toFixed(1)+'%');
     assert.ok(share>=(height<=540?.38:.36), String(share));
-    if(height>540)assert.ok(dimensions.zones.every(zone=>Math.abs(zone.height-dimensions.zones[0].height)<2));
+    if(height>540){
+      assert.ok(Math.abs(dimensions.zones[0].height-dimensions.zones[3].height)<1);
+      assert.ok(Math.abs(dimensions.zones[1].height-dimensions.zones[2].height)<1);
+    }
     if(height<=540)for(const [index,zone] of dimensions.zones.entries()){
       assert.ok(Math.abs(zone.height-dimensions.arena.height/4)<1.5,JSON.stringify({width,index,zone}));
       assert.ok(Math.abs(zone.top-dimensions.arena.top-index*zone.height)<1.5,JSON.stringify({width,index,zone}));
@@ -217,6 +221,11 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         })};
     });
     assert.deepEqual(resourceGeometry,{cards:true,opponentInfo:true,stats:true},String(width));
+    assert.ok(await page.locator('.arena-field .minion-statline').evaluateAll(rows=>rows.every(row=>{
+      const unit=row.closest('.battle-minion').getBoundingClientRect();
+      const [attack,health]=[...row.querySelectorAll('.stat')].map(node=>node.getBoundingClientRect());
+      return attack.left>=unit.left&&health.right<=unit.right&&attack.right<=health.left;
+    })),width+'px minion stats do not overhang adjacent units');
     if(!compact){
       const alignment=await page.evaluate(()=>{
         const rect=selector=>document.querySelector(selector).getBoundingClientRect();
@@ -225,18 +234,28 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         const enemy=rect('.enemy-hero-zone .hero-portrait');
         const hand=rect('.own-hand .battle-hand');
         const away=rect('.arena-field > .hidden-hand');
-        const mana=rect('.enemy-mana');
+        const mana=['.enemy-mana .mana-display','.own-mana .mana-display'].map(rect);
         const decks=['.opponent-resources .deck-pile','.arena-right .own-resources .deck-pile'].map(rect);
+        const weapons=['.enemy-hero-zone .weapon-slot','.self-hero-zone .weapon-slot'].map(rect);
+        const powers=['.enemy-hero-zone .hero-power','.self-hero-zone .hero-power'].map(rect);
         const turn=rect('.turn-control');
         const rail=rect('.arena-left');
-        const ownMana=rect('.own-mana');
-        return {hand:Math.abs(center(hero)-center(hand)),hero:Math.abs(center(hero)-center(enemy)),
-          deck:Math.abs(center(decks[0])-center(decks[1])), turn:Math.abs(center(decks[0])-center(turn)),
-          awayMana:mana.top>=away.bottom-1&&Math.abs(mana.left-away.left)<3,
-          log:rail.width>=32&&rail.top>=mana.bottom-2,ownMana:ownMana.bottom<=innerHeight};
+        const field=rect('.arena-field');
+        const divider=rect('.divider-emblem');
+        const decor=rect('.table-decor');
+        const midY=box=>box.top+box.height/2;
+        const mirror=([upper,lower])=>Math.abs(midY(upper)+midY(lower)-2*midY(field));
+        return {
+          axis:[hero,enemy,hand,away,divider,decor].map(box=>Math.abs(center(box)-center(field))),
+          position:[mirror([enemy,hero]),mirror(decks),mirror(weapons),mirror(powers),mirror(mana),Math.abs(midY(divider)-midY(field))],
+          columns:[decks,weapons,powers,mana,[decks[0],turn]].map(([a,b])=>Math.abs(center(a)-center(b))),
+          manaSize:[Math.abs(mana[0].width-mana[1].width),Math.abs(mana[0].height-mana[1].height)],
+          crystals:document.querySelectorAll('.battle-mana .mana-crystal').length,
+          log:rail.width>=32,insideMana:mana[0].top>=0&&mana[1].bottom<=innerHeight
+        };
       });
-      assert.ok(alignment.hand<3&&alignment.hero<2&&alignment.deck<3&&alignment.turn<3&&
-        alignment.awayMana&&alignment.log&&alignment.ownMana,JSON.stringify({width,...alignment}));
+      assert.ok([...alignment.axis,...alignment.position,...alignment.columns,...alignment.manaSize].every(delta=>delta<2)&&
+        alignment.crystals===20&&alignment.log&&alignment.insideMana,JSON.stringify({width,...alignment}));
     }
     const card=page.locator('.own-hand .battle-card').first();
     const copy=card.locator('.card-copy');
@@ -313,28 +332,84 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   });
   t.diagnostic('Public log translations across three hand toggles: '+translations);
   assert.equal(translations,0,'hand UI must not build the removed record panes');
-  const unitSizes=[];
-  for(let count=1;count<=10;count++){
-    await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);
-    await page.waitForFunction(count=>Number(document.querySelector('.own-hand .battle-hand')?.dataset.count)===count,count);
-    await page.locator('.folded-hand').tap();
-    const noOverlap=await page.evaluate(count=>{
-      const cards=[...document.querySelectorAll('.own-hand .battle-card')];
-      const mana=document.querySelector('.own-mana').getBoundingClientRect();
-      const deck=document.querySelector('.arena-right .own-resources .deck-pile').getBoundingClientRect();
-      const units=document.querySelectorAll('.friendly-board .battle-minion').length;
-      return units===Math.min(7,count)&&cards.length===count&&cards.every(card=>{
-        const r=card.getBoundingClientRect();
-        return r.width>0&&[mana,deck].every(box=>r.right<=box.left||r.left>=box.right||r.bottom<=box.top||r.top>=box.bottom);
-      });
-    },count);
-    assert.ok(noOverlap,`hand of ${count} stays outside mana and deck`);
-    const units=await page.locator('.arena-field .battle-minion').evaluateAll(elements=>elements.map(element=>{
-      const {width,height}=getComputedStyle(element);return [Number.parseFloat(width),Number.parseFloat(height)];
-    }));
-    if(count===1)unitSizes.push(units[0]);
-    assert.ok(units.every(([width,height])=>Math.abs(width-unitSizes[0][0])<.1&&Math.abs(height-unitSizes[0][1])<.1),JSON.stringify({count,units,reference:unitSizes[0]}));
-    await page.locator('.folded-hand').tap();
+  for(const [width,height] of [[780,360],[1024,768],[1366,768]]){
+    await page.setViewportSize({width,height});
+    await page.emulateMedia({reducedMotion:'reduce'});
+    const compact=height<=540;
+    let unitSize;
+    let tribeSize;
+    for(let count=0;count<=10;count++){
+      await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);
+      await page.waitForFunction(count=>Number(document.querySelector('.own-hand .battle-hand')?.dataset.count)===count,count);
+      if(compact&&count)await page.locator('.folded-hand').tap();
+      const geometry=await page.evaluate(compact=>{
+        const rect=el=>el.getBoundingClientRect();
+        const cards=[...document.querySelectorAll('.own-hand .battle-card')];
+        const hand=rect(document.querySelector('.card-back-row'));
+        const axis=box=>(box.left+box.right)/2;
+        const field=axis(rect(document.querySelector('.arena-field')));
+        const resources=['.own-mana','.arena-right .own-resources .deck-pile','.self-hero-zone .hero-portrait'].map(selector=>rect(document.querySelector(selector)));
+        const overlaps=(r,b)=>r.right>b.left+.5&&r.left<b.right-.5&&r.bottom>b.top+.5&&r.top<b.bottom-.5;
+        const units=['.friendly-board','.enemy-board'].map(selector=>[...document.querySelectorAll(selector+' .battle-minion')]);
+        const tribe=cards.map(card=>{
+          const badge=card.querySelector('.card-tribe');
+          if(!badge)return null;
+          const row=rect(badge.parentElement),box=rect(badge);
+          const [attack,hp]=[...badge.parentElement.querySelectorAll('.stat')].map(rect);
+          return {center:Math.abs(axis(row)-axis(box)),clear:!overlaps(box,attack)&&!overlaps(box,hp),size:parseFloat(getComputedStyle(badge).fontSize)};
+        }).filter(Boolean);
+        const frames=units.flat().map(node=>{
+          const frame=rect(node);
+          const art=node.querySelector('.minion-medallion');
+          const image=art.querySelector('.original-art .painted-art');
+          const box=rect(image),style=getComputedStyle(node),mask=getComputedStyle(art);
+          const border=side=>parseFloat(style['border'+side+'Width'])+parseFloat(mask['border'+side+'Width']);
+          return {fit:getComputedStyle(image).backgroundSize,clipped:mask.overflow==='hidden',
+            radius:mask.borderRadius===style.borderRadius,
+            edge:[box.left-frame.left-border('Left'),frame.right-box.right-border('Right'),
+              box.top-frame.top-border('Top'),frame.bottom-box.bottom-border('Bottom')]};
+        });
+        return {frames,tribe,own:cards.length,opponent:document.querySelectorAll('.opponent-card-slot').length,
+          handCenter:!compact&&hand.width?Math.abs(axis(hand)-field):0,
+          cardCenter:!compact&&cards.length?Math.abs((rect(cards[0]).left+rect(cards.at(-1)).right)/2-field):0,
+          clear:cards.every(card=>rect(card).width>0&&resources.slice(0,compact?2:3).every(box=>!overlaps(rect(card),box))),
+          emptySlot:Math.abs(axis(rect(document.querySelector('[data-drop-position="0"]')))-field),
+          rows:units.map(row=>({sizes:row.map(unit=>{const r=rect(unit);return [r.width,r.height];}),
+            center:row.length?Math.abs((rect(row[0]).left+rect(row.at(-1)).right)/2-field):0}))};
+      },compact);
+      const {frames,tribe,rows}=geometry;
+      assert.equal(geometry.own,count);
+      assert.equal(geometry.opponent,count);
+      assert.ok(geometry.clear&&geometry.handCenter<1&&geometry.cardCenter<1,JSON.stringify({width,count,geometry}));
+      if(!count)assert.ok(geometry.emptySlot<2,JSON.stringify({width,geometry}));
+      for(const row of rows){
+        assert.equal(row.sizes.length,Math.min(count,7));
+        assert.ok(row.center<1,JSON.stringify({width,count,row}));
+        if(count===1)unitSize??=row.sizes[0];
+        assert.ok(row.sizes.every(([w,h])=>Math.abs(w-unitSize[0])<.1&&Math.abs(h-unitSize[1])<.1),JSON.stringify({width,count,row,unitSize}));
+      }
+      for(const frame of frames)assert.ok(frame.fit==='cover'&&frame.clipped&&frame.radius&&frame.edge.every(edge=>Math.abs(edge)<1.5),JSON.stringify(frame));
+      for(const badge of tribe)assert.ok(badge.clear&&badge.center<1&&badge.size>=7.5,JSON.stringify({width,count,badge}));
+      if(tribe.length)tribeSize=tribe[0].size;
+      if(compact&&count)await page.locator('.folded-hand').tap();
+    }
+    t.diagnostic(width+'px board groups and hands checked at every count; unit '+unitSize.join(' × ')+' px; tribe '+tribeSize+' px');
+  }
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.evaluate(()=>{
+    window.reflowCalls=[];
+    const animate=Element.prototype.animate;
+    Element.prototype.animate=function(frames,options){
+      if(this.matches('.battle-minion')&&frames[0]?.translate)window.reflowCalls.push([this.dataset.previewMinion,frames[0].translate,options.duration]);
+      return animate.call(this,frames,options);
+    };
+    window.denseBoard(2,5);
+  });
+  await page.waitForTimeout(220);
+  for(const count of [3,2]){
+    await page.evaluate(count=>{window.reflowCalls=[];window.denseBoard(count,5);},count);
+    await page.waitForFunction(()=>window.reflowCalls.length===4);
+    await page.waitForFunction(()=>[...document.querySelectorAll('.battle-minion')].every(el=>getComputedStyle(el).translate==='none'));
   }
   await context.close();
 });
@@ -370,7 +445,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   })());
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'대전',exact:true}).tap();
-  await page.getByRole('button',{name:'마법사',exact:true}).tap();
+  await chooseBasicDeck(page,'마법사');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
   await page.locator('.mulligan-confirm').tap();
   const hand=page.locator('.folded-hand'),field=page.locator('.friendly-board');
@@ -510,7 +585,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   });
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
   await page.getByRole('button',{name:'대전',exact:true}).tap();
-  await page.getByRole('button',{name:'전사',exact:true}).tap();
+  await chooseBasicDeck(page,'전사');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
   await page.locator('.mulligan-confirm').tap();
   await page.locator('.end-turn.your-turn').waitFor();
@@ -684,7 +759,8 @@ test('real worker queues two attacks while a staged battlecry validates its targ
 });
 
 test('desktop displays both sides’ sequential discards and scrollable public action icons',{timeout:45000},async t=>{
-  const server=createSoloAppServer();
+  const baseline=process.env.CARD_DUEL_RAIL_BASELINE;
+  const server=createSoloAppServer(baseline);
   server.prependListener('request',req=>{
     if(req.url.startsWith('/ui-preview/'))req.url=req.url.slice('/ui-preview'.length);
   });
@@ -715,7 +791,10 @@ test('desktop displays both sides’ sequential discards and scrollable public a
     };
   });
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
-  for(const name of ['대전','전사','선택한 덱으로 대전 시작'])await page.getByRole('button',{name,exact:true}).click();
+  await page.getByRole('button',{name:'대전',exact:true}).click();
+  if(baseline)await page.getByRole('button',{name:'전사',exact:true}).click();
+  else await chooseBasicDeck(page,'전사');
+  await page.getByRole('button',{name:'선택한 덱으로 대전 시작',exact:true}).click();
   await page.locator('.mulligan-confirm').click();
   await page.waitForFunction(()=>Boolean(window.playPublicFixture));
   await page.locator('.battle.phase-playing').waitFor();
@@ -748,8 +827,35 @@ test('desktop displays both sides’ sequential discards and scrollable public a
     const r=node.getBoundingClientRect(),top=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
     return [r.toJSON(),top?.className,getComputedStyle(node).visibility,getComputedStyle(node).zIndex];
   }))));
+  const icon=rail.locator('.impact-icon').first();
+  const size=await icon.evaluate(el=>{
+    const rect=el.getBoundingClientRect();
+    const glyph=el.querySelector('.impact-kind');
+    return {width:rect.width,height:rect.height,glyph:parseFloat(getComputedStyle(glyph).fontSize)};
+  });
+  const previousHeight=768*.065;
+  const factor=baseline?1:1.5;
+  assert.ok(Math.abs(size.height-previousHeight*factor)<.1&&Math.abs(size.width-(previousHeight+12)*factor)<.1,JSON.stringify(size));
+  assert.ok(Math.abs(size.glyph-768*.026*factor)<.1,JSON.stringify(size));
+  t.diagnostic('Rendered desktop action icon: '+JSON.stringify(size));
+  await page.screenshot({path:'ui-evidence/desktop-action-log-viewport.png'});
+  if(!baseline){
+    await icon.hover();
+    const point=await icon.boundingBox();
+    await page.mouse.move(point.x+point.width/2+3,point.y+point.height/2);
+    await page.locator('.arena-left .impact-preview[data-open=true]').waitFor({timeout:4000});
+    await page.mouse.move(450,380);
+  }
+  await icon.press('Enter');
+  await page.locator('.arena-left .impact-preview[data-open=true]').waitFor({timeout:4000});
+  await icon.press('Escape');
   await rail.evaluate(el=>el.scrollTop=el.scrollHeight);
   assert.ok(await rail.evaluate(el=>el.scrollTop>0));
   assert.ok(await visibleIcons()>=3);
   await page.screenshot({path:'ui-evidence/desktop-public-rail-v0330.png'});
+  await page.setViewportSize({width:844,height:390});
+  await rail.evaluate(el=>el.scrollTop=0);
+  const compact=await icon.boundingBox();
+  assert.ok(Math.abs(compact.width-43.2)<.1&&Math.abs(compact.height-31.2)<.1,JSON.stringify(compact));
+  t.diagnostic('Rendered compact action icon: '+compact.width+' × '+compact.height+' px');
 });

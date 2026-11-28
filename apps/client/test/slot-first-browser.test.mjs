@@ -1,3 +1,4 @@
+import {chooseBasicDeck} from './deck-selection-browser.ts';
 import {musicAssets} from '../solo-app/music-assets.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -65,12 +66,12 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   }),['legacy-catalog',JSON.stringify(entries[1].deck,null,2)]);
   await page.getByRole('button',{name:'메인으로',exact:true}).click();
   assert.equal(await page.locator('.preview-lobby > .app-header').evaluate(el=>getComputedStyle(el).display),'none','the large header is removed');
-  await page.getByRole('button',{name:'덱 목록',exact:true}).click();
-  await page.getByRole('button',{name:'전사',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'덱 목록',exact:true}).count(),0);
+  await page.getByRole('button',{name:'대전',exact:true}).click();
   const library=page.locator('.preview-deck-select');
   assert.equal(await library.locator('.preview-deck-grid>*').count(),9);
   const edit=library.getByRole('button',{name:'편집',exact:true});
-  await library.getByRole('button',{name:'기본 덱',exact:true}).click();
+  await chooseBasicDeck(page,'전사');
   assert.ok(await edit.isDisabled());
   const savedTile=library.getByRole('button',{name:entries[1].name,exact:false});
   await savedTile.click();
@@ -82,8 +83,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.getByRole('button',{name:'대전',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'슬롯 · 성장 · 저장 경기'}).count(),0,'slot management is not on the play screen');
   assert.equal(await page.locator('.play-support > .saved-duel-panel.slot-panel').count(),0,'no old slot panel in the play hub');
-  assert.equal(await page.locator('.preview-hero-tile').count(),9,'the nine hero classes occupy the play screen');
-  await page.getByRole('button',{name:'전사',exact:true}).click();
+  assert.equal(await page.locator('.preview-hero-tile').count(),0,'saved decks are immediately visible');
   assert.ok(await page.getByRole('button',{name:entries[1].name}).isVisible(),'slot 2 owns its saved warrior deck');
   assert.equal(await page.locator('.preview-deck-grid>*').count(),9);
   assert.equal(await page.locator('.preview-deck-empty').count(),8);
@@ -120,11 +120,10 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   assert.equal(await page.locator('.slot-management-screen').count(),0,'no XP/progression panels in slot chooser');
   await page.getByRole('button',{name:'슬롯 1',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
-  await page.getByRole('button',{name:'마법사',exact:true}).click();
   assert.ok(await page.getByRole('button',{name:entries[0].name}).isVisible(),'slot 1 saved mage deck available');
   assert.equal(await page.getByRole('button',{name:entries[1].name}).count(),0,'slot 2 warrior deck not visible in slot 1');
   assert.equal(await page.locator('.preview-deck-grid>button').count(),9);
-  assert.deepEqual(await colors(page.locator('.preview-deck-grid button').nth(1)),['rgb(255, 243, 215)','rgb(99, 70, 47)','rgb(197, 153, 96)']);
+  assert.ok(await page.locator('.preview-deck-grid button').nth(1).locator('.deck-slot-portrait [data-art-asset]').isVisible());
   const multiTile=await page.locator('.preview-deck-grid button').first().boundingBox();
   assert.ok(singleTile&&multiTile);
   assert.deepEqual([multiTile.width,multiTile.height],[singleTile.width,singleTile.height]);
@@ -148,6 +147,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   assert.equal(await page.locator('.preview-deck-empty').count(),8);
   await page.getByRole('button',{name:'이전 덱 페이지'}).click();
   await page.getByRole('button',{name:/새 덱 만들기/}).click();
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
   const builder=page.locator('.deck-builder');
   await builder.waitFor();
   assert.equal(await builder.locator('.collection-leaf').count(),2);
@@ -202,7 +202,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await freePlay.getByRole('button',{name:'플레이어 덱 편집'}).click();
   await page.locator('.deck-builder').waitFor();
   await page.getByRole('button',{name:'메인으로'}).click();
-  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('navigation',{name:'게임 메뉴'}).getByRole('button',{name:/개발자 모드/}).click();
   assert.equal(await playerDeck.inputValue(),'saved:'+trialDecks[0].name);
   assert.equal(await opponentDeck.inputValue(),'saved:'+trialDecks[1].name);
   await freePlay.getByRole('button',{name:'자유 대전 시작',exact:true}).click();
@@ -331,8 +331,8 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.getByRole('button',{name:/개발자 모드/}).click();
   await page.getByRole('button',{name:'시험 덱 구성'}).click();
   assert.equal(await page.getByText(entries[0].name,{exact:true}).count(),0,'player deck library is isolated');
-  await page.getByRole('button',{name:'마법사',exact:true}).click();
   await page.getByRole('button',{name:'새 덱 만들기',exact:true}).click();
+  await page.getByRole('button',{name:'마법사',exact:true}).click();
   await page.getByRole('button',{name:'덱 관리',exact:true}).click();
   await page.getByRole('button',{name:'추천 덱',exact:true}).click();
   await page.getByRole('dialog',{name:'덱 관리',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
@@ -343,7 +343,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.waitForFunction(()=>localStorage.getItem('card-duel-ui-preview-slot-1:developer:card-duel-saved-decks')?.includes('개발자 시험 덱'));
   assert.equal(await page.evaluate(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks')),playerDecks);
   await page.getByRole('button',{name:'메인으로'}).click();
-  await page.getByRole('button',{name:'대전',exact:true}).click();
+  await page.getByRole('navigation',{name:'게임 메뉴'}).getByRole('button',{name:/개발자 모드/}).click();
   await page.waitForFunction(()=>document.activeElement?.getAttribute('data-lobby-tab')==='developer');
   await page.getByRole('button',{name:'개발자 랭크 시험 시작',exact:true}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();

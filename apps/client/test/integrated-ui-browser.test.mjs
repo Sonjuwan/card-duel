@@ -1,3 +1,4 @@
+import {chooseBasicDeck} from './deck-selection-browser.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
@@ -126,9 +127,9 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.screenshot({path:'ui-evidence/integrated-'+label+'-catalog.png'});
     await page.getByRole('button',{name:'메인으로'}).click();
     await page.getByRole('button',{name:'대전',exact:true}).click();
-    assert.equal(await page.locator('.preview-hero-grid .preview-hero-tile').count(),9);
-    await page.screenshot({path:'ui-evidence/hero-choice-'+label+'.png'});
-    await page.getByRole('button',{name:'전사',exact:true}).click();
+    assert.equal(await page.locator('.preview-deck-grid > *').count(),9);
+    assert.equal(await page.locator('.preview-hero-grid').count(),0);
+    await chooseBasicDeck(page,'전사');
     await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
     await page.locator('.mulligan-cards .battle-card').first().waitFor();
     const selected=page.locator('.mulligan-cards .battle-card').first();
@@ -181,7 +182,7 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     const restart=page.getByRole('button',{name:'새로운 게임 시작'});
     await resume.waitFor();
     const left=await resume.boundingBox(),right=await restart.boundingBox();
-    assert.ok(left.x<right.x&&Math.abs(left.y-right.y)<4);
+    assert.ok(left&&right&&left.y+left.height<right.y);
     page.once('dialog',dialog=>dialog.dismiss());
     await restart.click();
     await resume.click();
@@ -240,6 +241,7 @@ test('all nine class portraits fit the requested landscape viewports',{timeout:9
       page.setDefaultTimeout(8000);
       await page.goto(url);
       await page.getByRole('button',{name:'대전',exact:true}).click();
+      await page.getByRole('button',{name:'새 덱 만들기',exact:true}).click();
       const tiles=page.locator('.preview-hero-tile');
       await tiles.first().waitFor();
       const home=await page.getByRole('button',{name:'메인으로',exact:true}).boundingBox();
@@ -412,11 +414,11 @@ test('basic deck can be copied without replacing a named deck',{timeout:25000},a
     const page=await context.newPage();
     await page.goto(url);
     await page.getByRole('button',{name:'대전',exact:true}).tap();
-    await page.getByRole('button',{name:'마법사',exact:true}).tap();
-    await page.getByRole('button',{name:'기본 덱',exact:true}).tap();
+    await chooseBasicDeck(page,'마법사');
     assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true);
     assert.equal(await page.getByRole('button',{name:'편집',exact:true}).isDisabled(),true);
     await page.getByRole('button',{name:'새 덱 만들기',exact:true}).tap();
+    await page.getByRole('button',{name:'마법사',exact:true}).tap();
     await page.getByRole('button',{name:'덱 관리',exact:true}).tap();
     const deckManagement=page.getByRole('dialog',{name:'덱 관리',exact:true});
     await deckManagement.getByRole('button',{name:'기본 덱 복제',exact:true}).tap();
@@ -432,13 +434,14 @@ test('basic deck can be copied without replacing a named deck',{timeout:25000},a
   }finally{await context.close();}
 });
 
-test('both home entries and the editor share the same class deck picker on desktop and phone',{timeout:45000},async t=>{
+test('mixed-class decks share one picker, selection and editing across desktop and phone',{timeout:55000},async t=>{
   const {browser,url}=await previewBrowser(t);
   const key='card-duel-ui-preview-slot-1:card-duel-saved-decks';
   const source=basicDeck(loadCatalog(),'mage');
-  const fixtures=Array.from({length:10},(_,index)=>({name:'마법사 덱 '+(index+1),deck:source}));
+  const paladin=basicDeck(loadCatalog(),'paladin');
+  const fixtures=Array.from({length:10},(_,index)=>({name:'보관 덱 '+(index+1),deck:index%2?paladin:source}));
   mkdirSync('ui-evidence',{recursive:true});
-  for(const [label,width,height,touch] of [['pc',1366,768,false],['phone',844,390,true]]){
+  for(const [label,width,height,touch] of [['pc',1366,768,false],['tablet',1024,768,true],['phone',844,390,true]]){
     const context=await browser.newContext({viewport:{width,height},hasTouch:touch,isMobile:touch});
     try{
       await context.addInitScript(({key,fixtures})=>{
@@ -450,19 +453,26 @@ test('both home entries and the editor share the same class deck picker on deskt
       const button=name=>page.getByRole('button',{name,exact:true});
       const picker=page.locator('.preview-deck-select');
       const grid=picker.locator('.preview-deck-grid');
-      await button('덱 목록').click();
-      await button('마법사').click();
+      assert.equal(await button('덱 목록').count(),0);
+      await button('대전').click();
+      assert.equal(await page.locator('.preview-hero-tile').count(),0);
       const first=await grid.locator('button').first().boundingBox();
       assert.equal(await grid.locator(':scope > button').count(),9);
-      const change=await button('← 직업 변경').boundingBox();
-      const settings=await button('설정').boundingBox();
+      assert.ok(await grid.locator('.faction-mage .deck-slot-portrait [data-art-asset]').count());
+      assert.ok(await grid.locator('.faction-paladin .deck-slot-portrait [data-art-asset]').count());
+      assert.deepEqual(await grid.locator('button').first().locator('strong').evaluate(node=>[getComputedStyle(node).color,getComputedStyle(node).fontWeight]),['rgb(255, 255, 255)','900']);
+      const ready=button('선택한 덱으로 대전 시작');
+      assert.ok(await ready.isDisabled());
       const start=await button('선택한 덱으로 대전 시작').boundingBox();
       assert.ok(Math.abs(start.x+start.width/2-width/2)<2,label+' centered start');
-      assert.ok(settings.x+settings.width<=change.x,label+' gear and back clear each other');
       const actions=await picker.locator('.preview-deck-shortcuts button').evaluateAll(items=>items.map(item=>{
         const box=item.getBoundingClientRect();return [Math.round(box.width),Math.round(box.height)];
       }));
       assert.ok(actions.every(size=>Math.abs(size[0]-actions[0][0])<=1&&size[1]===actions[0][1]));
+      const firstDeck=grid.locator('button').first();
+      await firstDeck.click();
+      assert.equal(await firstDeck.getAttribute('aria-pressed'),'true');
+      assert.equal(await firstDeck.evaluate(node=>getComputedStyle(node).borderTopColor),'rgb(255, 225, 138)');
       await page.screenshot({path:`ui-evidence/deck-select-${label}.png`});
       await button('다음 덱 페이지').click();
       const last=grid.locator('button').first();
@@ -473,7 +483,8 @@ test('both home entries and the editor share the same class deck picker on deskt
       await button('편집').click();
       assert.equal(await page.getByPlaceholder('저장할 덱 이름').inputValue(),fixtures[9].name);
       assert.equal(await page.locator('.deck-live-count').textContent(),'30/30');
-      await button('← 덱 목록').click();
+      page.once('dialog',dialog=>void dialog.accept());
+      await button('덱 저장').click();
       assert.equal(await grid.locator('button[aria-pressed=true] strong').textContent(),fixtures[9].name);
       page.once('dialog',dialog=>void dialog.accept());
       await button('덱 삭제').click();
@@ -481,9 +492,8 @@ test('both home entries and the editor share the same class deck picker on deskt
       assert.deepEqual(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key),fixtures.slice(0,9));
       await button('메인으로').click();
       await button('대전').click();
-      await button('마법사').click();
       assert.equal(await grid.locator(':scope > button').count(),9);
-      await button('기본 덱').click();
+      await chooseBasicDeck(page,'주술사');
       assert.equal(await button('편집').isDisabled(),true);
       assert.equal(await page.locator('[data-deck-screen=saved]').count(),0);
     }finally{await context.close();}

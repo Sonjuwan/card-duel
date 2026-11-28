@@ -46,7 +46,7 @@ test('battle, deck maker and card catalog are actual switched game screens',()=>
   assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
   for(const part of ['등급','퀘스트','경험치 · 카드 획득','개발자 모드'])assert.ok(app.includes(part));
   assert.match(app,/lobbyView==='catalog'\?<CardBrowser\b[^>]*\bfocusCardId=\{catalogFocus\}[^>]*\bunreadIds=/);
-  assert.match(app,/onClick=\{\(\)=>openLobbyView\('decks',true\)\}/);
+  assert.match(app,/data-lobby-tab="play".*setEnterDeckEditor\(false\);openLobbyView\('decks',true\)/);
   assert.match(app,/screenScrollRef\.current\?\.scrollTo\(0,0\)/);
 });
 test('single-touch inspection displays an unplayable hand card without a manual play button',()=>{
@@ -54,8 +54,9 @@ test('single-touch inspection displays an unplayable hand card without a manual 
   assert.doesNotMatch(battle,/setPeekCardId|selected-card-use|selected-card-inspect/);
   assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY:undefined,Boolean\(sourceId\?\.startsWith\('card:'\)&&!mulligan\)\)/);
 });
-test('preview uses one class deck picker and preserves access to legacy save slots',()=>{
-  assert.match(app,/lossOnExit&&\(lobbyView==='play'\|\|lobbyView==='decks'&&!previewEditHero\)/);
+test('preview uses the unified deck picker and preserves access to legacy save slots',()=>{
+  assert.match(app,/lobbyView==='decks'\?<DeckWorkspace/);
+  assert.match(app,/if\(lossOnExit&&offlineMode==='player'\)beginLocal\(resolveSolo\(soloSettings,random32\(\)\),current,true\)/);
   assert.match(app,/<LobbyDialog label="슬롯 · 성장 · 저장 경기">/);
   assert.match(shell,/\.lobby-main \.play-hub\{display:flex;flex-direction:column\}/);
   assert.match(shell,/\.lobby-main \.play-hub>\.play-lobby\{display:flex;flex-direction:column;gap:6px;overflow:visible\}/);

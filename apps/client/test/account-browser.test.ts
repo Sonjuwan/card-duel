@@ -1,3 +1,4 @@
+import {openLegacyPlayOptions} from './deck-selection-browser.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
@@ -19,7 +20,7 @@ test('browser: desktop registration, mobile login and shared deck, account-only 
     const desktop=await browser.newContext({viewport:{width:1366,height:768}}),mobile=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});
     const a=await desktop.newPage(),b=await mobile.newPage();const errors:string[]=[];for(const page of [a,b])page.on('pageerror',error=>errors.push(error.message));
     await Promise.all([a.goto(url),b.goto(url)]);
-    for(const page of [a,b]){await page.getByText('서버 연결됨').waitFor();await page.getByRole('button',{name:'대전',exact:true}).click();await page.getByRole('button',{name:'계정',exact:true}).click();await page.locator('.account-panel>summary').click();await page.getByRole('textbox',{name:'이메일'}).fill('browser@example.test');await page.getByLabel('비밀번호',{exact:true}).fill('test-password');}
+    for(const page of [a,b]){await page.getByText('서버 연결됨').waitFor();await openLegacyPlayOptions(page);await page.getByRole('button',{name:'계정',exact:true}).click();await page.locator('.account-panel>summary').click();await page.getByRole('textbox',{name:'이메일'}).fill('browser@example.test');await page.getByLabel('비밀번호',{exact:true}).fill('test-password');}
     await a.getByRole('textbox',{name:'이메일'}).fill('pending@example.test');await a.getByRole('button',{name:'새 계정 등록'}).click();
     await a.getByText(/이메일 확인 대기 중/).waitFor();assert.equal(await a.getByLabel('비밀번호',{exact:true}).inputValue(),'');assert.equal(await a.getByRole('button',{name:'랭크 AI 대전 시작'}).count(),0);assert.equal((await desktop.cookies()).some(cookie=>cookie.name==='duel_account'),false);
     await a.getByRole('textbox',{name:'이메일'}).fill('browser@example.test');await a.getByLabel('비밀번호',{exact:true}).fill('test-password');

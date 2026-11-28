@@ -275,7 +275,7 @@ test('deck workspace uses a class picker, read-only catalogue and builder; book 
  const props={deck:{heroClass:'mage' as const,cards:['wolf']},setDeck:noOp};
  for(const screen of ['classes','select','cards','build'] as const){
   const h=renderToStaticMarkup(<DeckWorkspace {...props} initialScreen={screen}/>);assert.match(h,new RegExp(`data-deck-screen="${screen}"`));
-  assert.equal((h.match(/data-deck-screen=/g)??[]).length,1);assert.equal((h.match(/data-deck-nav=/g)??[]).length,2);
+  assert.equal((h.match(/data-deck-screen=/g)??[]).length,1);assert.doesNotMatch(h,/data-deck-nav=/);
   if(screen==='cards'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/data-book-page="left"/);assert.match(h,/data-book-page="right"/);}
   if(screen==='cards'){assert.match(h,/전체<small>382<\/small>/);assert.doesNotMatch(h,/덱 저장/);assert.match(h,/<dialog class="collection-detail-dialog" aria-label="카드 확대 상세"/);}
   if(screen==='build'){assert.equal((h.match(/class="collection-item"/g)??[]).length,8);assert.match(h,/book-edge/);assert.doesNotMatch(h,/collection-continuous/);}

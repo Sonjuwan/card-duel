@@ -4,17 +4,17 @@ import {strict as assert} from 'node:assert';
 const app=readFileSync(new URL('../apps/client/src/App.tsx',import.meta.url),'utf8');
 test('the home menu opens each independent screen with focus restoration',()=>{
   assert.match(app,/lobbyView==='home'/);
-  for(const tab of ['play','decks','catalog']){
-    assert.ok(app.includes(`data-lobby-tab="${tab}" onClick={()=>openLobbyView('${tab}',true)}`));
-  }
+  assert.match(app,/data-lobby-tab="play" onClick=\{\(\)=>\{setEnterDeckEditor\(false\);openLobbyView\('decks',true\);\}\}/);
+  assert.match(app,/data-lobby-tab="catalog" onClick=\{\(\)=>openLobbyView\('catalog',true\)\}/);
+  assert.doesNotMatch(app,/data-lobby-tab="decks"/);
   assert.match(app,/data-lobby-tab=\{lobbyView\}/);
 });
 test('navigation from unmounted panels returns focus to the matching persistent tab',()=>{
   assert.match(app,/const openLobbyView=\(next:Exclude<LobbyView,'home'>,restoreFocus=false,cardId\?:string\)=>\{/);
   assert.match(app,/if\(restoreFocus\)requestAnimationFrame\(\(\)=>screenScrollRef\.current\?\.querySelector<HTMLButtonElement>/);
-  assert.match(app,/onEdit=\{\(\)=>openLobbyView\('decks',true\)\}/);
-  assert.match(app,/onPlay=\{current=>\{editDeck\(current\);openLobbyView\(practiceLobby,true\);\}\}/);
-  assert.match(app,/onClick=\{\(\)=>openLobbyView\('play',true\)\}/);
+  assert.match(app,/onEdit=\{\(\)=>\{setEnterDeckEditor\(false\);openLobbyView\('decks',true\);\}\}/);
+  assert.match(app,/onPlay=\{current=>\{\s*editDeck\(current\);setEnterDeckEditor\(false\);/);
+  assert.match(app,/lobbyView==='decks'\?'play':lobbyView/);
 });
 
 test('slot and growth are a separate preview home destination, not a play support button',()=>{

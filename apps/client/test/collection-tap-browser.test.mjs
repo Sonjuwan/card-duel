@@ -102,8 +102,8 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
   await page.getByRole('button',{name:'메인으로',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
-  await page.getByRole('button',{name:'전사',exact:true}).tap();
   await page.getByRole('button',{name:'새 덱 만들기',exact:true}).tap();
+  await page.getByRole('button',{name:'전사',exact:true}).tap();
   const builder=page.locator('.deck-builder'),count=builder.locator('.deck-live-count');
   await count.waitFor({state:'attached'});
   assert.equal(await count.textContent(),'0/30');
