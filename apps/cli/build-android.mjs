@@ -20,7 +20,7 @@ export function versionCode(version){
 }
 export function prepareAndroid(destination=join(root,'dist/android')){
   const source=join(root,'apps/android'),html=readFileSync(join(root,'solo-offline.html'),'utf8');
-  if(!html.includes(`<title>Card Duel v${project.version} · 오프라인 솔로</title>`))throw Error('Rebuild solo-offline.html before packaging Android.');
+  if(!html.includes(`<title>RUNEHALL v${project.version} · 오프라인 솔로</title>`))throw Error('Rebuild solo-offline.html before packaging Android.');
   if(!html.includes('</head>')||/<meta[^>]+Content-Security-Policy/i.test(html.slice(0,html.indexOf('<script type="module">'))))throw Error('Unexpected standalone HTML head');
   const csp="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; worker-src blob:; connect-src 'none'; font-src data:; media-src data: blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
   const app=html.replace('<head>',`<head><meta http-equiv="Content-Security-Policy" content="${csp}">`);

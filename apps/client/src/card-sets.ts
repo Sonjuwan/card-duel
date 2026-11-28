@@ -12,7 +12,7 @@ export function cardSet(card:Card):CardSet{
   return card.rarity==='basic'?'basic':'original';
 }
 export function matchesCardSet(card:Card,filter:CardSetFilter|'token'){return filter==='all'||cardSet(card)===filter;}
-export function cardSetLabel(card:Card){return cardSet(card)==='basic'?'기본 카드':cardSet(card)==='original'?'오리지널 카드':'생성 카드';}
+export function cardSetLabel(card:Card){return cardSet(card)==='basic'?'기본 카드':cardSet(card)==='original'?'룬홀 오리지널':'생성 카드';}
 // Presentation only: preserve the catalog and engine's deck order.
 const cardNameCollator=new Intl.Collator('ko',{numeric:true,sensitivity:'base'});
 export function sortCardsForDisplay<T extends Card>(cards:readonly T[],classicNames=true):T[]{

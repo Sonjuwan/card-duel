@@ -16,7 +16,7 @@ export function inspectPlayablePwa(dist=join(project,'dist/solo-app')){
   const read=name=>readFileSync(join(dist,name));
   const html=read('index.html').toString();
   const version=JSON.parse(readFileSync(join(project,'package.json'),'utf8')).version;
-  assert(html.includes(`Card Duel v${version}`),'Installable game version must match compiled binary, never candidate source version');
+  assert(['RUNEHALL','Card Duel'].some(name=>html.includes(`${name} v${version}`)),'Installable game version must match compiled binary, never candidate source version');
   const standalone=readFileSync(join(project,'solo-offline.html'),'utf8');
   assert(standalone.includes(restoreSoloMusic(read('game.js').toString(),read)),'Compiled script differs from verified standalone binary');
   assert(standalone.includes(read('game.css').toString()),'Compiled card graphics differ from verified standalone binary');
@@ -39,7 +39,7 @@ export function packagePlayablePwa(outputDir){
   try{
     mkdirSync(packageDir);for(const name of meta.assets)cpSync(join(project,'dist/solo-app',name),join(packageDir,name));
     writeFileSync(join(packageDir,'INSTALL.txt'),[
-      `Card Duel PWA — compiled game v${meta.version} (immutable ${meta.release.slice(0,12)})`,
+      `RUNEHALL PWA — compiled game v${meta.version} (immutable ${meta.release.slice(0,12)})`,
       'This package contains the compiled game and the matching offline installer.',
       'A newer source-only candidate does NOT become a playable build through this command.',
       'Upload every file in card-duel-pwa to the same HTTPS URL and keep paths unchanged.',

@@ -13,7 +13,7 @@ const root=createRoot(document.getElementById('root')!);
 let loading=false;
 async function start(){
   if(loading)return;loading=true;
-  root.render(<main><section className="panel" role="status"><h2>Card Duel</h2><p>최신 카드 정보를 불러오는 중입니다… 서버가 처음 시작되면 시간이 걸릴 수 있습니다.</p></section></main>);
+  root.render(<main><section className="panel" role="status"><h2>RUNEHALL</h2><p>최신 카드 정보를 불러오는 중입니다… 서버가 처음 시작되면 시간이 걸릴 수 있습니다.</p></section></main>);
   try{
     const {cards,hash}=await requestCatalog();loadPublicCatalog(cards,hash);
     root.render(<App workerFactory={()=>new Worker(new URL('./local-duel.worker.ts',import.meta.url),{type:'module'})}/>);

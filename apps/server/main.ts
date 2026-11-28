@@ -23,4 +23,4 @@ const {http,io,flush}=createDuelServer(catalog,{trustedOrigin:process.env.CARD_D
 let stopping=false;
 async function stop(){if(stopping)return;stopping=true;await io.close();const saved=await flush();if(accounts instanceof LocalAccountStore)accounts.close();if(!saved)process.exitCode=1;}
 process.once('SIGTERM',()=>void stop());process.once('SIGINT',()=>void stop());
-http.listen(port,host,()=>console.log(`Card Duel: http://${host}:${port}`));
+http.listen(port,host,()=>console.log(`RUNEHALL: http://${host}:${port}`));

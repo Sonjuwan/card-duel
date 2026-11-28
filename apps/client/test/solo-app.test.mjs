@@ -35,7 +35,7 @@ test('install package embeds actual game and includes content-checked manifest r
   assert.match(read('game.css').toString(),/#solo-app-banner button\{min-height:44px\}/,'installed update and storage protection controls keep mobile-sized targets');
   assert.ok((read('game.css').toString().match(/data:image\/webp;base64,/g)??[]).length>=380,'all embedded card art survives');
   assert.match(html,/id="solo-storage-protect"/);
-  assert.ok(html.includes(`Card Duel v${JSON.parse(readFileSync('package.json','utf8')).version}`));
+  assert.ok(html.includes(`RUNEHALL v${JSON.parse(readFileSync('package.json','utf8')).version}`));
   assert.equal(manifest.display,'standalone');assert.equal(manifest.id,'./');assert.equal(manifest.scope,'./');
   assert.deepEqual(manifest.icons.map(icon=>icon.sizes),['192x192','512x512']);
   assert.deepEqual(Object.keys(release.files).sort(),[...musicAssets,'index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'].sort());

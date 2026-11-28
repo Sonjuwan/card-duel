@@ -33,7 +33,7 @@ function main(){
   run('git',['merge-base','--is-ancestor',baseCommit,'HEAD']);
   const release=JSON.parse(git('show','HEAD:package.json')).version;
   const installer=readFileSync(join(project,'dist/solo-app/index.html'),'utf8');
-  check(installer.includes(`Card Duel v${release}`),`Existing verified installer must still be v${release}; cannot label a newer binary as verified.`);
+  check(['RUNEHALL','Card Duel'].some(name=>installer.includes(`${name} v${release}`)),`Existing verified installer must still be v${release}; cannot label a newer binary as verified.`);
   const standalone=readFileSync(join(project,'solo-offline.html'),'utf8');
   check(standalone.includes(restoreSoloMusic(readFileSync(join(project,'dist/solo-app/game.js'),'utf8'),name=>readFileSync(join(project,'dist/solo-app',name)))),'Standalone script and installer differ.');
   check(standalone.includes(readFileSync(join(project,'dist/solo-app/game.css'),'utf8')),'Standalone styles and installer differ.');

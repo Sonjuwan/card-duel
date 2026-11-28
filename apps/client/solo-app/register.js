@@ -51,7 +51,7 @@ if(window.isSecureContext&&!standaloneMode()){
   });
   window.addEventListener?.('appinstalled',()=>{
     clearInstallOffer();
-    installNotice('홈 화면에 설치됨 · Card Duel 아이콘으로 실행하면 주소창 없이 플레이할 수 있어요.');
+    installNotice('홈 화면에 설치됨 · RUNEHALL 아이콘으로 실행하면 주소창 없이 플레이할 수 있어요.');
   });
 }
 const buildVersion=document.querySelector?.('meta[name="card-duel-build"]')?.content;

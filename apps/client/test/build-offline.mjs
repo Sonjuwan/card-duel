@@ -6,7 +6,7 @@ const directory=resolve('dist/offline');
 let html=readFileSync(resolve(directory,'offline.html'),'utf8');
 const version=JSON.parse(readFileSync('package.json','utf8')).version;
 if(typeof version!=='string'||!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid release version');
-html=html.replace('<title>Card Duel · 오프라인 솔로</title>',`<title>Card Duel v${version} · 오프라인 솔로</title>`);
+html=html.replace('<title>RUNEHALL · 오프라인 솔로</title>',`<title>RUNEHALL v${version} · 오프라인 솔로</title>`);
 let scripts=0,styles=0;
 html=html.replace(/<script\b[^>]*\bsrc="([^"\r\n]+)"[^>]*><\/script>/g,(_,src)=>{
   if(!/^\.\/assets\/[\w.-]+\.js$/.test(src))throw Error(`Unexpected script: ${src}`);

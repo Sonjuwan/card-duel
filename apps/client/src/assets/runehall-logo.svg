@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 790 204">
+<defs>
+<linearGradient id="metal" x2="0" y2="1"><stop stop-color="#fbebca"/><stop offset=".49" stop-color="#dec291"/><stop offset=".52" stop-color="#aa804d"/><stop offset="1" stop-color="#e1c18c"/></linearGradient>
+<linearGradient id="rune" x2=".7" y2="1"><stop stop-color="#b8edf8"/><stop offset="1" stop-color="#376b9c"/></linearGradient>
+<g id="lettering"><path transform="translate(0 0)" d="M1087 729Q1176 716 1237.0 670.0Q1298 624 1343 537L1561 121H1714V0H1223L985 451Q916 591 867.5 629.5Q819 668 733 668H672V121H864V0H96V121H287V1372H96V1493H948Q1208 1493 1349.5 1388.5Q1491 1284 1491 1092Q1491 936 1390.5 845.5Q1290 755 1087 729ZM672 788H803Q943 788 1018.5 864.0Q1094 940 1094 1081Q1094 1222 1018.5 1297.0Q943 1372 803 1372H672Z"/><path transform="translate(1882 0)" d="M260 1372H70V1493H838V1372H647V625Q647 346 734.0 234.5Q821 123 1032 123Q1238 123 1324.5 235.5Q1411 348 1411 625V1372H1221V1493H1741V1372H1550V604Q1550 262 1402.0 116.5Q1254 -29 905 -29Q558 -29 409.0 118.0Q260 265 260 606Z"/><path transform="translate(3848 0)" d="M90 0V121H281V1372H90V1493H557L1458 436V1372H1268V1493H1790V1372H1599V0H1337L422 1079V121H612V0Z"/><path transform="translate(5900 0)" d="M96 0V121H287V1372H96V1493H1438V1141H1300V1356H672V877H1063V1067H1200V551H1063V741H672V137H1319V352H1456V0Z"/><path transform="translate(7641 0)" d="M96 0V121H287V1372H96V1493H864V1372H672V870H1266V1372H1075V1493H1843V1372H1651V121H1843V0H1075V121H1266V733H672V121H864V0Z"/><path transform="translate(9756 0)" d="M-16 0V121H106L668 1493H907L1470 121H1612V0H913V121H1059L936 426H375L250 121H428V0ZM424 547H887L657 1118Z"/><path transform="translate(11525 0)" d="M96 0V121H287V1372H96V1493H864V1372H672V137H1260V373H1395V0Z"/><path transform="translate(13145 0)" d="M96 0V121H287V1372H96V1493H864V1372H672V137H1260V373H1395V0Z"/></g>
+</defs>
+<path d="M94 59H333l21-14m82 0 21 14h239M59 167h275l20 15h82l20-15h275" fill="none" stroke="#bf955d" stroke-width="2" opacity=".75"/>
+<path d="M395 11 421 28v27l-26 20-26-20V28Z" fill="#1a2333" stroke="#bd9157" stroke-width="2"/>
+<path d="M395 18 413 31l-6 22-12 11-12-11-6-22Z" fill="url(#rune)"/>
+<path d="M385 48V36l10-8 10 8v12m-20-9 10 8 10-8m-10 8v8" fill="none" stroke="#e7f8fa" stroke-width="1.8"/>
+<g transform="translate(8.5 147) scale(0.053 -0.053)">
+<use href="#lettering" transform="translate(0 -65)" fill="#3f271b" stroke="#130e1a" stroke-width="58"/>
+<use href="#lettering" fill="url(#metal)" stroke="#f7dcab" stroke-width="10" paint-order="stroke fill"/>
+</g>
+<path d="M378 182h34m-17-5 7 5-7 5-7-5z" fill="none" stroke="#c6a26b" stroke-width="1.7"/>
+</svg>

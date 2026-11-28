@@ -151,7 +151,7 @@ export async function runSupervisor(o:Options){
         while(!stopping()&&Date.now()<until)await sleep(Math.min(poll,Math.max(1,until-Date.now())));
       }else{consecutiveFailures=0;safeSnapshot('running',`Cycle ${cycles} complete; next cycle will resume checkpoint`);}
     }
-    snapshot('stopped','Training stopped. Upload the result JSON to the Card Duel project chat.');finalized=true;
+    snapshot('stopped','Training stopped. Upload the result JSON to the RUNEHALL project chat.');finalized=true;
     return resultPath;
   }finally{
     try{

@@ -1,4 +1,4 @@
-# Card Duel v0.328.0 · 전투 연출과 보상의 길
+# RUNEHALL v0.328.0 · 전투 연출과 보상의 길
 
 카드 버전이 바뀐 뒤 같은 슬롯에 이전 카드 버전의 진행 중 랭크가 남아 있으면 새 랭크 대전을 시작하지 않습니다. 이전 버전의 기록은 삭제하지 않으며 기존 주소에서 이전 릴리스로 복귀해 해당 경기를 완료한 후 최신 릴리스를 다시 적용합니다. 다른 슬롯은 독립적으로 이용할 수 있습니다. 기존 성장+덱 백업은 가능합니다. 카드 수치 변경 없는 UI 패치는 같은 카드 해시의 저장 게임을 그대로 읽습니다.
 
@@ -161,7 +161,7 @@ npm.cmd ci
 npm.cmd run web
 ```
 
-터미널에 `Card Duel: http://127.0.0.1:3000`이 표시되면 Chrome 또는 Edge에서 해당 주소를 연다. 서버를 실행한 터미널은 닫지 않는다. 종료하려면 `Ctrl+C`. 기본 서버는 안전을 위해 이 컴퓨터에서만 접근할 수 있다.
+터미널에 `RUNEHALL: http://127.0.0.1:3000`이 표시되면 Chrome 또는 Edge에서 해당 주소를 연다. 서버를 실행한 터미널은 닫지 않는다. 종료하려면 `Ctrl+C`. 기본 서버는 안전을 위해 이 컴퓨터에서만 접근할 수 있다.
 
 ### AI와 혼자 테스트하기 (추천)
 
@@ -257,7 +257,7 @@ npm.cmd run balance
 ```powershell
 git init
 git add .
-git commit -m "Card Duel v0.32.0"
+git commit -m "RUNEHALL v0.32.0"
 ```
 
 Git이 이름/이메일 설정을 요구한다면 이 저장소에만 `git config user.name "Your Name"`, `git config user.email "you@example.com"`을 설정한다. 예시 값은 실제 본인 값으로 바꾼다. 변경 이력을 별도로 보존하고 싶다면 `git log --oneline`으로 확인한다. `node_modules`는 커밋하지 않는다.
@@ -301,5 +301,5 @@ To make an actual testable executable from a downloaded candidate ZIP:
 If Node 24, dependencies, or any safety gate is unavailable, the builder
 **fails without promoting the candidate**, and restores the included earlier
 playable game assets. Keep the original candidate ZIP as a backup. The GitHub
-Actions `Validate a playable Card Duel candidate` workflow is an alternative
+Actions `Validate a playable RUNEHALL candidate` workflow is an alternative
 when candidate sources have been pushed to a suitable GitHub branch.

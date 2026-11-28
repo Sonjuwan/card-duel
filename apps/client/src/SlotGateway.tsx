@@ -43,7 +43,7 @@ export function SlotGateway({workerFactory,onSelect}:{workerFactory:()=>Worker;o
     return()=>{stopped=true;if(timer!==undefined)clearTimeout(timer);active?.terminate();};
   },[workerFactory,retry]);
   return <main className="lobby-main slot-entry" data-game-viewport="landscape">
-    <header className="app-header"><div className="brand"><h1>Card Duel</h1></div><div className="connection"><span className="good">● 오프라인 솔로</span></div></header><LandscapeExperience/>
+    <header className="app-header"><div className="brand"><h1>RUNEHALL</h1></div><div className="connection"><span className="good">● 오프라인 솔로</span></div></header><LandscapeExperience/>
     <section className="slot-entry-content" aria-label="시작할 저장 슬롯 선택">
       <div className="slot-entry-title"><div><h2>저장 슬롯을 선택하세요</h2><p>먼저 슬롯을 고르면 그 슬롯의 보유 카드·덱·랭크·전적으로 플레이합니다. 서로 다른 슬롯의 데이터는 섞이지 않습니다.</p></div>
         <button className="secondary" type="button" onClick={()=>setRetry(n=>n+1)}>슬롯 기록 다시 확인</button></div>

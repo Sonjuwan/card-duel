@@ -63,11 +63,11 @@ export function createSoloAppServer(directory=packageDirectory){
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   try{
-    if(process.argv[2]==='--verify')console.log(`Verified complete Card Duel release: ${loadSoloRelease(process.argv[3]?resolve(process.argv[3]):packageDirectory).id}`);
+    if(process.argv[2]==='--verify')console.log(`Verified complete RUNEHALL release: ${loadSoloRelease(process.argv[3]?resolve(process.argv[3]):packageDirectory).id}`);
     else{
       const server=createSoloAppServer();
-      server.on('error',error=>{console.error(`Cannot start Card Duel at 127.0.0.1:${SOLO_PORT}: ${error.message}`);process.exitCode=1;});
-      server.listen(SOLO_PORT,'127.0.0.1',()=>console.log(`Card Duel · ${'http://127.0.0.1:'+SOLO_PORT+'/'}\nOpen this exact address in your usual browser. Keep this window running for first setup and updates. Restart the launcher after replacing a release.`));
+      server.on('error',error=>{console.error(`Cannot start RUNEHALL at 127.0.0.1:${SOLO_PORT}: ${error.message}`);process.exitCode=1;});
+      server.listen(SOLO_PORT,'127.0.0.1',()=>console.log(`RUNEHALL · ${'http://127.0.0.1:'+SOLO_PORT+'/'}\nOpen this exact address in your usual browser. Keep this window running for first setup and updates. Restart the launcher after replacing a release.`));
     }
   }catch(error){console.error(`App package invalid: ${error.message}. Extract the complete release into a new folder or rebuild it.`);process.exitCode=1;}
 }

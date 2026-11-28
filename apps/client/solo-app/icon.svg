@@ -1,7 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="72" fill="#211b19"/>
-  <rect x="106" y="105" width="210" height="310" rx="26" transform="rotate(-12 211 260)" fill="#604b30" stroke="#c39d58" stroke-width="12"/>
-  <rect x="193" y="83" width="210" height="310" rx="26" transform="rotate(12 298 238)" fill="#3c2722" stroke="#f0cf80" stroke-width="12"/>
-  <path d="M298 128l24 72 76 23-76 23-24 72-24-72-76-23 76-23z" fill="#f0cf80" stroke="#936e3e" stroke-width="5"/>
-  <circle cx="298" cy="223" r="18" fill="#fff2ca"/>
+  <defs>
+    <radialGradient id="night"><stop stop-color="#263451"/><stop offset="1" stop-color="#101522"/></radialGradient>
+    <linearGradient id="bronze" x2=".75" y2="1"><stop stop-color="#f1d8a1"/><stop offset=".44" stop-color="#ba9054"/><stop offset="1" stop-color="#76553d"/></linearGradient>
+    <linearGradient id="blue" x2=".84" y2="1"><stop stop-color="#a9ebf7"/><stop offset=".48" stop-color="#4e9ac7"/><stop offset="1" stop-color="#22355d"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#night)"/>
+  <path d="M256 77 392 148V328L256 435 120 328V148Z" fill="#171c2b" stroke="url(#bronze)" stroke-width="12"/>
+  <path d="M256 99 373 160V319L256 412 139 319V160Z" fill="none" stroke="#9f794b" stroke-opacity=".55" stroke-width="3"/>
+  <path d="M256 133 339 203 313 308 256 365 199 308 173 203Z" fill="url(#blue)" stroke="url(#bronze)" stroke-width="6"/>
+  <path d="M256 142 284 206V293L256 353 228 293V206Z" fill="#72c7df" fill-opacity=".43"/>
+  <path d="M256 142 173 203 228 206 199 308 256 353 313 308 284 206 339 203Z" fill="none" stroke="#d3efff" stroke-opacity=".57" stroke-width="4"/>
+  <path d="M218 271v-50l38-32 38 32v50m-72-39 34 27 34-27m-34 27v49" fill="none" stroke="#e7f8fa" stroke-width="10" stroke-linejoin="bevel" stroke-linecap="square"/>
 </svg>

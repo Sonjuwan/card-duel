@@ -39,7 +39,7 @@ function epicDeck(heroClass:HeroClass,seed:number):Deck {
   return {heroClass,cards:[...classEpics,...shuffle(neutral).slice(0,6),...shuffle(cheap).slice(0,12)].flatMap(c=>Array<string>(maxCardCopies(c)).fill(c.id)).slice(0,30)};
 }
 let moves=0,epicPlays=0,legendaryPlays=0;const played=new Set<string>(),finishes={health:0,fatigue:0,concede:0,turnLimit:0,draw:0};
-console.log(`Card Duel stress: ${version}, ${count} matches, ${eligible.length} deck cards, ${mode} mode`);
+console.log(`RUNEHALL stress: ${version}, ${count} matches, ${eligible.length} deck cards, ${mode} mode`);
 for(let index=0;index<count;index++){
   const i=start+index;
   // Enumerate all 81 ordered class pairings, including mirrors.

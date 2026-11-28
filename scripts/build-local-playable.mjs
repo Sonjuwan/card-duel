@@ -44,7 +44,7 @@ function command(program,args){
 /** Verify all outputs before the report names them playable. */
 function verifyOutputs(version,out){
   const index=readFileSync(join(project,'dist/solo-app/index.html'),'utf8');
-  if(!index.includes(`Card Duel v${version}`))fail('Compiled PWA displays the wrong release version.');
+  if(!['RUNEHALL','Card Duel'].some(name=>index.includes(`${name} v${version}`)))fail('Compiled PWA displays the wrong release version.');
   const standalone=join(project,'solo-offline.html');
   const html=readFileSync(standalone,'utf8');
   if(!html.includes(restoreSoloMusic(readFileSync(join(project,'dist/solo-app/game.js'),'utf8'),name=>readFileSync(join(project,'dist/solo-app',name))))||
@@ -57,13 +57,13 @@ function verifyOutputs(version,out){
   if(pwa.version!==version)fail('PWA package version unexpectedly differs.');
   const report=join(out,`Card-Duel-v${version}-VALIDATION.txt`);
   writeFileSync(report,[
-    `Card Duel v${version} — locally compiled playable candidate`,
+    `RUNEHALL v${version} — locally compiled playable candidate`,
     'Completed successfully: Node24 npm ci, data integrity, syntax, typecheck,',
     'core regression, full tests, 2 real engine matches, React render,',
     'web build, offline/PWA build, PWA upgrade/rollback and deployment preflight.',
     'This is NOT confirmation of real Android/iPhone touch or audio tests.',
     'To install, host the PWA ZIP contents over HTTPS on the SAME ORIGIN as your',
-    'existing Card Duel installation to preserve browser saved games.',
+    'existing RUNEHALL installation to preserve browser saved games.',
     'Standalone HTML is for local file play, not for automatic PWA updates.',
     `Standalone SHA256: ${safeHash(target)}`,
     `PWA ZIP SHA256: ${safeHash(pwa.zip)}`,
@@ -91,7 +91,7 @@ function main(){
   if(hadSolo)cpSync(oldSolo,join(temp,'solo-offline.html'));
   let completed=false;
   try{
-    console.log(`Preparing Card Duel v${plan.version} from verified v${plan.previous} source snapshot.`);
+    console.log(`Preparing RUNEHALL v${plan.version} from verified v${plan.previous} source snapshot.`);
     // Install against ORIGINAL lock metadata first. Never substitute unpinned dependencies.
     command('npm',['ci','--no-audit','--no-fund']);
     command('npm',['run','verify:release-baseline']);

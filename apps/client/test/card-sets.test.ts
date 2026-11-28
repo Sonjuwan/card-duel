@@ -24,7 +24,7 @@ test('382 collectible cards partition into 133 basic and 249 original, never inc
   for(const card of all){if(cardSet(card)==='original')assert.ok(card.kind!=='coin'&&['common','rare','epic','legendary'].includes(card.rarity));else if(cardSet(card)==='token'){assert.ok(!matchesCardSet(card,'basic'));assert.ok(!matchesCardSet(card,'original'));}}
 });
 test('each class legal deck list partitions exactly between sets; all preserves legal order',()=>{
-  for(const heroClass of HERO_CLASSES){const legal=deckCards(catalog,heroClass),basic=legal.filter(c=>matchesCardSet(c,'basic')),original=legal.filter(c=>matchesCardSet(c,'original'));assert.equal(legal.length,basic.length+original.length);assert.equal(new Set([...basic,...original].map(c=>c.id)).size,legal.length);assert.deepEqual(legal.filter(c=>matchesCardSet(c,'all')),legal);assert.ok(basic.every(c=>cardSetLabel(c)==='기본 카드'));assert.ok(original.every(c=>cardSetLabel(c)==='오리지널 카드'));}
+  for(const heroClass of HERO_CLASSES){const legal=deckCards(catalog,heroClass),basic=legal.filter(c=>matchesCardSet(c,'basic')),original=legal.filter(c=>matchesCardSet(c,'original'));assert.equal(legal.length,basic.length+original.length);assert.equal(new Set([...basic,...original].map(c=>c.id)).size,legal.length);assert.deepEqual(legal.filter(c=>matchesCardSet(c,'all')),legal);assert.ok(basic.every(c=>cardSetLabel(c)==='기본 카드'));assert.ok(original.every(c=>cardSetLabel(c)==='룬홀 오리지널'));}
 });
 test('historical membership survives balance changes and new cards use a rarity fallback',()=>{
   const basic=catalog.recruit,original=catalog.crystal_sentinel;assert.ok(basic.kind!=='coin'&&original.kind!=='coin');

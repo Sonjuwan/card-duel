@@ -2,7 +2,7 @@ import { CardStore } from '../server/card-store.ts';
 import { deckCards, HERO_CLASSES, starterDeck, practiceDeck, validateDeck } from '../../packages/engine/src/index.ts';
 const {version,cards,catalog}=new CardStore().read();
 const collectible=cards.filter(c=>c.collectible!==false);
-console.log('Card Duel 활성 카드 검사:',version);
+console.log('RUNEHALL 활성 카드 검사:',version);
 console.log('덱 구성용:',collectible.length,'/ 비수집 정의:',cards.length-collectible.length);
 for(const rarity of ['basic','common','rare','epic','legendary'] as const)console.log(rarity,collectible.filter(c=>c.rarity===rarity).length);
 for(const kind of ['minion','spell','weapon','secret'] as const)console.log(kind,collectible.filter(c=>c.kind===kind).length);

@@ -77,7 +77,7 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
       }}>
       <div className="rotate-device-panel"><div className="rotate-device-icon" aria-hidden="true">▱</div>
         <h2>가로 화면으로 플레이</h2>
-        <p>Card Duel은 메인 메뉴부터 전투·덱 편집까지 가로형으로 설계됐어요.</p>
+        <p>RUNEHALL은 메인 메뉴부터 전투·덱 편집까지 가로형으로 설계됐어요.</p>
         <p>휴대폰을 가로로 돌려주세요. 자동 회전을 지원하는 브라우저라면 아래 버튼을 사용할 수 있어요.</p>
         <button type="button" ref={rotateButton} disabled={busy} onClick={()=>void requestLandscape()}>가로 전체화면</button>
         {notice&&<p role="status" className="rotate-device-status">{notice}</p>}

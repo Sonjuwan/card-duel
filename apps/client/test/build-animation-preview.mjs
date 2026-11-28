@@ -13,5 +13,5 @@ await build({configFile:false,root:resolve('apps/client'),define:{
 const js=readFileSync(resolve(out,'animation.iife.js'),'utf8').replace(/<\/script/gi,'<\\/script');
 const css=readFileSync(resolve(out,'animation.css'),'utf8');
 if(!css.includes('data:image/webp;base64,')||!js.includes('전투 연출 체험장'))throw Error('Animation preview missing local bundled assets or code');
-const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Card Duel v0.36.0 전투 연출 체험장</title><style>${css}</style></head><body><div id="fx-root"></div><script>${js}</script></body></html>`;
+const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RUNEHALL v0.36.0 전투 연출 체험장</title><style>${css}</style></head><body><div id="fx-root"></div><script>${js}</script></body></html>`;
 writeFileSync('animation-preview.html',html);console.log('Standalone animation preview:',Buffer.byteLength(html),'bytes');

@@ -37,7 +37,7 @@ function main(){
   const installationFiles=[...musicAssets,'index.html','game.js','game.css','manifest.webmanifest','register.js','icon-192.png','icon-512.png'];
   const solo=readFileSync(join(project,'solo-offline.html'),'utf8');
   const app=readFileSync(join(project,'dist/solo-app/index.html'),'utf8');
-  check(app.includes(`Card Duel v${version}`),'Installable app version does not match the committed release. Rebuild first.');
+  check(['RUNEHALL','Card Duel'].some(name=>app.includes(`${name} v${version}`)),'Installable app version does not match the committed release. Rebuild first.');
   const embeddedScript=solo.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1],embeddedCss=solo.match(/<style>([\s\S]*?)<\/style>/)?.[1];
   check(embeddedScript!==undefined&&embeddedCss!==undefined,'Standalone HTML is incomplete.');
   check(embeddedScript===restoreSoloMusic(bytes('dist/solo-app/game.js').toString(),name=>bytes('dist/solo-app/'+name))&&embeddedCss===bytes('dist/solo-app/game.css').toString(),'Standalone and installable game assets differ. Rebuild and verify.');
