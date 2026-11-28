@@ -1,6 +1,6 @@
 import {HERO_CLASSES,practiceDeck,strategicDeck,validateDeck,deckCards,maxCardCopies} from './engine/src/index.ts';
 import type {Catalog,Deck,HeroClass} from './engine/src/index.ts';
-import {creditRewardPath,rewardPaths,syncRewardRoad} from './reward-road.ts';
+import {activeRewardPath,creditRewardPath,rewardPaths,syncRewardRoad} from './reward-road.ts';
 import {buildRewardPaths,DEFAULT_REWARD_PATHS} from './reward-path-config.ts';
 import type {RewardPathDefinition} from './reward-path-config.ts';
 import type {Card} from './engine/src/index.ts';
@@ -41,7 +41,10 @@ export function buildGrowth(catalog:Catalog,overrides:Readonly<Record<string,num
     if(!collectible.some(c=>c.id===id)||!Number.isInteger(power)||power<1||power>25||starter.has(id)&&power!==1)throw new Error(`Invalid card power override: ${id}`);
     if(power===1)starter.add(id);
   }
-  const legacy=legacyUnlocks(catalog,collectible,overrides,unlockXp);
+  const expansionIds=new Set(definitions.slice(1).flatMap(path=>path.cardIds??[]));
+  const originalCards=collectible.filter(card=>!expansionIds.has(card.id));
+  const originalCatalog=expansionIds.size?Object.fromEntries(Object.entries(catalog).filter(([id])=>!expansionIds.has(id))):catalog;
+  const legacy=legacyUnlocks(originalCatalog,originalCards,overrides,unlockXp);
   const paths=buildRewardPaths(collectible,starter,legacy,power=>unlockXp.base+power*unlockXp.perPower,overrides,definitions);
   for(const [rank,tuning] of Object.entries(rankTuning))if(!/^(?:[1-9]|1[0-9]|2[0-5])$/.test(rank)||!tuning||![tuning.deckPower,tuning.intelligence].every(v=>Number.isInteger(v)&&v>=1&&v<=25))throw new Error(`Invalid rank tuning: ${rank}`);
   let minimumXp=0;
@@ -108,7 +111,10 @@ export function awardMatch(profile:AccountProfile,growth:GrowthView,match:MatchA
   const current=syncOwned(profile,growth),mode=match.mode??'ranked';
   const stats=structuredClone(current.matchStats??{ranked:{wins:0,losses:0,draws:0},pvp:{wins:0,losses:0,draws:0}});
   stats[mode][match.outcome==='win'?'wins':match.outcome==='loss'?'losses':'draws']++;
-  const finish=(next:AccountProfile,questBonusXp=0)=>{const before=new Set(current.ownedCards),questAdvanced=next.questGames>current.questGames;const recent=[{matchId:match.matchId,mode,rank:match.rank,heroClass:match.heroClass,opponentClass:match.opponentClass,outcome:match.outcome,completedAt:match.completedAt??Date.now(),turns:match.turns,xp:next.xp-current.xp,questAdvanced,questCompleted:questAdvanced&&next.questGames%growth.questLength===0,questBonusXp,unlockedCards:next.ownedCards.filter(id=>!before.has(id)),rankAfter:next.rank,eligible:match.eligible},...(current.recentMatches??[])].sort((a,b)=>b.completedAt-a.completedAt).slice(0,30);return {...next,recentMatches:recent,matchStats:stats};};
+  const finish=(next:AccountProfile,questBonusXp=0)=>{const before=new Set(current.ownedCards),questAdvanced=next.questGames>current.questGames;
+    const {path}=activeRewardPath(current,growth),after=new Set(next.ownedCards);
+    const unlockedCards=path.unlocks.map(card=>card.cardId).filter(id=>after.has(id)&&!before.has(id));
+    const recent=[{matchId:match.matchId,mode,rank:match.rank,heroClass:match.heroClass,opponentClass:match.opponentClass,outcome:match.outcome,completedAt:match.completedAt??Date.now(),turns:match.turns,xp:next.xp-current.xp,questAdvanced,questCompleted:questAdvanced&&next.questGames%growth.questLength===0,questBonusXp,unlockedCards,rankAfter:next.rank,eligible:match.eligible},...(current.recentMatches??[])].sort((a,b)=>b.completedAt-a.completedAt).slice(0,30);return {...next,recentMatches:recent,matchStats:stats};};
   if(!match.eligible||mode==='pvp')return finish(current);
   const rank=Math.max(1,Math.min(25,match.rank));
   let xp=current.xp+rankedXpReward(rank,match.outcome);

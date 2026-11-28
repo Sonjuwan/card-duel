@@ -1,11 +1,13 @@
 import {useEffect,useRef,useState} from 'react';
+import type {KeyboardEvent,MouseEvent} from 'react';
 import {RankCrest,rankTitle} from './RankCrest.tsx';
 import {playCinematicSound} from './battle-sound.ts';
 import type {AccountProfile,GrowthView} from '../../../packages/account-protocol.ts';
+import {activeRewardPath,rewardPaths} from '../../../packages/reward-road.ts';
 import {rankInfo,questStatus} from '../../../packages/progression.ts';
 import {catalog,className} from './data.ts';
-import {maxCardCopies} from '../../../packages/engine/src/index.ts';
-import {BattleCard} from './battle-pieces.tsx';
+import {useCardName} from './card-names.ts';
+import {BattleCard,cardDescription} from './battle-pieces.tsx';
 import type {HeroClass} from '../../../packages/engine/src/index.ts';
 
 export function PreviewRank({profile,growth}:{profile?:AccountProfile;growth?:GrowthView}){
@@ -24,12 +26,28 @@ export function PreviewRank({profile,growth}:{profile?:AccountProfile;growth?:Gr
   </section>;
 }
 
-export function PreviewRewards({profile,growth,onCatalog}:{profile?:AccountProfile;growth?:GrowthView;onCatalog?:(id:string)=>void}){
-  return profile&&growth?<RewardRoad profile={profile} growth={growth} onCatalog={onCatalog}/>:<section className="preview-progress">성장 기록을 불러오는 중입니다.</section>;
+type RewardPathProps={profile:AccountProfile;growth:GrowthView;busy?:boolean;onSelect?:(id:string)=>void};
+export function RewardPathPicker({profile,growth,busy,onSelect}:RewardPathProps){
+  const paths=rewardPaths(growth),{path}=activeRewardPath(profile,growth);
+  if(paths.length===1)return <h2>{path.name}</h2>;
+  return <label className="reward-path-picker">보상의 길
+    <select value={path.id} disabled={busy||!onSelect} onChange={e=>onSelect?.(e.target.value)}>
+      {paths.map(item=>{
+        const held=item.unlocks.filter(card=>profile.ownedCards.includes(card.cardId)).length;
+        return <option key={item.id} value={item.id}>{item.name} · {held}/{item.unlocks.length}</option>;
+      })}
+    </select>
+  </label>;
 }
-function RewardRoad({profile,growth,onCatalog}:{profile:AccountProfile;growth:GrowthView;onCatalog?:(id:string)=>void}){
+
+export function PreviewRewards({profile,growth,onCatalog,busy,onSelect}:{profile?:AccountProfile;growth?:GrowthView;onCatalog?:(id:string)=>void;busy?:boolean;onSelect?:(id:string)=>void}){
+  if(!profile||!growth)return <section className="preview-progress">성장 기록을 불러오는 중입니다.</section>;
+  const {path,xp}=activeRewardPath(profile,growth);
+  return <RewardRoad key={path.id} profile={profile} growth={growth} xp={xp} rewards={path.unlocks} busy={busy} onSelect={onSelect} onCatalog={onCatalog}/>;
+}
+function RewardRoad({profile,growth,xp,rewards,busy,onSelect,onCatalog}:RewardPathProps&{xp:number;rewards:GrowthView['unlocks'];onCatalog?:(id:string)=>void}){
   const owned=new Set(profile.ownedCards);
-  const rewards=growth.unlocks.filter(item=>!!catalog[item.cardId]);
+  rewards=rewards.filter(item=>!!catalog[item.cardId]);
   const next=rewards.findIndex(item=>!owned.has(item.cardId));
   const [position,setPosition]=useState(()=>Math.max(0,(next<0?rewards.length-1:next)-2));
   const perPage=5;
@@ -38,8 +56,8 @@ function RewardRoad({profile,growth,onCatalog}:{profile:AccountProfile;growth:Gr
   const touch=useRef<number|null>(null);
   const nextIndex=next<0?rewards.length:next;
   const lower=nextIndex>0?rewards[nextIndex-1].xp:0;
-  const upper=rewards[nextIndex]?.xp??profile.xp;
-  const fractional=Math.max(0,Math.min(1,(profile.xp-lower)/Math.max(1,upper-lower)));
+  const upper=rewards[nextIndex]?.xp??xp;
+  const fractional=Math.max(0,Math.min(1,(xp-lower)/Math.max(1,upper-lower)));
   const roadPercent=Math.max(0,Math.min(100,(nextIndex-1-start+fractional)/(perPage-1)*100));
   const turn=(direction:number)=>setPosition(Math.max(0,Math.min(last,start+direction*perPage)));
   return <section className="reward-road" aria-label="보상의 길" onTouchStart={e=>{touch.current=e.touches[0]?.clientX??null;}} onTouchCancel={()=>{touch.current=null;}} onTouchEnd={e=>{
@@ -47,10 +65,10 @@ function RewardRoad({profile,growth,onCatalog}:{profile:AccountProfile;growth:Gr
     if(touch.current!==null&&x!==undefined&&Math.abs(x-touch.current)>45)turn(x<touch.current?1:-1);
     touch.current=null;
   }}>
-    <header><strong>{profile.xp.toLocaleString('ko-KR')} XP</strong><p>{next<0?'모든 카드 획득 완료':`다음 카드까지 ${Math.max(0,rewards[next].xp-profile.xp).toLocaleString('ko-KR')} XP`}</p></header>
+    <header><RewardPathPicker profile={profile} growth={growth} busy={busy} onSelect={onSelect}/><strong>{xp.toLocaleString('ko-KR')} XP</strong><p>{next<0?'모든 카드 획득 완료':`다음 카드까지 ${Math.max(0,rewards[next].xp-xp).toLocaleString('ko-KR')} XP`}</p></header>
     <button className="secondary road-edge previous" type="button" aria-label="이전 보상 구간" disabled={start===0} onClick={()=>turn(-1)}>◀</button>
     <div className="road-cards" style={{'--road-progress':`${roadPercent}%`} as React.CSSProperties}>
-      <span className="road-progress" aria-label={`현재 ${profile.xp.toLocaleString('ko-KR')} XP`}/>
+      <span className="road-progress" aria-label={`현재 ${xp.toLocaleString('ko-KR')} XP`}/>
       {rewards.slice(start,start+perPage).map((item,i)=>{
         const acquired=owned.has(item.cardId);
         return <div key={item.cardId} className="road-stop" data-state={acquired?'owned':start+i===next?'next':'locked'}>
@@ -63,29 +81,62 @@ function RewardRoad({profile,growth,onCatalog}:{profile:AccountProfile;growth:Gr
     <button className="secondary road-edge next" type="button" aria-label="다음 보상 구간" disabled={start>=last} onClick={()=>turn(1)}>▶</button>
   </section>;
 }
-export function RewardReveal({cards,rank,onCatalog,onClose}:{cards:string[];rank?:{before:number;after:number};onCatalog:(id?:string)=>void;onClose:()=>void}){
+const REWARD_ANIMATION_MS=680;
+const MIN_CONFIRM_INTERVAL_MS=500;
+
+function RevealedCard({card}:{card:NonNullable<(typeof catalog)[string]>}){
+  const name=useCardName(card);
+  const stats=card.kind==='minion'?`, 공격력 ${card.attack}, 생명력 ${card.health}`:card.kind==='weapon'?`, 공격력 ${card.attack}, 내구도 ${card.durability}`:'';
+  return <div role="img" aria-label={`${name}, 마나 ${card.cost}${stats}. ${cardDescription(card)}`}><div inert><BattleCard card={card} enabled/></div></div>;
+}
+
+export function RewardReveal({cards,rank,onClose}:{cards:string[];rank?:{before:number;after:number};onClose:()=>void}){
   const [index,setIndex]=useState(0);
   const card=catalog[cards[index]];
   const after=rank?rankInfo(rank.after):undefined;
   const before=rank?rankInfo(rank.before):undefined;
   const promote=index===cards.length&&!!after;
+  const [readyIndex,setReadyIndex]=useState(-1);
+  const ready=readyIndex===index;
+  const committedIndex=useRef(-1),pressedIndex=useRef(-1),lastConfirmed=useRef(-Infinity);
+  const dialog=useRef<HTMLDivElement>(null);
+  useEffect(()=>{dialog.current?.focus();},[]);
   useEffect(()=>{
-    if(promote&&after&&before){playCinematicSound(after.league===before.league?'rank':'tier');return;}
-    if(!card)return;
-    playCinematicSound('xp');
-    const sound=setTimeout(()=>playCinematicSound(card.kind!=='coin'&&['rare','epic','legendary'].includes(card.rarity)?'rare':'card'),430);
-    const next=setTimeout(()=>setIndex(i=>i+1),2300);
-    return()=>{clearTimeout(sound);clearTimeout(next);};
+    const motion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fallback=setTimeout(()=>setReadyIndex(index),motion?0:REWARD_ANIMATION_MS+80);
+    if(promote&&after&&before)playCinematicSound(after.league===before.league?'rank':'tier');
+    if(card)playCinematicSound('xp');
+    const sound=card?setTimeout(()=>playCinematicSound(card.kind!=='coin'&&['rare','epic','legendary'].includes(card.rarity)?'rare':'card'),430):undefined;
+    return()=>{clearTimeout(fallback);clearTimeout(sound);};
   },[index,card,promote,after,before]);
-  return <div className="preview-card-reward-overlay" role="dialog" aria-modal="true" aria-label={card?'새 카드 획득':after?'승급':'보상'}>
-    <section className="preview-card-reward-popup reward-reveal" key={index}>
+  const advance=()=>{
+    const now=performance.now();
+    if(!ready||committedIndex.current===index||now-lastConfirmed.current<MIN_CONFIRM_INTERVAL_MS)return;
+    committedIndex.current=index;lastConfirmed.current=now;
+    if(index+1<cards.length||card&&after)setIndex(index+1);
+    else onClose();
+  };
+  const confirmClick=(event:MouseEvent<HTMLDivElement>)=>{
+    const pressed=pressedIndex.current===index;
+    pressedIndex.current=-1;
+    if(event.detail<=1&&pressed)advance();
+  };
+  const confirmKey=(event:KeyboardEvent<HTMLDivElement>)=>{
+    if(['Tab','Enter',' '].includes(event.key))event.preventDefault();
+    if(!event.repeat&&(event.key==='Enter'||event.key===' '))advance();
+  };
+  const rarity=card&&card.kind!=='coin'?card.rarity:undefined;
+  return <div ref={dialog} className="preview-card-reward-overlay" role="dialog" aria-modal="true" tabIndex={-1}
+    aria-label={card?'새 카드 획득':after?'승급':'보상'} data-ready={ready}
+    onPointerDown={event=>{pressedIndex.current=event.isPrimary&&event.button===0&&ready?index:-1;}}
+    onPointerCancel={()=>{pressedIndex.current=-1;}} onClick={confirmClick} onKeyDown={confirmKey}>
+    <section className="preview-card-reward-popup reward-reveal" data-rarity={rarity} key={index}>
       <h2>{card?'새로운 카드':promote&&after?rankTitle(after)+' 승급!':'보상 획득 완료'}</h2>
-      {card&&<><div className="preview-reward-popup-card"><BattleCard card={card} enabled onClick={()=>onCatalog(card.id)}/></div><p>{index+1} / {cards.length} · ×{maxCardCopies(card)}</p><progress aria-label="보상 공개 진행" max={cards.length} value={index+1}/></>}
+      {card&&<div className="preview-reward-popup-card" onAnimationEnd={event=>{if(event.target===event.currentTarget)setReadyIndex(index);}}>
+        <RevealedCard card={card}/>
+      </div>}
       {promote&&after&&before&&<div className="promotion-crest" data-tier-up={before.league!==after.league}><span className="promotion-previous" aria-hidden="true"><RankCrest rank={before}/></span><span className="promotion-current"><RankCrest rank={after}/></span></div>}
-      <div className="preview-card-reward-actions">
-        {cards.length>0&&<button type="button" onClick={()=>onCatalog(card?.id??cards[cards.length-1])}>카드 도감에서 확인</button>}
-        <button type="button" className="secondary" onClick={onClose}>{card?'연출 건너뛰기':'계속하기'}</button>
-      </div>
+      <p className="reward-reveal-prompt" aria-live="polite">{ready?'화면을 눌러 계속':''}</p>
     </section>
   </div>;
 }

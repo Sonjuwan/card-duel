@@ -305,7 +305,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .reward-road header strong{font-size:clamp(19px,5dvh,40px);color:#ffe3a4}
 .road-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(4px,1.1vw,14px);align-items:end}
 .road-stop{position:relative;min-width:0;display:grid;justify-items:center;gap:5px}
-.road-stop>.battle-card,.reward-reveal .preview-reward-popup-card>.battle-card{
+.road-stop>.battle-card{
   box-sizing:border-box;width:min(100%,175px,calc((100dvh - 135px) / 1.55));height:auto;min-height:0;max-height:none;flex:none;aspect-ratio:var(--full-card-ratio);
 }
 .road-stop[data-state=next]>.battle-card{outline:2px solid #fdd588;box-shadow:0 0 21px #e8a94d95}
@@ -317,8 +317,30 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .road-stop small{z-index:1;background:#26202b;padding:2px 4px}
 .reward-road .road-edge{position:absolute;top:0;bottom:0;width:clamp(21px,4vw,45px);min-width:0;padding:0}
 .road-edge.previous{left:0}.road-edge.next{right:0}
+.reward-road header h2{margin:0 0 .3rem;font-size:clamp(14px,3dvh,22px)}
+.reward-path-picker{display:flex;align-items:center;justify-content:center;gap:.5rem;flex-wrap:wrap;margin-block:.25rem}
+.preview-card-reward-overlay[data-ready=true]{cursor:pointer}
+.preview-card-reward-popup.reward-reveal{
+  --reward-glow:#d8dde4;
+  width:min(94vw,540px);
+  border-color:var(--reward-glow);
+  box-shadow:0 0 32px color-mix(in srgb,var(--reward-glow) 42%,transparent);
+}
+.reward-reveal[data-rarity=rare]{--reward-glow:#6abafa}
+.reward-reveal[data-rarity=epic]{--reward-glow:#c599ff}
+.reward-reveal[data-rarity=legendary]{--reward-glow:#ffc864}
+.reward-reveal .preview-reward-popup-card{
+  width:min(75vw,260px,calc((92dvh - 90px) / 1.52));height:auto;
+  display:block;aspect-ratio:var(--full-card-ratio);pointer-events:none;
+  filter:drop-shadow(0 0 15px color-mix(in srgb,var(--reward-glow) 65%,transparent));
+}
+.reward-reveal .preview-reward-popup-card div,.reward-reveal .preview-reward-popup-card .battle-card{
+  width:100%;height:100%;min-width:0;min-height:0;transform:none;
+}
+.reward-reveal .preview-reward-popup-card .card-copy{font-size:clamp(10px,3.1dvh,15px);line-height:1.12}
+.reward-reveal .reward-reveal-prompt{min-height:1.4em;margin:0}
 .reward-reveal .preview-reward-popup-card,.reward-reveal .rank-crest{animation:reward-flare .68s ease both}
-@keyframes reward-flare{from{transform:rotateY(75deg) scale(.75);opacity:.3;filter:brightness(2.3)}to{transform:none;opacity:1;filter:brightness(1)}}
+@keyframes reward-flare{from{transform:rotateY(75deg) scale(.75);opacity:.25}to{transform:none;opacity:1}}
 @media(prefers-reduced-motion:reduce){
   .mulligan-card-frame,.mulligan-card-back,.hero-portrait[data-shattered=true],.hero-shard,.hero-crack,.hero-break>i,.reward-reveal>*{animation:none!important}
   .hero-portrait[data-shattered=true]>.hero-emblem,.hero-break{visibility:hidden}
