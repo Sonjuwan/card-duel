@@ -80,8 +80,8 @@
 .rh-account-level span,.rh-account-level small,.rh-match-stats small,.rh-slot>span{color:var(--rh-muted)}
 .rh-account-level small{font-size:.8em}
 .rh-account-level progress,.rh-class-info progress{display:block;width:100%;height:6px;accent-color:#d3a260}
-.rh-slot{display:grid;align-items:center;grid-template-columns:minmax(0,1fr) auto;gap:7px;font-size:clamp(11px,1.55dvh,16px)}
-.rh-slot button{white-space:nowrap}
+.rh-slot{display:grid;align-items:center;grid-template-columns:minmax(0,1fr) minmax(80px,.9fr);gap:7px;font-size:clamp(11px,1.55dvh,16px);word-break:keep-all}
+.rh-slot button{width:100%;min-width:0;white-space:nowrap}
 .rh-slot strong{color:var(--rh-ink)}
 .rh-match-stats{border-block:1px solid var(--rh-rule);padding:6px 0}
 .rh-match-stats div{display:grid;gap:2px}
@@ -258,7 +258,7 @@
   .game-main .duel-screen.preview-compact .battle-mana .mana-number{font-size:clamp(11px,3.3dvh,16px);white-space:nowrap}
   .game-main .duel-screen.preview-compact .own-hand .folded-hand{
     left:auto!important;right:max(4px,env(safe-area-inset-right))!important;
-    width:55px;gap:6px;background:var(--rh-metal);border-color:var(--rh-edge);
+    width:55px;gap:6px;background:var(--rh-metal);border-color:var(--rh-edge);color:var(--rh-ink);
   }
   .game-main .duel-screen.preview-compact .own-hand .battle-hand{
     inset-inline:max(12px,env(safe-area-inset-left)) max(66px,calc(env(safe-area-inset-right) + 63px))!important;
