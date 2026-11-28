@@ -1,3 +1,5 @@
+import {setCombatObserver} from './combat-observation.ts';
+import type {CombatEvent} from './combat-observation.ts';
 import type { BattleVisualEvent, GameState, HeroClass, PlayerId, Tribe } from './types.ts';
 
 export const RULES = Object.freeze({ heroHealth: 30, deckSize: 30, maxCopies: 2, maxMana: 10, maxBoard: 7, maxHand: 10, maxSecrets: 5,maxTurns:89 });
@@ -18,9 +20,9 @@ export function integer(value: unknown, min: number, max = Number.MAX_SAFE_INTEG
 export function isClass(value: unknown): value is HeroClass { return HERO_CLASSES.some(c => c === value); }
 export function other(id: PlayerId): PlayerId { return id === 0 ? 1 : 0; }
 export function validPlayer(id: unknown): id is PlayerId { return id === 0 || id === 1; }
-export interface RuntimeOptions { random?:()=>number; instanceId?:()=>string; visualEvent?:(event:BattleVisualEvent)=>void }
+export interface RuntimeOptions { random?:()=>number; instanceId?:()=>string; visualEvent?:(event:BattleVisualEvent)=>void; combatEvent?:(event:CombatEvent)=>void }
 const runtimes=new WeakMap<GameState,RuntimeOptions>();
-export function setRuntime(s:GameState,runtime?:RuntimeOptions):void {if(runtime)runtimes.set(s,runtime);}
+export function setRuntime(s:GameState,runtime?:RuntimeOptions):void {if(runtime)runtimes.set(s,runtime);if(runtime?.combatEvent)setCombatObserver(s,runtime.combatEvent);}
 export function opaqueId(s:GameState):string|undefined{return runtimes.get(s)?.instanceId?.();}
 export function emitVisual(s:GameState,event:BattleVisualEvent):void {
   try{runtimes.get(s)?.visualEvent?.(event);}catch{/* Presentation observers cannot affect combat. */}

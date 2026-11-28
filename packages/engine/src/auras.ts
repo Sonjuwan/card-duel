@@ -1,3 +1,4 @@
+import {emitCombat,observingCombat} from './combat-observation.ts';
 import type { GameState,Minion,PlayerId } from './types.ts';
 /** Recompute continuous modifiers from living sources. Store deltas separately from permanent buffs. */
 export function refreshAuras(s:GameState):void{
@@ -24,8 +25,13 @@ export function refreshAuras(s:GameState):void{
     }
   }
   for(const id of [0,1] as const){const p=s.players[id],w=p.weapon;if(w){w.attack+=weaponBonus[id]-(w.auraAttack??0);if(weaponBonus[id])w.auraAttack=weaponBonus[id];else delete w.auraAttack;}if(id===s.activePlayer&&p.heroAttacksMadeThisTurn!==undefined){const def=w?.cardId?s.catalog[w.cardId]:undefined;p.heroAttacksRemaining=Math.max(0,(def?.kind==='weapon'&&def.windfury?2:1)-p.heroAttacksMadeThisTurn);}}
+  const tracked=observingCombat(s);
   for(const {owner,minion:m} of board){
     const next=totals.get(m)!,da=next.attack-(m.auraAttack??0),dh=next.health-(m.auraHealth??0);
+    if(tracked&&owner===s.activePlayer&&(da>0||dh>0)){
+      emitCombat(s,{kind:'buff',owner,amount:1});
+      if(dh>0)emitCombat(s,{kind:'healthBuff',owner,amount:dh});
+    }
     m.attack+=da;m.maxHealth+=dh;m.health=Math.min(m.maxHealth,m.health+dh);m.auraAttack=next.attack;m.auraHealth=next.health;
     const def=s.catalog[m.cardId];if(!m.silenced&&def.kind==='minion'&&def.attackEqualsHealth)m.attack=Math.max(0,m.health);
     const wasWind=m.auraWindfury===true,nowWind=windfury.has(m);if(nowWind)m.auraWindfury=true;else delete m.auraWindfury;

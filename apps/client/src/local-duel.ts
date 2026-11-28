@@ -1,3 +1,6 @@
+import {countQuestEvent} from '../../../packages/quest-combat.ts';
+import {validQuestCounters} from '../../../packages/quests.ts';
+import type {QuestCounters} from '../../../packages/quest-types.ts';
 import {applyAction,createGame,getPlayerView,isBotDifficulty,rankBotActions,strategicDeck,DECK_STYLES,validateDeck,turnTimeLimitSeconds,RuleError,validateBotWeights,HERO_CLASSES,RULES} from '../../../packages/engine/src/index.ts';
 import type {Action,BattleVisualEvent,GameState,Catalog,Deck,HeroClass,BotDifficulty,BotWeights,PlayerId,DeckStyle} from '../../../packages/engine/src/index.ts';
 import {describeAcceptedAction} from '../../../packages/battle-animation.ts';
@@ -23,7 +26,7 @@ export interface LocalDuelInput{
 export interface LocalSaveSummary{catalogHash:string;code:string;heroClass:HeroClass;opponent:HeroClass;difficulty:BotDifficulty;turn:number;phase:GameState['phase'];revision:number;savedAt:string;rank?:number;developerFree?:true;testRank?:number;testExperiment?:'mixture-v1';}
 export interface LocalSlotOverview{initialized:boolean;rank:number;xp:number;ownedCards:number;save:LocalSaveSummary|null;otherSaves:number;otherActiveRanked:boolean;}
 /** Private snapshot: never include this in any message to the React renderer. */
-export interface LocalDuelCheckpoint{schema:1;catalogHash:string;summary:LocalSaveSummary;input:Omit<LocalDuelInput,'catalog'|'device'>;state:Omit<GameState,'catalog'>;remainingMs?:number;botTurn:number;botActions:number;}
+export interface LocalDuelCheckpoint{schema:1;catalogHash:string;summary:LocalSaveSummary;input:Omit<LocalDuelInput,'catalog'|'device'>;state:Omit<GameState,'catalog'>;remainingMs?:number;botTurn:number;botActions:number;questCounters?:QuestCounters;}
 const integer=(n:unknown,min:number,max=Number.MAX_SAFE_INTEGER)=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=min&&n<=max;
 export function publicSaveSummary(saved:LocalDuelCheckpoint,hash:string):LocalSaveSummary{
   const s=saved?.summary;if(saved?.schema!==1||saved.catalogHash!==hash||s?.catalogHash!==hash||typeof s.code!=='string'||!s.code||s.code.length>128||!HERO_CLASSES.includes(s.heroClass)||!HERO_CLASSES.includes(s.opponent)||!isBotDifficulty(s.difficulty)||!integer(s.turn,0,RULES.maxTurns)||!integer(s.revision,0)||!['mulligan','playing','finished'].includes(s.phase)||typeof s.savedAt!=='string'||!Number.isFinite(Date.parse(s.savedAt)))throw new RuleError('손상된 경기 저장 데이터');
@@ -51,6 +54,7 @@ export class LocalDuel{
   private limit?:number;
   private botTurn=-1;
   private botActions=0;
+  private questCounters:QuestCounters={};
   readonly style:DeckStyle;
   private readonly input:LocalDuelInput;
   constructor(input:LocalDuelInput){
@@ -75,14 +79,15 @@ export class LocalDuel{
   checkpoint(now=Date.now()):LocalDuelCheckpoint|null{
     const hash=this.input.catalogHash;if(!hash||!/^[a-f0-9]{64}$/.test(hash))return null;
     const {catalog:_,device:__,...input}=this.input,{catalog:___,...state}=this.state;
-    return structuredClone({schema:1,catalogHash:hash,summary:{catalogHash:hash,code:this.input.code,heroClass:state.players[0].heroClass,opponent:state.players[1].heroClass,difficulty:this.input.difficulty,turn:state.turn,phase:state.phase,revision:state.revision,savedAt:new Date(now).toISOString(),...(input.ranked?{rank:input.ranked.rank}:{}),...(input.developerFree?{developerFree:true as const}:{}),...(input.developerTest?{testRank:input.developerTest.rank}:{}),...(input.developerTest?.experiment?{testExperiment:input.developerTest.experiment}:{})},input:{...input,style:this.style},state,...(this.deadline!==undefined?{remainingMs:Math.max(0,this.deadline-now)}:{}),botTurn:this.botTurn,botActions:this.botActions});
+    return structuredClone({schema:1,catalogHash:hash,summary:{catalogHash:hash,code:this.input.code,heroClass:state.players[0].heroClass,opponent:state.players[1].heroClass,difficulty:this.input.difficulty,turn:state.turn,phase:state.phase,revision:state.revision,savedAt:new Date(now).toISOString(),...(input.ranked?{rank:input.ranked.rank}:{}),...(input.developerFree?{developerFree:true as const}:{}),...(input.developerTest?{testRank:input.developerTest.rank}:{}),...(input.developerTest?.experiment?{testExperiment:input.developerTest.experiment}:{})},input:{...input,style:this.style},state,...(this.deadline!==undefined?{remainingMs:Math.max(0,this.deadline-now)}:{}),botTurn:this.botTurn,botActions:this.botActions,...(input.ranked?{questCounters:this.questCounters}:{})});
   }
   static restore(saved:LocalDuelCheckpoint,catalog:Catalog,hash:string,device?:DeviceInfo,now=Date.now()):LocalDuel{
     publicSaveSummary(saved,hash);
+    if(saved.questCounters!==undefined&&(!saved.input.ranked||!validQuestCounters(saved.questCounters)))throw new RuleError('저장 경기의 퀘스트 기록이 손상되었습니다.');
     if(!/^[a-f0-9]{64}$/.test(hash)||saved.input?.catalogHash!==hash||saved.summary.code!==saved.input.code||saved.summary.difficulty!==saved.input.difficulty||!integer(saved.input.seed,0,0xffffffff)||!integer(saved.input.deckSeed,0,0xffffffff)||!integer(saved.input.generation??0,0)||saved.input.firstPlayer!==undefined&&![0,1].includes(saved.input.firstPlayer)||saved.input.deviceMode!==undefined&&!['auto','fast','strong'].includes(saved.input.deviceMode)||!integer(saved.botTurn,-1,RULES.maxTurns)||!integer(saved.botActions,0,600)||saved.input.weights&&!validateBotWeights(saved.input.weights))throw new RuleError('현재 카드 버전과 일치하지 않거나 손상된 저장 경기입니다.');
     const duel=new LocalDuel({...saved.input,catalog,device});const state=structuredClone(saved.state);checkSavedState(state,duel.state.catalog);
     if(saved.summary.revision!==state.revision||saved.summary.phase!==state.phase||saved.summary.turn!==state.turn||saved.summary.heroClass!==state.players[0].heroClass||saved.summary.opponent!==state.players[1].heroClass||saved.input.deck.heroClass!==state.players[0].heroClass||saved.input.heroClass!==state.players[1].heroClass)throw new RuleError('저장 경기의 요약이 일치하지 않습니다.');
-    duel.state={...state,catalog:duel.state.catalog};duel.botTurn=saved.botTurn;duel.botActions=saved.botActions;duel.updateClock(now);
+    duel.state={...state,catalog:duel.state.catalog};duel.botTurn=saved.botTurn;duel.botActions=saved.botActions;duel.questCounters={...saved.questCounters};duel.updateClock(now);
     if(duel.deadline!==undefined){if(!integer(saved.remainingMs,0,duel.limit!*1000))throw new RuleError('저장 경기의 남은 시간이 손상되었습니다.');duel.deadline=now+saved.remainingMs!;}else if(saved.remainingMs!==undefined)throw new RuleError('저장 경기의 시간 제한이 일치하지 않습니다.');
     return duel;
   }
@@ -104,7 +109,12 @@ export class LocalDuel{
   }
   private apply(actor:PlayerId,action:Action,now=Date.now()){
     const before=this.state,trace:BattleVisualEvent[]=[];
-    this.state=applyAction(before,actor,action,{instanceId:opaqueCardId,visualEvent:e=>{if(trace.length<96)trace.push(e);}});
+    const counts=this.input.ranked?{...this.questCounters}:undefined;
+    this.state=applyAction(before,actor,action,{
+      instanceId:opaqueCardId,visualEvent:e=>{if(trace.length<96)trace.push(e);},
+      ...(counts?{combatEvent:event=>countQuestEvent(counts,0,event)}:{}),
+    });
+    if(counts)this.questCounters=counts;
     this.animation=describeAcceptedAction(before,this.state,actor,action,trace);
     this.updateClock(now);
   }

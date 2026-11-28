@@ -1,3 +1,5 @@
+import {clearMortal,emitCombat,markMortal,observingCombat} from './combat-observation.ts';
+import type {CombatCause,CombatSource} from './combat-observation.ts';
 import type { Card, Catalog, Effect, GameState, Minion, PlayerId, Selector, TargetRule, Tribe } from './types.ts';
 import { emitVisual, log, RULES, TRIBES, integer, other, random, record, requireRule, validPlayer } from './rules.ts';
 import {unknownEffectFields,unknownConditionFields} from './card-schema.ts';
@@ -9,14 +11,14 @@ const SELECTORS: readonly Selector[] = ['chosen','self','friendlyHero','enemyHer
 export interface DeathSlot { minion:Minion; replacements:Minion[] }
 export interface DeathPlacement { slots:DeathSlot[]; index:number }
 export type Character = { kind:'hero'; player:PlayerId } | { kind:'minion'; player:PlayerId; minion:Minion; deathPlacement?:DeathPlacement };
-export interface EffectContext { owner: PlayerId; chosen?: Character; source?: Character; eventTarget?: Character; eventAttacker?: Character; spellDamage?: number; spellPowerMultiplier?:number; eventCardId?:string; eventOwner?:PlayerId; canceled?: boolean; comboActive?:boolean; redirected?:Character; eventDamage?:number }
+export interface EffectContext { owner: PlayerId; combatSource?:CombatSource; chosen?: Character; source?: Character; eventTarget?: Character; eventAttacker?: Character; spellDamage?: number; spellPowerMultiplier?:number; eventCardId?:string; eventOwner?:PlayerId; canceled?: boolean; comboActive?:boolean; redirected?:Character; eventDamage?:number }
 export interface EffectOps {
   /** True only if Health or Armor actually decreased. Shield/protection may absorb all damage. */
-  damage(target:Character, amount:number):boolean;
-  heal(target:Character,amount:number):void;
-  draw(owner:PlayerId):void;
+  damage(target:Character, amount:number,cause?:CombatCause):boolean;
+  heal(target:Character,amount:number,source?:PlayerId):void;
+  draw(owner:PlayerId,source?:PlayerId):void;
   drawCard(owner:PlayerId):string|undefined;
-  summon(owner:PlayerId, cardId:string,card?:import('./types.ts').CardInstance,position?:number):Minion|undefined;
+  summon(owner:PlayerId, cardId:string,card?:import('./types.ts').CardInstance,position?:number,source?:PlayerId):Minion|undefined;
   deathPlacement(minion:Minion):DeathPlacement|undefined;
   addCard(owner:PlayerId,cardId:string):void;
   overload(owner:PlayerId):void;
@@ -187,22 +189,32 @@ function select(s:GameState,ctx:EffectContext,selector:Selector,tribe?:Tribe):Ch
 export function uniqueSummonChoices(s:GameState,owner:PlayerId,cardIds:string[]):string[]{
   return cardIds.filter(id=>!s.players[owner].board.some(m=>m.cardId===id));
 }
-export function freeze(s:GameState,c:Character):void {
+export function freeze(s:GameState,c:Character,source?:PlayerId):void {
   const p=s.players[c.player],canAttack=c.kind==='hero'?p.heroAttacksRemaining>0:c.minion.attacksRemaining>0;
   const through=s.turn+(s.activePlayer===c.player?(canAttack?0:2):1);
+  const before=c.kind==='hero'?p.heroFrozenThroughTurn:c.minion.frozenThroughTurn;
+  if(source!==undefined&&source!==c.player&&(before===undefined||through>before)&&observingCombat(s))emitCombat(s,{kind:'freeze',owner:source});
   if(c.kind==='hero')p.heroFrozenThroughTurn=Math.max(p.heroFrozenThroughTurn??0,through);
   else c.minion.frozenThroughTurn=Math.max(c.minion.frozenThroughTurn??0,through);
 }
 /** Original-era damage-sourced abilities apply to combat AND non-combat damage. */
-export function minionDamageResult(s:GameState,source:Character,target:Character,dealt:boolean):void {
+export function minionDamageResult(s:GameState,source:Character,target:Character,dealt:boolean,cause?:CombatCause):void {
   if(!dealt||source.kind!=='minion')return;
   const def=s.catalog[source.minion.cardId];
-  if(!source.minion.silenced&&def?.kind==='minion'&&def.freezeOnCombatDamage&&(target.kind==='hero'||target.minion.health>0))freeze(s,target);
-  if(target.kind==='minion'&&hasKeyword(source.minion,'poisonous'))target.minion.health=0;
+  if(!source.minion.silenced&&def?.kind==='minion'&&def.freezeOnCombatDamage&&(target.kind==='hero'||target.minion.health>0))freeze(s,target,cause?.owner);
+  if(target.kind==='minion'&&hasKeyword(source.minion,'poisonous')){
+    if(cause)markMortal(s,target.minion,cause);
+    target.minion.health=0;
+  }
 }
 /** Executes declarative data only; never evaluates card-supplied code. */
+const areaSelectors=new Set(['enemyMinions','enemyCharacters','allMinions','allCharacters','otherMinions','otherCharacters','chosenAndAdjacent','adjacent']);
+const buffEffects=new Set(['buff','temporaryAttack','multiplyHealth','doubleAttack','setStats','giveKeyword','attackToHealth','consumeDivineShields','consumeAdjacent','grantSpellDamage','grantDeathrattleSummon']);
 export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,ops:EffectOps):void {
-  const p=s.players[ctx.owner];
+  const p=s.players[ctx.owner],tracking=observingCombat(s);
+  let cause:CombatCause|undefined;
+  let comboReported=false;
+  const destroy=(m:Minion)=>{if(cause&&m.health>0)markMortal(s,m,cause);m.health=0;};
   // A minion-generated token belongs next to its source. Spell/hero-power tokens
   // go to the right edge. A deathrattle uses the source's old board slot even
   // if multiple minions died and their triggers resolve in a different order.
@@ -229,7 +241,7 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
     if(m){previousSummon=m;if(placement)placement.slots[placement.index].replacements.push(m);}
     return m;
   };
-  const dealDamage=(c:Character,n:number,source=ctx.source,multiplier=ctx.spellPowerMultiplier??1)=>{if(n>0&&source?.kind==='minion'){const m=source.minion;m.keywords=m.keywords?.filter(k=>k!=='stealth');delete m.stealthUntilStartOf;}const dealt=ops.damage(c,n*multiplier);if(source)minionDamageResult(s,source,c,dealt);};
+  const dealDamage=(c:Character,n:number,source=ctx.source,multiplier=ctx.spellPowerMultiplier??1)=>{if(n>0&&source?.kind==='minion'){const m=source.minion;m.keywords=m.keywords?.filter(k=>k!=='stealth');delete m.stealthUntilStartOf;}const dealt=ops.damage(c,n*multiplier,cause);if(source)minionDamageResult(s,source,c,dealt,cause);};
   for(const e of effects){
     if(s.phase==='finished')break;
     if(ctx.chosen)ctx.chosen=currentCharacter(s,ctx.chosen);
@@ -246,11 +258,20 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
     if(e.condition?.kind==='enemyMinionCount'&&minions(s,other(ctx.owner)).length<e.condition.minCount)continue;
     if(e.condition?.kind==='eventTargetAttackAtMost'&&!(ctx.eventTarget?.kind==='minion'&&ctx.eventTarget.minion.attack<=e.condition.amount))continue;
     if(e.condition?.kind==='friendlyTribe'){const condition=e.condition;const count=minions(s,ctx.owner).filter(c=>getTribe(s,c)===condition.tribe && !(ctx.source?.kind==='minion'&&c.kind==='minion'&&c.minion===ctx.source.minion)).length;if(count<(condition.minCount??1))continue;}
+    if(tracking)cause={owner:ctx.owner,source:ctx.combatSource??(ctx.source?.kind==='minion'?'minion':'card'),
+      area:('target' in e&&areaSelectors.has(e.target))||e.kind==='damageDistinct'&&e.count>1||
+        e.kind==='brawl'||e.kind==='damageSplash'||e.kind==='weaponBurst'||e.kind==='sacrificeBlast'};
+    const beforeBuff=tracking&&buffEffects.has(e.kind)?p.board.filter(m=>m.health>0).map(m=>({
+      m,attack:m.attack,maxHealth:m.maxHealth,keywords:m.keywords?.length??0,spellDamage:m.bonusSpellDamage??0,deathrattles:m.deathrattleSummons?.length??0,
+    })):undefined;
+    const preMana=p.mana,preCrystals=p.maxMana,preArmor=p.armor,preOverload=p.pendingOverload;
+    const combo=tracking&&!comboReported&&ctx.comboActive&&(e.condition?.kind==='combo'||e.kind==='damage'&&!!e.bonusIfCombo);
+    let comboApplied=false;
     switch(e.kind){
       case 'damage':{
         const bonus=e.bonusIfTribe&&minions(s,ctx.owner).some(c=>getTribe(s,c)===e.bonusIfTribe!.tribe)?e.bonusIfTribe.amount:0;
         const healthBonus=e.bonusIfHeroHealthAtMost&&p.health<=e.bonusIfHeroHealthAtMost.health?e.bonusIfHeroHealthAtMost.amount:0;
-        for(const c of select(s,ctx,e.target,e.tribe))if(c.kind!=='minion'||c.minion.cardId!==e.excludeCardId)dealDamage(c,e.amount+(e.amountMax===undefined?0:Math.floor(random(s)*(e.amountMax-e.amount+1)))+bonus+healthBonus+(ctx.comboActive?e.bonusIfCombo??0:0)+(ctx.spellDamage??0));break;
+        for(const c of select(s,ctx,e.target,e.tribe))if(c.kind!=='minion'||c.minion.cardId!==e.excludeCardId){comboApplied=true;dealDamage(c,e.amount+(e.amountMax===undefined?0:Math.floor(random(s)*(e.amountMax-e.amount+1)))+bonus+healthBonus+(ctx.comboActive?e.bonusIfCombo??0:0)+(ctx.spellDamage??0));}break;
       }
       case 'damageDistinct':{
         const pool=minions(s,other(ctx.owner));
@@ -262,7 +283,7 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
       case 'immuneThisTurn':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion')c.minion.immuneThisTurn=true;break;
       case 'heroImmuneThisTurn':p.heroImmuneThisTurn=true;break;
       case 'brawl':{
-        const pool=select(s,ctx,'allMinions');if(pool.length>1){const survivor=pool[Math.floor(random(s)*pool.length)];for(const c of pool)if(c!==survivor&&c.kind==='minion')c.minion.health=0;}break;
+        const pool=select(s,ctx,'allMinions');if(pool.length>1){const survivor=pool[Math.floor(random(s)*pool.length)];for(const c of pool)if(c!==survivor&&c.kind==='minion')destroy(c.minion);}break;
       }
       case 'consumeDivineShields':{
         let n=0;for(const c of select(s,ctx,'allMinions'))if(c.kind==='minion'&&hasKeyword(c.minion,'divineShield')){c.minion.keywords=c.minion.keywords?.filter(k=>k!=='divineShield');n++;}
@@ -310,15 +331,15 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
       }
       case 'heal':case 'healFull':{
         const invert=p.board.some(m=>{const d=s.catalog[m.cardId];return m.health>0&&!m.silenced&&d.kind==='minion'&&d.healingToDamage;});
-        for(const c of select(s,ctx,e.target,e.tribe)){const n=e.kind==='heal'?e.amount:c.kind==='hero'?s.players[c.player].maxHealth??RULES.heroHealth:c.minion.maxHealth;if(invert)dealDamage(c,n+(ctx.spellDamage??0));else ops.heal(c,n*(ctx.spellPowerMultiplier??1));}break;
+        for(const c of select(s,ctx,e.target,e.tribe)){const n=e.kind==='heal'?e.amount:c.kind==='hero'?s.players[c.player].maxHealth??RULES.heroHealth:c.minion.maxHealth;if(invert)dealDamage(c,n+(ctx.spellDamage??0));else ops.heal(c,n*(ctx.spellPowerMultiplier??1),ctx.owner);}break;
       }
       case 'deferredDestroy':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){const key=e.timing==='endTurn'?'destroyAtEndOf':'destroyAtStartOf';c.minion[key]=[...new Set([...(c.minion[key]??[]),ctx.owner])];}break;
       case 'temporaryStealth':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion')c.minion.stealthUntilStartOf=ctx.owner;break;
       case 'grantDeathrattleSummon':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion')c.minion.deathrattleSummons=[...(c.minion.deathrattleSummons??[]),e.cardId??c.minion.cardId];break;
       case 'consumeAdjacent':if(ctx.source?.kind==='minion'){
-        const source=ctx.source.minion;for(const c of select(s,ctx,'adjacent'))if(c.kind==='minion'){source.attack+=c.minion.attack;source.health+=c.minion.health;source.maxHealth+=c.minion.health;c.minion.health=0;}
+        const source=ctx.source.minion;for(const c of select(s,ctx,'adjacent'))if(c.kind==='minion'){source.attack+=c.minion.attack;source.health+=c.minion.health;source.maxHealth+=c.minion.health;destroy(c.minion);}
       }break;
-      case 'sacrificeBlast':if(ctx.chosen?.kind==='minion'){const n=ctx.chosen.minion.attack;ctx.chosen.minion.health=0;for(const c of select(s,ctx,'enemyMinions'))dealDamage(c,n+(ctx.spellDamage??0));}break;
+      case 'sacrificeBlast':if(ctx.chosen?.kind==='minion'){const n=ctx.chosen.minion.attack;destroy(ctx.chosen.minion);for(const c of select(s,ctx,'enemyMinions'))dealDamage(c,n+(ctx.spellDamage??0));}break;
       case 'grantSpellDamage':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion')c.minion.bonusSpellDamage=(c.minion.bonusSpellDamage??0)+e.amount;break;
       case 'swapStats':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){const m=c.minion,a=m.attack,h=m.health;m.attack=h+(m.auraAttack??0);m.health=a+(m.auraHealth??0);m.maxHealth=m.health;m.temporaryAttack=0;}break;
       case 'swapHandMinion':if(ctx.source?.kind==='minion'){const m=ctx.source.minion,i=p.board.indexOf(m),options=p.hand.filter(x=>s.catalog[x.cardId].kind==='minion');if(i>=0&&options.length){const card=options[Math.floor(random(s)*options.length)];p.hand=p.hand.filter(x=>x!==card);p.board.splice(i,1);p.hand.push({instanceId:m.instanceId,cardId:m.cardId});ops.summon(ctx.owner,card.cardId,card,i);}}break;
@@ -340,20 +361,22 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
         for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){c.minion.attack+=e.attack*n;c.minion.health+=e.health*n;c.minion.maxHealth+=e.health*n;}break;
       }
       case 'multiplyHealth':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){const gain=c.minion.health*(e.factor-1);c.minion.health+=gain;c.minion.maxHealth+=gain;}break;
-      case 'destroy':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion')c.minion.health=0;else if(e.target==='chosen'&&s.players[c.player].heroForm==='jaraxxus')s.players[c.player].health=0;break;
-      case 'freeze':for(const c of select(s,ctx,e.target,e.tribe))freeze(s,c);break;
+      case 'destroy':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion')destroy(c.minion);else if(e.target==='chosen'&&s.players[c.player].heroForm==='jaraxxus')s.players[c.player].health=0;break;
+      case 'freeze':for(const c of select(s,ctx,e.target,e.tribe))freeze(s,c,ctx.owner);break;
       case 'silence':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){
         const m=c.minion,def=s.catalog[m.cardId];if(def.kind!=='minion')continue;
+        if(tracking&&(!m.silenced||m.keywords?.length||m.attack!==def.attack+(m.auraAttack??0)||m.maxHealth!==def.health+(m.auraHealth??0)||m.frozenThroughTurn!==undefined))
+          emitCombat(s,{kind:'silence',owner:ctx.owner});
         m.silenced=true;m.keywords=[];delete m.immuneThisTurn;delete m.frozenThroughTurn;delete m.destroyAtStartOf;delete m.destroyAtEndOf;delete m.stealthUntilStartOf;delete m.deathrattleSummons;delete m.drawOnAttackOwners;delete m.bonusSpellDamage;delete m.auraWindfury;m.temporaryAttack=0;m.attack=def.attack+(m.auraAttack??0);const oldMax=m.maxHealth;m.maxHealth=def.health+(m.auraHealth??0);m.health=Math.min(m.health+Math.max(0,m.maxHealth-oldMax),m.maxHealth);m.attacksRemaining=m.summonedTurn===s.turn||((m.attacksMadeThisTurn??0)>0)?0:Math.min(m.attacksRemaining,1);
         const former=m.returnController;delete m.returnController;
-        if(former!==undefined&&former!==c.player){const destination=s.players[former];if(destination.board.length>=RULES.maxBoard)m.health=0;else{s.players[c.player].board=s.players[c.player].board.filter(x=>x!==m);m.attacksRemaining=0;destination.board.push(m);}}
+        if(former!==undefined&&former!==c.player){const destination=s.players[former];if(destination.board.length>=RULES.maxBoard)destroy(m);else{s.players[c.player].board=s.players[c.player].board.filter(x=>x!==m);m.attacksRemaining=0;destination.board.push(m);}}
       }break;
       case 'bounce':for(const c of select(s,ctx,e.target,e.tribe).sort((a,b)=>(a.kind==='minion'?a.minion.enteredOrder??0:0)-(b.kind==='minion'?b.minion.enteredOrder??0:0)))if(c.kind==='minion'){
-        const p=s.players[c.player];if(p.hand.length<RULES.maxHand){p.board=p.board.filter(m=>m!==c.minion);p.hand.push({instanceId:c.minion.instanceId,cardId:c.minion.cardId,...(e.discount?{costDiscount:e.discount}:{})});}else c.minion.health=0;
+        comboApplied=true;const p=s.players[c.player];if(p.hand.length<RULES.maxHand){p.board=p.board.filter(m=>m!==c.minion);p.hand.push({instanceId:c.minion.instanceId,cardId:c.minion.cardId,...(e.discount?{costDiscount:e.discount}:{})});}else destroy(c.minion);
       }break;
       case 'randomTransform':case 'transform':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){
         const m=c.minion,def=s.catalog[e.kind==='transform'?e.cardId:e.cardIds[Math.floor(random(s)*e.cardIds.length)]];if(def.kind!=='minion')continue;
-        m.cardId=def.id;m.attack=def.attack;m.health=def.health;m.maxHealth=def.health;m.keywords=[...(def.keywords??[])];m.auraAttack=0;m.auraHealth=0;m.temporaryAttack=0;delete m.silenced;delete m.immuneThisTurn;delete m.frozenThroughTurn;delete m.destroyAtStartOf;delete m.destroyAtEndOf;delete m.stealthUntilStartOf;delete m.deathrattleSummons;delete m.drawOnAttackOwners;delete m.bonusSpellDamage;delete m.auraWindfury;delete m.auraCharge;
+        if(tracking)clearMortal(s,m);m.cardId=def.id;m.attack=def.attack;m.health=def.health;m.maxHealth=def.health;m.keywords=[...(def.keywords??[])];m.auraAttack=0;m.auraHealth=0;m.temporaryAttack=0;delete m.silenced;delete m.immuneThisTurn;delete m.frozenThroughTurn;delete m.destroyAtStartOf;delete m.destroyAtEndOf;delete m.stealthUntilStartOf;delete m.deathrattleSummons;delete m.drawOnAttackOwners;delete m.bonusSpellDamage;delete m.auraWindfury;delete m.auraCharge;
         m.summonedTurn=s.turn;m.attacksMadeThisTurn=0;m.attacksRemaining=c.player===s.activePlayer&&m.keywords.includes('charge')?(m.keywords.includes('windfury')?2:1):0;m.enteredOrder=s.nextEntryOrder??1;s.nextEntryOrder=m.enteredOrder+1;
         // Transformation replaces the temporary control enchantment; the new
         // minion stays on its current controller's side.
@@ -367,12 +390,13 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
       case 'temporaryAttack':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'){c.minion.attack+=e.amount;c.minion.temporaryAttack=(c.minion.temporaryAttack??0)+e.amount;}else s.players[c.player].heroAttack+=e.amount;break;
       case 'giveKeyword':for(const c of select(s,ctx,e.target,e.tribe))if(c.kind==='minion'&&!c.minion.keywords?.includes(e.keyword)){
         const m=c.minion;m.keywords=[...(m.keywords??[]),e.keyword];
+        if(tracking&&c.player===ctx.owner&&e.keyword==='divineShield')emitCombat(s,{kind:'shieldGain',owner:ctx.owner});
         if(c.player===s.activePlayer&&(e.keyword==='charge'||e.keyword==='windfury')&&(m.summonedTurn!==s.turn||hasKeyword(m,'charge')))m.attacksRemaining=Math.max(m.attacksRemaining,(hasKeyword(m,'windfury')?2:1)-(m.attacksMadeThisTurn??0));
       }break;
       case 'draw':{
         const n=e.per==='damagedFriendlyCharacters'?(p.health<(p.maxHealth??RULES.heroHealth)?1:0)+p.board.filter(m=>m.health<m.maxHealth&&m.health>0).length:e.per==='enemyHandDifference'?Math.max(0,s.players[other(ctx.owner)].hand.length-p.hand.length):1;
         const owners=e.side==='both'?[ctx.owner,other(ctx.owner)]:[e.side==='enemy'?other(ctx.owner):ctx.owner];
-        for(const owner of owners)for(let i=0;i<e.amount*n;i++){if((s as GameState).phase==='finished')break;ops.draw(owner);}break;
+        for(const owner of owners)for(let i=0;i<e.amount*n;i++){if((s as GameState).phase==='finished')break;ops.draw(owner,ctx.owner);}break;
       }
       case 'gainMana':p.mana=Math.min(RULES.maxMana,p.mana+e.amount);break;
       case 'gainCrystal':{
@@ -383,7 +407,7 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
       case 'chooseTopDeck':{const cards=p.deck.splice(0,e.count);if(cards.length)s.pendingChoice={owner:ctx.owner,cards};break;}
       case 'overload':p.pendingOverload=Math.min(RULES.maxMana,p.pendingOverload+e.amount);ops.overload(ctx.owner);break;
       case 'loseCrystal':p.maxMana=Math.max(0,p.maxMana-e.amount);p.mana=Math.min(p.mana,p.maxMana);p.lockedMana=Math.min(p.lockedMana,p.maxMana);break;
-      case 'drawTribe':for(let i=0;i<e.count;i++){const choices=p.deck.map((card,index)=>({card,index})).filter(({card})=>{const d=s.catalog[card.cardId];return d.kind==='minion'&&d.tribe===e.tribe;});if(choices.length){const [card]=p.deck.splice(choices[Math.floor(random(s)*choices.length)].index,1);const burned=p.hand.length>=RULES.maxHand;emitVisual(s,{kind:'draw',side:ctx.owner,burned});if(!burned)p.hand.push(card);}else if(e.fallbackCardId)ops.addCard(ctx.owner,e.fallbackCardId);}break;
+      case 'drawTribe':for(let i=0;i<e.count;i++){const choices=p.deck.map((card,index)=>({card,index})).filter(({card})=>{const d=s.catalog[card.cardId];return d.kind==='minion'&&d.tribe===e.tribe;});if(choices.length){const [card]=p.deck.splice(choices[Math.floor(random(s)*choices.length)].index,1);const burned=p.hand.length>=RULES.maxHand;emitVisual(s,{kind:'draw',side:ctx.owner,burned});if(!burned){p.hand.push(card);if(tracking)emitCombat(s,{kind:'draw',owner:ctx.owner});}}else if(e.fallbackCardId)ops.addCard(ctx.owner,e.fallbackCardId);}break;
       case 'discard':{
         for(let i=0;i<e.amount&&p.hand.length;i++){
           const [discarded]=p.hand.splice(Math.floor(random(s)*p.hand.length),1);
@@ -393,18 +417,34 @@ export function resolveEffects(s:GameState,effects:Effect[],ctx:EffectContext,op
         break;
       }
       case 'addRandomCard':case 'addCard':{const owners=e.side==='both'?[ctx.owner,other(ctx.owner)]:[e.side==='enemy'?other(ctx.owner):ctx.owner];for(const owner of owners)for(let i=0;i<e.count;i++)ops.addCard(owner,e.kind==='addCard'?e.cardId:e.cardIds[Math.floor(random(s)*e.cardIds.length)]);break;}
-      case 'addCardNextTurn':p.nextTurnCards=[...(p.nextTurnCards??[]),e.cardId];break;
+      case 'addCardNextTurn':p.nextTurnCards=[...(p.nextTurnCards??[]),e.cardId];comboApplied=true;break;
       case 'destroyWeapon':s.players[e.side==='friendly'?ctx.owner:other(ctx.owner)].weapon=null;break;
       case 'buffWeapon':if(p.weapon){p.weapon.attack+=e.attack;p.weapon.durability+=e.durability;}else if(e.equipIfMissing)p.weapon={...e.equipIfMissing};break;
       case 'protectMinionsThisTurn':p.protectMinionsThisTurn=true;break;
       case 'copyEnemyCard':{const pool=[...s.players[other(ctx.owner)][e.zone]];for(let i=0;i<e.count&&pool.length;i++){const c=pool.splice(Math.floor(random(s)*pool.length),1)[0];ops.addCard(ctx.owner,c.cardId);}break;}
       case 'armor':p.armor+=e.amount;break;
       case 'heroAttack':p.heroAttack+=e.amount;break;
-      case 'summon':for(let i=0,n=(e.count+(e.countMax===undefined?0:Math.floor(random(s)*(e.countMax-e.count+1))))*(e.per==='enemyMinions'?s.players[other(ctx.owner)].board.length:1);i<n;i++){if(e.side==='enemy')ops.summon(other(ctx.owner),e.cardId);else summonNear(e.cardId);}break;
+      case 'summon':for(let i=0,n=(e.count+(e.countMax===undefined?0:Math.floor(random(s)*(e.countMax-e.count+1))))*(e.per==='enemyMinions'?s.players[other(ctx.owner)].board.length:1);i<n;i++){if(e.side==='enemy')ops.summon(other(ctx.owner),e.cardId,undefined,undefined,ctx.owner);else if(summonNear(e.cardId))comboApplied=true;}break;
       case 'summonUniqueRandom':{const options=uniqueSummonChoices(s,ctx.owner,e.cardIds);if(options.length)summonNear(options[Math.floor(random(s)*options.length)]);break;}
       case 'summonRandom':summonNear(e.cardIds[Math.floor(random(s)*e.cardIds.length)]);break;
       case 'equip':{const w=e.cardId?s.catalog[e.cardId]:undefined;p.weapon={attack:w?.kind==='weapon'?w.attack:e.attack,durability:w?.kind==='weapon'?w.durability:e.durability,...(e.cardId?{cardId:e.cardId}:{})};break;}
       case 'cancelEvent':ctx.canceled=true;break;
+    }
+    if(beforeBuff)for(const {m,attack,maxHealth,keywords,spellDamage,deathrattles} of beforeBuff){
+      if(!p.board.includes(m)||m.health<=0)continue;
+      if(m.attack>attack||m.maxHealth>maxHealth||(m.keywords?.length??0)>keywords||(m.bonusSpellDamage??0)>spellDamage||(m.deathrattleSummons?.length??0)>deathrattles){
+        emitCombat(s,{kind:'buff',owner:ctx.owner,amount:1});comboApplied=true;
+      }
+      if(m.maxHealth>maxHealth)emitCombat(s,{kind:'healthBuff',owner:ctx.owner,amount:m.maxHealth-maxHealth});
+    }
+    if(tracking){
+      if(combo&&comboApplied){comboReported=true;emitCombat(s,{kind:'combo',owner:ctx.owner});}
+      if(e.kind==='armor'&&p.armor>preArmor)emitCombat(s,{kind:'armor',owner:ctx.owner,amount:p.armor-preArmor});
+      if(e.kind==='overload'&&p.pendingOverload>preOverload)emitCombat(s,{kind:'overload',owner:ctx.owner,amount:p.pendingOverload-preOverload});
+      if(e.kind==='gainMana'||e.kind==='gainCrystal'){
+        const amount=Math.max(p.mana-preMana,p.maxMana-preCrystals);
+        if(amount>0)emitCombat(s,{kind:'mana',owner:ctx.owner,amount});
+      }
     }
     ops.settle();
   }

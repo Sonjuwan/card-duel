@@ -1,3 +1,5 @@
+import {clearMortal,emitCombat,markMortal,observedDeath,observeDamage,observingCombat} from './combat-observation.ts';
+import type {CombatCause,CombatSource} from './combat-observation.ts';
 import type { Card, CardInstance, Catalog, Deck, GameState, HeroClass, Minion, Player, PlayerId, PlayerView, PublicPlayer, SecretTrigger, Effect, Weapon, Target } from './types.ts';
 import { RULES, HERO_CLASSES, TRIBES, RuleError, requireRule, record, integer, isClass, other, validPlayer, random, setRuntime, opaqueId, emitVisual,log,maxCardCopies } from './rules.ts';
 import type { RuntimeOptions } from './rules.ts';
@@ -112,7 +114,7 @@ function finish(s: GameState, winner: PlayerId|null, reason: NonNullable<GameSta
   delete s.pendingChoice;
   log(s,winner??s.activePlayer,winner===null?'무승부':`플레이어 ${winner+1} 승리`);
 }
-function draw(s: GameState, id: PlayerId, deferLethal=false,resolver?:Resolver): string|undefined {
+function draw(s: GameState, id: PlayerId, deferLethal=false,resolver?:Resolver,source=id): string|undefined {
   const p = s.players[id];
   const card = p.deck.shift();
   if (!card) {
@@ -125,7 +127,11 @@ function draw(s: GameState, id: PlayerId, deferLethal=false,resolver?:Resolver):
   }
   // Full hand burns the drawn card; no fatigue while deck still has cards.
   emitVisual(s,{kind:'draw',side:id,burned:p.hand.length>=RULES.maxHand});
-  if (p.hand.length < RULES.maxHand) p.hand.push(card);else log(s,id,'손패가 가득 차 카드 1장 소실');return card.cardId;
+  if (p.hand.length < RULES.maxHand){
+    p.hand.push(card);
+    if(s.phase==='playing'&&source===id&&observingCombat(s))emitCombat(s,{kind:'draw',owner:id});
+  }else log(s,id,'손패가 가득 차 카드 1장 소실');
+  return card.cardId;
 }
 function startTurn(s: GameState, id: PlayerId): void {
   if(s.turn>=RULES.maxTurns){log(s,s.activePlayer,'최대 89턴 도달');finish(s,null,'turnLimit');return;}
@@ -140,7 +146,7 @@ function startTurn(s: GameState, id: PlayerId): void {
   p.heroAttacksMadeThisTurn=0;p.heroAttacksRemaining=heroAttackLimit(s,id); p.heroPowerUsed=false; p.heroAttack=0;
   for (const m of p.board){m.attacksRemaining = hasKeyword(m,'windfury')?2:1;m.attacksMadeThisTurn=0;}
   for(const player of s.players)for(const m of player.board)if(m.stealthUntilStartOf===id)delete m.stealthUntilStartOf;
-  for(const player of s.players)for(const m of player.board)if(m.destroyAtStartOf?.includes(id))m.health=0;
+  for(const player of s.players)for(const m of player.board)if(m.destroyAtStartOf?.includes(id))destroyTimed(s,m,id);
   resolution(s).settle();if(s.phase==='finished')return;
   for(const cardId of p.nextTurnCards??[])if(p.hand.length<RULES.maxHand)p.hand.push(instance(s,cardId));delete p.nextTurnCards;
   if(s.phase==='playing')turnEffects(s,id,'startTurn');
@@ -186,7 +192,11 @@ function mulligan(s: GameState, id: PlayerId, replacement: unknown): void {
   }
 }
 function visualTarget(c:Character):Target{return c.kind==='hero'?{kind:'hero',player:c.player}:{kind:'minion',instanceId:c.minion.instanceId};}
-function damage(s:GameState,target:Character,amount:number,resolver?:Resolver):boolean {
+function destroyTimed(s:GameState,m:Minion,owner:PlayerId){
+  if(observingCombat(s)&&m.health>0)markMortal(s,m,{owner,source:'spell'});
+  m.health=0;
+}
+function damage(s:GameState,target:Character,amount:number,resolver?:Resolver,cause?:CombatCause):boolean {
   if(amount<=0)return false;
   if(target.kind==='hero'){
     const p=s.players[target.player];
@@ -196,15 +206,15 @@ function damage(s:GameState,target:Character,amount:number,resolver?:Resolver):b
       if(p.heroImmuneThisTurn)return false;
     }
     const absorbed=Math.min(p.armor,amount);
-    const before=p.health;p.armor-=absorbed;p.health=Math.max(0,p.health-(amount-absorbed));log(s,target.player,`영웅 피해 ${before-p.health}${absorbed?` (방어도 ${absorbed} 소모)`:''}`);const actual=absorbed+before-p.health;if(actual>0)emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:actual,armorAbsorbed:absorbed});return actual>0;
+    const before=p.health;p.armor-=absorbed;p.health=Math.max(0,p.health-(amount-absorbed));log(s,target.player,`영웅 피해 ${before-p.health}${absorbed?` (방어도 ${absorbed} 소모)`:''}`);const actual=absorbed+before-p.health;if(actual>0)emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:actual,armorAbsorbed:absorbed});observeDamage(s,cause,target.player,'hero',actual);return actual>0;
   } else {
     const m=target.minion;
     if(m.health<=0||m.immuneThisTurn)return false;
     if(hasKeyword(m,'divineShield')){m.keywords=m.keywords!.filter(k=>k!=='divineShield');log(s,target.player,`${s.catalog[m.cardId].name} 천상의 보호막 소모`);emitVisual(s,{kind:'shield',target:visualTarget(target),side:target.player});return false;}
-    const before=m.health;m.health=s.players[target.player].protectMinionsThisTurn?Math.max(1,m.health-amount):m.health-amount;if(before>m.health){log(s,target.player,`${s.catalog[m.cardId].name} 피해 ${before-m.health}`);emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:before-m.health});}else log(s,target.player,`${s.catalog[m.cardId].name} 생명력 보호`);return before>m.health;
+    const before=m.health;m.health=s.players[target.player].protectMinionsThisTurn?Math.max(1,m.health-amount):m.health-amount;if(before>m.health){log(s,target.player,`${s.catalog[m.cardId].name} 피해 ${before-m.health}`);emitVisual(s,{kind:'damage',target:visualTarget(target),side:target.player,amount:before-m.health});if(cause){observeDamage(s,cause,target.player,'minion',before-Math.max(0,m.health));if(m.health<=0)markMortal(s,m,cause);}}else log(s,target.player,`${s.catalog[m.cardId].name} 생명력 보호`);return before>m.health;
   }
 }
-function summon(s:GameState,owner:PlayerId,cardId:string,card?:CardInstance,position?:number):Minion|undefined {
+function summon(s:GameState,owner:PlayerId,cardId:string,card?:CardInstance,position?:number,source=owner):Minion|undefined {
   const p=s.players[owner],def=s.catalog[cardId];
   requireRule(def?.kind==='minion','잘못된 소환 카드');
   if(p.board.length>=RULES.maxBoard)return;
@@ -212,7 +222,7 @@ function summon(s:GameState,owner:PlayerId,cardId:string,card?:CardInstance,posi
   const enteredOrder=s.nextEntryOrder??1;s.nextEntryOrder=enteredOrder+1;
   const m:Minion={...(card??instance(s,cardId)),originalOwner:owner,attack:def.attack,health:def.health,maxHealth:def.health,attacksRemaining:keywords.includes('charge')&&s.activePlayer===owner?(keywords.includes('windfury')?2:1):0,attacksMadeThisTurn:0,summonedTurn:s.turn,enteredOrder,keywords};
   delete m.costDiscount;
-  p.board.splice(position??p.board.length,0,m);if(!card)log(s,owner,`${def.name} 소환`);return m;
+  p.board.splice(position??p.board.length,0,m);if(!card)log(s,owner,`${def.name} 소환`);if(source===owner&&observingCombat(s))emitCombat(s,{kind:'summon',owner,card:def});return m;
 }
 /** Shared death queue: simultaneous deaths are removed before deathrattles; order of entry is independent of board position. */
 function entryOrder(a:Minion,b:Minion):number{return (a.enteredOrder??0)-(b.enteredOrder??0);}
@@ -224,7 +234,7 @@ function resolution(s:GameState):Resolver {
   const heroSecretEvents:{owner:PlayerId;target:Character;amount:number}[]=[];
   const placements=new Map<Minion,DeathPlacement>();
   let processing=false,processingDamage=false,budget=256,fatigueLethal=false;
-  const effectDraw=(id:PlayerId)=>{const p=s.players[id],previous=p.fatigue,life=p.health+p.armor,card=draw(s,id,true,ops);if(p.fatigue>previous){if(p.health===0)fatigueLethal=true;if(id!==s.activePlayer&&p.health+p.armor<life)heroSecretEvents.push({owner:id,target:hero(id),amount:p.fatigue});}return card;};
+  const effectDraw=(id:PlayerId,source=id)=>{const p=s.players[id],previous=p.fatigue,life=p.health+p.armor,card=draw(s,id,true,ops,source);if(p.fatigue>previous){if(p.health===0)fatigueLethal=true;if(id!==s.activePlayer&&p.health+p.armor<life)heroSecretEvents.push({owner:id,target:hero(id),amount:p.fatigue});}return card;};
   const emit=(event:GameEvent)=>{
     if(event.kind==='summon'&&event.target?.kind==='minion'){
       const w=s.players[event.owner].weapon,def=w?.cardId?s.catalog[w.cardId]:undefined;
@@ -241,7 +251,7 @@ function resolution(s:GameState):Resolver {
       }
     }
   };
-  const ops:Resolver={event:emit,overload:id=>emit({kind:'overload',owner:id}),deathPlacement:m=>placements.get(m),damage:(c,n)=>{const dealt=damage(s,c,n,ops);if(c.kind==='hero'&&dealt&&c.player!==s.activePlayer&&s.phase==='playing')heroSecretEvents.push({owner:c.player,target:c,amount:n});if(c.kind==='minion'&&dealt)emit({kind:'damage',owner:c.player,target:c});return dealt;},heal:(c,n)=>{if(c.kind==='hero'){const p=s.players[c.player];const before=p.health;p.health=Math.min(p.maxHealth??RULES.heroHealth,p.health+n);if(p.health>before){emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:p.health-before});emit({kind:'heal',owner:c.player,target:c});}}else{const before=c.minion.health;c.minion.health=Math.min(c.minion.maxHealth,before+n);if(c.minion.health>before){emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:c.minion.health-before});emit({kind:'heal',owner:c.player,target:c});}}},draw:id=>{effectDraw(id);},drawCard:effectDraw,summon:(id,c,card,position)=>{const m=summon(s,id,c,card,position);if(m)emit({kind:'summon',owner:id,target:{kind:'minion',player:id,minion:m}});return m;},addCard:(id,c)=>{if(s.players[id].hand.length<RULES.maxHand)s.players[id].hand.push(instance(s,c));},settle:()=>{
+  const ops:Resolver={event:emit,overload:id=>emit({kind:'overload',owner:id}),deathPlacement:m=>placements.get(m),damage:(c,n,cause)=>{const dealt=damage(s,c,n,ops,cause);if(c.kind==='hero'&&dealt&&c.player!==s.activePlayer&&s.phase==='playing')heroSecretEvents.push({owner:c.player,target:c,amount:n});if(c.kind==='minion'&&dealt)emit({kind:'damage',owner:c.player,target:c});return dealt;},heal:(c,n,owner)=>{if(c.kind==='hero'){const p=s.players[c.player];const before=p.health;p.health=Math.min(p.maxHealth??RULES.heroHealth,p.health+n);if(p.health>before){emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:p.health-before});if(owner===c.player&&observingCombat(s))emitCombat(s,{kind:'heal',owner,amount:p.health-before});emit({kind:'heal',owner:c.player,target:c});}}else{const before=c.minion.health;c.minion.health=Math.min(c.minion.maxHealth,before+n);if(c.minion.health>before){if(c.minion.health>0&&observingCombat(s))clearMortal(s,c.minion);emitVisual(s,{kind:'heal',target:visualTarget(c),side:c.player,amount:c.minion.health-before});if(owner===c.player&&observingCombat(s))emitCombat(s,{kind:'minionHeal',owner,amount:c.minion.health-before});emit({kind:'heal',owner:c.player,target:c});}}},draw:(id,source)=>{effectDraw(id,source);},drawCard:effectDraw,summon:(id,c,card,position,source)=>{const m=summon(s,id,c,card,position,source);if(m)emit({kind:'summon',owner:id,target:{kind:'minion',player:id,minion:m}});return m;},addCard:(id,c)=>{if(s.players[id].hand.length<RULES.maxHand)s.players[id].hand.push(instance(s,c));},settle:()=>{
     if(s.phase==='finished'||processingDamage)return;
     // Damage reactions resolve before removing mortally wounded minions, so
     // armor and draw effects can trigger on their source's lethal damage.
@@ -266,7 +276,7 @@ function resolution(s:GameState):Resolver {
       }).sort((a,b)=>entryOrder(a.m,b.m));
       if(dead.length)changed=true;
       for(const p of s.players)p.board=p.board.filter(m=>m.health>0);
-      for(const {id,m} of dead){const c=s.catalog[m.cardId],source={kind:'minion' as const,player:id,minion:m,deathPlacement:placements.get(m)};if(c)log(s,id,`${c.name} 사망`);emitVisual(s,{kind:'death',target:visualTarget(source),side:id});if(!m.silenced&&c?.kind==='minion'&&c.deathrattle)queue.push({owner:id,effects:c.deathrattle,source,deathrattle:true});if(m.deathrattleSummons?.length)queue.push({owner:id,effects:m.deathrattleSummons.map(cardId=>({kind:'summon',cardId,count:1})),source,deathrattle:true});emit({kind:'death',owner:id,target:source});if(id!==s.activePlayer&&s.phase==='playing')queue.push({owner:id,effects:[],source,deathSecret:true});}
+      for(const {id,m} of dead){const c=s.catalog[m.cardId],source={kind:'minion' as const,player:id,minion:m,deathPlacement:placements.get(m)};if(c)log(s,id,`${c.name} 사망`);emitVisual(s,{kind:'death',target:visualTarget(source),side:id});if(observingCombat(s))observedDeath(s,m,id);if(!m.silenced&&c?.kind==='minion'&&c.deathrattle)queue.push({owner:id,effects:c.deathrattle,source,deathrattle:true});if(m.deathrattleSummons?.length)queue.push({owner:id,effects:m.deathrattleSummons.map(cardId=>({kind:'summon',cardId,count:1})),source,deathrattle:true});emit({kind:'death',owner:id,target:source});if(id!==s.activePlayer&&s.phase==='playing')queue.push({owner:id,effects:[],source,deathSecret:true});}
     }while(changed);
     if(s.players.some(p=>p.health===0)){
       const winner=s.players[0].health===0?(s.players[1].health===0?null:1):0;
@@ -317,7 +327,7 @@ function triggerSecrets(s:GameState,owner:PlayerId,trigger:SecretTrigger,eventTa
     p.secrets=p.secrets.filter(x=>x.instanceId!==secret.instanceId);
     log(s,owner,`비밀 발동: ${c.name}`);
     emitVisual(s,{kind:'secretTriggered',cardId:c.id,side:owner});
-    const ctx:EffectContext={owner,eventTarget:current,eventAttacker,eventDamage};if(resolver)resolveEffects(s,c.effects,ctx,resolver);else runEffects(s,c.effects,ctx);if(attackEvent&&ctx.redirected)attackEvent.target=ctx.redirected;if(spellEvent&&ctx.redirected)spellEvent.target=ctx.redirected;
+    const ctx:EffectContext={owner,combatSource:'card',eventTarget:current,eventAttacker,eventDamage};if(resolver)resolveEffects(s,c.effects,ctx,resolver);else runEffects(s,c.effects,ctx);if(attackEvent&&ctx.redirected)attackEvent.target=ctx.redirected;if(spellEvent&&ctx.redirected)spellEvent.target=ctx.redirected;
     for(const wielder of [owner,other(owner)]){const w=s.players[wielder].weapon,weapon=w?.cardId?s.catalog[w.cardId]:undefined;if(s.phase==='playing'&&weapon?.kind==='weapon'&&weapon.secretRevealed&&(wielder===owner||weapon.secretRevealedSide==='both')){if(resolver)resolveEffects(s,weapon.secretRevealed,{owner:wielder},resolver);else runEffects(s,weapon.secretRevealed,{owner:wielder});}}
     if(ctx.canceled || (eventAttacker?.kind==='minion'&&(eventAttacker.minion.health<=0||!s.players[eventAttacker.player].board.includes(eventAttacker.minion))))return true;
   }
@@ -348,6 +358,7 @@ function playCard(s: GameState, id: PlayerId, instanceId: unknown, target:unknow
     requireRule(p.secrets.length<RULES.maxSecrets,'비밀은 최대 5개입니다.');
     requireRule(!p.secrets.some(c=>c.cardId===def.id),'같은 비밀은 동시에 사용할 수 없습니다.');
   }
+  if(observingCombat(s))emitCombat(s,{kind:'play',owner:id,card:def,paid:cost});
   p.mana -= cost;if(def.kind==='secret')delete p.nextSecretFree;if(def.kind==='spell'||def.kind==='coin'||def.kind==='secret')delete p.nextSpellDiscount;
   p.hand.splice(index, 1);
   const comboActive=p.cardsPlayedThisTurn>0;p.cardsPlayedThisTurn++;if(def.kind==='minion')p.minionsPlayedThisTurn=(p.minionsPlayedThisTurn??0)+1;
@@ -360,6 +371,9 @@ function playCard(s: GameState, id: PlayerId, instanceId: unknown, target:unknow
       const m=summon(s,id,def.id,card,position as number|undefined)!;
       const source:Character={kind:'minion',player:id,minion:m};const cardOps=resolution(s);cardOps.event({kind:'cardPlayed',owner:id,target:source});if(overloadCard)cardOps.event({kind:'overloadCardPlayed',owner:id,target:source});cardOps.settle();
       resolution(s).settle();
+      if(effects&&s.phase==='playing'){
+        if(choice&&observingCombat(s))emitCombat(s,{kind:'choose',owner:id});
+      }
       if(effects)runEffects(s,effects,{owner:id,chosen,source,comboActive});
       if(p.board.includes(m)&&s.phase==='playing'){const ops=resolution(s);ops.event({kind:'summon',owner:id,target:source});ops.settle();}
       if(p.board.includes(m)&&s.phase==='playing')triggerSecrets(s,other(id),'enemyPlayMinion',source);
@@ -369,11 +383,12 @@ function playCard(s: GameState, id: PlayerId, instanceId: unknown, target:unknow
       const spellEvent={target:chosen};const canceled=triggerSecrets(s,other(id),'enemyCastSpell',chosen,undefined,undefined,undefined,undefined,spellEvent);
       if(!canceled&&s.phase==='playing'){
         const spellDamage=p.board.reduce((sum,m)=>{const c=s.catalog[m.cardId];return sum+(!m.silenced&&c?.kind==='minion'?(c.spellDamage??0)+(m.bonusSpellDamage??0):0);},0);
-        runEffects(s,effects??[],{owner:id,chosen:spellEvent.target,spellDamage,spellPowerMultiplier:spellPowerMultiplier(s,id),comboActive});
+        if(choice&&observingCombat(s))emitCombat(s,{kind:'choose',owner:id});
+        runEffects(s,effects??[],{owner:id,combatSource:def.kind==='spell'?'spell':'card',chosen:spellEvent.target,spellDamage,spellPowerMultiplier:spellPowerMultiplier(s,id),comboActive});
         if(s.phase==='playing'&&!s.pendingChoice){const ops=resolution(s);ops.event({kind:'spell',owner:id,target:chosen});ops.settle();}
       }break;
     }
-    case 'weapon':p.weapon={attack:def.attack,durability:def.durability,cardId:def.id};p.heroAttacksRemaining=Math.max(0,heroAttackLimit(s,id)-(p.heroAttacksMadeThisTurn??0));resolution(s).settle();if(effects)runEffects(s,effects,{owner:id,chosen,comboActive});break;
+    case 'weapon':p.weapon={attack:def.attack,durability:def.durability,cardId:def.id};p.heroAttacksRemaining=Math.max(0,heroAttackLimit(s,id)-(p.heroAttacksMadeThisTurn??0));resolution(s).settle();if(effects)runEffects(s,effects,{owner:id,chosen,comboActive,combatSource:'card'});break;
     case 'secret':{
       if(!triggerSecrets(s,other(id),'enemyCastSpell')&&s.phase==='playing'){
         p.secrets.push(card);const ops=resolution(s);ops.event({kind:'spell',owner:id});ops.settle();
@@ -390,14 +405,19 @@ function attackTarget(s:GameState,id:PlayerId,target:unknown):Character {
   requireRule(!taunts.length||(d.kind==='minion'&&taunts.includes(d.minion)),'도발 하수인을 먼저 공격해야 합니다.');
   return d;
 }
-function combat(s:GameState,attacker:Character,defender:Character,attackValue:number):void {
+function combat(s:GameState,attacker:Character,defender:Character,attackValue:number,source:CombatSource):void {
   emitVisual(s,{kind:'combat',target:visualTarget(defender),side:defender.player});
   const retaliation=defender.kind==='minion'?defender.minion.attack:0;
   const name=(c:Character)=>c.kind==='hero'?'영웅':s.catalog[c.minion.cardId]?.name??'하수인';
   log(s,attacker.player,`${name(attacker)} → ${name(defender)} 공격 (${attackValue})`);
-  const ops=resolution(s),dealt=ops.damage(defender,attackValue);let returned=false;
+  const tracked=observingCombat(s),cause=tracked?{owner:attacker.player,source}:undefined;
+  if(cause&&attackValue>0){
+    const card=attacker.kind==='minion'?s.catalog[attacker.minion.cardId]:undefined;
+    emitCombat(s,{kind:'attack',...cause,target:defender.kind,tribe:card?.kind==='minion'?card.tribe:undefined});
+  }
+  const ops=resolution(s),dealt=ops.damage(defender,attackValue,cause);let returned=false;
   if(retaliation>0){if(defender.kind==='minion'){defender.minion.keywords=defender.minion.keywords?.filter(k=>k!=='stealth');delete defender.minion.stealthUntilStartOf;}returned=ops.damage(attacker,retaliation);}
-  minionDamageResult(s,attacker,defender,dealt);minionDamageResult(s,defender,attacker,returned);
+  minionDamageResult(s,attacker,defender,dealt,cause);minionDamageResult(s,defender,attacker,returned);
   ops.settle();
 }
 function attack(s:GameState,id:PlayerId,attackerId:unknown,target:unknown):void {
@@ -408,7 +428,7 @@ function attack(s:GameState,id:PlayerId,attackerId:unknown,target:unknown):void 
   a.attacksRemaining--;a.attacksMadeThisTurn=(a.attacksMadeThisTurn??0)+1;a.keywords=a.keywords?.filter(k=>k!=='stealth');
   delete a.stealthUntilStartOf;
   const attackEvent={target:d};if(triggerSecrets(s,other(id),'enemyAttackAny',d,source,attackEvent))return;d=attackEvent.target;
-  if(s.phase==='playing'&&a.health>0&&s.players[id].board.includes(a)&&(d.kind==='hero'||s.players[d.player].board.includes(d.minion))){for(const owner of a.drawOnAttackOwners??[])if(s.phase==='playing')draw(s,owner);if(s.phase==='playing')combat(s,source,d,a.attack);}
+  if(s.phase==='playing'&&a.health>0&&s.players[id].board.includes(a)&&(d.kind==='hero'||s.players[d.player].board.includes(d.minion))){for(const owner of a.drawOnAttackOwners??[])if(s.phase==='playing')draw(s,owner);if(s.phase==='playing')combat(s,source,d,a.attack,'minion');}
 }
 function heroAttackLimit(s:GameState,id:PlayerId):number {const w=s.players[id].weapon,def=w?.cardId?s.catalog[w.cardId]:undefined;return def?.kind==='weapon'&&def.windfury?2:1;}
 function heroAttack(s:GameState,id:PlayerId,target:unknown):void {
@@ -427,7 +447,7 @@ function heroAttack(s:GameState,id:PlayerId,target:unknown):void {
   // June 2014: Longbow prevented combat retaliation, not the earlier
   // attack-triggered secret damage (that interaction changed in 2016).
   immune=ability?.kind==='weapon'&&ability.immuneWhileAttacking===true;if(immune)p.heroImmuneThisTurn=true;
-  combat(s,source,d,p.heroAttack+(weapon?.attack??0));
+  combat(s,source,d,p.heroAttack+(weapon?.attack??0),weapon?'weapon':'card');
   if(weapon&&p.weapon===weapon){if(ability?.kind==='weapon'&&ability.attackLossVsMinion&&d.kind==='minion'){weapon.attack--;if(weapon.attack<=0)p.weapon=null;}else{weapon.durability--;if(weapon.durability<=0)p.weapon=null;}refreshAuras(s);}
   }finally{if(immune&&!hadImmunity)delete p.heroImmuneThisTurn;p.heroAttacksRemaining=Math.max(0,heroAttackLimit(s,id)-(p.heroAttacksMadeThisTurn??0));}
 }
@@ -436,7 +456,8 @@ function heroPower(s:GameState,id:PlayerId,target:unknown):void {
   const reason=heroPowerReason(p);requireRule(!reason,reason??'영웅 능력을 사용할 수 없습니다.');
   const chosen=chooseTarget(s,id,power.targetRule,target,false,true);p.heroPowerUsed=true;p.mana-=power.cost;
   log(s,id,`영웅 능력: ${power.name}`);
-  runEffects(s,power.effects,{owner:id,chosen,spellPowerMultiplier:spellPowerMultiplier(s,id)});
+  if(observingCombat(s))emitCombat(s,{kind:'power',owner:id});
+  runEffects(s,power.effects,{owner:id,combatSource:'power',chosen,spellPowerMultiplier:spellPowerMultiplier(s,id)});
 }
 /** Pure transaction: all invalid actions throw without altering the input state. */
 export function applyAction(state: GameState, actor: PlayerId, action: unknown, runtime?:RuntimeOptions): GameState {
@@ -467,7 +488,7 @@ export function applyAction(state: GameState, actor: PlayerId, action: unknown, 
       case 'endTurn':{
         turnEffects(s,actor,'endTurn');const p=s.players[actor];p.heroAttack=0;delete p.protectMinionsThisTurn;delete p.nextSecretFree;delete p.nextSpellDiscount;delete p.freeSpellsThisTurn;
         for(const player of s.players){delete player.heroImmuneThisTurn;for(const m of player.board)delete m.immuneThisTurn;}
-        if(s.phase==='playing')for(const player of s.players)for(const m of player.board)if(m.destroyAtEndOf?.includes(actor))m.health=0;
+        if(s.phase==='playing')for(const player of s.players)for(const m of player.board)if(m.destroyAtEndOf?.includes(actor))destroyTimed(s,m,actor);
         resolution(s).settle();
         for(const player of s.players)for(const m of player.board){m.attack=Math.max(0,m.attack-(m.temporaryAttack??0));m.temporaryAttack=0;}
         if(p.heroFrozenThroughTurn!==undefined&&p.heroFrozenThroughTurn<=s.turn)delete p.heroFrozenThroughTurn;
