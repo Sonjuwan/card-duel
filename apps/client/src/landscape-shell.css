@@ -23,6 +23,7 @@
   }
   .lobby-main>.screen-content>.lobby-tabs[aria-label="게임 메뉴"] button{min-height:44px}
   .game-main>.screen-content{overflow:hidden}
+  .game-main>.screen-content:has(>.phase-mulligan){scrollbar-gutter:auto}
   .game-main>.screen-content>.duel-screen{flex:1 1 0%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
   .lobby-main>footer,.game-main>footer{flex:none;margin:1px 0 0;font-size:9px;line-height:1.2}
   .lobby-main>footer .reference-notice,.game-main>footer .reference-notice{display:none}

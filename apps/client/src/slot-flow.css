@@ -278,70 +278,70 @@ body:has(.slot-entry) #solo-app-banner:not([data-urgent="true"]){
   border:2px solid #a58a55;
 }
 .lobby-main.preview-lobby .lobby-home>button:active{transform:scale(.98)}
-.lobby-main.preview-lobby .preview-hero-choice{
+.lobby-main .preview-hero-choice{
   flex:1 1 0;min-height:0;overflow:hidden;
   padding:clamp(5px,1vw,15px) clamp(5px,1.5vw,23px);
 }
-.lobby-main.preview-lobby .preview-hero-grid{
+.lobby-main .preview-hero-grid{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   grid-template-rows:repeat(3,minmax(0,1fr));gap:clamp(5px,1vw,12px);
   width:100%;height:100%;min-height:0;max-width:1020px;margin:auto;
 }
-.lobby-main.preview-lobby .preview-hero-tile{
+.lobby-main .preview-hero-tile{
   display:flex;align-items:center;justify-content:center;gap:clamp(5px,1.1vw,14px);
   min-height:0;overflow:hidden;padding:5px;
   background:linear-gradient(120deg,#44392d,#24202a);
   border:2px solid #977549;border-radius:12px;
   color:#f7e5bb;font-size:clamp(13px,2vw,23px);
 }
-.lobby-main.preview-lobby .preview-hero-tile .preview-hero-art{
+.lobby-main .preview-hero-tile .preview-hero-art{
   width:clamp(32px,6.3dvh,72px);height:clamp(32px,6.3dvh,72px);flex:none;
   display:block;border-radius:50%;overflow:hidden;border:1px solid #c1a06a;
 }
-.lobby-main.preview-lobby .preview-hero-art>*{width:100%;height:100%;object-fit:cover}
-.lobby-main.preview-lobby .preview-deck-select{
+.lobby-main .preview-hero-art>*{width:100%;height:100%;object-fit:cover}
+.lobby-main .preview-deck-select{
   flex:1;min-height:0;min-width:0;display:flex;flex-direction:column;
   gap:8px;padding:6px clamp(8px,2vw,25px);overflow:hidden;
 }
-.lobby-main.preview-lobby .preview-flow-heading{
+.lobby-main .preview-flow-heading{
   flex:none;display:flex;align-items:center;gap:12px;min-height:40px;
 }
-.lobby-main.preview-lobby .preview-flow-heading button{min-height:36px}
-.lobby-main.preview-lobby .preview-flow-heading strong{font-size:clamp(15px,2vw,23px)}
-.lobby-main.preview-lobby .preview-deck-grid{
+.lobby-main .preview-flow-heading button{min-height:36px}
+.lobby-main .preview-flow-heading strong{font-size:clamp(15px,2vw,23px)}
+.lobby-main .preview-deck-grid{
   flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   grid-auto-rows:minmax(80px,1fr);align-content:start;gap:9px;overflow:auto;min-height:0;
 }
-.lobby-main.preview-lobby .preview-deck-tile{
+.lobby-main .preview-deck-tile{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
   background:linear-gradient(130deg,#352a25,#23222b);border:2px solid #847250;
   border-radius:12px;min-height:70px;padding:8px;color:#f3dfb3;
 }
-.lobby-main.preview-lobby .preview-deck-tile.chosen{border-color:#ead289;box-shadow:inset 0 0 0 2px #d6aa64}
-.lobby-main.preview-lobby .preview-deck-tile small{color:#d1c6b2}
-.lobby-main.preview-lobby .preview-deck-pages .preview-deck-tile{
+.lobby-main .preview-deck-tile.chosen{border-color:#ead289;box-shadow:inset 0 0 0 2px #d6aa64}
+.lobby-main .preview-deck-tile small{color:#d1c6b2}
+.lobby-main .preview-deck-pages .preview-deck-tile{
   background:#63462f;border-color:#c59960;color:#fff3d7;
 }
-.lobby-main.preview-lobby .preview-deck-pages .preview-deck-tile small{color:#f4dfb7}
-.lobby-main.preview-lobby .preview-deck-pages .preview-deck-tile.chosen{
+.lobby-main .preview-deck-pages .preview-deck-tile small{color:#f4dfb7}
+.lobby-main .preview-deck-pages .preview-deck-tile.chosen{
   background:#745029;border-color:#ffe18a;box-shadow:inset 0 0 0 2px #d6aa64;
 }
-.lobby-main.preview-lobby .preview-deck-pages .preview-deck-empty{
+.lobby-main .preview-deck-pages .preview-deck-empty{
   background:#44312a;border-color:#9b7856;
 }
-.lobby-main.preview-lobby .preview-deck-pages>button{
+.lobby-main .preview-deck-pages>button{
   background:#684a32;border-color:#cea46d;color:#fff0c9;opacity:1;
 }
-.lobby-main.preview-lobby .preview-deck-pages>button:disabled{
+.lobby-main .preview-deck-pages>button:disabled{
   background:#383031;border-color:#766559;color:#ac9987;opacity:1;
 }
-.lobby-main.preview-lobby .preview-deck-actions{
+.lobby-main .preview-deck-actions{
   flex:none;display:flex;align-items:center;gap:10px;min-height:43px;
 }
-.lobby-main.preview-lobby .preview-deck-actions .slot-deck-primary{
+.lobby-main .preview-deck-actions .slot-deck-primary{
   width:min(410px,50%);flex:none;min-height:43px;
 }
-.lobby-main.preview-lobby .preview-deck-actions small{font-size:11px;line-height:1.2}
+.lobby-main .preview-deck-actions small{font-size:11px;line-height:1.2}
 .lobby-main.preview-lobby .preview-workspace{flex:1;min-height:0;overflow:hidden}
 .lobby-main.preview-lobby .preview-workspace>.deck-workspace-nav{display:none}
 .lobby-main.preview-lobby .preview-workspace>[data-deck-screen=classes]{
