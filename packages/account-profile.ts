@@ -36,6 +36,18 @@ export function decodeAccountProfile(input:unknown,options:{revision?:number;leg
     const seen=new Set<string>();
     for(const m of p.recentMatches){
       if(!record(m)||!string(m.matchId)||seen.has(m.matchId)||(m.mode!=='ranked'&&m.mode!=='pvp')||(m.outcome!=='win'&&m.outcome!=='loss'&&m.outcome!=='draw')||!integer(m.rank,m.mode==='ranked'?1:0,m.mode==='ranked'?25:0)||!string(m.heroClass)||m.opponentClass!==undefined&&!string(m.opponentClass)||!integer(m.completedAt)||!integer(m.xp)||typeof m.questAdvanced!=='boolean'||typeof m.eligible!=='boolean'||m.turns!==undefined&&!integer(m.turns)||m.questCompleted!==undefined&&typeof m.questCompleted!=='boolean'||m.questBonusXp!==undefined&&!integer(m.questBonusXp)||m.unlockedCards!==undefined&&!ids(m.unlockedCards)||m.rankAfter!==undefined&&!integer(m.rankAfter,1,25))return invalid();
+      if(m.matchXp!==undefined&&(!integer(m.matchXp)||Number(m.matchXp)+Number(m.questBonusXp??0)!==m.xp))return invalid();
+      if(m.completedQuests!==undefined){
+        if(!Array.isArray(m.completedQuests)||m.completedQuests.length>3)return invalid();
+        const ids=new Set<string>();let xp=0;
+        for(const q of m.completedQuests){
+          if(!record(q)||typeof q.id!=='string'||!/^quest-[1-9]\d*$/.test(q.id)||ids.has(q.id)||q.hero!==m.heroClass||
+            !string(q.title)||q.title.length>160||!string(q.definitionId)||!string(q.metric)||!string(q.unit)||
+            !integer(q.target,1,100000)||q.progress!==q.target||!integer(q.xp,0,100000)||q.rewarded!==true)return invalid();
+          ids.add(q.id);xp+=Number(q.xp);
+        }
+        if(xp!==Number(m.questBonusXp??0))return invalid();
+      }
       seen.add(m.matchId);
     }
   }

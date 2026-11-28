@@ -15,7 +15,7 @@ import {parsePublicAiProfile} from '../src/local-profile.ts';
 import {createOfflineRankedInput,createOfflineDeveloperInput,offlineGrowth,offlineRankProgress,readOfflineGrowth,settleOfflineRanked,createGrowthBackup,decodeGrowthBackup,canRestoreGrowth} from '../src/offline-growth.ts';
 import type {OfflineGrowthRecord} from '../src/offline-growth.ts';
 import {canReplaceRankedSave,activeRankedSave} from '../src/local-save-store.ts';
-import {rankedBotDeck,rankInfo,ownedDeck,questStatus,recommendedOwnedDeck,rankedXpReward,rankedQuestBonus} from '../../../packages/progression.ts';
+import {rankedBotDeck,rankInfo,ownedDeck,questStatus,recommendedOwnedDeck,rankedXpReward} from '../../../packages/progression.ts';
 import {createSlotBackup,decodeSlotBackup,growthBackupPart,deckBackupPart,prepareSlotRestore} from '../src/slot-backup.ts';
 import {parseDeckBackup,mergeDeckLibraries,decksKey} from '../src/named-decks.ts';
 import type {DeckLibraryBackup} from '../src/named-decks.ts';
@@ -201,7 +201,7 @@ test('144 synthetic offline ranked results reach the complete ladder, cycle nine
     const profile=record.profile,quest=questStatus(profile.questGames),outcome=i%2===0?'win':'loss';
     const deck=recommendedOwnedDeck(catalog,growth,quest.heroClass,profile,i+1),ranked=createOfflineRankedInput({...savedInput,seed:i+1,code:`full-growth-${i}`,deck},record,growth),context=ranked.ranked!;
     if(i===0)first=context;visited.add(context.rank);questClasses.add(quest.heroClass);
-    expectedXp+=rankedXpReward(context.rank,outcome)+(quest.games===9?rankedQuestBonus(context.rank):0);
+    expectedXp+=rankedXpReward(context.rank,outcome)+(quest.games===9?30:0);
     record=settleOfflineRanked(record,growth,context,{matchId:ranked.code,rank:context.rank,heroClass:quest.heroClass,mode:'ranked',outcome,eligible:true,completedAt:i,turns:12});
     assert.equal(record.profile.xp,expectedXp);assert.equal(record.profile.questGames,i+1);assert.ok(record.profile.rank>=profile.rank&&record.profile.rank<=profile.rank+1);assert.ok(profile.ownedCards.every(id=>record.profile.ownedCards.includes(id)));
     if(!allCardsAt&&record.profile.ownedCards.length===382)allCardsAt=i+1;

@@ -1,3 +1,5 @@
+import {advanceQuests,fillQuests,initialQuests,validQuestProgress,validQuestCounters} from '../../../packages/quests.ts';
+import type {QuestCounters} from '../../../packages/quest-types.ts';
 import type {AccountProfile,GrowthView,MatchAward} from '../../../packages/account-protocol.ts';
 import {collectionBotDeck} from '../../../packages/collection-bot-deck.ts';
 import {decodeAccountProfile} from '../../../packages/account-profile.ts';
@@ -13,7 +15,20 @@ export interface OfflineDeveloperContext extends OfflineTierContext{experiment?:
 export interface OfflineRankContext extends OfflineTierContext{profileRevision:number}
 
 /** The offline release uses the same developer-tuned growth rules as the server. */
-export const offlineGrowth=(catalog:Catalog)=>buildGrowth(catalog,growthConfig.cardPowerOverrides,growthConfig.rankTuning,('unlockXp' in growthConfig?growthConfig.unlockXp:undefined) as Parameters<typeof buildGrowth>[3]);
+const questCatalogs=new WeakMap<GrowthView,Catalog>();
+export function offlineGrowth(catalog:Catalog){
+  const growth=buildGrowth(catalog,growthConfig.cardPowerOverrides,growthConfig.rankTuning,('unlockXp' in growthConfig?growthConfig.unlockXp:undefined) as Parameters<typeof buildGrowth>[3]);
+  questCatalogs.set(growth,catalog);
+  return growth;
+}
+function syncOfflineQuests(profile:AccountProfile,growth:GrowthView):AccountProfile{
+  const catalog=questCatalogs.get(growth);
+  if(profile.quests!==undefined&&!validQuestProgress(profile.quests))throw Error('퀘스트 저장 기록이 손상되었습니다.');
+  if(!catalog)return profile;
+  const quests=fillQuests(profile.quests??initialQuests(profile.questGames,growth.questLength),catalog,profile.ownedCards,
+    profile.quests?0:profile.questGames%growth.questLength);
+  return {...profile,quests};
+}
 
 /** Presentation only. Promotion itself still happens exclusively in awardMatch
  * after an eligible win at the current rank. */
@@ -25,7 +40,7 @@ export function offlineRankProgress(profile:Pick<AccountProfile,'rank'|'rankWins
 }
 
 export function readOfflineGrowth(raw:unknown,growth:GrowthView):OfflineGrowthRecord{
-  if(raw===undefined)return {schema:1,profile:syncOwned({revision:0,decks:[],xp:0,rank:1,rankWins:0,questGames:0,ownedCards:[]},growth),settledMatchIds:[]};
+  if(raw===undefined)return {schema:1,profile:syncOfflineQuests(syncOwned({revision:0,decks:[],xp:0,rank:1,rankWins:0,questGames:0,ownedCards:[]},growth),growth),settledMatchIds:[]};
   if(!raw||typeof raw!=='object')throw Error('오프라인 성장 기록이 손상되었습니다.');
   const value=raw as OfflineGrowthRecord;
   if(value.schema!==1||!Array.isArray(value.settledMatchIds)||value.settledMatchIds.some(id=>typeof id!=='string'||!id||id.length>128))throw Error('오프라인 성장 기록이 손상되었습니다.');
@@ -35,7 +50,7 @@ export function readOfflineGrowth(raw:unknown,growth:GrowthView):OfflineGrowthRe
   if(profile.recentMatches?.some(m=>!settled.has(m.matchId)))throw Error('오프라인 경기 원장이 손상되었습니다.');
   const ranked=profile.matchStats?.ranked,total=(ranked?.wins??0)+(ranked?.losses??0)+(ranked?.draws??0);
   if(profile.revision!==value.settledMatchIds.length||total!==value.settledMatchIds.length||profile.recentMatches?.some(m=>m.mode!=='ranked'))throw Error('오프라인 전적과 성장 원장이 일치하지 않습니다.');
-  return {schema:1,profile:syncOwned(profile,growth),settledMatchIds:[...value.settledMatchIds]};
+  return {schema:1,profile:syncOfflineQuests(syncOwned(profile,growth),growth),settledMatchIds:[...value.settledMatchIds]};
 }
 
 /** A backup is deliberately not an online-account import credential. A fresh
@@ -79,9 +94,13 @@ function tierInput(input:LocalDuelInput,tier:ReturnType<typeof rankInfo>,opponen
 
 /** Ledger IDs outlive the 30 displayed match records. A stale tab cannot
  * settle a different game against a newer profile revision. */
-export function settleOfflineRanked(record:OfflineGrowthRecord,growth:GrowthView,context:OfflineRankContext,award:MatchAward):OfflineGrowthRecord{
+export function settleOfflineRanked(record:OfflineGrowthRecord,growth:GrowthView,context:OfflineRankContext,award:MatchAward,metrics:QuestCounters={}):OfflineGrowthRecord{
   if(record.settledMatchIds.includes(award.matchId))return record;
   if(context.profileRevision!==record.profile.revision||context.rank!==record.profile.rank||award.rank!==context.rank||award.mode!=='ranked')throw Error('다른 경기에서 성장 기록이 변경되었습니다.');
-  const profile=decodeAccountProfile({...awardMatch(record.profile,growth,award),revision:record.profile.revision+1});
+  if(!validQuestCounters(metrics))throw Error('퀘스트 전투 기록이 올바르지 않습니다.');
+  const active=syncOfflineQuests(record.profile,growth);
+  const quests=active.quests&&award.eligible?advanceQuests(active.quests,award.heroClass,metrics):undefined;
+  const awarded=awardMatch(active,growth,award,quests);
+  const profile=decodeAccountProfile(syncOfflineQuests({...awarded,...(quests?{quests:quests.state}:{}),revision:record.profile.revision+1},growth));
   return {schema:1,profile,settledMatchIds:[...record.settledMatchIds,award.matchId]};
 }

@@ -1,3 +1,4 @@
+import type {CompletedQuest} from './quest-types.ts';
 import {HERO_CLASSES,practiceDeck,strategicDeck,validateDeck,deckCards,maxCardCopies} from './engine/src/index.ts';
 import type {Catalog,Deck,HeroClass} from './engine/src/index.ts';
 import {activeRewardPath,creditRewardPath,rewardPaths,syncRewardRoad} from './reward-road.ts';
@@ -111,19 +112,22 @@ export function verifyRankedDecks(catalog:Catalog,growth:GrowthView):number{
   for(const rank of growth.ranks)for(const hero of HERO_CLASSES){validateDeck(rankedBotDeck(catalog,growth,hero,rank.deckPower,123),catalog);checked++;}
   return checked;
 }
-export function awardMatch(profile:AccountProfile,growth:GrowthView,match:MatchAward):AccountProfile{
+type QuestMatchReward={xp:number;advanced:boolean;basicAdvanced:boolean;completed:CompletedQuest[]};
+export function awardMatch(profile:AccountProfile,growth:GrowthView,match:MatchAward,quests?:QuestMatchReward):AccountProfile{
   const current=syncOwned(profile,growth),mode=match.mode??'ranked';
   const stats=structuredClone(current.matchStats??{ranked:{wins:0,losses:0,draws:0},pvp:{wins:0,losses:0,draws:0}});
   stats[mode][match.outcome==='win'?'wins':match.outcome==='loss'?'losses':'draws']++;
-  const finish=(next:AccountProfile,questBonusXp=0)=>{const before=new Set(current.ownedCards),questAdvanced=next.questGames>current.questGames;
+  const finish=(next:AccountProfile,questBonusXp=0)=>{const before=new Set(current.ownedCards),questAdvanced=quests?.advanced??(next.questGames>current.questGames);
     const {path}=activeRewardPath(current,growth),after=new Set(next.ownedCards);
     const unlockedCards=path.unlocks.map(card=>card.cardId).filter(id=>after.has(id)&&!before.has(id));
-    const recent=[{matchId:match.matchId,mode,rank:match.rank,heroClass:match.heroClass,opponentClass:match.opponentClass,outcome:match.outcome,completedAt:match.completedAt??Date.now(),turns:match.turns,xp:next.xp-current.xp,questAdvanced,questCompleted:questAdvanced&&next.questGames%growth.questLength===0,questBonusXp,unlockedCards,rankAfter:next.rank,eligible:match.eligible},...(current.recentMatches??[])].sort((a,b)=>b.completedAt-a.completedAt).slice(0,30);return {...next,recentMatches:recent,matchStats:stats};};
+    const recent=[{matchId:match.matchId,mode,rank:match.rank,heroClass:match.heroClass,opponentClass:match.opponentClass,outcome:match.outcome,completedAt:match.completedAt??Date.now(),turns:match.turns,xp:next.xp-current.xp,questAdvanced,questCompleted:quests?quests.completed.length>0:questAdvanced&&next.questGames%growth.questLength===0,questBonusXp,
+      ...(quests?{matchXp:next.xp-current.xp-questBonusXp,completedQuests:quests.completed}:{}),unlockedCards,rankAfter:next.rank,eligible:match.eligible},...(current.recentMatches??[])].sort((a,b)=>b.completedAt-a.completedAt).slice(0,30);return {...next,recentMatches:recent,matchStats:stats};};
   if(!match.eligible||mode==='pvp')return finish(current);
   const rank=Math.max(1,Math.min(25,match.rank));
   let xp=current.xp+rankedXpReward(rank,match.outcome);
   let questGames=current.questGames,questBonusXp=0;
-  if(questStatus(questGames).heroClass===match.heroClass){questGames++;if(questGames%QUEST_LENGTH===0){questBonusXp=rankedQuestBonus(rank);xp+=questBonusXp;}}
+  if(quests){if(quests.basicAdvanced)questGames++;questBonusXp=quests.xp;xp+=questBonusXp;}
+  else if(questStatus(questGames).heroClass===match.heroClass){questGames++;if(questGames%QUEST_LENGTH===0){questBonusXp=rankedQuestBonus(rank);xp+=questBonusXp;}}
   let nextRank=current.rank,rankWins=current.rankWins;
   if(match.outcome==='win'&&rank===current.rank&&nextRank<25){rankWins=Math.min(WINS_PER_RANK,rankWins+1);if(rankWins>=WINS_PER_RANK&&xp>=(rankInfo(nextRank+1,growth.ranks).minimumXp??0)){nextRank++;rankWins=0;}}
   return finish(creditRewardPath({...current,xp,questGames,rank:nextRank,rankWins},growth,xp-current.xp),questBonusXp);

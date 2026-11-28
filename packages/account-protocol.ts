@@ -1,3 +1,4 @@
+import type {CompletedQuest,QuestProgress} from './quest-types.ts';
 import type { Deck } from './engine/src/types.ts';
 
 export type AccountRole = 'player' | 'developer';
@@ -13,6 +14,7 @@ export interface AccountProfile {
   rank: number;
   rankWins: number;
   questGames: number;
+  quests?: QuestProgress;
   ownedCards: string[];
   rewardRoad?: RewardRoadProgress;
   /** Optional for accounts created before match history was introduced. */
@@ -20,7 +22,7 @@ export interface AccountProfile {
   matchStats?: {ranked:MatchStats;pvp:MatchStats};
 }
 export interface MatchStats {wins:number;losses:number;draws:number}
-export interface RankedRewardSummary {xp:number;questAdvanced:boolean;questCompleted?:boolean;questBonusXp?:number;unlockedCards?:string[];rankAfter?:number}
+export interface RankedRewardSummary {xp:number;questAdvanced:boolean;questCompleted?:boolean;questBonusXp?:number;matchXp?:number;completedQuests?:CompletedQuest[];unlockedCards?:string[];rankAfter?:number}
 export interface MatchHistoryEntry extends RankedRewardSummary {matchId:string;mode:'ranked'|'pvp';rank:number;heroClass:Deck['heroClass'];opponentClass?:Deck['heroClass'];outcome:'win'|'loss'|'draw';completedAt:number;turns?:number;eligible:boolean}
 export interface AccountView {
   id: string;
