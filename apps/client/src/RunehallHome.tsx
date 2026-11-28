@@ -62,15 +62,14 @@ export function RunehallHome({profile,slot,developer,onOpen,fullscreenMenu,updat
   </nav>;
 }
 
-const collectibleByClass=Object.fromEntries(HERO_CLASSES.map(hero=>[hero,Object.values(catalog).filter(card=>card.kind!=='coin'&&card.collectible!==false&&card.class===hero).map(card=>card.id)]));
-
 export function PlayerGrowth({profile}:{profile?:AccountProfile}){
   const [selected,setSelected]=useState<HeroClass>('warrior');
   const dialog=useRef<HTMLDialogElement>(null);
   const career=useMemo(()=>profile?careerOf(profile):undefined,[profile]);
   const owned=useMemo(()=>new Set(profile?.ownedCards),[profile?.ownedCards]);
   const hero=career?.heroes[selected]??emptyHeroCareer(),details=levelProgress(hero.xp,'hero');
-  const cardIds=collectibleByClass[selected],collected=cardIds.filter(id=>owned.has(id)).length;
+  const classCards=useMemo(()=>Object.values(catalog).filter(card=>card.kind!=='coin'&&card.collectible!==false&&card.class===selected),[catalog,selected]);
+  const collected=classCards.filter(card=>owned.has(card.id)).length;
   return <section className="rh-class-growth" aria-labelledby="rh-growth-title">
     <h2 id="rh-growth-title">직업별 성장</h2>
     <div className="rh-class-grid">
@@ -103,7 +102,7 @@ export function PlayerGrowth({profile}:{profile?:AccountProfile}){
         <dt>승률</dt><dd>{percentText(winPercentage(hero))}</dd>
         <dt>최대 연승</dt><dd>{hero.bestStreak}승</dd>
         <dt>완료한 직업 퀘스트</dt><dd>{hero.quests}개</dd>
-        <dt>직업 카드 수집률</dt><dd>{cardIds.length?Math.round(100*collected/cardIds.length)+'%':'—'} ({collected}/{cardIds.length})</dd>
+        <dt>직업 카드 수집률</dt><dd>{classCards.length?Math.round(100*collected/classCards.length)+'%':'—'} ({collected}/{classCards.length})</dd>
       </dl>
     </dialog>
   </section>;

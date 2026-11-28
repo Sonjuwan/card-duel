@@ -1,3 +1,5 @@
+import {RANKS} from '../../../packages/progression.ts';
+import {RankCrest} from '../src/RankCrest.tsx';
 import {lethalPortraits,mulliganSlots} from '../src/battle-cinematics.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -254,7 +256,7 @@ test('hover panel displays a large card with current buffed attack, damaged heal
 });
 test('deck builder has explicit set tabs with counts and each visible card has its copy-limit badge',()=>{
  const h=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp}/>);
- assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/클래식 카드<small>\d+/);assert.equal((h.match(/collection-copy-badge/g)??[]).length,legalMageCount);
+ assert.match(h,/aria-label="카드 세트"/);assert.match(h,/aria-pressed="true">전체<small>182/);assert.match(h,/기본 카드<small>\d+/);assert.match(h,/룬홀 오리지널<small>\d+/);assert.equal((h.match(/collection-copy-badge/g)??[]).length,legalMageCount);
 });
 test('deck builder basic and original initial views never display cards from the opposite set',()=>{
  const basic=renderToStaticMarkup(<DeckEditor deck={{heroClass:'mage',cards:[]}} setDeck={noOp} initialSet="basic"/>);
@@ -342,4 +344,14 @@ test('scalar resource readouts preserve deck fatigue, mana flags and labels',()=
   const mana=renderToStaticMarkup(<ManaDisplay player={{...p,mana:2,maxMana:6,lockedMana:2,pendingOverload:3}} charging compact/>);
   assert.match(mana,/mana-display compact/);assert.match(mana,/data-charging="true"/);assert.match(mana,/마나 2\/6/);
   assert.match(mana,/다음 과부하 3/);
+});
+
+test('each of the 25 rank crests preserves its viewport and shows division-specific jewels',()=>{
+  for(const rank of RANKS){
+    const markup=renderToStaticMarkup(<RankCrest rank={rank}/>);
+    assert.match(markup,/viewBox="0 0 120 112"/);
+    assert.ok(markup.includes(`data-tier="${Math.floor((rank.rank-1)/5)}" data-division="${rank.division}"`));
+    assert.ok(markup.includes(`>${rank.division}</text>`));
+    assert.equal(markup.match(/data-rank-jewel=/g)?.length,6-rank.division);
+  }
 });

@@ -168,6 +168,7 @@ test('real worker resumes a partial battle, settles quest XP once, restores sequ
   const growthDetails=page.getByRole('dialog',{name:'전사 · Lv. 2'});
   await growthDetails.getByText('75 XP',{exact:true}).waitFor();
   await growthDetails.getByText('2개',{exact:true}).waitFor();
+  assert.match(await growthDetails.locator('dd').last().textContent(),/^[1-9]\d*% \([1-9]\d*\/[1-9]\d*\)$/);
   await growthDetails.getByRole('button',{name:'닫기'}).click();
   await button('메인으로').click();
   await button('슬롯 선택').click();
