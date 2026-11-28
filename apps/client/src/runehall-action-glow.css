@@ -1,0 +1,16 @@
+/* A static glow follows the actionable frame. Focus and targeting keep
+   their existing, independent outlines. */
+.game-main .duel-screen{
+  --action-glow:0 0 4px 1px #bbff98,0 0 11px 3px #59e652a3,0 0 17px 4px #39bb5954;
+}
+.game-main .duel-screen :is(.battle-card,.battle-minion,.hero-portrait).is-ready:not(.is-selected,.is-targeted,.is-drop-target,.has-taunt),
+.game-main .duel-screen .hero-power.is-ready:not(.is-selected) .power-medallion{
+  box-shadow:var(--action-glow);
+}
+.game-main .duel-screen :is(.battle-card,.battle-minion,.hero-portrait).is-ready:not(.is-selected,.is-targeted,.is-drop-target,:focus-visible),
+.game-main .duel-screen .hero-power.is-ready:not(.is-selected) .power-medallion{
+  outline:none;
+}
+.game-main .duel-screen .battle-minion.has-taunt.is-ready:not(.is-selected,.is-targeted,.is-drop-target) .minion-taunt-frame>svg path{
+  filter:drop-shadow(0 0 2px #bdff9d) drop-shadow(0 0 4px #72ee6c) drop-shadow(0 0 6px #54e35ca0);
+}
