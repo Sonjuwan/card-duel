@@ -3,7 +3,7 @@ import type {Deck,HeroClass} from '../../../packages/engine/src/index.ts';
 import {HERO_CLASSES,practiceDeck} from '../../../packages/engine/src/index.ts';
 import type {AccountProfile} from '../../../packages/account-protocol.ts';
 import type {SlotStorage} from './solo-slots.ts';
-import {readDecks} from './named-decks.ts';
+import {readDecks,type NamedDeck} from './named-decks.ts';
 import {catalog,className} from './data.ts';
 import {LocalHeroArt} from './local-art.tsx';
 import {collectionPage} from './table-visuals.ts';
@@ -16,8 +16,8 @@ export function HeroChoice({onChoose}:{onChoose:(value:HeroClass)=>void}){
     {HERO_CLASSES.map(hero=><button type="button" key={hero} className={`preview-hero-tile faction-${hero}`} onClick={()=>onChoose(hero)}><span className="preview-hero-art"><LocalHeroArt heroClass={hero}/></span><strong>{className[hero]}</strong></button>)}
   </div></section>;
 }
-type Props={storage:SlotStorage;profile?:AccountProfile;deck:Deck;ready?:boolean;blocked?:boolean;busy:boolean;onDeck:(deck:Deck)=>void;onStart:()=>void;onBuild:(hero:HeroClass)=>void;savedMatch?:LocalSaveSummary|null;saveAvailable?:boolean;onResume:()=>void;onForfeitSaved:()=>void};
-export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onStart,onBuild,savedMatch,saveAvailable,onResume,onForfeitSaved}:Props){
+type Props={storage:SlotStorage;profile?:AccountProfile;deck:Deck;ready?:boolean;blocked?:boolean;busy:boolean;onDeck:(deck:Deck)=>void;onStart:()=>void;onBuild:(hero:HeroClass)=>void;onEdit:(entry:NamedDeck)=>void;savedMatch?:LocalSaveSummary|null;saveAvailable?:boolean;onResume:()=>void;onForfeitSaved:()=>void};
+export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onStart,onBuild,onEdit,savedMatch,saveAvailable,onResume,onForfeitSaved}:Props){
   const [deckPage,setDeckPage]=useState(0);
   const [hero,setHero]=useState<HeroClass|null>(null);
   const [selectedName,setSelectedName]=useState<string|null>(null);
@@ -60,7 +60,8 @@ export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onSt
     </nav>
     <div className="preview-deck-shortcuts">
       <button type="button" className={`preview-deck-tile${selectedName===null?' chosen':''}`} aria-pressed={selectedName===null} onClick={()=>{setSelectedName(null);try{if(profile)onDeck(recommendedOwnedDeck(catalog,offlineGrowth(catalog),hero,profile,Date.now()>>>0));else onDeck(practiceDeck(catalog,hero));}catch{setMessage('사용 가능한 기본 덱을 구성하지 못했습니다.');}}}><strong>기본 추천 덱</strong><small>보유 카드 기준 자동 구성</small></button>
-      <button type="button" className="preview-deck-tile preview-create-deck" onClick={()=>onBuild(hero)}><strong>＋ 새 덱 만들기 / 편집</strong></button>
+      <button type="button" className="preview-deck-tile preview-create-deck" onClick={()=>onBuild(hero)}><strong>＋ 새 덱 만들기</strong></button>
+      <button type="button" className="preview-deck-tile" disabled={!selected} onClick={()=>selected&&onEdit(selected)}>편집</button>
     </div>
     <div className="preview-deck-actions"><button type="button" className="slot-deck-primary" disabled={!playable||!active} onClick={onStart}>선택한 덱으로 대전 시작</button><small className={playable?'good':'warn'}>{message||(!profile?'보유 카드 확인 중…':blocked?'이전 버전 진행 중 경기 확인 필요':!playable?'선택한 덱에 미보유 카드가 있거나 저장소 준비 중입니다.':'30장 덱 준비 완료')}</small></div>
   </section>;

@@ -231,3 +231,20 @@
   .compact-deck-list .deck-list-scroll{flex:1 1 auto}
   .compact-deck-list .saved-decks{flex:none}
 }
+
+.lobby-main .saved-workspace .saved-deck-actions{
+  display:flex;flex-wrap:wrap;gap:4px;margin:5px 0;
+}
+.lobby-main .saved-workspace .preview-deck-tile{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow-wrap:anywhere;color:#f2dbb5;background:#44312a;border-color:#9b7856;
+}
+.lobby-main .saved-workspace .preview-deck-tile.chosen{
+  color:#fff2cf;background:#765025;border-color:#ffe18a;outline:1px solid #ffe18a;
+}
+.lobby-main .saved-workspace .empty-saved{padding:0;text-align:center}
+@media (orientation:landscape) and (max-height:540px){
+  .lobby-main .saved-workspace .section-title{padding-inline:46px;min-height:44px}
+  .lobby-main .saved-workspace .saved-deck-actions button{padding:4px 8px}
+  .lobby-main .saved-workspace .preview-deck-grid{grid-template-rows:repeat(3,clamp(28px,12dvh,65px))}
+}
