@@ -176,16 +176,16 @@
   .lobby-main .integrated-browser.collection-workspace .catalog-inline-filters .book-mana-filter>button{min-width:0;padding:1px}
   .lobby-main .integrated-browser.collection-workspace .collection-body>.book-pane{grid-area:1/1}
   .lobby-main .collection-workspace .collection-body .collection-book .collection-item{
-    --copy-badge-height:clamp(10px,1.4dvw,16px);
+    --copy-badge-width:clamp(24px,3.4dvw,42px);
     container-type:size;display:grid;grid-template-rows:minmax(0,1fr);
     align-content:center;justify-items:center;align-items:center;gap:2px;min-width:0;min-height:0;width:100%;height:100%;
   }
   .lobby-main.preview-lobby .collection-workspace .collection-body .book-with-tabs .collection-book .collection-item>:is(.battle-card,.collection-blank),
   .lobby-main .collection-workspace .collection-body .book-with-tabs .collection-book .collection-item>:is(.battle-card,.collection-blank){
-    --cell-card-width:min(100cqw,calc((100cqh - var(--copy-badge-height))/1.55));
+    --cell-card-width:min(calc(100cqw - var(--copy-badge-width) - 2px),calc(100cqh/1.55));
     box-sizing:border-box;width:var(--cell-card-width)!important;height:calc(var(--cell-card-width)*1.55)!important;
     aspect-ratio:100/155;max-width:none!important;max-height:none!important;min-height:0!important;min-width:0!important;
-    flex:none;justify-self:center;align-self:start;margin:0!important;transform:none;
+    flex:none;justify-self:end;align-self:center;margin:0!important;transform:none;
   }
   .lobby-main .collection-workspace .collection-body .book-with-tabs{grid-template-columns:clamp(38px,5.8dvw,65px) minmax(0,1fr)}
   .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs button{width:70%;justify-self:end;transform-origin:right}
@@ -208,13 +208,15 @@
     justify-content:center;align-content:center;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card{
-    grid-area:1/1;justify-self:center!important;align-self:start;
+    grid-area:1/1;justify-self:center!important;align-self:center;
+    translate:calc(-1 * var(--copy-badge-width) / 2) 0;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.collection-copy-badge{
-    position:absolute;inset:auto 0 0 auto;z-index:4;pointer-events:none;
-    box-sizing:border-box;height:var(--copy-badge-height);display:grid;align-items:center;
-    border:1px solid #ac8652;border-radius:5px;padding:0 3px;
-    background:#302015;color:#fff2cf;line-height:1.05;font-size:clamp(8px,1.15dvw,13px);font-weight:800;
+    --card-width:min(calc(100cqw - var(--copy-badge-width) - 2px),calc(100cqh/1.55));
+    position:absolute;inset-inline-start:calc(50% + (var(--card-width) - var(--copy-badge-width))/2 + 2px);
+    top:50%;transform:translateY(-50%);pointer-events:none;
+    border:1px solid #ac8652;border-radius:5px;padding:1px 2px;
+    background:#302015;color:#fff2cf;line-height:1.1;font-size:clamp(8px,1.15dvw,13px);font-weight:800;
   }
 }
 .collection-copy-badge{font-variant-numeric:tabular-nums}

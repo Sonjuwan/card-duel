@@ -174,7 +174,8 @@ function CardBrowser({initialClass='all',focusCardId,unreadIds=EMPTY_UNREAD_IDS,
     showCollectionDetail(detailDialog.current,null);
   };
   const unread=useMemo(()=>new Set(unreadIds),[unreadIds]);
-  const all=useMemo(()=>{const owned=ownedCards?new Set(ownedCards):null;return sortCardsForDisplay(Object.values(catalog).filter(c=>developer||maxCardCopies(c)>0&&(!owned||owned.has(c.id))),classic).sort((a,b)=>Number(unread.has(b.id))-Number(unread.has(a.id)));},[classic,ownedCards,unread,developer]);
+  const owned=useMemo(()=>ownedCards?new Set(ownedCards):null,[ownedCards]);
+  const all=useMemo(()=>{return sortCardsForDisplay(Object.values(catalog).filter(c=>developer||maxCardCopies(c)>0&&(!owned||owned.has(c.id))),classic).sort((a,b)=>Number(unread.has(b.id))-Number(unread.has(a.id)));},[classic,owned,unread,developer]);
   const allSetCounts=useMemo(()=>collectionSetCounts(all),[all]);
   const [tribe,setTribe]=useState('all');
   const tribes=useMemo(()=>[...new Set(all.flatMap(c=>c.kind==='minion'&&c.tribe!=='none'?[c.tribe]:[]))],[all]);
@@ -204,9 +205,10 @@ function CardBrowser({initialClass='all',focusCardId,unreadIds=EMPTY_UNREAD_IDS,
     </div>
     {!developer&&<small>검색 결과 {shown.length}종 · 수집 {all.length}종</small>}
   </>;
+  const developerCounts=<div className="developer-catalog-count"><strong>개발자 모드 · 덱 구성 카드 전체 해금</strong><small>검색 결과 {filteredCount}종 · 전체 {all.length}종</small><small>덱 구성 {collectibleCount}종 · 비수집 {all.length-collectibleCount}종</small></div>;
   return <HoverPreviewProvider resetKey={`${scope}:${set}:${page}`}><section className="panel deck-panel card-browser integrated-browser collection-workspace" data-deck-screen="cards">
-    <div className="collection-toolbar catalog-toolbar">{compactFilters&&<LobbyDialog label="카드 필터">{filters}</LobbyDialog>}{developer&&<div className="developer-catalog-count"><strong>개발자 모드 · 덱 구성 카드 전체 해금</strong><small>검색 결과 {filteredCount}종 · 전체 {all.length}종</small><small>덱 구성 {collectibleCount}종 · 비수집 {all.length-collectibleCount}종</small></div>}</div>
-    <div className="deck-layout collection-body">{!compactFilters&&<aside className="card-browser-controls catalog-inline-filters"><strong>카드 필터</strong>{filters}</aside>}<div className="book-pane book-with-tabs"><BookTabs active={active} onClass={changeClass}/><CollectionBook cards={result.current?.key===active?result.current.items:[]} size={size} paging={{...result,label:result.current?.key===active?`${active==='neutral'?'공용':className[active as HeroClass]} ${result.current.index+1}/${result.current.pages}장`:'검색 결과 없음',onPage:next=>{setPage(next);setScope('all');}}} renderCard={c=><div className={`collection-item${unread.has(c.id)?' card-new-unread':''}${focusCardId===c.id?' reward-card-focus':''}`} key={c.id}><BattleCard card={c} enabled onClick={()=>openDetail(c)}/>{unread.has(c.id)&&<span className="new-card-badge">NEW</span>}{maxCardCopies(c)>0&&<small className="collection-copy-badge" aria-label={`구성 가능 수량 ${maxCardCopies(c)}장`}>{maxCardCopies(c)}/{maxCardCopies(c)}</small>}</div>}/></div>
+    <div className="collection-toolbar catalog-toolbar">{compactFilters?<LobbyDialog label="카드 필터">{developer&&developerCounts}{filters}</LobbyDialog>:developer&&developerCounts}</div>
+    <div className="deck-layout collection-body">{!compactFilters&&<aside className="card-browser-controls catalog-inline-filters"><strong>카드 필터</strong>{filters}</aside>}<div className="book-pane book-with-tabs"><BookTabs active={active} onClass={changeClass}/><CollectionBook cards={result.current?.key===active?result.current.items:[]} size={size} paging={{...result,label:result.current?.key===active?`${active==='neutral'?'공용':className[active as HeroClass]} ${result.current.index+1}/${result.current.pages}장`:'검색 결과 없음',onPage:next=>{setPage(next);setScope('all');}}} renderCard={c=><div className={`collection-item${unread.has(c.id)?' card-new-unread':''}${focusCardId===c.id?' reward-card-focus':''}`} key={c.id}><BattleCard card={c} enabled onClick={()=>openDetail(c)}/>{unread.has(c.id)&&<span className="new-card-badge">NEW</span>}{maxCardCopies(c)>0&&<small className="collection-copy-badge" aria-label={ownedCards?`보유 ${owned?.has(c.id)?maxCardCopies(c):0}장`:`구성 가능 수량 ${maxCardCopies(c)}장`}>{ownedCards&&!owned?.has(c.id)?0:maxCardCopies(c)}</small>}</div>}/></div>
     </div><CollectionDetailDialog dialogRef={detailDialog} item={inspected} catalog={catalog} onClosed={()=>setInspected(null)}/></section></HoverPreviewProvider>;
 }
 
