@@ -254,6 +254,25 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   const total=Object.keys(liveCatalog).length;
   await page.getByText(`검색 결과 ${total}종 · 전체 ${total}종`).waitFor();
   await page.getByText(`덱 구성 ${count}종 · 비수집 ${total-count}종`).waitFor();
+  await page.setViewportSize({width:640,height:300});
+  const nextCardPage=page.getByRole('button',{name:'다음 페이지',exact:true});
+  let rendered=0;
+  for(let spread=0;spread<total;spread++){
+    const cards=await page.locator('.collection-book .battle-card').evaluateAll(items=>items.map(card=>{
+      const text=card.querySelector('.card-copy');
+      const stats=card.querySelector('.card-statline');
+      const range=document.createRange();
+      range.selectNodeContents(text);
+      const bottom=stats?.getBoundingClientRect().top??card.getBoundingClientRect().bottom;
+      return {name:card.querySelector('.card-name').textContent,overflow:range.getBoundingClientRect().bottom-bottom};
+    }));
+    rendered+=cards.length;
+    assert.ok(cards.every(card=>card.overflow<=1),JSON.stringify(cards.filter(card=>card.overflow>1)));
+    if(await nextCardPage.isDisabled())break;
+    await nextCardPage.evaluate(button=>button.click());
+  }
+  assert.equal(rendered,total,'every developer catalog card fits at the smallest tested viewport');
+  await page.setViewportSize({width:844,height:390});
   const classTabs=page.getByRole('navigation',{name:'카드 직업'});
   assert.equal(await classTabs.getByRole('button').count(),10);
   await classTabs.getByRole('button',{name:'전사',exact:true}).click();
@@ -262,11 +281,18 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   const firstSpread=await page.locator('.card-browser .book-page-status').textContent();
   await page.getByRole('button',{name:'다음 페이지',exact:true}).click();
   assert.notEqual(await page.locator('.card-browser .book-page-status').textContent(),firstSpread);
-  await page.getByRole('button',{name:'필터 초기화',exact:true}).click();
-  await page.getByRole('button',{name:/^생성 카드/}).click();
+  const openFilter=()=>page.getByRole('button',{name:'카드 필터',exact:true}).click();
+  const filter=page.getByRole('dialog',{name:'카드 필터',exact:true});
+  const closeFilter=()=>filter.getByRole('button',{name:'닫기',exact:true}).click();
+  await openFilter();
+  await filter.getByRole('button',{name:'필터 초기화',exact:true}).click();
+  await filter.getByRole('button',{name:/^생성 카드/}).click();
+  const search=filter.getByRole('searchbox',{name:'카드 이름 또는 효과 검색'});
+  await closeFilter();
   await page.getByText(`검색 결과 ${total-count}종 · 전체 ${total}종`).waitFor();
-  const search=page.getByRole('searchbox',{name:'카드 이름 또는 효과 검색'});
+  await openFilter();
   await search.fill('아군 하수인의 생명력을');
+  await closeFilter();
   const browserCards=page.locator('.card-browser .collection-item');
   const healing=browserCards.filter({hasText:'치유 토템'});
   await healing.getByText('비수집 생성 카드').waitFor();
@@ -275,10 +301,14 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await detail.getByRole('group',{name:'카드 상세'}).getByText('내 턴이 끝날 때 모든 아군 하수인의 생명력을 1 회복합니다.',{exact:true}).waitFor();
   await detail.getByRole('group',{name:'카드 상세'}).getByText('토템',{exact:true}).waitFor();
   await detail.getByRole('button',{name:'닫기',exact:true}).click();
+  await openFilter();
   await search.fill('이번 턴에 마나 1을 얻습니다');
+  await closeFilter();
   const coin=browserCards.filter({hasText:'동전'});
   await coin.getByText('비수집 생성 카드').waitFor();
+  await openFilter();
   await search.fill('치유 토템');
+  await closeFilter();
   await healing.waitFor();
   await page.getByRole('button',{name:'메인으로'}).click();
   await page.getByRole('button',{name:/개발자 모드/}).click();

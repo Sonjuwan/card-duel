@@ -103,7 +103,7 @@
     margin:0;align-self:center;justify-self:center;overflow:hidden;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .deck-card-add-trigger{display:none}
-  .lobby-main .collection-workspace .collection-body .collection-book .card-art{
+  .lobby-main .collection-workspace .collection-body .collection.classic-collection.collection-book .battle-card .card-art{
     flex:0 1 40%;min-height:18%;height:auto;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .card-name{
@@ -153,7 +153,8 @@
 @media (orientation:landscape) and (max-height:380px){
   .lobby-main .collection-workspace{gap:2px}
   .lobby-main .collection-workspace .collection-body .collection-book .card-name{font-size:clamp(8px,10cqi,13px)}
-  .lobby-main .collection-workspace .collection-body .collection-book .card-copy{font-size:clamp(7px,8cqi,10px)}
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card{padding:3px 2px}
+  .lobby-main .collection-workspace .collection-body .collection-book .card-copy{font-size:clamp(6.5px,8cqi,10px);padding-inline:0}
 }
 
 /* Card silhouettes occupy their actual allocated cells; desktop filter panel is
@@ -263,13 +264,17 @@
 }
 
 @media (orientation:landscape) and (min-height:541px) and (max-width:1150px){
+  .lobby-main.preview-lobby .integrated-browser.collection-workspace>.collection-body,
+  .lobby-main .integrated-browser.collection-workspace>.collection-body{
+    grid-template-columns:minmax(0,1fr) clamp(134px,13.8dvw,158px);
+  }
   .lobby-main .collection-workspace .collection-body .book-with-tabs,
   .lobby-main.preview-lobby .collection-workspace .collection-body .book-with-tabs{
     grid-template-columns:34px minmax(0,1fr);
   }
   .lobby-main .collection-workspace .collection-body .book-with-tabs>.collection-spread,
   .lobby-main.preview-lobby .collection-workspace .collection-body .book-with-tabs>.collection-spread{
-    grid-template-columns:23px minmax(0,1fr) 23px;
+    grid-template-columns:21px minmax(0,1fr) 21px;
   }
 }
 
