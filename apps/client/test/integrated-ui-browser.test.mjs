@@ -472,7 +472,7 @@ test('mixed-class decks share one picker, selection and editing across desktop a
       const firstDeck=grid.locator('button').first();
       await firstDeck.click();
       assert.equal(await firstDeck.getAttribute('aria-pressed'),'true');
-      assert.equal(await firstDeck.evaluate(node=>getComputedStyle(node).borderTopColor),'rgb(255, 225, 138)');
+      assert.equal(await firstDeck.evaluate(node=>getComputedStyle(node).borderTopColor),'rgb(237, 200, 137)');
       await page.screenshot({path:`ui-evidence/deck-select-${label}.png`});
       await button('다음 덱 페이지').click();
       const last=grid.locator('button').first();

@@ -172,7 +172,7 @@
 .lobby-main .preview-deck-pages .preview-deck-tile.chosen{
   border-color:#edc889;box-shadow:inset 0 0 0 2px #d9aa65;
 }
-.lobby-main .preview-deck-pages .preview-deck-tile :is(strong,.preview-deck-name){color:#fff;font-weight:800}
+.lobby-main .preview-deck-pages .preview-deck-tile :is(strong,.preview-deck-name){color:#fff;font-weight:900}
 .lobby-main :is(.lobby-dialog,.preview-deck-actions,.preview-slot-grid,.preview-developer,.catalog-inline-filters,.floating-home,.lobby-settings-entry) .secondary,
 .lobby-main .preview-deck-pages>button:not(:disabled),
 .lobby-main .collection-workspace .collection-spread .book-edge:not(:disabled),

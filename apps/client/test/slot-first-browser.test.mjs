@@ -92,12 +92,12 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
     const style=getComputedStyle(el);
     return [style.color,style.backgroundColor,style.borderTopColor];
   });
-  assert.deepEqual((await colors(page.locator('.preview-deck-empty').first())).slice(1),['rgb(68, 49, 42)','rgb(155, 120, 86)']);
+  assert.deepEqual((await colors(page.locator('.preview-deck-empty').first())).slice(1),['rgb(32, 31, 43)','rgb(85, 70, 63)']);
   const singleTile=await tile.boundingBox();
   assert.equal(await page.getByRole('button',{name:entries[0].name}).count(),0,'slot 1 mage deck never leaks into slot 2');
   await page.getByRole('button',{name:entries[1].name}).click();
   assert.equal(await tile.getAttribute('aria-pressed'),'true');
-  assert.equal((await colors(tile))[2],'rgb(255, 225, 138)');
+  assert.equal((await colors(tile))[2],'rgb(237, 200, 137)');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true,'slot 2 saved deck playable');
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();

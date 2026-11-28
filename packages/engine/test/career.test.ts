@@ -37,7 +37,7 @@ test('only verified history migrates and the legacy lifetime XP remains authorit
 
 test('match and quest experience are allocated once to their owning records',()=>{
   const latest=receipt({xp:130,matchXp:30,questBonusXp:100,completedQuests:[
-    {id:'quest-1',hero:'shaman',title:'퀘스트',definitionId:'shaman',metric:'matches',unit:'회',target:1,progress:1,xp:100,rewarded:true}
+    {id:'quest-1',hero:'shaman',title:'퀘스트',definitionId:'shaman',metric:'games',unit:'회',target:1,progress:1,xp:100,rewarded:true}
   ]});
   const next={...profile,xp:350,career:advanceCareer(careerOf(profile),latest)};
   assert.equal(next.career.heroes.mage?.xp,30);
