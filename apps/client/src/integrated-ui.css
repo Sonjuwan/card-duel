@@ -417,8 +417,8 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 /* Persistent status layers remain separate from numerical stats. */
 .game-main .battle-minion.has-taunt .minion-medallion{border:5px solid #aeb8c3!important;border-radius:20% 20% 42% 42%!important;box-shadow:0 0 0 2px #454b55,inset 0 0 0 2px #edf0f4}
 .game-main .battle-minion .minion-medallion{transition:border-color .18s,border-radius .18s,box-shadow .18s}
-.game-main .battle-minion .minion-medallion>.painted-art{transition:opacity .2s}
-.game-main .battle-minion.has-stealth .minion-medallion>.painted-art{opacity:.48}
+.game-main .battle-minion .minion-medallion .painted-art{transition:opacity .2s}
+.game-main .battle-minion.has-stealth .minion-medallion .painted-art{opacity:.48}
 .game-main .battle-minion .stealth-veil{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(155deg,#dce2ed66,transparent 35%,#aab6ca99 65%,transparent);pointer-events:none;opacity:0;transition:opacity .2s}
 .game-main .battle-minion.has-stealth .stealth-veil{opacity:1}
 .game-main .battle-minion .shield-ring{position:absolute;inset:-5px;border:3px solid #ffe28a;border-radius:50%;background:radial-gradient(ellipse,transparent 45%,#ffe17b44);box-shadow:0 0 8px #ffcf55,inset 0 0 7px #fff0b0;pointer-events:none;z-index:3}
@@ -493,13 +493,6 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   width:var(--unit)!important;min-width:var(--unit)!important;height:var(--unit)!important;
   max-width:none;max-height:none;flex:none;position:relative;padding:0;
   background:none;border:0;border-radius:24%;overflow:visible;
-}
-.game-main .duel-screen .arena-field .minion-row .minion-medallion {
-  width:87%!important;height:89%!important;max-width:none;max-height:none;
-  box-sizing:border-box;flex:none;overflow:visible;
-}
-.game-main .duel-screen .arena-field .minion-row .minion-medallion>.painted-art {
-  inset:0;width:100%;height:100%;border-radius:inherit;background-position:center 30%;
 }
 .game-main .duel-screen .arena-field .minion-statline {
   position:absolute;inset:auto 0 0;display:flex;justify-content:space-between;pointer-events:none;z-index:6;
@@ -794,11 +787,18 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .game-main .duel-screen .impact-icon .impact-kind {
   position:relative;inset:auto;width:1.04em;height:1.24em;font-size:clamp(11px,2.6dvh,21px);
 }
-.game-main .duel-screen .arena-field .minion-row .minion-medallion {
-  width:100%!important;height:100%!important;border-radius:inherit;
-  border-color:transparent;overflow:hidden;
+.game-main .duel-screen .arena-field .minion-row .minion-medallion{
+  position:absolute;inset:0!important;width:auto!important;height:auto!important;
+  max-width:none;max-height:none;aspect-ratio:auto;
+  border-radius:inherit;border-color:transparent;overflow:hidden;
 }
-.game-main .duel-screen .arena-field .minion-medallion>.painted-art { background-size:cover }
+.game-main .duel-screen .arena-field .minion-medallion>.original-art{
+  position:absolute;inset:0;overflow:hidden;border-radius:inherit;
+}
+.game-main .duel-screen .arena-field .minion-medallion .painted-art{
+  inset:0;width:100%;height:100%;border-radius:inherit;
+  background-size:cover;background-position:center 30%;
+}
 .game-main .duel-screen .hero-zone .hero-portrait { aspect-ratio:1;min-width:0 }
 .game-main .duel-screen .hero-zone .hero-emblem {
   position:absolute;inset:0;width:auto;height:auto;aspect-ratio:auto;
@@ -1257,13 +1257,32 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
 }
 
-/* Use the same fixed flex basis on both boards. Legacy classic-table rules
-   otherwise grow a direct enemy minion differently from a friendly minion
-   nested in a placement segment, especially when only one unit is present. */
+/* Reserve the same unit width on both rows. Placement controls are
+   absolutely positioned at the gaps and do not affect centering. */
 @media (orientation:landscape){
+  .game-main .duel-screen .arena-field .minion-row{
+    position:relative;gap:var(--gap)!important;justify-content:center!important;
+  }
   .game-main .duel-screen .arena-field .minion-row .battle-minion{
-    flex:0 0 var(--unit)!important;
-    max-width:var(--unit)!important;
+    flex:0 0 var(--unit)!important;max-width:var(--unit)!important;
+  }
+  .game-main .duel-screen .friendly-minions .board-segment:not([data-board-end]){width:var(--unit)}
+  .game-main .duel-screen .friendly-minions .board-segment[data-board-end]{width:0}
+  .game-main .duel-screen .friendly-minions:not([data-board-count="0"]) .board-segment[data-board-end]{
+    margin-inline-start:calc(-1 * var(--gap));
+  }
+  .game-main .duel-screen .arena-field .minion-row .board-segment>.position-slot{
+    position:absolute!important;inset:0 auto 0 calc(var(--gap) / -2)!important;
+    translate:-50% 0;width:var(--gap);min-width:var(--gap);z-index:3;
+  }
+  .game-main .duel-screen .arena-field .friendly-minions .board-segment[data-board-end]>.position-slot{
+    left:calc(var(--gap) / 2)!important;
+  }
+  .game-main .duel-screen .arena-field .friendly-minions[data-board-count="0"]>.board-segment{
+    position:absolute;inset:0 auto 0 50%;
+  }
+  .game-main .duel-screen .arena-field .friendly-minions[data-board-count="0"] .board-segment>.position-slot{
+    left:0!important;width:20px;min-width:20px;
   }
 }
 
