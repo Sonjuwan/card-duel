@@ -15,7 +15,6 @@ import { Battle } from './Battle.tsx';
 import { BattleCard, Sigil } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
 import { PlayLobby } from './Lobby.tsx';
-import {SlotGateway} from './SlotGateway.tsx';
 import {SlotDeckLaunch} from './SlotDeckLaunch.tsx';
 import {PreviewPlay} from './PreviewPlay.tsx';
 import {PreviewRank,PreviewRewards,RewardReveal,PreviewQuestPlaceholder,PreviewDeveloper} from './PreviewProgress.tsx';
@@ -156,14 +155,6 @@ function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,
 export type DeckScreen='classes'|'saved'|'cards'|'build';
 const deckScreens=[['classes','직업 리스트'],['saved','덱 리스트'],['cards','카드 보기'],['build','덱 만들기']] as const;
 
-function PageControls({page,pages,onPage}:{page:number;pages:number;onPage:(page:number)=>void}){
-  return <div className="book-shortcuts">
-    <button type="button" className="secondary" aria-label="이전 목록" disabled={!page} onClick={()=>onPage(page-1)}>◀</button>
-    <span role="status">{page+1}/{pages}</span>
-    <button type="button" className="secondary" aria-label="다음 목록" disabled={page+1>=pages} onClick={()=>onPage(page+1)}>▶</button>
-  </div>;
-}
-
 const EMPTY_UNREAD_IDS:readonly string[]=[];
 function CardBrowser({initialClass='all',focusCardId,unreadIds=EMPTY_UNREAD_IDS,onViewed,ownedCards,developer=false}:{focusCardId?:string;initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;ownedCards?:readonly string[];developer?:boolean}){
   const classic=useContext(ClassicNamesContext),[scope,setScope]=useState(initialClass),[set,setSet]=useState<CardSetFilter|'token'>('all'),[query,setQuery]=useState(''),[rarity,setRarity]=useState('all'),[kind,setKind]=useState('all'),[cost,setCost]=useState('all'),[newOnly,setNewOnly]=useState(false),[page,setPage]=useState(0),[inspected,setInspected]=useState<Inspectable|null>(null);
@@ -276,14 +267,11 @@ type OfflineMode='player'|'developer';
 type LobbyView='home'|'play'|'decks'|'catalog'|'slots'|'rank'|'quests'|'rewards'|'developer';
 type AppProps={initialLobbyView?:LobbyView;standalone?:boolean;workerFactory?:()=>Worker;initialAiProfile?:import('../../../packages/protocol.ts').PublicAiProfile;initialOfflineMode?:OfflineMode};
 export function App(props:AppProps={}){
-  const previewGate=!!props.standalone&&currentSoloNamespace()==='ui-preview'&&!!props.workerFactory;
   const [slot,setSlot]=useState<SoloSlot>(()=>props.standalone?readSelectedSlot():1);
-  const [slotChosen,setSlotChosen]=useState(!previewGate);
-  const selectSlot=(next:SoloSlot)=>{rememberSlot(next);setSlot(next);setSlotChosen(true);};
-  if(!slotChosen&&props.workerFactory)return <SlotGateway workerFactory={props.workerFactory} onSelect={selectSlot}/>;
-  return <AppSession key={slot} {...props} initialLobbyView={previewGate?'home':props.initialLobbyView} slot={slot} onSlotChange={selectSlot} onReturnToSlots={previewGate?()=>setSlotChosen(false):undefined}/>;
+  const selectSlot=(next:SoloSlot)=>{rememberSlot(next);setSlot(next);};
+  return <AppSession key={slot} {...props} slot={slot} onSlotChange={selectSlot}/>;
 }
-function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiProfile,initialOfflineMode='player',initialLobbyView='home',slot,onSlotChange,onReturnToSlots}:AppProps&{slot:SoloSlot;onSlotChange:(slot:SoloSlot)=>void;onReturnToSlots?:()=>void}){
+function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiProfile,initialOfflineMode='player',initialLobbyView='home',slot,onSlotChange}:AppProps&{slot:SoloSlot;onSlotChange:(slot:SoloSlot)=>void}){
   const storage=useMemo(()=>soloSlotStorage(slot),[slot]);
   const lossOnExit=standalone&&currentSoloNamespace()==='ui-preview';
   const makeWorker=(target:SoloSlot,developerFree=false)=>{if(!baseWorkerFactory)throw Error('저장 슬롯 작업 스레드가 없습니다.');const worker=baseWorkerFactory();if(standalone&&(developerFree||target!==1||currentSoloNamespace()==='ui-preview'))worker.postMessage({type:'selectSlot',slot:target,...(developerFree?{developerFree:true}:{}),...(currentSoloNamespace()==='ui-preview'?{namespace:'ui-preview'}:{})});return worker;};
@@ -333,8 +321,13 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [undoDecks,setUndoDecks]=useState<Deck[]>([]),[draftStored,setDraftStored]=useState(true);
   const editDeck=(next:Deck)=>{if(next.heroClass===deck.heroClass&&next.cards.length===deck.cards.length&&next.cards.every((id,i)=>id===deck.cards[i]))return;setUndoDecks(old=>[...old.slice(-19),deck]);setDeck(next);};
   const undo=()=>{const last=undoDecks.at(-1);if(last){setDeck(last);setUndoDecks(old=>old.slice(0,-1));}};
+  const initialDraft=useRef({deck,mode:offlineMode});
   const persistedDraft=useRef<{deck:Deck;mode:OfflineMode}|undefined>(undefined);
   useEffect(()=>{
+    if(lossOnExit&&!persistedDraft.current&&deck===initialDraft.current.deck&&offlineMode===initialDraft.current.mode){
+      persistedDraft.current=initialDraft.current;
+      return;
+    }
     const stored=standalone&&offlineMode==='developer'?saveDeveloperDraft(deck,catalogHash,storage):saveDraft(deck,catalogHash,storage);
     persistedDraft.current=stored?{deck,mode:offlineMode}:undefined;
     setDraftStored(stored);
@@ -352,8 +345,12 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const growthReady=saveAvailable===undefined?undefined:saveAvailable&&oldRankedPending!==undefined;
   const startSaveProbe=()=>{setSaveAvailable(undefined);setOldRankedPending(undefined);setSaveProbe(n=>n+1);};
   const recheckSave=()=>{if(workerRef.current||busy||saveAvailable===undefined)return;startSaveProbe();};
+  const initialSettings=useRef(soloSettings);
   const persistedSettings=useRef<SoloSettings|undefined>(undefined);
-  useEffect(()=>{persistedSettings.current=saveSoloSettings(soloSettings,storage)?soloSettings:undefined;},[soloSettings,storage]);
+  useEffect(()=>{
+    if(lossOnExit&&soloSettings===initialSettings.current){persistedSettings.current=soloSettings;return;}
+    persistedSettings.current=saveSoloSettings(soloSettings,storage)?soloSettings:undefined;
+  },[soloSettings,storage]);
   useEffect(()=>{if(room){const result=resultFromRoom(room,catalogHash);if(result)setSoloHistory(old=>recordSoloResult(result,storage,old));}},[room?.code,room?.state?.phase]);
   useEffect(()=>{let stopped=false,probe:Worker|undefined,timer:ReturnType<typeof setTimeout>|undefined;
     const close=()=>{if(timer!==undefined){clearTimeout(timer);timer=undefined;}if(probe){probe.onmessage=null;probe.onerror=null;probe.terminate();probe=undefined;}};
@@ -622,7 +619,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const battleSave=room?.developerFree?freeSave?.save:savedMatch;
   const gameUpdateMenu=standalone&&typeof document!=='undefined'&&document.querySelector('meta[name="card-duel-build"]')&&
     <button type="button" className="game-update-menu" onClick={()=>window.dispatchEvent(new Event('card-duel-update-open'))}>게임 업데이트</button>;
-  return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><h1>Card Duel</h1></div></div><div className="connection">{onReturnToSlots&&!room&&lobbyView==='slots'&&<button type="button" className="secondary slot-return" disabled={busy} onClick={onReturnToSlots}>슬롯 {slot} 변경</button>}<span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
+  return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><h1>Card Duel</h1></div></div><div className="connection"><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
     <div className="screen-content" id="card-duel-screen" ref={screenScrollRef}>
     {!room&&<div className="lobby-settings-entry"><LobbyDialog label="설정" icon="⚙"><AudioMixer/>{standalone&&<OfflineStatus/>}<small>Card Duel v{project.version}</small></LobbyDialog></div>}
     {toast&&!error&&<ToastNotice key={toast.text} kind={toast.kind}>{toast.text}</ToastNotice>}
