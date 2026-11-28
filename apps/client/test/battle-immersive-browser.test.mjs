@@ -283,10 +283,12 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     }
     await page.screenshot({path:`ui-evidence/dense-${width}-hand.png`});
     const original=await card.boundingBox();
-    await card.tap({force:true});
+    assert.ok(original);
+    const description=await copy.textContent();
+    await page.touchscreen.tap(original.x+original.width/2,original.y+original.height/2);
     const detail=page.locator('[data-hover-preview]');
-    await detail.waitFor();
-    assert.equal(await detail.locator('.hover-description').textContent(),await copy.textContent());
+    await detail.locator('.hover-description').filter({hasText:description}).waitFor({timeout:4000});
+    assert.equal(await detail.locator('.hover-description').textContent(),description);
     assert.ok(await detail.locator('.hover-large-card .card-copy').isVisible());
     assert.deepEqual(await card.boundingBox(),original);
     assert.equal(await page.locator('.selected-card-use,.selection-cancel').count(),0);
