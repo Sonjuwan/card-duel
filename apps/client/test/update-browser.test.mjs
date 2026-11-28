@@ -78,12 +78,47 @@ test('installed game verifies and explicitly applies an update without reinstall
   };
   let first=await context.newPage();await first.goto(url);await select(first,1);
   if(previous?.files.has('version.json')){
+    const oldSlot=page=>page.evaluate(async()=>{
+      const open=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+      const db=await new Promise((resolve,reject)=>{open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error);});
+      try{return await new Promise((resolve,reject)=>{
+        const read=db.transaction('growth').objectStore('growth').get('player');
+        read.onsuccess=()=>resolve(read.result);read.onerror=()=>reject(read.error);
+      });}finally{db.close();}
+    });
+    await first.getByRole('button',{name:/경험치 · 카드 획득/}).tap();
+    await first.getByRole('region',{name:'보상의 길'}).waitFor();
+    const historic=await oldSlot(first);
+    Object.assign(historic.profile,{xp:30,rankWins:1,revision:1,ownedCards:[...new Set([...historic.profile.ownedCards,'cairne_bloodhoof'])].sort(),
+      matchStats:{ranked:{wins:1,losses:0,draws:0},pvp:{wins:0,losses:0,draws:0}},
+      recentMatches:[{matchId:'legacy-verified',mode:'ranked',rank:1,rankAfter:1,heroClass:'warrior',outcome:'win',completedAt:1700000000000,xp:30,questAdvanced:false,eligible:true}]});
+    delete historic.profile.rewardRoad;
+    historic.settledMatchIds=['legacy-verified'];
+    await first.evaluate(async legacy=>{
+      const open=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
+      const db=await new Promise((resolve,reject)=>{open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error);});
+      try{await new Promise((resolve,reject)=>{
+        const tx=db.transaction('growth','readwrite');
+        tx.objectStore('growth').put(legacy,'player');
+        tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);
+      });}finally{db.close();}
+    },historic);
+    await first.getByRole('button',{name:'메인으로',exact:true}).tap();
+
     const dialog=first.getByRole('dialog',{name:'게임 업데이트'});
     await first.getByRole('button',{name:'게임 업데이트',exact:true}).tap();
     served=base;
     await dialog.getByRole('button',{name:'업데이트 확인',exact:true}).tap();
     await dialog.getByRole('button',{name:'최신 버전 적용',exact:true}).tap();
     await select(first,1);
+    await first.getByRole('button',{name:/경험치 · 카드 획득/}).tap();
+    await first.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
+    const migrated=await oldSlot(first);
+    assert.equal(migrated.profile.rewardRoad.paths.original.xp,historic.profile.xp);
+    assert.equal(migrated.profile.rankWins,historic.profile.rankWins);
+    assert.deepEqual(migrated.settledMatchIds,historic.settledMatchIds);
+    assert.ok(historic.profile.ownedCards.every(id=>migrated.profile.ownedCards.includes(id)));
+    await first.getByRole('button',{name:'메인으로',exact:true}).tap();
     const downloaded=[...new Set(migrationAssets)].sort();
     const changed=[...base.files.keys()].filter(name=>
       !['sw.js','version.json'].includes(name)&&!base.files.get(name).equals(previous.files.get(name)??Buffer.alloc(0))
