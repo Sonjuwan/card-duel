@@ -1,0 +1,46 @@
+.lobby-main .preview-quests {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  flex:1 1 0;min-height:0;min-width:0;padding:clamp(42px,7dvh,70px) clamp(12px,4vw,56px) 12px;
+  gap:clamp(8px,2dvh,20px);
+}
+.preview-quests h2 {margin:0;font-size:clamp(20px,4dvh,36px)}
+.quest-grid {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(8px,2vw,22px);
+  width:min(100%,1050px);min-height:0;
+}
+.quest-tile,.quest-empty {
+  display:grid;grid-template-rows:minmax(0,1fr) auto;min-width:0;min-height:0;overflow:hidden;
+  background:linear-gradient(150deg,var(--card-ribbon,#5b4938),#26222b 74%);
+  border:1px solid var(--card-edge,#b49368);border-radius:12px;color:#fff5de;
+}
+.quest-tile {min-height:min(55dvh,415px)}
+.quest-empty {place-content:center;padding:8px;color:#e8d3b4}
+.quest-portrait {position:relative;min-height:0;overflow:hidden}
+.quest-portrait .painted-art {background-size:cover;background-position:center 24%}
+.quest-content {display:grid;gap:clamp(4px,1dvh,10px);min-width:0;padding:clamp(9px,1.8vw,22px)}
+.quest-hero {color:#ffde9b;font-weight:800;font-size:clamp(13px,2.2dvh,18px)}
+.quest-content h3 {margin:0;color:#fff;font-size:clamp(14px,3dvh,26px);line-height:1.19;overflow-wrap:anywhere}
+.quest-progress {display:flex;align-items:center;justify-content:space-between;gap:6px;font-variant-numeric:tabular-nums}
+.quest-progress strong {font-size:clamp(15px,2.5dvh,21px);white-space:nowrap}
+.quest-progress small {font-weight:700;color:#ffe1a2;white-space:nowrap}
+.quest-content progress {width:100%;height:clamp(6px,1.2dvh,11px);accent-color:#edc26e}
+.quest-completions {display:grid;gap:3px;list-style:none;margin:5px 0;padding:0}
+.quest-completions li {display:flex;justify-content:space-between;gap:8px;font-size:.86em}
+.quest-completions b {white-space:nowrap;color:#ffdc86}
+@media (orientation:landscape) and (max-height:540px) {
+  .lobby-main .preview-quests {padding:5px clamp(46px,8vw,72px) 5px;gap:4px}
+  .preview-quests h2 {font-size:clamp(17px,5dvh,24px)}
+  .quest-grid {grid-template-columns:1fr;grid-template-rows:repeat(3,minmax(0,1fr));gap:4px;flex:1 1 auto;width:min(100%,690px)}
+  .quest-tile {grid-template:1fr / clamp(66px,22dvh,125px) minmax(0,1fr);min-height:0;border-radius:8px}
+  .quest-content {grid-template-columns:minmax(0,1fr) minmax(79px,auto);align-content:center;column-gap:8px;row-gap:2px;padding:4px 8px}
+  .quest-hero {grid-area:1/1;font-size:clamp(10px,3dvh,14px)}
+  .quest-content h3 {grid-area:2/1;font-size:clamp(13px,4.2dvh,18px)}
+  .quest-progress {grid-area:1/2/3/3;flex-direction:column;align-items:flex-end;justify-content:center;gap:2px}
+  .quest-progress strong {font-size:clamp(13px,4dvh,17px)}
+  .quest-content progress {grid-area:3/1/4/3}
+}
+@media (orientation:portrait) {
+  .quest-grid {grid-template-columns:1fr}
+  .quest-tile {min-height:140px;grid-template:1fr / minmax(74px,24%) minmax(0,1fr)}
+  .lobby-main .preview-quests {flex:0 0 auto}
+}

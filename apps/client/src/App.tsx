@@ -22,7 +22,7 @@ import type { Inspectable } from './battle-pieces.tsx';
 import { PlayLobby } from './Lobby.tsx';
 import {DeckPicker,HeroChoice} from './PreviewPlay.tsx';
 import type {DeckSelection,PendingMatch} from './PreviewPlay.tsx';
-import {PreviewRank,PreviewRewards,RewardReveal,PreviewQuestPlaceholder,PreviewDeveloper} from './PreviewProgress.tsx';
+import {PreviewRank,PreviewRewards,RewardReveal,PreviewQuests,PreviewDeveloper} from './PreviewProgress.tsx';
 import {syncNewCards,markCardViewed} from './new-card-flags.ts';
 import {LandscapeExperience} from './LandscapeExperience.tsx';
 import { ClassicNamesContext, displayCardName, cardSearchTerms, matchesCardSearch } from './card-names.ts';
@@ -306,12 +306,25 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const [catalogFocus,setCatalogFocus]=useState<string>();
   const [promotion,setPromotion]=useState<{before:number;after:number}>();
   const revealedMatches=useRef(new Set<string>());
+  const activeRewardReveal=useRef<string|null>(null);
+  const rewardAcknowledgedKey='card-duel-last-reward-reveal-v1';
   const queueRewardReveal=(code:string,rank:number,reward:RankedRewardSummary)=>{
     if(revealedMatches.current.has(code))return;
+    try{if(storage.getItem(rewardAcknowledgedKey)===code)return;}catch{/* The card collection remains available. */}
     revealedMatches.current.add(code);
     const cards=reward.unlockedCards?.filter(id=>!!catalog[id])??[];
-    if(cards.length)setRewardPopup(cards);
+    if(cards.length){
+      activeRewardReveal.current=code;
+      setRewardPopup(cards);
+    }
     if(reward.rankAfter&&reward.rankAfter>rank)setPromotion({before:rank,after:reward.rankAfter});
+  };
+  const closeRewardReveal=()=>{
+    if(activeRewardReveal.current){
+      try{storage.setItem(rewardAcknowledgedKey,activeRewardReveal.current);}catch{/* Revealing a card never updates growth. */}
+      activeRewardReveal.current=null;
+    }
+    setRewardPopup([]);setPromotion(undefined);
   };
   useEffect(()=>{
     const next=syncNewCards(offlineProfile,storage);
@@ -364,7 +377,11 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   useEffect(()=>{if(room){const result=resultFromRoom(room,catalogHash);if(result)setSoloHistory(old=>recordSoloResult(result,storage,old));}},[room?.code,room?.state?.phase]);
   useEffect(()=>{let stopped=false,probe:Worker|undefined,timer:ReturnType<typeof setTimeout>|undefined;
     const close=()=>{if(timer!==undefined){clearTimeout(timer);timer=undefined;}if(probe){probe.onmessage=null;probe.onerror=null;probe.terminate();probe=undefined;}};
-    const finish=(data?:Extract<LocalResponse,{type:'saveInfo'}>)=>{if(stopped)return;stopped=true;close();if(workerRef.current)return;setSaveAvailable(data?.available??false);setSavedMatch(old=>reconcileSaveProbe(old,data));if(standalone){if(data?.profile)setOfflineProfile(old=>!old||data.profile!.revision>=old.revision?data.profile:old);setOldRankedPending(data?.otherActiveRanked);}};
+    const finish=(data?:Extract<LocalResponse,{type:'saveInfo'}>)=>{if(stopped)return;stopped=true;close();if(workerRef.current)return;setSaveAvailable(data?.available??false);setSavedMatch(old=>reconcileSaveProbe(old,data));if(standalone){if(data?.profile){
+      setOfflineProfile(old=>!old||data.profile!.revision>=old.revision?data.profile:old);
+      const reward=data.save?.phase==='finished'?data.profile.recentMatches?.find(match=>match.matchId===data.save?.code&&match.completedQuests?.length&&match.unlockedCards?.length):undefined;
+      if(reward)queueRewardReveal(reward.matchId,reward.rank,reward);
+    }setOldRankedPending(data?.otherActiveRanked);}};
     try{if(!workerFactory)throw Error('Missing worker factory');probe=workerFactory();probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{if(data.type==='saveInfo')finish(data);else if(data.type==='error')finish();};probe.onerror=()=>finish();timer=setTimeout(()=>finish(),5000);probe.postMessage({type:'inspectSave',catalogHash,...(standalone?{catalog}:{}),} satisfies LocalRequest);}catch{finish();}
     return()=>{stopped=true;close();};
   },[saveProbe]);
@@ -651,24 +668,24 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {(error||workerStalled)&&<div className="error game-error-toast" role="alert">{error||'기기 AI 작업 응답을 기다리는 중입니다.'}{workerStalled?<><small>응답을 기다리거나 마지막으로 저장된 상태를 복구할 수 있습니다.</small><button type="button" className="secondary" onClick={recoverStalledWorker}>마지막 저장으로 복구</button></>:<button className="secondary" onClick={()=>setError('')}>닫기</button>}</div>}
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}
-    {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onClose={()=>{setRewardPopup([]);setPromotion(undefined);}}/>}
+    {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onClose={closeRewardReveal}/>}
     {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴">
     <button type="button" data-lobby-tab="play" onClick={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}}><Sigil kind="warrior"/>대전</button>
     <button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>
     <button type="button" data-lobby-tab="slots" onClick={()=>openLobbyView('slots',true)}><Sigil kind="neutral"/>슬롯 선택</button>
     <button type="button" data-lobby-tab="rank" onClick={()=>openLobbyView('rank',true)}>🏆 등급</button>
-    <button type="button" data-lobby-tab="quests" onClick={()=>openLobbyView('quests',true)}>📜 퀘스트</button>
+    <button type="button" data-lobby-tab="quests" onClick={()=>openLobbyView('quests',true)} aria-label="퀘스트">📜 퀘스트{offlineProfile?.quests&&<small aria-hidden="true"> · {Object.keys(offlineProfile.quests.active).length}개</small>}</button>
     <button type="button" data-lobby-tab="rewards" onClick={()=>openLobbyView('rewards',true)}>🎁 경험치 · 카드 획득</button>
     <button type="button" data-lobby-tab="developer" onClick={()=>openLobbyView('developer',true)}>⚙ 개발자 모드</button>
     {gameUpdateMenu}
-  </nav>:<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴"><button type="button" data-lobby-tab="play" onClick={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}}><Sigil kind="warrior"/>대전</button><button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>{gameUpdateMenu}</nav>:<nav className="lobby-page-nav floating-home" aria-label="현재 화면"><button type="button" className="secondary" data-lobby-tab={lobbyView} onClick={()=>{setLobbyView('home');requestAnimationFrame(()=>screenScrollRef.current?.querySelector<HTMLButtonElement>(`[data-lobby-tab="${lobbyView==='decks'?'play':lobbyView}"]`)?.focus());}} aria-label="메인으로">{lossOnExit?'⌂':'메인으로'}</button>{!lossOnExit&&<strong>{lobbyView==='play'?'대전':lobbyView==='decks'?'덱 목록':lobbyView==='slots'?'슬롯 · 성장 · 기록':'카드 도감'}</strong>}</nav>}
+  </nav>:<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴"><button type="button" data-lobby-tab="play" onClick={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}}><Sigil kind="warrior"/>대전</button><button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>{standalone&&<button type="button" data-lobby-tab="quests" onClick={()=>openLobbyView('quests',true)}>퀘스트</button>}{gameUpdateMenu}</nav>:<nav className="lobby-page-nav floating-home" aria-label="현재 화면"><button type="button" className="secondary" data-lobby-tab={lobbyView} onClick={()=>{setLobbyView('home');requestAnimationFrame(()=>screenScrollRef.current?.querySelector<HTMLButtonElement>(`[data-lobby-tab="${lobbyView==='decks'?'play':lobbyView}"]`)?.focus());}} aria-label="메인으로">{lossOnExit?'⌂':'메인으로'}</button>{!lossOnExit&&<strong>{lobbyView==='play'?'대전':lobbyView==='decks'?'덱 목록':lobbyView==='slots'?'슬롯 · 성장 · 기록':lobbyView==='quests'?'퀘스트':'카드 도감'}</strong>}</nav>}
       <div className="lobby-account" hidden={lobbyView!=='play'}>{!standalone&&!updateBlocked&&<LobbyDialog label="계정"><AccountPanel deck={deck} onLoad={editDeck} onAuthChange={reconnect} connected={connected&&!busy} maintenance={maintenance} syncEpoch={accountSync} growthEpoch={growthSync} roomEpoch={roomSync} onPlay={begin} onAccount={setAccount}/></LobbyDialog>}</div>
       {lobbyView==='play'?<div className="play-hub"><div className="play-support">
       {savedMatch&&!lossOnExit&&<button disabled={busy||saveAvailable===undefined} onClick={resumeLocal}>{savedMatch.phase==='finished'?'결과 보기':'이어하기'}</button>}
       {!lossOnExit&&<LobbyDialog label="슬롯 · 성장 · 저장 경기">{slotManagementContent}</LobbyDialog>}</div><PlayLobby deck={deck} onClass={c=>{if(c!==deck.heroClass)editDeck(account?.role==='developer'||standalone&&offlineMode==='developer'?practiceDeck(catalog,c):basicDeck(catalog,c));}} botClass={botClass} setBotClass={setBotClass} difficulty={difficulty} setDifficulty={setDifficulty} code={code} setCode={setCode} onBegin={begin} onEdit={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}} connected={connected} busy={busy} botEngine={botEngine} setBotEngine={setBotEngine} deviceMode={deviceMode} setDeviceMode={setDeviceMode} standalone={standalone} botStyle={botStyle} setBotStyle={setBotStyle} first={first} setFirst={setFirst} animationSpeed={animationSpeed} setAnimationSpeed={setAnimationSpeed} showPractice={!standalone||offlineMode==='developer'} openBotDecks={account?.role==='developer'||standalone&&offlineMode==='developer'}/></div>:lobbyView==='slots'&&lossOnExit?<section className="preview-slot-only" aria-label="슬롯 선택"><div className="preview-slot-grid">{SOLO_SLOTS.map(value=><button type="button" key={value} className={value===slot?'chosen':'secondary'} disabled={busy||value===slot} onClick={()=>switchSlot(value)}>슬롯 {value}{value===slot?' · 선택됨':''}</button>)}</div></section>
     :lobbyView==='rank'&&lossOnExit?<PreviewRank profile={offlineProfile} growth={localGrowth}/>
-    :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
+    :lobbyView==='quests'&&standalone?<PreviewQuests profile={offlineProfile} ready={growthReady}/>
     :lobbyView==='rewards'&&lossOnExit?<PreviewRewards profile={offlineProfile} growth={localGrowth}
       busy={busy||!growthReady} onSelect={chooseOfflineRewardPath} onCatalog={id=>openLobbyView('catalog',true,id)}/>
     :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button><DeveloperFreePlay selection={freeSelection} onSelection={setFreeSelection} saved={readDecks(developerDeckStorage)} draft={deck} catalog={catalog} onEdit={hero=>{if(deck.heroClass!==hero)editDeck({heroClass:hero,cards:[]});setEnterDeckEditor(true);openLobbyView('decks',true);}} busy={busy} ready={freeSave?.available} onStart={beginDeveloperFree} onResume={freeSave?.save&&freeSave.save.phase!=='finished'?resumeDeveloperFree:undefined}/>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>

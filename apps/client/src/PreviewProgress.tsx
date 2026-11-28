@@ -1,10 +1,12 @@
+import {QUEST_SLOTS} from '../../../packages/quest-types.ts';
+import {LocalHeroArt} from './local-art.tsx';
 import {useEffect,useRef,useState} from 'react';
 import type {KeyboardEvent,MouseEvent} from 'react';
 import {RankCrest,rankTitle} from './RankCrest.tsx';
 import {playCinematicSound} from './battle-sound.ts';
 import type {AccountProfile,GrowthView} from '../../../packages/account-protocol.ts';
 import {activeRewardPath,rewardPaths} from '../../../packages/reward-road.ts';
-import {rankInfo,questStatus} from '../../../packages/progression.ts';
+import {rankInfo} from '../../../packages/progression.ts';
 import {catalog,className} from './data.ts';
 import {BattleCard} from './battle-pieces.tsx';
 import type {HeroClass} from '../../../packages/engine/src/index.ts';
@@ -133,14 +135,29 @@ export function RewardReveal({cards,rank,onClose}:{cards:string[];rank?:{before:
     </section>
   </div>;
 }
-export function PreviewQuestPlaceholder(){
-  return <section className="preview-placeholder"><h2>퀘스트</h2><p>준비 중</p><small>퀘스트 메뉴만 마련했습니다. 새로운 퀘스트 기능과 보상은 구현하지 않습니다.</small></section>;
+export function PreviewQuests({profile,ready}:{profile?:AccountProfile;ready?:boolean}){
+  return <section className="preview-quests" aria-labelledby="quest-title">
+    <h2 id="quest-title">퀘스트</h2>
+    <div className="quest-grid">
+      {QUEST_SLOTS.map(slot=>{
+        const quest=profile?.quests?.active[slot];
+        if(!quest)return <div className="quest-empty" key={slot}>{ready===false?'성장 기록을 확인할 수 없습니다.':ready?'수행 가능한 퀘스트를 기다리는 중입니다.':'퀘스트를 불러오는 중입니다.'}</div>;
+        return <article className={`quest-tile faction-${quest.hero}`} key={quest.id}>
+          <div className="quest-portrait" aria-hidden="true"><LocalHeroArt heroClass={quest.hero}/></div>
+          <div className="quest-content">
+            <span className="quest-hero">{className[quest.hero]}</span>
+            <h3>{quest.title}</h3>
+            <div className="quest-progress">
+              <strong>{quest.progress.toLocaleString('ko-KR')} / {quest.target.toLocaleString('ko-KR')}{quest.unit}</strong>
+              <small>+{quest.xp} XP</small>
+            </div>
+            <progress aria-label={`${className[quest.hero]} ${quest.title} 진행도`} value={quest.progress} max={quest.target}/>
+          </div>
+        </article>;
+      })}
+    </div>
+  </section>;
 }
 export function PreviewDeveloper({mode,onMode,children}:{mode:'player'|'developer';onMode:(mode:'player'|'developer')=>void;children?:React.ReactNode}){
   return <section className="preview-developer"><h2>개발자 모드</h2><div className="preview-mode-choices"><button type="button" className={mode==='player'?'chosen':'secondary'} onClick={()=>onMode('player')}>유저 모드</button><button type="button" className={mode==='developer'?'chosen':'secondary'} onClick={()=>onMode('developer')}>개발자 모드</button></div><small>개발자 시험에서는 XP, 카드 획득, 등급과 유저 전적이 변경되지 않습니다.</small>{mode==='developer'&&children}</section>;
-}
-export function PreviewQuestSummary({profile}:{profile?:AccountProfile}){
-  if(!profile)return null;
-  const q=questStatus(profile.questGames);
-  return <small>기존 데이터 참고: {className[q.heroClass as HeroClass]} {q.games}/10 · 별도 퀘스트 시스템은 보류</small>;
 }

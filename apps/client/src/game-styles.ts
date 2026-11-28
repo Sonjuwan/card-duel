@@ -17,3 +17,4 @@ import './collection-layout.css';
 
 import './card-materials.css';
 import './battle-settings.css';
+import './quests.css';
