@@ -272,3 +272,12 @@
     grid-template-columns:23px minmax(0,1fr) 23px;
   }
 }
+
+@media (orientation:landscape) and (max-height:540px){
+  .preview-lobby:has(.deck-builder) .game-toast{
+    top:max(5px,env(safe-area-inset-top));left:max(280px,calc(env(safe-area-inset-left) + 275px));
+    right:max(159px,calc(env(safe-area-inset-right) + 155px));
+    transform:none;width:auto;max-width:max-content;padding:4px 6px;
+    font-size:clamp(9px,1.35dvw,12px);line-height:1.15;
+  }
+}
