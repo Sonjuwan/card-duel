@@ -20,7 +20,8 @@ import { Battle } from './Battle.tsx';
 import { BattleCard, Sigil } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
 import { PlayLobby } from './Lobby.tsx';
-import {ClassDeckPicker,HeroChoice,SavedMatchGate} from './PreviewPlay.tsx';
+import {DeckPicker,HeroChoice} from './PreviewPlay.tsx';
+import type {DeckSelection,PendingMatch} from './PreviewPlay.tsx';
 import {PreviewRank,PreviewRewards,RewardReveal,PreviewQuestPlaceholder,PreviewDeveloper} from './PreviewProgress.tsx';
 import {syncNewCards,markCardViewed} from './new-card-flags.ts';
 import {LandscapeExperience} from './LandscapeExperience.tsx';
@@ -56,7 +57,7 @@ import project from '../../../package.json';
 const sessionKey='card-duel-session-v03';
 const random32=()=>typeof globalThis.crypto!=='undefined'?crypto.getRandomValues(new Uint32Array(1))[0]:(Math.random()*4294967296)>>>0;
 function readSession():Session|null{try{const s:unknown=JSON.parse(sessionStorage.getItem(sessionKey)??'null');if(!s||typeof s!=='object')return null;const v=s as Session;return typeof v.code==='string'&&/^[A-Z2-9]{6}$/.test(v.code)&&typeof v.token==='string'&&/^[0-9a-f]{64}$/.test(v.token)&&(v.seat===0||v.seat===1)?v:null;}catch{return null;}}
-type DeckEditorProps={deck:Deck;setDeck:(deck:Deck)=>void;undo?:()=>void;undoAvailable?:boolean;draftStored?:boolean;initialSet?:CardSetFilter;workspaceMode?:boolean;initialName?:string;ownedCards?:readonly string[];forceOwned?:boolean;strategicPresets?:boolean;storage?:SlotStorage};
+type DeckEditorProps={deck:Deck;setDeck:(deck:Deck)=>void;undo?:()=>void;undoAvailable?:boolean;draftStored?:boolean;initialSet?:CardSetFilter;workspaceMode?:boolean;initialName?:string;ownedCards?:readonly string[];forceOwned?:boolean;strategicPresets?:boolean;storage?:SlotStorage;onSaved?:(entry:NamedDeck)=>void};
 /** Keep the displayed named-deck list fresh when another tab updates the
  * same slot, while leaving local unsaved edits and stored bytes untouched. */
 function useDeckLibraryAutoRefresh(storage:SlotStorage,saved:NamedDeck[],setSaved:(value:NamedDeck[])=>void,canRefresh:()=>boolean,onChanged:()=>void,onError:(message:string)=>void,onRecovered:(previousError:string)=>void,refreshWhenReady:boolean){
@@ -79,7 +80,7 @@ function useCompactCollection(){
   return compact;
 }
 
-function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,initialSet='all',workspaceMode=false,initialName='',ownedCards,forceOwned=false,strategicPresets=false,storage:providedStorage}:DeckEditorProps){
+function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,initialSet='all',workspaceMode=false,initialName='',ownedCards,forceOwned=false,strategicPresets=false,storage:providedStorage,onSaved}:DeckEditorProps){
   const classicNames=useContext(ClassicNamesContext);
   const storage=useMemo(()=>providedStorage??soloSlotStorage(1),[providedStorage]);
   const [editNotice,setEditNotice]=useState<{key:string;message:string;warning:boolean;cardId?:string}|null>(null);
@@ -99,7 +100,7 @@ function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,
   const storageFailure=(e:unknown)=>{setSaved(current=>deckLibraryAfterWriteFailure(current,storage));setSavedIndex('');setStorageMessage(e instanceof Error?e.message:'브라우저 저장 공간을 사용할 수 없습니다.');};
   const mutationBusy=useRef(false),[mutating,setMutating]=useState(false);
   useDeckLibraryAutoRefresh(storage,saved,setSaved,()=>!mutationBusy.current,()=>{setSavedIndex('');setStorageMessage('다른 탭의 저장 덱 변경을 반영했습니다. 목록에서 다시 선택하세요.');},setStorageMessage,previous=>setStorageMessage(current=>current===previous?'저장 덱 확인 완료':current),!mutating);
-  const save=async()=>{if(mutationBusy.current)return;const name=deckName.trim();if(!name||name.length>40){setStorageMessage('덱 이름을 1~40자로 입력하세요.');return;}try{validateDeck(deck,catalog);}catch(e){setStorageMessage((e as Error).message);return;}const old=saved.find(d=>d.name===name)??null;if(old&&!window.confirm('기존 이름의 덱을 덮어쓸까요?'))return;mutationBusy.current=true;setMutating(true);try{const entry={name,deck:structuredClone(deck)},next=await withDeckLibraryLock(()=>saveNamedDeck(entry,old,storage));setSaved(next);setSavedIndex(String(next.findIndex(d=>d.name===name)));setStorageMessage('덱 저장 완료');}catch(e){storageFailure(e);}finally{mutationBusy.current=false;setMutating(false);}};
+  const save=async()=>{if(mutationBusy.current)return;const name=deckName.trim();if(!name||name.length>40){setStorageMessage('덱 이름을 1~40자로 입력하세요.');return;}try{validateDeck(deck,catalog);}catch(e){setStorageMessage((e as Error).message);return;}const old=saved.find(d=>d.name===name)??null;if(old&&!window.confirm('기존 이름의 덱을 덮어쓸까요?'))return;mutationBusy.current=true;setMutating(true);try{const entry={name,deck:structuredClone(deck)},next=await withDeckLibraryLock(()=>saveNamedDeck(entry,old,storage));setSaved(next);setSavedIndex(String(next.findIndex(d=>d.name===name)));setStorageMessage('덱 저장 완료');onSaved?.(entry);}catch(e){storageFailure(e);}finally{mutationBusy.current=false;setMutating(false);}};
   const load=()=>{const item=saved[Number(savedIndex)];if(!savedIndex||!item)return;try{validateDeck(item.deck,catalog);setDeck(structuredClone(item.deck));setDeckName(item.name);setStorageMessage('덱 불러오기 완료');}catch{const repaired=repairDeck(catalog,item.deck);if(!window.confirm(`현재 버전에서 사용할 수 없는 카드 ${repaired.discarded.length}장이 있습니다. 사용 가능한 카드만 가져오시겠습니까? 원래 저장 덱은 남습니다.`))return;setDeck(repaired.deck);setDeckName((item.name+' (복원)').slice(0,40));setStorageMessage(`호환 카드 ${repaired.deck.cards.length}장 불러옴. 나머지 카드를 추가하세요.`);}};
   const removeSaved=async()=>{if(mutationBusy.current)return;const entry=saved[Number(savedIndex)];if(!savedIndex||!entry||!window.confirm('저장한 덱을 삭제할까요?'))return;mutationBusy.current=true;setMutating(true);try{setSaved(await withDeckLibraryLock(()=>deleteNamedDeck(entry,storage)));setSavedIndex('');setStorageMessage('저장 덱 삭제 완료');}catch(e){storageFailure(e);}finally{mutationBusy.current=false;setMutating(false);}};
   const counts=useMemo(()=>{const map=new Map<string,number>();for(const id of deck.cards)map.set(id,(map.get(id)??0)+1);return map;},[deck.cards]);
@@ -176,7 +177,7 @@ function DeckEditorView({deck,setDeck,undo,undoAvailable=false,draftStored=true,
     <aside className="deck-sidebar">{deckList}</aside></div>
   </section>;
 }
-export type DeckScreen='classes'|'select'|'cards'|'build';
+export type DeckScreen='classes'|'select'|'cards'|'build'|'basic';
 
 const EMPTY_UNREAD_IDS:readonly string[]=[];
 function CardBrowser({initialClass='all',focusCardId,unreadIds=EMPTY_UNREAD_IDS,onViewed,ownedCards,developer=false}:{focusCardId?:string;initialClass?:HeroClass|'all'|'neutral';unreadIds?:readonly string[];onViewed?:(id:string)=>void;ownedCards?:readonly string[];developer?:boolean}){
@@ -236,29 +237,40 @@ function compatibleDeckEntry(entry:NamedDeck){
   }
 }
 
-export function DeckWorkspace({initialScreen='classes',onPlay,developer=false,...props}:DeckEditorProps&{
-  initialScreen?:DeckScreen;onPlay?:(deck:Deck)=>void;developer?:boolean;
+export function DeckWorkspace({initialScreen='select',onPlay,developer=false,preview=false,pickerReady=true,pickerBlocked,busy,profile,pending,...props}:DeckEditorProps&{
+  initialScreen?:DeckScreen;onPlay?:(deck:Deck)=>void;developer?:boolean;preview?:boolean;pickerReady?:boolean;
+  pickerBlocked?:boolean;busy?:boolean;profile?:AccountProfile;pending?:PendingMatch;
 }){
   const storage=useMemo(()=>props.storage??soloSlotStorage(1),[props.storage]);
   const [screen,setScreen]=useState(initialScreen);
-  const [hero,setHero]=useState(props.deck.heroClass);
-  const [editName,setEditName]=useState('');
+  const [selection,setSelection]=useState<DeckSelection|null>(null);
+  const [editName,setEditName]=useState(props.initialName??'');
+  const showList=()=>setScreen('select');
   const build=(entry:NamedDeck)=>{
     props.setDeck(structuredClone(entry.deck));setEditName(entry.name);setScreen('build');
   };
-  return <section className="deck-workspace">
-    <nav className="deck-workspace-nav" aria-label="덱 관리 메뉴">
-      <button type="button" data-deck-nav="classes" aria-pressed={screen==='classes'||screen==='select'} onClick={()=>setScreen('classes')}>직업 리스트</button>
-      <button type="button" data-deck-nav="cards" aria-pressed={screen==='cards'} onClick={()=>setScreen('cards')}>카드 보기</button>
-    </nav>
-    {screen==='classes'&&<div className="deck-class-page" data-deck-screen="classes"><HeroChoice onChoose={value=>{setHero(value);setScreen('select');}}/></div>}
-    {screen==='select'&&<div className="deck-class-page" data-deck-screen="select"><ClassDeckPicker key={hero} storage={storage} hero={hero}
-      onChangeHero={()=>setScreen('classes')} onStart={onPlay}
-      onBuild={value=>build({name:'',deck:{heroClass:value,cards:[]}})} onEdit={entry=>{const valid=compatibleDeckEntry(entry);if(valid)build(valid);}}/></div>}
+  return <section className={`deck-workspace${preview?' preview-workspace':''}`}>
+    {(screen==='classes'||screen==='basic')&&<div className="deck-class-page deck-class-choice" data-deck-screen={screen}>
+      <div className="deck-class-heading">
+        <button type="button" className="secondary" onClick={showList}>← 덱 목록</button>
+        <h2>{screen==='basic'?'기본 덱 선택':'새 덱의 직업 선택'}</h2>
+      </div>
+      <HeroChoice label={screen==='basic'?'기본 덱 직업':'새 덱 직업'} onChoose={hero=>{
+        if(screen==='basic'){setSelection({kind:'basic',hero});showList();}
+        else build({name:'',deck:{heroClass:hero,cards:[]}});
+      }}/>
+    </div>}
+    {screen==='select'&&<div className="deck-class-page" data-deck-screen="select"><DeckPicker storage={storage}
+      selection={selection} onSelect={setSelection} profile={profile} requireOwned={props.forceOwned}
+      ready={pickerReady} blocked={pickerBlocked} busy={busy} pending={pending} onStart={onPlay}
+      onBasic={()=>setScreen('basic')} onBuild={()=>setScreen('classes')}
+      onEdit={entry=>{const valid=compatibleDeckEntry(entry);if(valid)build(valid);}}/></div>}
     {screen==='cards'&&<CardBrowser developer={developer}/>}
     {screen==='build'&&<div data-deck-screen="build">
-      <button className="secondary workspace-deck-back" type="button" onClick={()=>setScreen('select')}>← 덱 목록</button>
-      <DeckEditor {...props} workspaceMode initialName={editName} strategicPresets={developer}/>
+      <button className={`secondary ${preview?'preview-deck-back':'workspace-deck-back'}`} type="button" onClick={showList}>← 덱 목록</button>
+      <DeckEditor {...props} workspaceMode initialName={editName} strategicPresets={developer} onSaved={entry=>{
+        setSelection({kind:'saved',name:entry.name});showList();
+      }}/>
     </div>}
   </section>;
 }
@@ -306,12 +318,9 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     setUnreadCards(next);
   },[offlineProfile?.revision,storage]);
   const onViewNewCard=(id:string)=>setUnreadCards(markCardViewed(id,storage));
-  const [previewEditHero,setPreviewEditHero]=useState<HeroClass|null>(null);
-  const [previewEditName,setPreviewEditName]=useState('');
-  const [previewPickerHero,setPreviewPickerHero]=useState<HeroClass|null>(null);
-  const [previewPickerName,setPreviewPickerName]=useState<string>();
+  const [enterDeckEditor,setEnterDeckEditor]=useState(false);
   const [offlineMode,setOfflineMode]=useState<OfflineMode>(initialOfflineMode);
-  const practiceLobby=lossOnExit&&offlineMode==='developer'?'developer':'play';
+  const practiceLobby=lossOnExit?(offlineMode==='developer'?'developer':'decks'):'play';
   const developerDeckStorage=useMemo(()=>soloSlotStorage(slot,undefined,currentSoloNamespace(),'developer'),[slot]);
   const modeDecks=useRef<Partial<Record<OfflineMode,Deck>>>({});
   const localGrowth=useMemo(()=>standalone?offlineGrowth(catalog):undefined,[standalone]);
@@ -645,8 +654,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onClose={()=>{setRewardPopup([]);setPromotion(undefined);}}/>}
     {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴">
-    <button type="button" data-lobby-tab="play" onClick={()=>{setPreviewPickerHero(null);setPreviewPickerName(undefined);openLobbyView(practiceLobby,true);}}><Sigil kind="warrior"/>대전</button>
-    <button type="button" data-lobby-tab="decks" onClick={()=>{setPreviewEditHero(null);setPreviewPickerHero(null);setPreviewPickerName(undefined);openLobbyView('decks',true);}}><Sigil kind="deck"/>덱 목록</button>
+    <button type="button" data-lobby-tab="play" onClick={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}}><Sigil kind="warrior"/>대전</button>
     <button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>
     <button type="button" data-lobby-tab="slots" onClick={()=>openLobbyView('slots',true)}><Sigil kind="neutral"/>슬롯 선택</button>
     <button type="button" data-lobby-tab="rank" onClick={()=>openLobbyView('rank',true)}>🏆 등급</button>
@@ -654,41 +662,31 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     <button type="button" data-lobby-tab="rewards" onClick={()=>openLobbyView('rewards',true)}>🎁 경험치 · 카드 획득</button>
     <button type="button" data-lobby-tab="developer" onClick={()=>openLobbyView('developer',true)}>⚙ 개발자 모드</button>
     {gameUpdateMenu}
-  </nav>:<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴"><button type="button" data-lobby-tab="play" onClick={()=>openLobbyView('play',true)}><Sigil kind="warrior"/>대전</button><button type="button" data-lobby-tab="decks" onClick={()=>openLobbyView('decks',true)}><Sigil kind="deck"/>덱 목록</button><button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>{gameUpdateMenu}</nav>:<nav className="lobby-page-nav floating-home" aria-label="현재 화면"><button type="button" className="secondary" data-lobby-tab={lobbyView} onClick={()=>{setLobbyView('home');requestAnimationFrame(()=>screenScrollRef.current?.querySelector<HTMLButtonElement>(`[data-lobby-tab="${lobbyView}"]`)?.focus());}} aria-label="메인으로">{lossOnExit?'⌂':'메인으로'}</button>{!lossOnExit&&<strong>{lobbyView==='play'?'대전':lobbyView==='decks'?'덱 목록':lobbyView==='slots'?'슬롯 · 성장 · 기록':'카드 도감'}</strong>}</nav>}
+  </nav>:<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴"><button type="button" data-lobby-tab="play" onClick={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}}><Sigil kind="warrior"/>대전</button><button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>{gameUpdateMenu}</nav>:<nav className="lobby-page-nav floating-home" aria-label="현재 화면"><button type="button" className="secondary" data-lobby-tab={lobbyView} onClick={()=>{setLobbyView('home');requestAnimationFrame(()=>screenScrollRef.current?.querySelector<HTMLButtonElement>(`[data-lobby-tab="${lobbyView==='decks'?'play':lobbyView}"]`)?.focus());}} aria-label="메인으로">{lossOnExit?'⌂':'메인으로'}</button>{!lossOnExit&&<strong>{lobbyView==='play'?'대전':lobbyView==='decks'?'덱 목록':lobbyView==='slots'?'슬롯 · 성장 · 기록':'카드 도감'}</strong>}</nav>}
       <div className="lobby-account" hidden={lobbyView!=='play'}>{!standalone&&!updateBlocked&&<LobbyDialog label="계정"><AccountPanel deck={deck} onLoad={editDeck} onAuthChange={reconnect} connected={connected&&!busy} maintenance={maintenance} syncEpoch={accountSync} growthEpoch={growthSync} roomEpoch={roomSync} onPlay={begin} onAccount={setAccount}/></LobbyDialog>}</div>
-      {lossOnExit&&(lobbyView==='play'||lobbyView==='decks'&&!previewEditHero)?(
-        lobbyView==='play'&&savedMatch&&savedMatch.phase!=='finished'?
-          <SavedMatchGate savedMatch={savedMatch} saveAvailable={saveAvailable} busy={busy} onResume={resumeLocal} onForfeitSaved={forfeitSaved}/>:
-        previewPickerHero?<ClassDeckPicker key={previewPickerHero} hero={previewPickerHero} initialName={previewPickerName}
-          storage={offlineMode==='developer'?developerDeckStorage:storage} profile={offlineProfile} requireOwned={offlineMode==='player'}
-          ready={growthReady} blocked={oldRankedPending} busy={busy}
-          onChangeHero={()=>{setPreviewPickerHero(null);setPreviewPickerName(undefined);}}
-          onStart={current=>{
-            if(offlineMode==='developer'){editDeck(current);openLobbyView('developer',true);return;}
-            if(savedMatch&&savedMatch.phase!=='finished'){openLobbyView('play',true);return;}
-            editDeck(current);beginLocal(resolveSolo(soloSettings,random32()),current,true);
-          }}
-          onBuild={hero=>{editDeck({heroClass:hero,cards:[]});setPreviewEditName('');setPreviewPickerName(undefined);setPreviewEditHero(hero);openLobbyView('decks',true);}}
-          onEdit={entry=>{const valid=compatibleDeckEntry(entry);if(!valid)return;editDeck(structuredClone(valid.deck));setPreviewEditName(valid.name);setPreviewPickerName(entry.name);setPreviewEditHero(valid.deck.heroClass);openLobbyView('decks',true);}}/>:
-        <HeroChoice onChoose={setPreviewPickerHero}/>)
-      :lobbyView==='play'?<div className="play-hub"><div className="play-support">
+      {lobbyView==='play'?<div className="play-hub"><div className="play-support">
       {savedMatch&&!lossOnExit&&<button disabled={busy||saveAvailable===undefined} onClick={resumeLocal}>{savedMatch.phase==='finished'?'결과 보기':'이어하기'}</button>}
-      {!lossOnExit&&<LobbyDialog label="슬롯 · 성장 · 저장 경기">{slotManagementContent}</LobbyDialog>}</div><PlayLobby deck={deck} onClass={c=>{if(c!==deck.heroClass)editDeck(account?.role==='developer'||standalone&&offlineMode==='developer'?practiceDeck(catalog,c):basicDeck(catalog,c));}} botClass={botClass} setBotClass={setBotClass} difficulty={difficulty} setDifficulty={setDifficulty} code={code} setCode={setCode} onBegin={begin} onEdit={()=>openLobbyView('decks',true)} connected={connected} busy={busy} botEngine={botEngine} setBotEngine={setBotEngine} deviceMode={deviceMode} setDeviceMode={setDeviceMode} standalone={standalone} botStyle={botStyle} setBotStyle={setBotStyle} first={first} setFirst={setFirst} animationSpeed={animationSpeed} setAnimationSpeed={setAnimationSpeed} showPractice={!standalone||offlineMode==='developer'} openBotDecks={account?.role==='developer'||standalone&&offlineMode==='developer'}/></div>:lobbyView==='slots'&&lossOnExit?<section className="preview-slot-only" aria-label="슬롯 선택"><div className="preview-slot-grid">{SOLO_SLOTS.map(value=><button type="button" key={value} className={value===slot?'chosen':'secondary'} disabled={busy||value===slot} onClick={()=>switchSlot(value)}>슬롯 {value}{value===slot?' · 선택됨':''}</button>)}</div></section>
+      {!lossOnExit&&<LobbyDialog label="슬롯 · 성장 · 저장 경기">{slotManagementContent}</LobbyDialog>}</div><PlayLobby deck={deck} onClass={c=>{if(c!==deck.heroClass)editDeck(account?.role==='developer'||standalone&&offlineMode==='developer'?practiceDeck(catalog,c):basicDeck(catalog,c));}} botClass={botClass} setBotClass={setBotClass} difficulty={difficulty} setDifficulty={setDifficulty} code={code} setCode={setCode} onBegin={begin} onEdit={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}} connected={connected} busy={busy} botEngine={botEngine} setBotEngine={setBotEngine} deviceMode={deviceMode} setDeviceMode={setDeviceMode} standalone={standalone} botStyle={botStyle} setBotStyle={setBotStyle} first={first} setFirst={setFirst} animationSpeed={animationSpeed} setAnimationSpeed={setAnimationSpeed} showPractice={!standalone||offlineMode==='developer'} openBotDecks={account?.role==='developer'||standalone&&offlineMode==='developer'}/></div>:lobbyView==='slots'&&lossOnExit?<section className="preview-slot-only" aria-label="슬롯 선택"><div className="preview-slot-grid">{SOLO_SLOTS.map(value=><button type="button" key={value} className={value===slot?'chosen':'secondary'} disabled={busy||value===slot} onClick={()=>switchSlot(value)}>슬롯 {value}{value===slot?' · 선택됨':''}</button>)}</div></section>
     :lobbyView==='rank'&&lossOnExit?<PreviewRank profile={offlineProfile} growth={localGrowth}/>
     :lobbyView==='quests'&&lossOnExit?<PreviewQuestPlaceholder/>
     :lobbyView==='rewards'&&lossOnExit?<PreviewRewards profile={offlineProfile} growth={localGrowth}
       busy={busy||!growthReady} onSelect={chooseOfflineRewardPath} onCatalog={id=>openLobbyView('catalog',true,id)}/>
-    :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button><DeveloperFreePlay selection={freeSelection} onSelection={setFreeSelection} saved={readDecks(developerDeckStorage)} draft={deck} catalog={catalog} onEdit={hero=>{setPreviewEditName('');if(deck.heroClass!==hero)editDeck({heroClass:hero,cards:[]});setPreviewEditHero(hero);openLobbyView('decks',true);}} busy={busy} ready={freeSave?.available} onStart={beginDeveloperFree} onResume={freeSave?.save&&freeSave.save.phase!=='finished'?resumeDeveloperFree:undefined}/>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setPreviewEditHero(null);setPreviewPickerHero(null);setPreviewPickerName(undefined);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
-    :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} developer={standalone&&offlineMode==='developer'} unreadIds={lossOnExit&&offlineMode==='player'?unreadCards:[]} onViewed={lossOnExit&&offlineMode==='player'?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?(lossOnExit?<section className="deck-workspace preview-workspace">
-      <div data-deck-screen="build">
-        <button className="secondary preview-deck-back" type="button" onClick={()=>{setPreviewPickerHero(deck.heroClass);setPreviewEditHero(null);}}>← 덱 목록</button>
-        <DeckEditor workspaceMode initialName={previewEditName} strategicPresets={offlineMode==='developer'} storage={offlineMode==='developer'?developerDeckStorage:storage}
-          deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored}
-          ownedCards={offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined} forceOwned={offlineMode==='player'}/>
-      </div></section>:<DeckWorkspace developer={standalone?offlineMode==='developer':account?.role==='developer'}
-        storage={standalone&&offlineMode==='developer'?developerDeckStorage:storage} onPlay={current=>{editDeck(current);openLobbyView(practiceLobby,true);}}
+    :lobbyView==='developer'&&lossOnExit?<PreviewDeveloper mode={offlineMode} onMode={switchOfflineMode}><button type="button" className="secondary" onClick={()=>openLobbyView('catalog',true)}>카드 도감</button><DeveloperFreePlay selection={freeSelection} onSelection={setFreeSelection} saved={readDecks(developerDeckStorage)} draft={deck} catalog={catalog} onEdit={hero=>{if(deck.heroClass!==hero)editDeck({heroClass:hero,cards:[]});setEnterDeckEditor(true);openLobbyView('decks',true);}} busy={busy} ready={freeSave?.available} onStart={beginDeveloperFree} onResume={freeSave?.save&&freeSave.save.phase!=='finished'?resumeDeveloperFree:undefined}/>{localGrowth&&<OfflineDeveloperPanel growth={localGrowth} deck={deck} busy={busy} onBuild={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}} onStart={(rank,experiment)=>beginLocal(resolveSolo(soloSettings,random32()),deck,false,rank,experiment)}/>}</PreviewDeveloper>
+    :lobbyView==='catalog'?<CardBrowser key={catalogFocus??'catalog'} focusCardId={catalogFocus} developer={standalone&&offlineMode==='developer'} unreadIds={lossOnExit&&offlineMode==='player'?unreadCards:[]} onViewed={lossOnExit&&offlineMode==='player'?onViewNewCard:undefined} ownedCards={lossOnExit&&offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined}/>:lobbyView==='decks'?<DeckWorkspace initialScreen={enterDeckEditor?'build':'select'} preview={lossOnExit}
+        developer={standalone?offlineMode==='developer':account?.role==='developer'}
+        storage={standalone&&offlineMode==='developer'?developerDeckStorage:storage}
+        onPlay={current=>{
+          editDeck(current);setEnterDeckEditor(false);
+          if(lossOnExit&&offlineMode==='player')beginLocal(resolveSolo(soloSettings,random32()),current,true);
+          else openLobbyView(lossOnExit?'developer':'play',true);
+        }}
+        profile={standalone?offlineProfile:undefined}
+        pickerReady={!lossOnExit||offlineMode==='developer'||growthReady} pickerBlocked={lossOnExit&&oldRankedPending} busy={busy}
+        pending={lossOnExit&&offlineMode==='player'&&savedMatch&&savedMatch.phase!=='finished'?
+          {save:savedMatch,available:saveAvailable,onResume:resumeLocal,onRestart:forfeitSaved}:undefined}
         deck={deck} setDeck={editDeck} undo={undo} undoAvailable={undoDecks.length>0} draftStored={draftStored}
-        ownedCards={standalone?(offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined):account?.profile.ownedCards} forceOwned={standalone&&offlineMode==='player'}/>):null}
+        ownedCards={standalone?(offlineMode==='player'?(offlineProfile?.ownedCards??[]):undefined):account?.profile.ownedCards}
+        forceOwned={standalone&&offlineMode==='player'}/>:null}
     </>}
     </div>
     <footer>독자 카드 {Object.values(catalog).filter(c=>c.kind!=='coin'&&c.collectible!==false).length}종 · 9개 직업 · 개발 중인 테스트 버전<small className="reference-notice">자체 제작 일러스트 · 인터넷 이미지 요청 없음</small></footer>
