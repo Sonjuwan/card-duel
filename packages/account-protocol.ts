@@ -14,6 +14,7 @@ export interface AccountProfile {
   rankWins: number;
   questGames: number;
   ownedCards: string[];
+  rewardRoad?: RewardRoadProgress;
   /** Optional for accounts created before match history was introduced. */
   recentMatches?: MatchHistoryEntry[];
   matchStats?: {ranked:MatchStats;pvp:MatchStats};
@@ -36,5 +37,16 @@ export interface DeveloperStatus {role:'developer';version:string;collectible:nu
 export interface DeckUpdate { revision: number; decks: AccountDeck[] }
 export interface RankInfo { rank:number; league:string; division:number; name:string; deckPower:number; intelligence:number;minimumXp?:number }
 export interface CardUnlock { cardId:string; power:number; xp:number }
-export interface GrowthView { ranks:RankInfo[]; unlocks:CardUnlock[]; starterIds:string[]; questOrder:string[]; questLength:number; winsPerRank:number }
+export interface RewardPath {
+  id: string;
+  name: string;
+  cardIds: string[];
+  unlocks: CardUnlock[];
+  afterCompletion: 'accumulate' | 'cap';
+}
+export interface RewardRoadProgress {
+  selectedPathId: string;
+  paths: Record<string,{xp:number;complete:boolean}>;
+}
+export interface GrowthView { ranks:RankInfo[]; unlocks:CardUnlock[]; starterIds:string[]; questOrder:string[]; questLength:number; winsPerRank:number; rewardPaths?:RewardPath[] }
 export interface MatchAward { matchId:string; rank:number; heroClass:Deck['heroClass']; outcome:'win'|'loss'|'draw'; eligible:boolean;mode?:'ranked'|'pvp';completedAt?:number;turns?:number;opponentClass?:Deck['heroClass'] }
