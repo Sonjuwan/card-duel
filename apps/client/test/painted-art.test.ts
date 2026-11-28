@@ -63,7 +63,8 @@ test('square card artwork uses proportional cover fitting, with proportional fra
   const art=readFileSync('apps/client/src/painted-art.css','utf8');
   const hover=readFileSync('apps/client/src/hover-preview.css','utf8');
   assert.match(frame,/container-type:size/);
-  assert.match(frame,/\.battle-card \.card-art\{[^}]*aspect-ratio:1\/1;[^}]*width:min\(100%,62cqh/);
+  assert.match(frame,/--card-art-square:min\(62cqh,max\(1px,calc\(100cqh - 55px\)\)\)/);
+  assert.match(frame,/\.battle-card \.card-art\{[^}]*aspect-ratio:1\/1;[^}]*width:min\(100%,var\(--card-art-square\)\)/);
   assert.match(art,/\.battle-card \.card-art \.painted-art\{background-size:cover;background-position:center 43%\}/);
   assert.match(frame,/\.collection\.classic-collection \.battle-card\{[^}]*aspect-ratio:5\/8/);
   assert.match(frame,/\.hand-card-slot\{[^}]*aspect-ratio:5\/8/);
