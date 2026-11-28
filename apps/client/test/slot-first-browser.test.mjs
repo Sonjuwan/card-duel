@@ -328,7 +328,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.getByRole('button',{name:'새 덱 만들기',exact:true}).click();
   await page.getByRole('button',{name:/마법사/}).first().click();
   await page.getByRole('button',{name:'덱 관리',exact:true}).click();
-  await page.getByRole('button',{name:/^기본 덱 30장$/}).click();
+  await page.getByRole('button',{name:'추천 덱',exact:true}).click();
   await page.getByRole('dialog',{name:'덱 관리',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
   await page.getByRole('button',{name:'내 덱',exact:true}).click();
   await page.locator('.deck-builder .deck-live-count').getByText('30/30',{exact:true}).waitFor();

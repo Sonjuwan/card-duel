@@ -81,6 +81,12 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.getByRole('button',{name:'필터 초기화',exact:true}).click();
     if(height<=540)await page.getByRole('dialog',{name:'카드 필터',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
     assert.equal(await page.locator('.collection-inspector-sidebar').count(),0);
+    await page.waitForFunction(()=>{
+      const selected=document.querySelector('.book-class-tabs button[aria-pressed=true]');
+      const other=document.querySelector('.book-class-tabs button[aria-pressed=false]');
+      const ratio=selected?.getBoundingClientRect().width/other?.getBoundingClientRect().width;
+      return ratio>=1.39&&ratio<=1.51;
+    });
     const bookmarks=await page.locator('.book-class-tabs button').evaluateAll(tabs=>{
       const selected=tabs.find(tab=>tab.getAttribute('aria-pressed')==='true');
       const other=tabs.find(tab=>tab!==selected);
@@ -343,4 +349,31 @@ test('saved match awards persist before each click-confirmed reveal on desktop, 
       assert.deepEqual(await record(),saved,label);
     }finally{await context.close();}
   }
+});
+
+test('basic deck can be copied without replacing a named deck',{timeout:25000},async t=>{
+  const {browser,url}=await previewBrowser(t);
+  const original=basicDeck(loadCatalog(),'mage');
+  const prior={name:'기존 마법사 덱',deck:original};
+  const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});
+  try{
+    await context.addInitScript(saved=>{
+      localStorage.setItem('card-duel-ui-preview-slot-1:card-duel-saved-decks',JSON.stringify([saved]));
+    },prior);
+    const page=await context.newPage();
+    await page.goto(url);
+    await page.getByRole('button',{name:'대전',exact:true}).tap();
+    await page.getByRole('button',{name:'마법사',exact:true}).tap();
+    await page.getByRole('button',{name:/^기본 덱\s*30장$/}).tap();
+    assert.equal(await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).isEnabled(),true);
+    await page.getByRole('button',{name:'기본 덱 복제 · 편집'}).tap();
+    await page.getByRole('button',{name:'내 덱',exact:true}).tap();
+    assert.equal(await page.getByPlaceholder('저장할 덱 이름').inputValue(),'');
+    await page.getByPlaceholder('저장할 덱 이름').fill('기본 덱 복제본');
+    await page.getByRole('button',{name:'덱 저장',exact:true}).tap();
+    await page.waitForFunction(()=>localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks')?.includes('기본 덱 복제본'));
+    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('card-duel-ui-preview-slot-1:card-duel-saved-decks')));
+    assert.deepEqual(saved.find(entry=>entry.name===prior.name),prior);
+    assert.deepEqual(saved.find(entry=>entry.name==='기본 덱 복제본').deck,original);
+  }finally{await context.close();}
 });
