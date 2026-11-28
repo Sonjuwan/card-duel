@@ -1,3 +1,9 @@
+## 2026-11-28 — RUNEHALL v0.339.0
+
+- Increased hall and arena contrast while preserving the original artwork and layouts. Large deck and catalog pages fit larger typography within the original card geometry.
+- Nine shared class textures distinguish class cards. Neutral cards retain a smooth frame, name and rarity gem.
+- A metal shield silhouette marks taunt. Distinct marks show active statuses, and legal taunt targets highlight during attack selection.
+
 ## 2026-11-28 — RUNEHALL v0.338.0
 
 - Daily quest slots recharge at midnight in the time zone recorded with each save. A new slot begins with one quest. Empty slots catch up by day, and a full board does not bank new quests. Active legacy goals keep their progress and are repriced to 300, 600 or 900 XP. Paid receipts retain their original amounts.

@@ -92,7 +92,7 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
     const style=getComputedStyle(el);
     return [style.color,style.backgroundColor,style.borderTopColor];
   });
-  assert.deepEqual((await colors(page.locator('.preview-deck-empty').first())).slice(1),['rgb(32, 31, 43)','rgb(85, 70, 63)']);
+  assert.deepEqual((await colors(page.locator('.preview-deck-empty').first())).slice(1),['rgb(53, 64, 78)','rgb(139, 121, 95)']);
   const singleTile=await tile.boundingBox();
   assert.equal(await page.getByRole('button',{name:entries[0].name}).count(),0,'slot 1 mage deck never leaks into slot 2');
   await page.getByRole('button',{name:entries[1].name}).click();

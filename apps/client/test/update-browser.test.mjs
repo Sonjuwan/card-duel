@@ -97,7 +97,7 @@ test('installed game verifies and explicitly applies an update without reinstall
     delete historic.profile.career;
     if(historic.profile.quests?.active.basic){
       historic.profile.quests.active.basic.progress=4;
-      historic.profile.quests.active.basic.xp=30;
+      if(!historic.profile.quests.calendar)historic.profile.quests.active.basic.xp=30;
     }
     historic.settledMatchIds=['legacy-verified'];
     await first.evaluate(async legacy=>{
