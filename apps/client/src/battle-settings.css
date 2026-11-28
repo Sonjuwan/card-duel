@@ -80,3 +80,9 @@
   .battle-settings-dialog .audio-mixer input{height:13px}
   .battle-settings-management{margin-top:4px}
 }
+
+.battle-settings-display{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;
+  margin-top:clamp(6px,1.4dvh,14px);
+}
+.battle-settings-display>small{flex:1 1 18em;color:#fff0c8;line-height:1.25}

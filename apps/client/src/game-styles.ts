@@ -24,3 +24,4 @@ import './runehall-combat.css';
 import './runehall-book-type.css';
 import './runehall-minion-status.css';
 import './runehall-action-glow.css';
+import './runehall-mobile-battle.css';

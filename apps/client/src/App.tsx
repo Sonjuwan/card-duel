@@ -442,6 +442,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   },[standalone]);
 
   const [landscapeMenu,setLandscapeMenu]=useState<HTMLElement|null>(null);
+  const [battleLandscapeMenu,setBattleLandscapeMenu]=useState<HTMLElement|null>(null);
   const screenScrollRef=useRef<HTMLDivElement|null>(null);
   useLayoutEffect(()=>{
     if(!standalone)return;
@@ -681,7 +682,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const playerHero=room?.state?.self.heroClass;
   const portraitMastery=activeProfile&&playerHero&&!room?.developerTest&&!room?.developerFree
     ?masteryTier(careerOf(activeProfile).heroes[playerHero]?.xp??0):0;
-  return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><img src={runehallMark} alt=""/></span><div><h1>RUNEHALL</h1></div></div><div className="connection"><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
+  return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><img src={runehallMark} alt=""/></span><div><h1>RUNEHALL</h1></div></div><div className="connection"><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu} battleMenu={battleLandscapeMenu}/>
     <div className="screen-content" id="card-duel-screen" ref={screenScrollRef}>
     {!room&&<div className="lobby-settings-entry"><LobbyDialog label="설정" icon="⚙"><AudioMixer/>{standalone&&<OfflineStatus/>}<small>RUNEHALL v{project.version}</small></LobbyDialog></div>}
     {toast&&!error&&!room&&(!toast.homeOnly||lobbyView==='home')&&<ToastNotice key={toast.text} kind={toast.kind}>{toast.text}</ToastNotice>}
@@ -689,7 +690,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}
     {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onClose={closeRewardReveal}/>}
-    {room?<Battle compactUi={lossOnExit} mastery={portraitMastery} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
+    {room?<Battle fullscreenMenu={setBattleLandscapeMenu} compactUi={lossOnExit} mastery={portraitMastery} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<RunehallHome profile={offlineProfile} slot={slot} developer={offlineMode==='developer'}
         fullscreenMenu={setLandscapeMenu} update={gameUpdateMenu} onOpen={view=>{
           if(view==='play'){setEnterDeckEditor(false);openLobbyView('decks',true);}

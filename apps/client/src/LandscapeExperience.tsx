@@ -4,7 +4,7 @@ import {isInstalledGameDisplay,requestLandscapeFeatures} from './landscape-mode.
 
 /** The browser may refuse fullscreen or orientation lock. Neither is needed to
  * play: the same layout is available by turning the device physically. */
-export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
+export function LandscapeExperience({menu,battleMenu}: {menu?:HTMLElement|null;battleMenu?:HTMLElement|null} = {}){
   const [desktop,setDesktop]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(pointer: fine)').matches);
   const [fullscreen,setFullscreen]=useState(false);
   const [notice,setNotice]=useState('');
@@ -77,7 +77,13 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
   return <>
     {menu&&createPortal(<button type="button" className="landscape-menu-button"
       onClick={()=>void requestLandscape()} disabled={busy}><span aria-hidden="true">⛶</span> <span>{desktop?(fullscreen?'전체화면 종료':'전체화면'):'가로 전체화면'}</span></button>,menu)}
-    {notice&&<div className="landscape-fullscreen-feedback" role="status">
+    {battleMenu&&createPortal(<>
+      <button type="button" className="secondary" disabled={busy} onClick={()=>void requestLandscape()}>
+        <span aria-hidden="true">⛶</span> {desktop?(fullscreen?'전체화면 종료':'전체화면'):'가로 전체화면'}
+      </button>
+      {notice&&<small role="status">{notice}</small>}
+    </>,battleMenu)}
+    {notice&&!battleMenu&&<div className="landscape-fullscreen-feedback" role="status">
       <span>{notice}</span><button type="button" className="secondary" aria-label="전체화면 안내 닫기" onClick={()=>setNotice('')}>닫기</button>
     </div>}
     <aside className="rotate-device-message" role="dialog" aria-modal="true" aria-label="가로 화면 안내"

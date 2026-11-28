@@ -1,0 +1,50 @@
+@media (orientation:landscape) and (max-height:540px){
+  .game-main .duel-screen.preview-compact .battle-arena.classic-table{
+    --rh-impact-size:clamp(27px,8dvh,38px);
+    --rh-mobile-edge:max(4px,env(safe-area-inset-right));
+    --rh-mobile-left:max(5px,env(safe-area-inset-left));
+    --rh-mobile-gutter:max(58px,9dvw,calc(env(safe-area-inset-left) + 55px),calc(env(safe-area-inset-right) + 55px));
+    border-width:1px;border-radius:10px;
+    box-shadow:inset 0 0 0 1px #a6afac51;
+    background-size:cover,auto max(103%,50.5dvw);
+  }
+  .game-main .duel-screen.preview-compact .battle-arena.classic-table::before{display:none}
+  .game-main .duel-screen.preview-compact .arena-field>.arena-board{
+    padding-inline:var(--rh-mobile-gutter)!important;
+  }
+  .game-main .duel-screen.preview-compact .arena-field>.arena-board:not(.drop-ready){
+    border-color:transparent;
+    box-shadow:none;
+  }
+  .game-main .duel-screen.preview-compact .arena-field>.battle-divider{
+    height:8px!important;min-height:0!important;inset:50% 0 auto!important;
+    background:linear-gradient(transparent calc(50% - .5px),#cdb999a1 calc(50% - .5px) calc(50% + .5px),transparent calc(50% + .5px));opacity:1;
+  }
+  .game-main .duel-screen.preview-compact .arena-field>.battle-divider>span{visibility:hidden}
+  .game-main .duel-screen.preview-compact .arena-field>.hidden-hand{
+    right:calc(var(--rh-mobile-edge) + 51px)!important;
+    max-width:none;
+  }
+  .game-main .duel-screen.preview-compact .arena-right>.turn-control{
+    right:var(--rh-mobile-edge)!important;
+  }
+  .game-main .duel-screen.preview-compact .battle-arena.classic-table>.arena-left{
+    inset:50% auto auto var(--rh-mobile-left)!important;translate:0 -50%;
+    width:var(--impact-width)!important;max-height:none;
+    --impact-size:var(--rh-impact-size);
+    --impact-width:calc(var(--impact-size) + 12px);
+  }
+  .game-main .duel-screen.preview-compact .arena-left .impact-rail-shell{
+    --impact-size:inherit;--impact-count:3;
+  }
+  .game-main .duel-screen.preview-compact .hero-zone .battle-dialogue-captions{
+    display:flex;flex-direction:column;justify-content:safe end;
+    left:var(--rh-mobile-left);width:min(23dvw,148px);overflow:hidden;
+  }
+  .game-main .duel-screen.preview-compact .enemy-hero-zone .battle-dialogue-captions{
+    top:47px;max-height:calc(50dvh - 1.5 * var(--rh-impact-size) - 55px);
+  }
+  .game-main .duel-screen.preview-compact .self-hero-zone .battle-dialogue-captions{
+    bottom:3px;max-height:calc(50dvh - 1.5 * var(--rh-impact-size) - 10px);
+  }
+}

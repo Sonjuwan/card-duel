@@ -6,7 +6,7 @@ const css=readFileSync(new URL('../apps/client/src/landscape-shell.css',import.m
 test('browser fullscreen denial announces PWA alternative even when already in landscape',()=>{
   assert.match(ui,/const isLandscape=window\.matchMedia\('\(orientation: landscape\)'\)\.matches/);
   assert.match(ui,/if\(!outcome\.fullscreen&&isLandscape\)setNotice\('이 브라우저에서는 전체화면이 제한되어 있어요\./);
-  assert.match(ui,/notice&&<div className="landscape-fullscreen-feedback" role="status"/);
+  assert.match(ui,/notice&&!battleMenu&&<div className="landscape-fullscreen-feedback" role="status"/);
   assert.match(ui,/aria-label="전체화면 안내 닫기" onClick=\{\(\)=>setNotice\(''\)\}/);
 });
 test('fullscreen denial feedback is landscape-only, notch-safe, bounded and dismissible',()=>{

@@ -39,7 +39,7 @@ import {secondsUntilDeadline,watchDeadlineSeconds} from './battle-clock.ts';
 import {TurnCountdown} from './battle-countdown.tsx';
 
 
-type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;intentEpoch?:number;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;compactUi?:boolean;mastery?:number};
+type BattleProps={room:RoomView;send:(action:Action)=>void;leave:()=>void;connected:boolean;busy:boolean;intentEpoch?:number;onRematch?:()=>void;onPause?:()=>void;onRetrySave?:()=>void;autoSaved?:boolean;saveRetryable?:boolean;savePending?:boolean;compactUi?:boolean;mastery?:number;fullscreenMenu?:(node:HTMLDivElement|null)=>void};
 export function Battle(props:BattleProps){
   const attackTimes=useRef(new WeakMap<BattleIntent,number>());
   const attackCredit=useRef<{revision:number;actor:number;wait:number}|null>(null);
@@ -107,7 +107,7 @@ export function Battle(props:BattleProps){
     <BattleView {...props} send={submit} room={playback.room} busy={props.busy||playback.playing||pending>0} inputBlocked={inputBlocked} pending={pending} reservations={reservations} projected={projected} acceptedRoom={props.room} deadline={props.room.turnDeadlineMs} intentNotice={intentNotice} cancelPending={cancelPending} cue={playback.cue} playing={playback.playing}/>
   </HoverPreviewProvider>;
 }
-function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,compactUi=false,mastery,connected,busy,inputBlocked,pending,reservations,projected,acceptedRoom,deadline,intentNotice,cancelPending,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean;inputBlocked:boolean;pending:number;reservations:BattleIntent[];projected?:PlayerView;acceptedRoom:RoomView;deadline?:number;intentNotice:string;cancelPending:()=>void}){
+function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,saveRetryable,savePending,compactUi=false,mastery,fullscreenMenu,connected,busy,inputBlocked,pending,reservations,projected,acceptedRoom,deadline,intentNotice,cancelPending,cue,playing}:BattleProps&{cue:PlaybackCue|null;playing:boolean;inputBlocked:boolean;pending:number;reservations:BattleIntent[];projected?:PlayerView;acceptedRoom:RoomView;deadline?:number;intentNotice:string;cancelPending:()=>void}){
   const classicNames=useContext(ClassicNamesContext);
   const [selected,setSelected]=useState<Selection|null>(null);
   const [captionMode,setCaptionMode]=useState(readCaptionMode);
@@ -663,6 +663,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
         <button type="button" className="settings-primary" autoFocus onClick={closeSettings}>게임 계속하기</button>
       </header>
       <DialogueSettings hero={s.self.heroClass} mode={captionMode} onMode={changeCaptionMode} disabled={playing}/>
+      {fullscreenMenu&&settingsOpen&&<div className="battle-settings-display" ref={fullscreenMenu}/>}
       <section className="battle-setting-group battle-settings-management" aria-label="게임 관리">
         <h3>게임 관리</h3>
         <div>
