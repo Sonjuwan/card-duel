@@ -1,0 +1,85 @@
+/* Environment art paints existing surfaces. Their layout and hit targets are
+   owned by the game screens, so the same art can be used at either density. */
+.preview-lobby,.game-main{
+  --rh-gallery-art:url('./assets/runehall-gallery.webp');
+  --rh-archive-art:url('./assets/runehall-archive.webp');
+  --rh-arena-art:url('./assets/runehall-arena.webp');
+  --rh-board-art:url('./assets/runehall-board.webp');
+}
+@media(orientation:landscape) and (max-height:540px){
+  .preview-lobby,.game-main{
+    --rh-gallery-art:url('./assets/runehall-gallery-small.webp');
+    --rh-archive-art:url('./assets/runehall-archive-small.webp');
+    --rh-arena-art:url('./assets/runehall-arena-small.webp');
+  }
+}
+
+.preview-lobby:not(:has(.runehall-home)):has(.preview-deck-select,.preview-hero-choice,.rh-class-growth,.rank-dashboard,.preview-slot-only){
+  background:linear-gradient(#14192378,#121522bd),var(--rh-gallery-art) center/cover,#171a24;
+}
+.preview-lobby:not(:has(.runehall-home)):has(.collection-workspace){
+  background:linear-gradient(#17192590,#131722bd),var(--rh-archive-art) center/cover,#171a24;
+}
+.preview-lobby:not(:has(.runehall-home)):has(.preview-quests,.preview-developer){
+  background:linear-gradient(#15192694,#151926a8),var(--rh-board-art) center/cover,#171a24;
+}
+.preview-lobby:not(:has(.runehall-home)):has(.reward-road){
+  background:linear-gradient(#151a257a,#121622ba),var(--rh-gallery-art) center/cover,#171a24;
+}
+
+.preview-lobby .preview-deck-pages .preview-deck-tile,
+.preview-lobby .preview-hero-choice .preview-hero-tile,
+.preview-lobby .rh-class-tile{
+  background-image:linear-gradient(146deg,color-mix(in srgb,var(--faction,#a77d50) 28%,#222533bb),#151824c9),var(--rh-board-art);
+  background-size:cover;
+  box-shadow:inset 0 1px #ecd2a63a,inset 0 -2px #0d111cd9;
+}
+.preview-lobby .preview-deck-pages .preview-deck-tile.chosen,
+.preview-lobby .preview-hero-choice .preview-hero-tile:is(.chosen,:focus-visible){
+  box-shadow:inset 0 0 0 2px #d9aa65,inset 0 0 20px #e4bf8240;
+}
+.preview-lobby .quest-tile,.preview-lobby .quest-empty{
+  background-image:linear-gradient(145deg,#272336b3,#171b28b5),var(--rh-board-art);
+  background-size:cover;
+  box-shadow:inset 0 1px #bb936745;
+}
+.preview-lobby .reward-road{
+  background:linear-gradient(180deg,#2423337d,#151925bb),var(--rh-gallery-art) center/cover;
+  box-shadow:inset 0 0 0 2px #24212a,inset 0 0 0 3px #957a594d;
+}
+.preview-lobby .collection-workspace .collection-spread .collection-book{
+  background-image:linear-gradient(180deg,#151b27a8,#211e26b5),var(--rh-archive-art);
+  background-size:cover;
+  background-position:center;
+}
+.preview-lobby .collection-workspace .collection-spread .collection-leaf,
+.preview-lobby .collection-workspace .deck-sidebar{
+  background-image:linear-gradient(135deg,#302a2adb,#282430de),var(--rh-board-art);
+  background-size:cover;
+}
+
+.game-main .duel-screen.preview-compact .battle-arena.classic-table,
+.game-main .duel-screen.preview-compact .classic-mulligan{
+  background:linear-gradient(#12182622,#12182622),var(--rh-arena-art) center/cover,#222933;
+}
+.game-main .duel-screen.preview-compact .battle-arena.classic-table>.table-decor{opacity:0}
+.game-main .duel-screen.preview-compact .classic-mulligan>.table-decor{opacity:.14}
+.game-main .duel-screen.preview-compact .arena-field .enemy-board:not(.drop-ready){
+  background:linear-gradient(#5f445259,#2a26354d);
+}
+.game-main .duel-screen.preview-compact .arena-field .friendly-board:not(.drop-ready){
+  background:linear-gradient(#3b53654d,#2a374459);
+}
+.game-main .battle-settings-dialog,.game-main .result-window,.game-main .choice-window,
+.lobby-main .lobby-dialog,.lobby-main .preview-card-reward-popup,.lobby-main .preview-slot-grid>button{
+  background-image:linear-gradient(155deg,#282b3bdc,#151722df),url('./assets/runehall-board.webp');
+  background-size:cover;
+  box-shadow:inset 0 1px #e2bd8b36;
+}
+.lobby-main .preview-slot-grid>button.chosen{
+  background-image:linear-gradient(150deg,#8d6139bd,#4b382bdd),url('./assets/runehall-board.webp');
+}
+#solo-game-update{
+  background-image:linear-gradient(155deg,#282b3bdd,#151722df),url('./assets/runehall-board.webp');
+  background-size:cover;
+}

@@ -10,7 +10,7 @@ const js=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 const css=html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
 test('standalone embeds the app, all registered illustrations and no external HTML resources',()=>{
   assert.ok(js&&css);
-  const backgrounds=['runehall-hall.webp','runehall-hall-small.webp'];
+  const backgrounds=['hall','hall-small','gallery','gallery-small','archive','archive-small','arena','arena-small','board'].map(name=>'runehall-'+name+'.webp');
   assert.equal((css.match(/data:image\/webp;base64,/g)??[]).length,458+backgrounds.length);
   for(const file of backgrounds){
     const content=readFileSync(new URL('../src/assets/'+file,import.meta.url)).toString('base64');

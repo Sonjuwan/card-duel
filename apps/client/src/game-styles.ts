@@ -19,3 +19,4 @@ import './card-materials.css';
 import './battle-settings.css';
 import './quests.css';
 import './runehall.css';
+import './runehall-graphics.css';
