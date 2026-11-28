@@ -1,4 +1,5 @@
 import type {AccountProfile} from './account-protocol.ts';
+import {validCareer,validLevelUps} from './career.ts';
 import {rewardPathId} from './reward-road.ts';
 
 const record=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
@@ -27,6 +28,7 @@ export function decodeAccountProfile(input:unknown,options:{revision?:number;leg
     if(!record(item)||!string(item.name)||item.name.trim()!==item.name||item.name.length>40||names.has(item.name)||!record(item.deck)||!string(item.deck.heroClass)||!ids(item.deck.cards))return invalid();
     names.add(item.name);
   }
+  if(p.career!==undefined&&!validCareer(p.career))return invalid();
   if(p.matchStats!==undefined){
     if(!record(p.matchStats))return invalid();
     for(const mode of ['ranked','pvp']){const stats=p.matchStats[mode];if(!record(stats)||!integer(stats.wins)||!integer(stats.losses)||!integer(stats.draws))return invalid();}
@@ -36,6 +38,7 @@ export function decodeAccountProfile(input:unknown,options:{revision?:number;leg
     const seen=new Set<string>();
     for(const m of p.recentMatches){
       if(!record(m)||!string(m.matchId)||seen.has(m.matchId)||(m.mode!=='ranked'&&m.mode!=='pvp')||(m.outcome!=='win'&&m.outcome!=='loss'&&m.outcome!=='draw')||!integer(m.rank,m.mode==='ranked'?1:0,m.mode==='ranked'?25:0)||!string(m.heroClass)||m.opponentClass!==undefined&&!string(m.opponentClass)||!integer(m.completedAt)||!integer(m.xp)||typeof m.questAdvanced!=='boolean'||typeof m.eligible!=='boolean'||m.turns!==undefined&&!integer(m.turns)||m.questCompleted!==undefined&&typeof m.questCompleted!=='boolean'||m.questBonusXp!==undefined&&!integer(m.questBonusXp)||m.unlockedCards!==undefined&&!ids(m.unlockedCards)||m.rankAfter!==undefined&&!integer(m.rankAfter,1,25))return invalid();
+      if(m.levelUps!==undefined&&(!m.eligible||!validLevelUps(m.levelUps)))return invalid();
       if(m.matchXp!==undefined&&(!integer(m.matchXp)||Number(m.matchXp)+Number(m.questBonusXp??0)!==m.xp))return invalid();
       if(m.completedQuests!==undefined){
         if(!Array.isArray(m.completedQuests)||m.completedQuests.length>3)return invalid();

@@ -1,0 +1,37 @@
+.lobby-main,.game-main{
+  --rh-ink:#fff0d8;
+  --rh-muted:#c6c1c3;
+  --rh-edge:#806544;
+  --rh-panel:linear-gradient(152deg,#262735,#171924 65%,#22202a);
+  --rh-metal:linear-gradient(180deg,#3a3740,#262632 52%,#20212d);
+  --rh-gold:linear-gradient(180deg,#a5753b,#654627 56%,#442b21);
+  --rh-danger:linear-gradient(180deg,#553039,#301e28);
+  --rh-rule:#5d5148;
+}
+.mastery-ring{position:absolute;z-index:2;inset:1px;border-radius:inherit;pointer-events:none;border:2px solid var(--master-metal);box-shadow:inset 0 0 0 1px #221727}
+[data-mastery="1"]{--master-metal:#cc965c}
+[data-mastery="2"]{--master-metal:#c9d9ed}
+[data-mastery="3"]{--master-metal:#ffd279}
+[data-mastery="4"]{--master-metal:#9ef0ed}
+[data-mastery="3"]>.mastery-ring::before,[data-mastery="4"]>.mastery-ring::before{
+  content:"";position:absolute;width:25%;height:15%;left:37.5%;top:0;background:var(--master-metal);
+  clip-path:polygon(0 20%,28% 55%,50% 0,72% 55%,100% 20%,86% 100%,14% 100%);
+}
+[data-mastery="4"]>.mastery-ring{box-shadow:inset 0 0 0 1px #263854,inset 0 0 8px #42b7cd78}
+.promotion-crest{position:relative;isolation:isolate;--rh-spark:#f7cc8a}
+.promotion-crest[data-tier="1"]{--rh-spark:#d1e4f8}
+.promotion-crest[data-tier="3"]{--rh-spark:#93f2dd}
+.promotion-crest[data-tier="4"]{--rh-spark:#9cd9ff}
+.promotion-sparks{
+  position:absolute;z-index:-1;inset:-14%;pointer-events:none;
+  background:radial-gradient(circle at 20% 44%,var(--rh-spark) 0 2px,transparent 3px),
+    radial-gradient(circle at 80% 48%,var(--rh-spark) 0 2px,transparent 3px),
+    radial-gradient(circle at 49% 14%,var(--rh-spark) 0 2px,transparent 3px),
+    radial-gradient(ellipse at center,color-mix(in srgb,var(--rh-spark) 38%,transparent),transparent 66%);
+  animation:runehall-ascend .66s ease-out both;
+}
+.promotion-crest[data-tier-up="false"] .promotion-sparks{inset:-4%;opacity:.6}
+@keyframes runehall-ascend{from{transform:scale(.6);opacity:0}45%{opacity:.85}to{transform:scale(1.25);opacity:.34}}
+.result-levels{display:flex;flex-wrap:wrap;justify-content:center;gap:5px}
+.result-levels span{padding:2px 7px;border:1px solid var(--rh-edge);border-radius:3px;color:var(--rh-ink);background:var(--rh-metal)}
+@media (prefers-reduced-motion:reduce){.promotion-sparks{animation:none}}

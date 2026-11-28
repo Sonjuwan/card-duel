@@ -1,3 +1,4 @@
+import {advanceCareer,careerOf,levelUpsFor} from './career.ts';
 import type {CompletedQuest} from './quest-types.ts';
 import {HERO_CLASSES,practiceDeck,strategicDeck,validateDeck,deckCards,maxCardCopies} from './engine/src/index.ts';
 import type {Catalog,Deck,HeroClass} from './engine/src/index.ts';
@@ -5,7 +6,7 @@ import {activeRewardPath,creditRewardPath,rewardPaths,syncRewardRoad} from './re
 import {buildRewardPaths,DEFAULT_REWARD_PATHS} from './reward-path-config.ts';
 import type {RewardPathDefinition} from './reward-path-config.ts';
 import type {Card} from './engine/src/index.ts';
-import type {AccountProfile,CardUnlock,GrowthView,MatchAward,RankInfo} from './account-protocol.ts';
+import type {AccountProfile,CardUnlock,GrowthView,MatchAward,MatchHistoryEntry,RankInfo} from './account-protocol.ts';
 
 export const QUEST_LENGTH=10;
 export const WINS_PER_RANK=3;
@@ -120,8 +121,15 @@ export function awardMatch(profile:AccountProfile,growth:GrowthView,match:MatchA
   const finish=(next:AccountProfile,questBonusXp=0)=>{const before=new Set(current.ownedCards),questAdvanced=quests?.advanced??(next.questGames>current.questGames);
     const {path}=activeRewardPath(current,growth),after=new Set(next.ownedCards);
     const unlockedCards=path.unlocks.map(card=>card.cardId).filter(id=>after.has(id)&&!before.has(id));
-    const recent=[{matchId:match.matchId,mode,rank:match.rank,heroClass:match.heroClass,opponentClass:match.opponentClass,outcome:match.outcome,completedAt:match.completedAt??Date.now(),turns:match.turns,xp:next.xp-current.xp,questAdvanced,questCompleted:quests?quests.completed.length>0:questAdvanced&&next.questGames%growth.questLength===0,questBonusXp,
-      ...(quests?{matchXp:next.xp-current.xp-questBonusXp,completedQuests:quests.completed}:{}),unlockedCards,rankAfter:next.rank,eligible:match.eligible},...(current.recentMatches??[])].sort((a,b)=>b.completedAt-a.completedAt).slice(0,30);return {...next,recentMatches:recent,matchStats:stats};};
+    const receipt:MatchHistoryEntry={matchId:match.matchId,mode,rank:match.rank,heroClass:match.heroClass,opponentClass:match.opponentClass,outcome:match.outcome,completedAt:match.completedAt??Date.now(),turns:match.turns,xp:next.xp-current.xp,questAdvanced,questCompleted:quests?quests.completed.length>0:questAdvanced&&next.questGames%growth.questLength===0,questBonusXp,
+      ...(quests?{matchXp:next.xp-current.xp-questBonusXp,completedQuests:quests.completed}:{}),unlockedCards,rankAfter:next.rank,eligible:match.eligible};
+    if(receipt.eligible){
+      next={...next,career:advanceCareer(careerOf(current),receipt)};
+      receipt.levelUps=levelUpsFor(current,next,receipt.heroClass);
+    }
+    const recent=[receipt,...(current.recentMatches??[])].sort((a,b)=>b.completedAt-a.completedAt).slice(0,30);
+    return {...next,recentMatches:recent,matchStats:stats};
+  };
   if(!match.eligible||mode==='pvp')return finish(current);
   const rank=Math.max(1,Math.min(25,match.rank));
   let xp=current.xp+rankedXpReward(rank,match.outcome);

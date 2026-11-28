@@ -1,3 +1,4 @@
+import {careerOf} from '../../../packages/career.ts';
 import {advanceQuests,fillQuests,initialQuests,validQuestProgress,validQuestCounters} from '../../../packages/quests.ts';
 import type {QuestCounters} from '../../../packages/quest-types.ts';
 import type {AccountProfile,GrowthView,MatchAward} from '../../../packages/account-protocol.ts';
@@ -24,10 +25,10 @@ export function offlineGrowth(catalog:Catalog){
 function syncOfflineQuests(profile:AccountProfile,growth:GrowthView):AccountProfile{
   const catalog=questCatalogs.get(growth);
   if(profile.quests!==undefined&&!validQuestProgress(profile.quests))throw Error('퀘스트 저장 기록이 손상되었습니다.');
-  if(!catalog)return profile;
+  if(!catalog)return {...profile,career:careerOf(profile)};
   const quests=fillQuests(profile.quests??initialQuests(profile.questGames,growth.questLength),catalog,profile.ownedCards,
     profile.quests?0:profile.questGames%growth.questLength);
-  return {...profile,quests};
+  return {...profile,quests,career:careerOf(profile)};
 }
 
 /** Presentation only. Promotion itself still happens exclusively in awardMatch

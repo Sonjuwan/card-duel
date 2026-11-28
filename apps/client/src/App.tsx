@@ -1,3 +1,4 @@
+import {careerOf,masteryTier} from '../../../packages/career.ts';
 import type {RankedRewardSummary} from '../../../packages/account-protocol.ts';
 import {collectionBotDeck} from '../../../packages/collection-bot-deck.ts';
 import {syncOwned} from '../../../packages/progression.ts';
@@ -313,11 +314,10 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     try{if(storage.getItem(rewardAcknowledgedKey)===code)return;}catch{/* The card collection remains available. */}
     revealedMatches.current.add(code);
     const cards=reward.unlockedCards?.filter(id=>!!catalog[id])??[];
-    if(cards.length){
-      activeRewardReveal.current=code;
-      setRewardPopup(cards);
-    }
-    if(reward.rankAfter&&reward.rankAfter>rank)setPromotion({before:rank,after:reward.rankAfter});
+    const promoted=reward.rankAfter!==undefined&&reward.rankAfter>rank;
+    if(cards.length||promoted)activeRewardReveal.current=code;
+    if(cards.length)setRewardPopup(cards);
+    if(promoted)setPromotion({before:rank,after:reward.rankAfter!});
   };
   const closeRewardReveal=()=>{
     if(activeRewardReveal.current){
@@ -379,7 +379,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     const close=()=>{if(timer!==undefined){clearTimeout(timer);timer=undefined;}if(probe){probe.onmessage=null;probe.onerror=null;probe.terminate();probe=undefined;}};
     const finish=(data?:Extract<LocalResponse,{type:'saveInfo'}>)=>{if(stopped)return;stopped=true;close();if(workerRef.current)return;setSaveAvailable(data?.available??false);setSavedMatch(old=>reconcileSaveProbe(old,data));if(standalone){if(data?.profile){
       setOfflineProfile(old=>!old||data.profile!.revision>=old.revision?data.profile:old);
-      const reward=data.save?.phase==='finished'?data.profile.recentMatches?.find(match=>match.matchId===data.save?.code&&match.completedQuests?.length&&match.unlockedCards?.length):undefined;
+      const reward=data.save?.phase==='finished'?data.profile.recentMatches?.find(match=>match.matchId===data.save?.code&&(match.levelUps!==undefined?(!!match.unlockedCards?.length||(match.rankAfter??0)>match.rank):!!match.completedQuests?.length&&!!match.unlockedCards?.length)):undefined;
       if(reward)queueRewardReveal(reward.matchId,reward.rank,reward);
     }setOldRankedPending(data?.otherActiveRanked);}};
     try{if(!workerFactory)throw Error('Missing worker factory');probe=workerFactory();probe.onmessage=({data}:MessageEvent<LocalResponse>)=>{if(data.type==='saveInfo')finish(data);else if(data.type==='error')finish();};probe.onerror=()=>finish();timer=setTimeout(()=>finish(),5000);probe.postMessage({type:'inspectSave',catalogHash,...(standalone?{catalog}:{}),} satisfies LocalRequest);}catch{finish();}
@@ -661,6 +661,10 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
   const battleSaveAvailable=room?.developerFree?freeSave?.available:saveAvailable;
   const gameUpdateMenu=standalone&&typeof document!=='undefined'&&document.querySelector('meta[name="card-duel-build"]')&&
     <button type="button" className="game-update-menu" onClick={()=>window.dispatchEvent(new Event('card-duel-update-open'))}>게임 업데이트</button>;
+  const activeProfile=standalone?offlineProfile:account?.profile;
+  const playerHero=room?.state?.self.heroClass;
+  const portraitMastery=activeProfile&&playerHero&&!room?.developerTest&&!room?.developerFree
+    ?masteryTier(careerOf(activeProfile).heroes[playerHero]?.xp??0):0;
   return <main className={room?'game-main':lossOnExit?'lobby-main preview-lobby':'lobby-main'} data-game-viewport="landscape"><header className="app-header"><div className="brand"><span className="brand-emblem"><Sigil kind="neutral"/></span><div><h1>RUNEHALL</h1></div></div><div className="connection"><span className={connected||onDevice||standalone?'good':'warn'}>{onDevice?'● 기기 AI 실행 중':standalone?'● 오프라인 솔로':connected?'● 서버 연결됨':'● 연결 대기'}</span>{!standalone&&!onDevice&&!connected&&!busy&&<button className="secondary" onClick={reconnect}>연결 재시도</button>}</div></header><LandscapeExperience menu={landscapeMenu}/>
     <div className="screen-content" id="card-duel-screen" ref={screenScrollRef}>
     {!room&&<div className="lobby-settings-entry"><LobbyDialog label="설정" icon="⚙"><AudioMixer/>{standalone&&<OfflineStatus/>}<small>RUNEHALL v{project.version}</small></LobbyDialog></div>}
@@ -669,7 +673,7 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     {updatePending&&<div className="account-maintenance" role="status">서버에 새 게임 버전이 준비되었습니다. 지금 기기 AI 대전은 유지되며 로비로 돌아가면 최신 버전이 적용됩니다. 카드 설정이 달라진 경우 이전 저장 경기의 이어하기는 제한될 수 있으니 현재 경기를 마치는 것을 권장합니다.</div>}
     {updateBlocked&&!updatePending&&<div className="account-maintenance" role="alert">최신 서버와 화면 버전이 일치하지 않습니다. 반복 새로고침을 막기 위해 자동 갱신을 중단했습니다. 계정 대전은 최신 화면으로 갱신한 뒤 이용하세요. <button type="button" className="secondary" disabled={!!workerRef.current} onClick={()=>window.location.reload()}>최신 화면 다시 불러오기</button></div>}
     {!room&&(rewardPopup.length>0||promotion)&&<RewardReveal cards={rewardPopup} rank={promotion} onClose={closeRewardReveal}/>}
-    {room?<Battle compactUi={lossOnExit} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
+    {room?<Battle compactUi={lossOnExit} mastery={portraitMastery} key={room.code} room={room} send={send} leave={leave} intentEpoch={intentEpoch} connected={connected||onDevice} busy={busy} onRematch={onDevice&&!updatePending&&!room.ranked&&!saveRetryable?rematch:undefined} onPause={onDevice&&(battleSaveAvailable||saveRetryable)?()=>{if(updatePending&&room.status==='playing'&&releaseRef.current.catalog!==catalogHash&&!window.confirm('새 카드 버전에서는 이 저장 경기를 복원하지 못할 수 있습니다. 그래도 저장하고 업데이트할까요?'))return;localCommand('pause');}:room.ranked&&!onDevice?pauseAccount:undefined} onRetrySave={onDevice&&saveRetryable?()=>localCommand('retrySave'):undefined} saveRetryable={onDevice&&saveRetryable} savePending={onDevice&&busy} autoSaved={onDevice?!!battleSaveAvailable:room.ranked||room.ownedPvp||room.developerTest?true:undefined}/>:<>
       {lobbyView==='home'?lossOnExit?<nav ref={setLandscapeMenu} className="lobby-tabs lobby-home" aria-label="게임 메뉴">
     <button type="button" data-lobby-tab="play" onClick={()=>{setEnterDeckEditor(false);openLobbyView('decks',true);}}><Sigil kind="warrior"/>대전</button>
     <button type="button" data-lobby-tab="catalog" onClick={()=>openLobbyView('catalog',true)}><Sigil kind="deck"/>카드 도감</button>

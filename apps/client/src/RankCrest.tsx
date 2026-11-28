@@ -3,24 +3,33 @@ import type {RankInfo} from '../../../packages/account-protocol.ts';
 
 const roman=['','I','II','III','IV','V'];
 const crests=[
-  {shape:'M28 25 60 14 92 25V60Q88 85 60 102 32 85 28 60Z',light:'#efa46d',dark:'#703d2c'},
-  {shape:'M18 42 38 20 60 10 82 20 102 42 94 75 60 104 26 75Z',light:'#e1e6f6',dark:'#435777'},
-  {shape:'M20 32 39 18 60 25 81 18 100 32 92 75 60 101 28 75Z',light:'#fff1a5',dark:'#976026'},
-  {shape:'M60 7 95 29 108 60 90 88 60 105 30 88 12 60 25 29Z',light:'#bcffed',dark:'#23576a'},
-  {shape:'M60 6 91 22 105 49 95 80 60 106 25 80 15 49 29 22Z',light:'#cfeaff',dark:'#22316a'},
+  {shape:'M28 30 60 18 92 30V60Q88 85 60 103 32 85 28 60Z',light:'#efba86',dark:'#633a2c',gem:'#ee945d'},
+  {shape:'M25 33 38 19 60 11 82 19 95 33 89 74 60 102 31 74Z',light:'#e0ecf7',dark:'#475975',gem:'#bfedff'},
+  {shape:'M25 31 60 19 95 31 89 73 78 88 60 103 42 88 31 73Z',light:'#ffe5a0',dark:'#805220',gem:'#ffc956'},
+  {shape:'M60 8 92 25 105 57 91 83 60 104 29 83 15 57 28 25Z',light:'#dbfff4',dark:'#2a586b',gem:'#6ae8db'},
+  {shape:'M60 7 93 24 105 50 97 78 60 105 23 78 15 50 27 24Z',light:'#e0efff',dark:'#383369',gem:'#8bddff'},
 ];
+const wings='M38 46 6 25l12 22-11-5 13 19-8-2 19 19 16 4M82 46l32-21-12 22 11-5-13 19 8-2-19 19-16 4';
+const crown='m36 36-5-23 16 8 13-16 13 16 16-8-5 23-24 8Z';
+const jewelPositions=[[60,87],[43,81],[77,81],[37,73],[83,73]];
 export function rankTitle(rank:RankInfo){return rank.league+' '+roman[rank.division];}
+
 export function RankCrest({rank}:{rank:RankInfo}){
-  const id=useId();
-  const level=Math.min(4,Math.max(0,Math.floor((rank.rank-1)/5)));
-  const {shape,light,dark}=crests[level];
-  return <svg className="rank-crest" viewBox="0 0 120 112" role="img" aria-label={rankTitle(rank)}>
-    <defs><linearGradient id={id} x2=".72" y2="1"><stop stopColor={light}/><stop offset="1" stopColor={dark}/></linearGradient></defs>
-    {level>=2&&<path d="M13 17 28 30 24 22 46 42H74l22-20-4 8 15-13-4 36-18 17H35L17 53Z" fill={dark} stroke={light} strokeWidth="2"/>}
-    <path d={shape} fill={`url(#${id})`} stroke={light} strokeWidth="3"/>
-    <path d={shape} transform="translate(8 8) scale(.866)" fill={dark} fillOpacity=".8" stroke={light} strokeOpacity=".72"/>
-    {level>=3&&<path d="M60 16 71 31 60 42 49 31Z M60 83 68 92 60 103 52 92Z" fill={light} stroke={dark}/>}
-    {level===4&&<path d="M25 49 32 54 25 62 19 54Z M95 49 102 54 95 62 89 54Z" fill="#8bd8ff" stroke={light}/>}
-    <text x="60" y="70" textAnchor="middle" fill="#fff8df" fontFamily="Georgia, serif" fontSize="26" fontWeight="bold">{roman[rank.division]}</text>
+  const id=useId(),tier=Math.min(4,Math.max(0,Math.floor((rank.rank-1)/5)));
+  const {shape,light,dark,gem}=crests[tier],division=rank.division;
+  return <svg className="rank-crest" data-tier={tier} data-division={division} viewBox="0 0 120 112" role="img" aria-label={rankTitle(rank)}>
+    <defs>
+      <linearGradient id={id} x2=".72" y2="1"><stop stopColor={light}/><stop offset=".48" stopColor={dark}/><stop offset=".7" stopColor={light}/><stop offset="1" stopColor={dark}/></linearGradient>
+      <radialGradient id={id+'-stone'}><stop stopColor={gem}/><stop offset=".72" stopColor={dark}/><stop offset="1" stopColor="#16192a"/></radialGradient>
+    </defs>
+    {(tier===1||tier===4)&&<path d={wings} fill={`url(#${id})`} stroke={light} strokeLinejoin="round"/>}
+    <path d={shape} fill={`url(#${id})`} stroke={light} strokeWidth="2.5"/>
+    <path d={shape} transform="translate(8.4 7.84) scale(.86)" fill="#141724" stroke={dark} strokeWidth="2"/>
+    {tier===2||tier===4?<path d={crown} fill={`url(#${id})`} stroke={light} strokeWidth="1.8" strokeLinejoin="round"/>:null}
+    {tier>=3&&<path d="M60 26 88 42 92 68 60 92 28 68 32 42Z" fill={`url(#${id}-stone)`} stroke={gem} strokeWidth={1+tier*.27}/>}
+    {tier===4&&<path d="M60 26 46 47 41 67 60 92 79 67 74 47Z M32 42 46 47H74l14-5 M28 68l13-1h38l13 1" fill="none" stroke={light} opacity={division===1?.8:.55}/>}
+    {tier<3&&<path d="m60 32 7 8-7 8-7-8Z" fill={gem} stroke={light}/>}
+    {jewelPositions.slice(0,6-division).map(([x,y])=><path key={x} data-rank-jewel d={`m${x} ${y-3.5} 3.5 3.5-3.5 3.5-3.5-3.5Z`} fill={gem} stroke={light} strokeWidth=".75"/>)}
+    <text x="60" y="72" textAnchor="middle" fill="#fff8e9" stroke="#141724" strokeWidth="2.4" paintOrder="stroke" fontFamily="Georgia, serif" fontSize="34" fontWeight="bold">{division}</text>
   </svg>;
 }

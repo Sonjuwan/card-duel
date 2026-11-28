@@ -1,0 +1,5 @@
+{
+  "account": {"base": 100, "step": 45},
+  "hero": {"base": 60, "step": 25},
+  "mastery": [1, 10, 25, 50, 100]
+}

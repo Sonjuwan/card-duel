@@ -130,7 +130,7 @@ export function RewardReveal({cards,rank,onClose}:{cards:string[];rank?:{before:
       {card&&<div className="preview-reward-popup-card" onAnimationEnd={event=>{if(event.target===event.currentTarget)setReadyIndex(index);}}>
         <BattleCard card={card} enabled displayOnly/>
       </div>}
-      {promote&&after&&before&&<div className="promotion-crest" data-tier-up={before.league!==after.league}><span className="promotion-previous" aria-hidden="true"><RankCrest rank={before}/></span><span className="promotion-current"><RankCrest rank={after}/></span></div>}
+      {promote&&after&&before&&<div className="promotion-crest" data-tier-up={before.league!==after.league} data-tier={Math.floor((after.rank-1)/5)}><span className="promotion-sparks" aria-hidden="true"/><span className="promotion-previous" aria-hidden="true"><RankCrest rank={before}/></span><span className="promotion-current"><RankCrest rank={after}/></span></div>}
       <p className="reward-reveal-prompt" aria-live="polite">{ready?'화면을 눌러 계속':''}</p>
     </section>
   </div>;
