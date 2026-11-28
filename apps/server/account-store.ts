@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, chmodSync, existsSync, closeSync, openSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AccountDeck, AccountProfile, AccountRole, AccountView, AccountRegistrationPending, GrowthView, MatchAward } from '../../packages/account-protocol.ts';
+import {selectRewardPath} from '../../packages/reward-road.ts';
 import {awardMatch,syncOwned} from '../../packages/progression.ts';
 import type {AccountRoomSnapshot} from './rooms.ts';
 import {decodeAccountProfile} from '../../packages/account-profile.ts';
@@ -42,6 +43,7 @@ export interface AccountBackend {
   requestPasswordRecovery?(email:string):Promise<void>;
   completePasswordRecovery?(email:string,code:string,newPassword:string,onSessionsRevoked?:(id:string)=>void):Promise<string>;
   updateDecks(id:string,revision:number,decks:AccountDeck[]):Promise<AccountView>;
+  updateRewardPath?(id:string,pathId:string,growth:GrowthView):Promise<AccountView>;
   recordMatch(id:string,match:MatchAward,growth:GrowthView):Promise<AccountView>;
   loadRoomSnapshots():Promise<AccountRoomSnapshot[]>;
   saveRoomSnapshot(snapshot:AccountRoomSnapshot):Promise<void>;
@@ -141,6 +143,13 @@ export class LocalAccountStore implements AccountBackend {
     const result=this.db.prepare('UPDATE accounts SET profile=?,revision=revision+1 WHERE id=? AND revision=?').run(JSON.stringify(next),id,revision);
     if(!result.changes)throw new AccountError(409,'다른 기기에서 변경했습니다. 다시 불러와 주세요.');
     return this.get(id);
+  }
+  async updateRewardPath(id:string,pathId:string,growth:GrowthView){
+    const current=this.get(id),next=selectRewardPath(current.profile,growth,pathId),revision=current.profile.revision;
+    if(JSON.stringify(current.profile)===JSON.stringify(next))return current;
+    const changed=this.db.prepare('UPDATE accounts SET profile=?,revision=revision+1 WHERE id=? AND revision=?').run(JSON.stringify(next),id,revision);
+    if(changed.changes!==1)throw new AccountError(409,'다른 기기에서 변경했습니다. 다시 시도하세요.');
+    return {...current,profile:{...next,revision:revision+1}};
   }
   async recordMatch(id:string,match:MatchAward,growth:GrowthView){
     this.db.exec('BEGIN IMMEDIATE');

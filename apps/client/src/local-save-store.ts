@@ -4,16 +4,17 @@ import type {AccountProfile,GrowthView,MatchAward} from '../../../packages/accou
 import {readOfflineGrowth,settleOfflineRanked,canRestoreGrowth,decodeGrowthBackup} from './offline-growth.ts';
 import type {OfflineGrowthRecord} from './offline-growth.ts';
 import {soloSlotDatabase} from './solo-slots.ts';
+import {selectRewardPath} from '../../../packages/reward-road.ts';
 import type {SoloSlot,SoloNamespace} from './solo-slots.ts';
 export type SaveVersion=Pick<LocalSaveSummary,'code'|'revision'|'savedAt'>;
 export type RankedWrite={growth:GrowthView;award?:MatchAward};
-export interface LocalSaveStore{read(hash:string):Promise<LocalDuelCheckpoint|null>;write(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected?:SaveVersion|null,ranked?:RankedWrite):Promise<boolean>;writeRanked?(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected:SaveVersion|null|undefined,ranked:RankedWrite):Promise<AccountProfile|null>;remove(hash:string,owner?:string,expected?:SaveVersion):Promise<boolean>;readGrowth?(growth:GrowthView):Promise<OfflineGrowthRecord>;restoreGrowth?(raw:unknown,growth:GrowthView):Promise<OfflineGrowthRecord>;inspectSlot?(hash:string,growth:GrowthView):Promise<LocalSlotOverview>}
+export interface LocalSaveStore{read(hash:string):Promise<LocalDuelCheckpoint|null>;write(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected?:SaveVersion|null,ranked?:RankedWrite):Promise<boolean>;writeRanked?(snapshot:LocalDuelCheckpoint,owner:string,claim:boolean,expected:SaveVersion|null|undefined,ranked:RankedWrite):Promise<AccountProfile|null>;remove(hash:string,owner?:string,expected?:SaveVersion):Promise<boolean>;readGrowth?(growth:GrowthView,selectedPathId?:string):Promise<OfflineGrowthRecord>;restoreGrowth?(raw:unknown,growth:GrowthView):Promise<OfflineGrowthRecord>;inspectSlot?(hash:string,growth:GrowthView):Promise<LocalSlotOverview>}
 export type Entry={hash:string;owner:string;snapshot:LocalDuelCheckpoint};
 const storeName='matches',growthStoreName='growth',growthKey='player';
 // Called only after readOfflineGrowth has validated the stored profile.
-function ownedCardsChanged(raw:OfflineGrowthRecord|undefined,next:OfflineGrowthRecord){
+function rewardRoadChanged(raw:OfflineGrowthRecord|undefined,next:OfflineGrowthRecord){
   const before=raw?.profile.ownedCards,after=next.profile.ownedCards;
-  return !before||before.length!==after.length||before.some((id,i)=>id!==after[i]);
+  return JSON.stringify(raw?.profile.rewardRoad)!==JSON.stringify(next.profile.rewardRoad)||!before||before.length!==after.length||before.some((id,i)=>id!==after[i]);
 }
 function sameVersion(current:Entry|undefined,expected:SaveVersion){const actual=current?.snapshot?.summary;return !!actual&&actual.code===expected.code&&actual.revision===expected.revision&&actual.savedAt===expected.savedAt;}
 export function saveWriteAllowed(current:Entry|undefined,owner:string,claim:boolean,expected?:SaveVersion|null){return claim?(expected===null?!current:!!expected&&sameVersion(current,expected)):current?.owner===owner;}
@@ -72,7 +73,7 @@ export class IndexedLocalSaveStore implements LocalSaveStore{
     tx.oncomplete=()=>{clearTimeout(timer);try{const entries=all.result as Entry[];const saved=entries.find(entry=>entry.hash===hash);resolve(slotOverview(progress.result,saved,entries.length,hash,growth,otherActiveRankedSave(entries,hash)));}catch(e){reject(e);}};
     tx.onabort=tx.onerror=()=>{clearTimeout(timer);reject(tx.error??Error('저장 슬롯 미리보기 실패'));};
   });}
-  async readGrowth(growth:GrowthView){const db=await this.open();return new Promise<OfflineGrowthRecord>((resolve,reject)=>{const tx=db.transaction(growthStoreName,'readwrite'),store=tx.objectStore(growthStoreName),req=store.get(growthKey);let record:OfflineGrowthRecord,reason:unknown;const timer=setTimeout(()=>{try{tx.abort();}catch{}reject(Error('성장 기록 읽기 시간 초과'));},3000);req.onsuccess=()=>{try{record=readOfflineGrowth(req.result,growth);if(ownedCardsChanged(req.result,record))store.put(record,growthKey);}catch(e){reason=e;tx.abort();}};tx.oncomplete=()=>{clearTimeout(timer);resolve(record);};tx.onerror=tx.onabort=()=>{clearTimeout(timer);reject(reason??tx.error??req.error??Error('성장 기록 읽기 실패'));};});}
+  async readGrowth(growth:GrowthView,selectedPathId?:string){const db=await this.open();return new Promise<OfflineGrowthRecord>((resolve,reject)=>{const tx=db.transaction(growthStoreName,'readwrite'),store=tx.objectStore(growthStoreName),req=store.get(growthKey);let record:OfflineGrowthRecord,reason:unknown;const timer=setTimeout(()=>{try{tx.abort();}catch{}reject(Error('성장 기록 읽기 시간 초과'));},3000);req.onsuccess=()=>{try{record=readOfflineGrowth(req.result,growth);if(selectedPathId!==undefined)record.profile=selectRewardPath(record.profile,growth,selectedPathId);if(rewardRoadChanged(req.result,record))store.put(record,growthKey);}catch(e){reason=e;tx.abort();}};tx.oncomplete=()=>{clearTimeout(timer);resolve(record);};tx.onerror=tx.onabort=()=>{clearTimeout(timer);reject(reason??tx.error??req.error??Error('성장 기록 읽기 실패'));};});}
   async restoreGrowth(raw:unknown,growth:GrowthView){
     const incoming=decodeGrowthBackup(raw,growth),db=await this.open();return new Promise<OfflineGrowthRecord>((resolve,reject)=>{
       const tx=db.transaction([storeName,growthStoreName],'readwrite'),matches=tx.objectStore(storeName),progress=tx.objectStore(growthStoreName),get=progress.get(growthKey);let result:OfflineGrowthRecord,reason:unknown;
@@ -106,7 +107,7 @@ export class IndexedLocalSaveStore implements LocalSaveStore{
         matches.put({hash:snapshot.catalogHash,owner,snapshot} satisfies Entry);
         // The match still commits atomically with growth validation. A normal
         // move has no reward; avoid rewriting a potentially long unchanged ledger.
-        if(claim||ranked.award||ownedCardsChanged(request.result,record))progress.put(record,growthKey);
+        if(claim||ranked.award||rewardRoadChanged(request.result,record))progress.put(record,growthKey);
         committedProfile=record.profile;
       }catch(e){reason=e;tx.abort();}};};
         // Only a newly created ranked match needs the cross-version check. An existing active match must still be resumable when returning to its original release.

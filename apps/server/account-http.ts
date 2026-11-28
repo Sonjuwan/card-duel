@@ -1,3 +1,4 @@
+import {rewardPaths} from '../../packages/reward-road.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { validateDeck } from '../../packages/engine/src/index.ts';
 import {createHash} from 'node:crypto';
@@ -127,6 +128,13 @@ export function createAccountHandler(backend:AccountBackend,catalog:Catalog,trus
         res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Disposition':'attachment; filename="card-duel-progress.json"','X-Content-Type-Options':'nosniff'}).end(JSON.stringify(record,null,2));return;
       }
       if(method==='GET'&&path==='/api/account/growth'&&growth){reply(res,200,growth);return;}
+      if(method==='PUT'&&path==='/api/account/reward-path'&&growth&&backend.updateRewardPath){
+        const input=await json(req);
+        const pathId=input&&typeof input==='object'?(input as {pathId?:unknown}).pathId:undefined;
+        if(typeof pathId!=='string'||!rewardPaths(growth).some(path=>path.id===pathId))throw new AccountError(400,'사용할 수 없는 보상의 길입니다.');
+        const finish=beginAccountChange?.('deck');
+        try{const updated=await backend.updateRewardPath(account.id,pathId,growth);reply(res,200,updated);onChange?.(account.id);return;}finally{finish?.();}
+      }
       if(method==='POST'&&path==='/api/account/password'){
         const input=await json(req);if(!input||typeof input!=='object')throw new AccountError(400,'비밀번호를 확인하세요.');
         const {currentPassword,newPassword}=input as Record<string,unknown>;const old=normalizeCredentials({email:account.email,password:currentPassword}),next=normalizeCredentials({email:account.email,password:newPassword});limited(req,account.email);authenticating++;

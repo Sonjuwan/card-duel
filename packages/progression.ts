@@ -1,5 +1,6 @@
 import {HERO_CLASSES,practiceDeck,strategicDeck,validateDeck,deckCards,maxCardCopies} from './engine/src/index.ts';
 import type {Catalog,Deck,HeroClass} from './engine/src/index.ts';
+import {creditRewardPath,syncRewardRoad} from './reward-road.ts';
 import type {AccountProfile,CardUnlock,GrowthView,MatchAward,RankInfo} from './account-protocol.ts';
 
 export const QUEST_LENGTH=10;
@@ -42,8 +43,7 @@ export function buildGrowth(catalog:Catalog,overrides:Readonly<Record<string,num
   return {ranks,unlocks,starterIds:[...starter].sort(),questOrder:[...HERO_CLASSES],questLength:QUEST_LENGTH,winsPerRank:WINS_PER_RANK};
 }
 export function syncOwned(profile:AccountProfile,growth:GrowthView):AccountProfile{
-  const cards=new Set([...profile.ownedCards,...growth.starterIds,...growth.unlocks.filter(c=>c.xp<=profile.xp).map(c=>c.cardId)]);
-  return {...profile,rankWins:profile.rankWins??0,ownedCards:[...cards].sort()};
+  return syncRewardRoad({...profile,rankWins:profile.rankWins??0},growth);
 }
 export function ownedDeck(deck:Deck,catalog:Catalog,profile:AccountProfile){
   validateDeck(deck,catalog);const owned=new Set(profile.ownedCards);
@@ -106,5 +106,5 @@ export function awardMatch(profile:AccountProfile,growth:GrowthView,match:MatchA
   if(questStatus(questGames).heroClass===match.heroClass){questGames++;if(questGames%QUEST_LENGTH===0){questBonusXp=rankedQuestBonus(rank);xp+=questBonusXp;}}
   let nextRank=current.rank,rankWins=current.rankWins;
   if(match.outcome==='win'&&rank===current.rank&&nextRank<25){rankWins=Math.min(WINS_PER_RANK,rankWins+1);if(rankWins>=WINS_PER_RANK&&xp>=(rankInfo(nextRank+1,growth.ranks).minimumXp??0)){nextRank++;rankWins=0;}}
-  return finish(syncOwned({...current,xp,questGames,rank:nextRank,rankWins},growth),questBonusXp);
+  return finish(creditRewardPath({...current,xp,questGames,rank:nextRank,rankWins},growth,xp-current.xp),questBonusXp);
 }

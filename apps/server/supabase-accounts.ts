@@ -2,6 +2,7 @@ import {createHash,randomBytes} from 'node:crypto';
 import type {AccountBackend,AccountLogin} from './account-store.ts';
 import {AccountError,newProfile,normalizeCredentials,normalizeEmail} from './account-store.ts';
 import type {AccountDeck,AccountProfile,AccountRole,AccountView,AccountRegistrationPending,GrowthView,MatchAward} from '../../packages/account-protocol.ts';
+import {selectRewardPath} from '../../packages/reward-road.ts';
 import {awardMatch,syncOwned} from '../../packages/progression.ts';
 import type {AccountRoomSnapshot} from './rooms.ts';
 import {decodeAccountProfile} from '../../packages/account-profile.ts';
@@ -165,6 +166,17 @@ export class SupabaseAccountStore implements AccountBackend {
     const profile=decodeAccountProfile({...this.view(row).profile,decks});
     const updated=await this.dbRows<Row>(`duel_accounts?id=eq.${id}&revision=eq.${revision}`,'PATCH',{profile,revision:revision+1},'return=representation');
     if(updated.length!==1)throw new AccountError(409,'다른 기기에서 변경했습니다. 다시 불러와 주세요.');if(updated[0].id!==id)throw new AccountError(503,'계정 저장소의 식별자를 확인할 수 없습니다.');return this.view(updated[0]);
+  }
+  async updateRewardPath(id:string,pathId:string,growth:GrowthView){
+    for(let attempt=0;attempt<5;attempt++){
+      const row=await this.get(id);
+      if(!row)throw new AccountError(404,'계정이 없습니다.');
+      const current=view(row),profile=selectRewardPath(current.profile,growth,pathId);
+      if(JSON.stringify(current.profile)===JSON.stringify(profile))return current;
+      const updated=await this.dbRows<Row>(`duel_accounts?id=eq.${id}&revision=eq.${row.revision}`,'PATCH',{profile,revision:row.revision+1},'return=representation');
+      if(updated.length===1){if(updated[0].id!==id)throw new AccountError(503,'계정 저장소의 식별자를 확인할 수 없습니다.');return this.view(updated[0]);}
+    }
+    throw new AccountError(409,'다른 기기에서 변경했습니다. 다시 시도하세요.');
   }
   async recordMatch(id:string,match:MatchAward,growth:GrowthView){
     for(let attempt=0;attempt<5;attempt++){

@@ -55,6 +55,11 @@ function schedule(){
 scope.onmessage=({data})=>{
   enqueue(async()=>{try{
     if(data.type==='inspectSlot'){if(duel||!store.inspectSlot)throw Error('저장 슬롯 정보를 확인할 수 없습니다.');scope.postMessage({type:'slotInfo',overview:await store.inspectSlot(data.catalogHash,offlineGrowth(data.catalog))});return;}
+    if(data.type==='selectRewardPath'){
+      if(!store.readGrowth)throw Error('성장 저장소를 사용할 수 없습니다.');
+      const {profile}=await store.readGrowth(offlineGrowth(data.catalog),data.pathId);
+      scope.postMessage({type:'rewardPathSelected',profile});return;
+    }
     if(data.type==='exportGrowth'||data.type==='restoreGrowth'){
       if(duel)throw Error('대전 중에는 성장 백업을 변경할 수 없습니다.');const currentGrowth=offlineGrowth(data.catalog);
       if(data.type==='exportGrowth'){if(!store.readGrowth)throw Error('성장 저장소를 사용할 수 없습니다.');const record=await store.readGrowth(currentGrowth);scope.postMessage({type:'growthBackup',backup:createGrowthBackup(record,currentGrowth),profile:record.profile});}

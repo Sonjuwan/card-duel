@@ -1,4 +1,5 @@
 import type {AccountProfile} from './account-protocol.ts';
+import {rewardPathId} from './reward-road.ts';
 
 const record=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
 const integer=(value:unknown,min=0,max=Number.MAX_SAFE_INTEGER)=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=min&&value<=max;
@@ -14,6 +15,13 @@ export function decodeAccountProfile(input:unknown,options:{revision?:number;leg
   if(!record(input))return invalid();
   const p:Record<string,unknown>={...input,revision:options.revision??input.revision,rankWins:options.legacyRankWins&&input.rankWins===undefined?0:input.rankWins};
   if(!integer(p.revision)||!integer(p.xp)||!integer(p.rank,1,25)||!integer(p.rankWins,0,3)||!integer(p.questGames)||!ids(p.ownedCards)||new Set(p.ownedCards).size!==p.ownedCards.length||!Array.isArray(p.decks)||p.decks.length>20)return invalid();
+  if(p.rewardRoad!==undefined){
+    const road=p.rewardRoad;
+    if(!record(road)||!rewardPathId(road.selectedPathId)||!record(road.paths)||!Object.hasOwn(road.paths,road.selectedPathId))return invalid();
+    for(const [id,progress] of Object.entries(road.paths)){
+      if(!rewardPathId(id)||!record(progress)||!integer(progress.xp,0,p.xp as number)||typeof progress.complete!=='boolean')return invalid();
+    }
+  }
   const names=new Set<string>();
   for(const item of p.decks){
     if(!record(item)||!string(item.name)||item.name.trim()!==item.name||item.name.length>40||names.has(item.name)||!record(item.deck)||!string(item.deck.heroClass)||!ids(item.deck.cards))return invalid();
