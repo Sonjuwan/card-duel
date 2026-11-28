@@ -94,7 +94,11 @@ export const ImpactRail=memo(function ImpactRail({entries,catalog}:{entries:read
             clearPress();
             press.current={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>setHovered(entry.revision),300)};
           }}
-          onPointerMove={event=>{const p=press.current;if(p?.id===event.pointerId&&Math.hypot(p.x-event.clientX,p.y-event.clientY)>8){clearPress();setHovered(null);}}}
+          onPointerMove={event=>{
+            if(event.pointerType==='mouse'){setHovered(entry.revision);return;}
+            const p=press.current;
+            if(p?.id===event.pointerId&&Math.hypot(p.x-event.clientX,p.y-event.clientY)>8){clearPress();setHovered(null);}
+          }}
           onPointerUp={event=>{if(event.pointerType!=='mouse'){clearPress();setHovered(null);}}}
           onPointerCancel={()=>{clearPress();setHovered(null);}}
           onClick={event=>{if(event.detail===0)setSelected(selected===entry.revision?null:entry.revision);}}>
