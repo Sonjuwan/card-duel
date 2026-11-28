@@ -114,13 +114,20 @@ export function CardFace({card,name,cost=card.cost,attack,health}:{
   card:Card;name:string;cost?:number;attack?:number;health?:number;
 }){
   const rarity=card.kind==='coin'?'basic':card.rarity;
+  const stats=card.kind==='minion'||card.kind==='weapon'?
+    {attack:attack??card.attack,health:health??(card.kind==='minion'?card.health:card.durability)}:null;
   return <>
     <span className={`card-mana${cost<card.cost?' discounted':cost>card.cost?' increased':''}`}>{cost}</span>
     <span className="card-art"><LocalCardArt card={card}/></span>
     <span className="card-name"><Sigil kind={cardFaction(card)} className="card-faction-mark"/>{name}</span>
     <span className="card-rarity-anchor" aria-label={rarity==='legendary'?'전설 등급':rarity==='epic'?'영웅 등급':rarity==='rare'?'희귀 등급':rarity==='common'?'일반 등급':'기본 카드'}><span className="rarity-gem" aria-hidden="true"/></span>
     <span className="card-copy">{cardDescription(card)}</span>
-    {(card.kind==='minion'||card.kind==='weapon')&&<span className="card-statline"><span className="stat stat-attack">{attack??card.attack}</span>{card.kind==='minion'&&card.tribe!=='none'&&tribes[card.tribe]&&<span className="card-tribe">{tribes[card.tribe]}</span>}<span className={card.kind==='weapon'?'stat stat-health stat-durability':'stat stat-health'}>{health??(card.kind==='minion'?card.health:card.durability)}</span></span>}
+    {stats&&<span className="card-statline">
+      <span className="stat stat-attack" data-wide-stat={String(stats.attack).length>1||undefined}>{stats.attack}</span>
+      {card.kind==='minion'&&tribes[card.tribe]&&<span className="card-tribe">{tribes[card.tribe]}</span>}
+      <span className={card.kind==='weapon'?'stat stat-health stat-durability':'stat stat-health'}
+        data-wide-stat={String(stats.health).length>1||undefined}>{stats.health}</span>
+    </span>}
   </>;
 }
 

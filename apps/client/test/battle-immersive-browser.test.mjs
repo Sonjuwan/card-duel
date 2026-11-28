@@ -109,7 +109,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
         super.onmessage=event=>{
           const data=event.data;
           if(window.denseFixtureActive&&data?.type==='view')return;
-          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10,classes,logLabel)=>{
+          if(data?.type==='view'&&data.view?.state?.phase==='playing')window.denseBoard=(units=7,hand=10,classes,logLabel,wideStats=false)=>{
             window.denseFixtureActive=true;
             const fixture=structuredClone(data),view=fixture.view.state;
             fixture.view.animation=undefined;
@@ -122,7 +122,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
             side.mana=side.maxMana=10;
             }
             view.self.handCount=hand;
-            view.self.hand=Array.from({length:hand},(_,i)=>({cardId:i===0?'spellbender':'wolf',instanceId:'fixture-card-'+i}));
+            view.self.hand=Array.from({length:hand},(_,i)=>({cardId:i===0?'spellbender':i===1&&wideStats?'deathwing':'wolf',instanceId:'fixture-card-'+i}));
             handler.call(this,new MessageEvent('message',{data:fixture}));
           };
           handler?.call(this,event);
@@ -332,14 +332,14 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   });
   t.diagnostic('Public log translations across three hand toggles: '+translations);
   assert.equal(translations,0,'hand UI must not build the removed record panes');
-  for(const [width,height] of [[780,360],[1024,768],[1366,768]]){
+  for(const [width,height] of [[640,360],[780,360],[1024,768],[1366,768]]){
     await page.setViewportSize({width,height});
     await page.emulateMedia({reducedMotion:'reduce'});
     const compact=height<=540;
     let unitSize;
     let tribeSize;
     for(let count=0;count<=10;count++){
-      await page.evaluate(count=>window.denseBoard(Math.min(7,count),count),count);
+      await page.evaluate(count=>window.denseBoard(Math.min(7,count),count,undefined,undefined,count===10),count);
       await page.waitForFunction(count=>Number(document.querySelector('.own-hand .battle-hand')?.dataset.count)===count,count);
       if(compact&&count)await page.locator('.folded-hand').tap();
       const geometry=await page.evaluate(compact=>{
@@ -369,7 +369,13 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
             edge:[box.left-frame.left-border('Left'),frame.right-box.right-border('Right'),
               box.top-frame.top-border('Top'),frame.bottom-box.bottom-border('Bottom')]};
         });
-        return {frames,tribe,own:cards.length,opponent:document.querySelectorAll('.opponent-card-slot').length,
+        const digits=[...document.querySelectorAll('.own-hand .stat[data-wide-stat]')].map(stat=>{
+          const range=document.createRange();
+          range.selectNodeContents(stat);
+          const ink=range.getBoundingClientRect(),box=rect(stat),style=getComputedStyle(stat);
+          return [stat.textContent,ink.left-box.left-parseFloat(style.borderLeftWidth),box.right-ink.right-parseFloat(style.borderRightWidth)];
+        });
+        return {frames,tribe,digits,own:cards.length,opponent:document.querySelectorAll('.opponent-card-slot').length,
           handCenter:!compact&&hand.width?Math.abs(axis(hand)-field):0,
           cardCenter:!compact&&cards.length?Math.abs((rect(cards[0]).left+rect(cards.at(-1)).right)/2-field):0,
           clear:cards.every(card=>rect(card).width>0&&resources.slice(0,compact?2:3).every(box=>!overlaps(rect(card),box))),
@@ -380,6 +386,10 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
       const {frames,tribe,rows}=geometry;
       assert.equal(geometry.own,count);
       assert.equal(geometry.opponent,count);
+      if(count===10){
+        assert.equal(geometry.digits.length,2);
+        assert.ok(geometry.digits.every(([value,left,right])=>value==='12'&&left>-.5&&right>-.5),JSON.stringify({width,...geometry.digits}));
+      }
       assert.ok(geometry.clear&&geometry.handCenter<1&&geometry.cardCenter<1,JSON.stringify({width,count,geometry}));
       if(!count)assert.ok(geometry.emptySlot<2,JSON.stringify({width,geometry}));
       for(const row of rows){

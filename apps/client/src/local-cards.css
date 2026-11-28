@@ -218,6 +218,12 @@
   display:grid;grid-template-columns:27% 46% 27%;column-gap:0;align-items:center;
 }
 .battle-card .card-statline>.stat{max-width:100%;grid-row:1}
+.battle-card .card-statline>.stat[data-wide-stat]{
+  font-size:clamp(7px,18cqi,20px)!important;
+}
+@container (max-width:54px){
+  .battle-card .card-statline>.stat[data-wide-stat]{border-inline-width:1px}
+}
 .battle-card .card-statline>.stat-attack{grid-column:1;justify-self:start}
 .battle-card .card-statline>.stat-health{grid-column:3;justify-self:end}
 .battle-card .card-tribe{
