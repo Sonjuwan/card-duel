@@ -64,7 +64,15 @@ test('installed game verifies and explicitly applies an update without reinstall
   const context=await browser.newContext({viewport:{width:780,height:360},hasTouch:true,isMobile:true});
   const home=page=>page.getByRole('navigation',{name:'게임 메뉴'});
   const select=async(page,slot)=>{
-    await page.getByRole('button',{name:`슬롯 ${slot} 선택`,exact:true}).click();
+    const gateway=page.getByRole('button',{name:`슬롯 ${slot} 선택`,exact:true});
+    await home(page).or(gateway).first().waitFor();
+    if(await gateway.isVisible())await gateway.click();
+    else {
+      await page.getByRole('button',{name:'슬롯 선택',exact:true}).click();
+      const target=page.locator('.preview-slot-grid button').nth(slot-1);
+      if(await target.isEnabled())await target.click();
+      else await page.getByRole('button',{name:'메인으로',exact:true}).click();
+    }
     await home(page).waitFor();
     await page.waitForFunction(()=>navigator.serviceWorker.controller!==null);
   };
@@ -173,11 +181,10 @@ test('installed game verifies and explicitly applies an update without reinstall
   await apply.tap();
   for(const page of [first,second]){
     await page.waitForFunction(version=>document.querySelector('meta[name="card-duel-build"]')?.content===version,next.version);
-    await page.getByRole('heading',{name:'저장 슬롯을 선택하세요'}).waitFor();
+    await home(page).waitFor();
   }
   assert.deepEqual(await snapshot(second),before);
   assert.ok((await second.evaluate(keys=>keys.map(key=>localStorage.getItem(key)),deckKeys)).every(value=>value?.includes('업데이트 시험 덱')));
-  await select(second,2);
   await second.getByRole('button',{name:'대전',exact:true}).tap();
   await second.getByRole('button',{name:'이어서 플레이하기'}).tap();
   await second.locator('.battle.phase-playing').waitFor();

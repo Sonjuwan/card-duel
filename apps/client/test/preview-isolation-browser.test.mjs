@@ -27,7 +27,7 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   page.on('dialog',dialog=>dialog.accept());
   const base='http://127.0.0.1:'+address.port;
   await page.goto(base+'/ui-preview/');
-  await page.getByRole('heading',{name:'저장 슬롯을 선택하세요'}).waitFor();
+  await page.getByRole('navigation',{name:'게임 메뉴'}).waitFor();
   await page.evaluate(async()=>{
     // This existing root save is purposely left invalid: the preview must
     // NEVER consult or mutate a different release's original game data.
@@ -47,7 +47,6 @@ test('hosted UI preview keeps the root website saves intact after concede and re
       };
     });
   });
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
   await page.getByRole('button',{name:'마법사',exact:true}).click();
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
@@ -85,7 +84,6 @@ test('hosted UI preview keeps the root website saves intact after concede and re
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).click();
   await page.getByRole('heading',{name:'첫 손패를 선택하세요'}).waitFor();
   await page.reload();
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   await page.getByRole('button',{name:'대전',exact:true}).click();
   await page.getByRole('button',{name:'이어서 플레이하기'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'새로운 게임 시작'}).count(),1,'reopening a saved match offers both resume and new game');

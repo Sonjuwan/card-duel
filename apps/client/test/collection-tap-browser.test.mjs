@@ -15,7 +15,6 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   const page=await context.newPage(),errors=[];
   page.on('pageerror',err=>errors.push(err.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'카드 도감',exact:true}).tap();
   const sizes=[[640,300],[700,320],[780,360],[844,390],[932,430],[1024,600],[1024,768],[1366,768],[1920,850],[1920,1080]];
   mkdirSync('ui-evidence',{recursive:true});
@@ -52,14 +51,14 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
       const badges=[...book.querySelectorAll('.collection-copy-badge')];
       const badBadges=badges.filter(badge=>{
         const r=box(badge),c=box(badge.parentElement.querySelector('.battle-card'));
-        return !/^\d+\/\d+$/.test(badge.textContent)||!r.width||r.right>innerWidth||r.bottom>innerHeight||
+        return !/^\d+(?:\/\d+)?$/.test(badge.textContent)||!r.width||r.right>innerWidth||r.bottom>innerHeight||
           (r.left<c.right-1&&r.right>c.left+1&&r.top<c.bottom-1&&r.bottom>c.top+1);
       }).map(badge=>badge.textContent);
       const status=workspace.querySelector('.book-page-status');
       const badMana=cards.map((c,i)=>{const mana=c.querySelector('.card-mana'),m=box(mana),b=box(c);return m.left<b.left-.5||m.top<b.top-.5||m.right>b.right+.5||m.bottom>b.bottom+.5||!visible(mana)?i:null;}).filter(i=>i!==null);
       const save=workspace.querySelector('.deck-save-primary');
       let saveTextFits=true;
-      if(save){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
+      if(save?.getBoundingClientRect().width){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
       return {badBadges,badgeCount:badges.length,badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5)&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
     },mode);
     const msg=JSON.stringify({mode,width,height,...geometry});
@@ -98,9 +97,9 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   await page.getByRole('button',{name:'메인으로',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'전사',exact:true}).tap();
-  await page.getByRole('button',{name:'＋ 새 덱 만들기 / 편집',exact:true}).tap();
+  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).tap();
   const builder=page.locator('.deck-builder'),count=builder.locator('.deck-live-count');
-  await count.waitFor();
+  await count.waitFor({state:'attached'});
   assert.equal(await count.textContent(),'0/30');
   const card=builder.locator('.collection-book .battle-card').first();
   await card.tap();await detail.waitFor();
@@ -117,6 +116,6 @@ test('mobile catalog and deck builder keep eight-card pages and read-only inspec
   assert.equal(await tabs.last().getAttribute('aria-pressed'),'true','class last page crosses into neutral');
   await previous.tap();assert.equal(await tabs.first().getAttribute('aria-pressed'),'true','neutral first page returns to class last');
   await page.getByRole('button',{name:'← 덱 목록',exact:true}).tap();
-  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).waitFor();
+  await page.getByRole('button',{name:'새 덱 만들기',exact:true}).waitFor();
   assert.deepEqual(errors,[]);
 });

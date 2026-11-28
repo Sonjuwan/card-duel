@@ -130,7 +130,6 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     };
   });
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   const menu=page.locator('.lobby-home .landscape-menu-button');
   assert.match(await menu.textContent(),/가로 전체화면/);
   await page.setViewportSize({width:360,height:780});
@@ -320,7 +319,6 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
     return {...deck,cards:deck.cards.map(id=>id==='recruit'?'wisp':id)};
   })());
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'마법사',exact:true}).tap();
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
@@ -460,7 +458,6 @@ test('real worker queues two attacks while a staged battlecry validates its targ
     };
   });
   await page.goto('http://127.0.0.1:'+server.address().port+'/ui-preview/');
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'전사',exact:true}).tap();
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();

@@ -21,5 +21,6 @@ test('slot and growth are a separate preview home destination, not a play suppor
   assert.match(app,/data-lobby-tab="slots" onClick=\{\(\)=>openLobbyView\('slots',true\)\}/);
   assert.match(app,/lobbyView==='slots'&&lossOnExit\?<section className="preview-slot-only"/);
   assert.match(app,/!lossOnExit&&<LobbyDialog label="슬롯 · 성장 · 저장 경기">/);
-  assert.match(app,/previewGate\?'home':props\.initialLobbyView/);
+  assert.match(app,/readSelectedSlot\(\)/);
+  assert.match(app,/return <AppSession key=\{slot\}/);
 });

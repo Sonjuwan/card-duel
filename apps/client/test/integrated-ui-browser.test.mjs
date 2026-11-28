@@ -31,7 +31,6 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     const errors=[];
     page.on('pageerror',error=>errors.push(error.message));
     await page.goto(url);
-    await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
     await page.getByRole('button',{name:'설정',exact:true}).click();
     const settings=page.getByRole('dialog',{name:'설정',exact:true});
     const effects=settings.getByRole('slider',{name:'효과음 볼륨'});
@@ -146,7 +145,6 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await page.waitForFunction(()=>navigator.serviceWorker.controller!==null);
     await context.setOffline(true);
     await page.reload();
-    await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
     await page.getByRole('button',{name:'대전',exact:true}).click();
     await resume.click();
     await page.locator('.mulligan-cards .battle-card').first().waitFor();
@@ -197,7 +195,6 @@ test('all nine class portraits fit the requested landscape viewports',{timeout:9
       const page=await context.newPage();
       page.setDefaultTimeout(8000);
       await page.goto(url);
-      await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
       await page.getByRole('button',{name:'대전',exact:true}).click();
       const tiles=page.locator('.preview-hero-tile');
       await tiles.first().waitFor();
@@ -238,7 +235,6 @@ test('restored card rewards open each exact collection page without consuming ow
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.setDefaultTimeout(9000);
   await page.goto(url);
-  await page.getByRole('button',{name:'슬롯 1 선택',exact:true}).click();
   const openRewards=()=>page.getByRole('button',{name:/경험치 · 카드 획득/}).click();
   await openRewards();
   page.once('dialog',dialog=>void dialog.accept());
