@@ -25,13 +25,13 @@ function main(){
   const manifest=JSON.parse(readFileSync(file,'utf8')),lock=JSON.parse(readFileSync(lockFile,'utf8'));
   const version=`0.${serial}.0`;
   if(/^[1-9]\d{0,5}$/.test(serial)&&manifest.version===version&&lock.version===version&&lock.packages?.['']?.version===version){
-    console.log(`Validating already stamped Card Duel v${version}.`);
+    console.log(`Validating already stamped RUNEHALL v${version}.`);
     return;
   }
   const result=stampCandidateManifests(manifest,lock,serial);
   writeFileSync(file,JSON.stringify(result.manifest,null,2)+'\n');
   writeFileSync(lockFile,JSON.stringify(result.lock,null,2)+'\n');
-  console.log(`Validating and building Card Duel v${result.version} (candidate; promotion requires all tests)`);
+  console.log(`Validating and building RUNEHALL v${result.version} (candidate; promotion requires all tests)`);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   try{main();}catch(error){console.error(error instanceof Error?error.message:String(error));process.exitCode=1;}

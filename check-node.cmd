@@ -6,7 +6,7 @@ where npm.cmd >nul 2>nul
 if errorlevel 1 goto missing
 for /f "tokens=1 delims=." %%V in ('node --version') do set "NODE_MAJOR=%%V"
 if not "%NODE_MAJOR%"=="v24" (
-  echo Card Duel requires Node.js 24.x. Your installed version:
+  echo RUNEHALL requires Node.js 24.x. Your installed version:
   node --version
   echo Download Node.js 24 from https://nodejs.org/ and reopen this window.
   exit /b 1

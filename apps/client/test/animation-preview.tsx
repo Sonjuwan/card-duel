@@ -49,7 +49,7 @@ function Demo(){
   const send=(action:Action)=>{if(busy.current)return;busy.current=true;setLocked(true);commit(state,0,action);};
   useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
   return <ClassicNamesContext.Provider value={true}><main className="game-main fx-demo">
-    <header className="fx-demo-controls"><div className="fx-demo-title"><div><p className="eyebrow">CARD DUEL · v0.36.0</p><h1>전투 연출 체험장</h1><small>설치 없이 실제 전투 UI와 연출을 재생하는 오프라인 예시입니다.</small></div><div className="controls"><button aria-pressed={actor===0} disabled={locked} onClick={()=>setActor(0)}>내 행동</button><button aria-pressed={actor===1} disabled={locked} onClick={()=>setActor(1)}>상대 행동</button><button className="secondary" onClick={reset}>초기화</button></div></div>
+    <header className="fx-demo-controls"><div className="fx-demo-title"><div><p className="eyebrow">RUNEHALL · v0.36.0</p><h1>전투 연출 체험장</h1><small>설치 없이 실제 전투 UI와 연출을 재생하는 오프라인 예시입니다.</small></div><div className="controls"><button aria-pressed={actor===0} disabled={locked} onClick={()=>setActor(0)}>내 행동</button><button aria-pressed={actor===1} disabled={locked} onClick={()=>setActor(1)}>상대 행동</button><button className="secondary" onClick={reset}>초기화</button></div></div>
       <nav className="fx-demo-actions" aria-label="연출 종류">{kinds.map(kind=><button disabled={locked} key={kind} onClick={()=>run(kind)}>{labels[kind]}</button>)}</nav><p className="fx-demo-note">버튼을 누르면 초기 전장부터 재생됩니다. 내 턴에서는 카드 한 번 클릭 → 전장 또는 대상에 드래그하는 조작도 직접 시험할 수 있습니다. {locked?'현재 재생 중…':''} {error}</p>
     </header>
     <Battle key={version} room={makeView(state,animation)} send={send} leave={reset} connected={true} busy={locked}/>

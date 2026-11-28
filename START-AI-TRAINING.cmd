@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 call check-node.cmd
 if errorlevel 1 goto done
-echo Card Duel - continuous offline AI training
+echo RUNEHALL - continuous offline AI training
 echo 1. Quiet (recommended for unattended laptop training)
 echo 2. Balanced
 echo 3. Maximum (monitor laptop temperature first)

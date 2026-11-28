@@ -1,6 +1,6 @@
 // Developer-only optional tool: render the generated SVG layout posters and
 // contact sheets for users who cannot open HTML in the chat viewer.
-// Requires ImageMagick and Inkscape, not needed to install/play Card Duel.
+// Requires ImageMagick and Inkscape, not needed to install/play RUNEHALL.
 import {execFileSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,readFileSync,readdirSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';

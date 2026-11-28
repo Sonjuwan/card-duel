@@ -36,7 +36,7 @@ try{
   const checksums=files.map(name=>`${createHash('sha256').update(readFileSync(join(stage,name))).digest('hex')}  ${name}`).join('\n')+'\n';
   writeFileSync(join(stage,'CHECKSUMS.sha256'),checksums);
   writeFileSync(join(stage,'README-PLAYTEST.txt'),
-`Card Duel — offline-first installable web app PLAYTEST
+`RUNEHALL — offline-first installable web app PLAYTEST
 
 GAME: previous Node24-verified executable v${previous}, NOT newly compiled v0.${candidate}.0.
 INSTALLER: candidate v0.${candidate}.0 code, with release id ${info.id}.

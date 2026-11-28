@@ -119,7 +119,7 @@
    - `SUPABASE_URL=https://프로젝트.supabase.co`
    - `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (서버 API 키)
 4. Supabase Auth Site URL에 실제 HTTPS 서비스 주소 설정. 데이터베이스 연결 확인, PC·모바일 각 로그인 및 덱 동기화, 재배포 이후 덱 지속성, 개발자/유저 권한 검사. 기본 메일 서비스는 팀 멤버 주소, 프로젝트당 시간당 2통의 테스트용 제한이 있다(2026-11-22 확인, [공식 SMTP 안내](https://supabase.com/docs/guides/auth/auth-smtp)). 일반 등록 유저 이메일 인증에는 별도 SMTP 설정이 필요하다. 무료 제공 범위는 별도 확인하며 비용 발생 설정은 운영자 승인 없이 하지 않는다.
-5. 비밀번호 복구는 기본 꺼짐(`CARD_DUEL_EMAIL_RECOVERY=0`). 실제 SMTP를 설정하고 Reset password 템플릿에 `{{ .Token }}` 인증 코드를 포함(예: `<p>Card Duel 복구 코드: {{ .Token }}</p>`), 테스트 주소에서 발송/인증/비밀번호 변경을 확인한 후에만 `CARD_DUEL_EMAIL_RECOVERY=1`로 바꾼다. 비밀번호를 아는 사용자는 로컬/클라우드에서 현재 비밀번호 검증 후 변경할 수 있다. 변경 시 기존 앱 로그인 세션은 모두 폐기되며 계정 진행 기록은 유지된다.
+5. 비밀번호 복구는 기본 꺼짐(`CARD_DUEL_EMAIL_RECOVERY=0`). 실제 SMTP를 설정하고 Reset password 템플릿에 `{{ .Token }}` 인증 코드를 포함(예: `<p>RUNEHALL 복구 코드: {{ .Token }}</p>`), 테스트 주소에서 발송/인증/비밀번호 변경을 확인한 후에만 `CARD_DUEL_EMAIL_RECOVERY=1`로 바꾼다. 비밀번호를 아는 사용자는 로컬/클라우드에서 현재 비밀번호 검증 후 변경할 수 있다. 변경 시 기존 앱 로그인 세션은 모두 폐기되며 계정 진행 기록은 유지된다.
 6. `npm run build` 후 `npm run verify:deployment`로 로컬 25×9 AI 덱과 성장 버전을 점검한다. 운영 환경 변수를 설정한 경우에만 `npm run verify:deployment -- --cloud`로 다섯 개 테이블의 서버 읽기 권한 및 공개 키 차단을 점검한다. 클라우드 서버 시작 시에도 이 검사를 실행하며 잘못된 설정으로 시작하지 않는다. 실제 계정 가입 및 대전 원장 RPC, 인증된 일반 사용자 권한은 별도 서비스에서 시험한다.
 
 Supabase Auth로 비밀번호를 검증하고 서버가 자체 만료 및 폐기 가능한 세션을 발급한다. 세션과 게임 데이터는 Supabase DB에 저장하므로 Render의 휘발성 파일 시스템과 분리된다. 테이블은 RLS 활성화 및 일반 API 직접 접근 권한 제거로 서버만 변경한다. 인증 속도 제한 및 만료 세션 정리를 구현했다. 운영 전 실제 서비스 검증, 계정 폐기/개인정보 청소, 프록시 기반 속도 제한 검토가 필요하다.
