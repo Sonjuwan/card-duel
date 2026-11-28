@@ -18,11 +18,11 @@ test('hand interactions provide a keyboard path without duplicate manual control
   assert.match(source,/onClick=\{keyboard=>\{if\(keyboard\)applyIntent\(planCard/);
 });
 
-test('collection text has content-driven height and no clipping; battle-card sizing is unchanged',()=>{
+test('collection cards keep their ratio and allow full descriptions to scroll',()=>{
   const catalogCss=readFileSync(new URL('../src/local-cards.css',import.meta.url),'utf8');
-  assert.match(catalogCss,/\.collection\.classic-collection\.collection-book \.battle-card\s*\{[^}]*container-type:inline-size;aspect-ratio:auto;height:auto/);
+  assert.match(catalogCss,/\.collection\.classic-collection\.collection-book \.battle-card\s*\{[^}]*aspect-ratio:var\(--full-card-ratio\);height:auto/);
   const copy=catalogCss.match(/\.collection-book \.battle-card \.card-copy\s*\{[^}]*\}/)?.[0];
-  assert.ok(copy);assert.match(copy,/overflow:visible/);assert.match(copy,/white-space:pre-wrap/);assert.match(copy,/height:auto/);
+  assert.ok(copy);assert.match(catalogCss,/\.battle-card \.card-copy\{[^}]*overflow:auto/);assert.match(copy,/white-space:pre-wrap/);assert.match(copy,/height:auto/);
 });
 
 test('phone deck builder keeps both panes visible with a sticky, scrollable deck and usable remove targets',()=>{

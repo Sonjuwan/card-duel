@@ -101,7 +101,7 @@ test('classic desktop collection displays eight cards in a readable two-leaf spr
   assert.match(book,/useBookSize\(\)\{return 8;\}/);
   assert.match(css,/collection-book\[data-book-size="8"\] \.collection-leaf\{/);
   assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
-  assert.match(css,/aspect-ratio:0\.68 \/ 1/);
+  assert.match(css,/aspect-ratio:var\(--full-card-ratio\)/);
   assert.match(css,/\.collection-book \.battle-card \.card-copy\{/);
   assert.match(css,/overflow-y:auto/);
   assert.match(css,/collection-inspector-sidebar/);
@@ -128,8 +128,9 @@ test('collection detail uses a complete Card Duel card and mulligan keeps its re
   assert.match(book,/<div className="collection-detail-card"><BattleCard card=\{item\.card\}\/><\/div>/);
   assert.match(book,/<CardInspector item=\{item\} catalog=\{catalog\}\/>/);
   assert.match(css,/\.collection-detail-body\{[\s\S]*grid-template-columns:minmax\(0,260px\)/);
-  assert.match(css,/\.game-main \.mulligan-cards \.battle-card\{/);
-  assert.match(css,/aspect-ratio:0\.68\/1/);
+  const integrated=readFileSync('apps/client/src/integrated-ui.css','utf8');
+  assert.match(integrated,/\.mulligan-card-frame>\.battle-card\{[^}]*aspect-ratio:var\(--full-card-ratio\)/);
+  assert.match(css,/\.collection-detail-body \.battle-card\{[^}]*aspect-ratio:var\(--full-card-ratio\)/);
 });
 
 

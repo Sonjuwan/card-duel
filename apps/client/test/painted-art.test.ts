@@ -58,16 +58,16 @@ test('every card and generated hero token has a distinct local illustration',()=
     hashes.set(hash,card.id);
   }
 });
-test('square card artwork uses proportional cover fitting, with proportional frame sizes in every full-card context',()=>{
+test('artwork fills the shared full-card frame with proportional cover fitting',()=>{
   const frame=readFileSync('apps/client/src/local-cards.css','utf8');
   const art=readFileSync('apps/client/src/painted-art.css','utf8');
   const hover=readFileSync('apps/client/src/hover-preview.css','utf8');
   assert.match(frame,/container-type:size/);
   assert.match(frame,/--card-art-square:min\(62cqh,max\(1px,calc\(100cqh - 55px\)\)\)/);
-  assert.match(frame,/\.battle-card \.card-art\{[^}]*aspect-ratio:1\/1;[^}]*width:min\(100%,var\(--card-art-square\)\)/);
+  assert.match(frame,/\.battle-card \.card-art\{[^}]*height:57cqh;width:100%/);
   assert.match(art,/\.battle-card \.card-art \.painted-art\{background-size:cover;background-position:center 43%\}/);
   assert.match(frame,/\.collection\.classic-collection \.battle-card\{[^}]*aspect-ratio:5\/8/);
   assert.match(frame,/\.hand-card-slot\{[^}]*aspect-ratio:5\/8/);
-  assert.match(hover,/\.hover-large-card\{[^}]*aspect-ratio:5\/8/);
-  assert.match(hover,/\.hover-large-card \.card-art,[^}]+aspect-ratio:1\/1/);
+  assert.match(hover,/\.hover-large-card\{[^}]*aspect-ratio:var\(--full-card-ratio\)/);
+  assert.match(frame,/\.battle-card \.card-mana\{position:absolute/);
 });
