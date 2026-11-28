@@ -1,3 +1,4 @@
+import {questDay,questTimeZone} from '../../../packages/quest-calendar.ts';
 import {PlayerGrowth,RunehallHome} from './RunehallHome.tsx';
 import runehallMark from './assets/runehall-mark.svg';
 import {careerOf,masteryTier} from '../../../packages/career.ts';
@@ -389,6 +390,18 @@ function AppSession({standalone=false,workerFactory:baseWorkerFactory,initialAiP
     return()=>{stopped=true;close();};
   },[saveProbe]);
   const [lobbyView,setLobbyView]=useState<LobbyView>(initialLobbyView);
+  useEffect(()=>{
+    if(!standalone||lobbyView!=='quests'||room)return;
+    const refresh=()=>{if(!document.hidden)setSaveProbe(n=>n+1);};
+    refresh();
+    const day=()=>questDay(Date.now(),offlineProfile?.quests?.calendar?.zone??questTimeZone());
+    let lastSeen=day();
+    const tick=()=>{const today=day();if(today!==lastSeen){lastSeen=today;refresh();}};
+    const timer=setInterval(tick,30_000);
+    document.addEventListener('visibilitychange',refresh);
+    return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',refresh);};
+  },[standalone,lobbyView,room,offlineProfile?.quests?.calendar?.zone]);
+
   const [freeSave,setFreeSave]=useState<{save:LocalSaveSummary|null;available:boolean}>();
   useEffect(()=>{
     if(!lossOnExit||lobbyView!=='developer'||offlineMode!=='developer'||room||busy)return;

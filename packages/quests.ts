@@ -1,8 +1,9 @@
 import definitions from '../data/quests/catalog.json' with {type:'json'};
 import {HERO_CLASSES,HERO_POWERS,HERO_TOKENS,maxCardCopies,RULES} from './engine/src/index.ts';
 import type {Card,Catalog,Effect,HeroClass,TargetRule} from './engine/src/types.ts';
+import {questDay,questTimeZone} from './quest-calendar.ts';
 import {QUEST_SLOTS} from './quest-types.ts';
-import type {ActiveQuest,CompletedQuest,QuestCounters,QuestDefinition,QuestMetric,QuestProgress,QuestSlot} from './quest-types.ts';
+import type {ActiveQuest,CompletedQuest,QuestCounters,QuestDefinition,QuestMetric,QuestProgress} from './quest-types.ts';
 
 export const QUEST_DEFINITIONS=definitions as readonly QuestDefinition[];
 const counters=new Set<string>(QUEST_DEFINITIONS.map(q=>q.metric));
@@ -143,52 +144,95 @@ const tally=(counts:Record<string,number>,key:string)=>{counts[key]=(counts[key]
 export function initialQuests(legacyGames:number,legacyLength:number):QuestProgress {
   return {schema:1,basicCompleted:Math.floor(legacyGames/legacyLength),serial:0,active:{},games:{},issued:{},completed:{},recent:{}};
 }
-export function fillQuests(state:QuestProgress,catalog:Catalog,ownedCards:readonly string[],legacyOffset=0):QuestProgress {
-  if(QUEST_SLOTS.every(slot=>state.active[slot]))return state;
-  const next=structuredClone(state),owned=new Set(ownedCards);
+const questById=new Map(QUEST_DEFINITIONS.map(def=>[def.id,def]));
+const rewardFor=(quest:ActiveQuest)=>questById.get(quest.definitionId)?.xp??({15:300,30:600,45:900}[quest.xp]??quest.xp);
+const metricFamily:Partial<Record<QuestMetric,string>>={
+  heroDamage:'face',earlyDamage:'face',faceAttacks:'face',
+  kills:'kills',areaKills:'kills',spellKills:'kills',minionKills:'kills',
+  minion12:'early-minion',minion13:'early-minion',cheapCards:'early-minion',
+  minion6:'late-minion',minion7:'late-minion',minion8:'late-minion',
+  weaponAttacks:'weapon',weaponDamage:'weapon',heal:'healing',minionHeal:'healing',
+  shield:'divine-shield',shieldGain:'divine-shield',attack5:'high-attack',attack6:'high-attack',
+};
+const family=(metric:QuestMetric)=>metricFamily[metric]??metric;
+
+type QuestChargeOptions={now?:number;zone?:string;starterOffset?:number};
+
+export function fillQuests(state:QuestProgress,catalog:Catalog,ownedCards:readonly string[],{now=Date.now(),zone=questTimeZone(),starterOffset}:QuestChargeOptions={}):QuestProgress {
+  const stored=state.calendar;
+  const activeZone=stored?.zone??zone,today=questDay(now,activeZone);
+  if(stored&&stored.lastDay>=today)return state;
+  // Pre-calendar profiles start on their migration day. The former basic
+  // quest offset is the only legacy progress that needs a new active item.
+  const first=starterOffset!==undefined&&!stored;
+  const days=stored?today-stored.lastDay:Number(first);
+  const next=structuredClone(state);
+  next.calendar={zone:activeZone,lastDay:today,legacySerial:stored?.legacySerial??state.serial};
+  if(!stored){
+    for(const quest of Object.values(next.active))quest.xp=rewardFor(quest);
+    next.payments??={};
+  }
+  const vacancies=QUEST_SLOTS.filter(slot=>!next.active[slot]).slice(0,days);
+  if(!vacancies.length)return next;
+  const owned=new Set(ownedCards);
   const candidates=HERO_CLASSES.flatMap(hero=>questCandidates(catalog,owned,hero).map(def=>({hero,def})));
-  for(const slot of QUEST_SLOTS){
-    if(next.active[slot])continue;
-    let options=candidates.filter(({def,hero})=>def.slot===slot&&(slot!=='basic'||hero===HERO_CLASSES[next.basicCompleted%HERO_CLASSES.length]));
-    if(!options.length)continue;
-    const existing=Object.values(next.active),recent=next.recent[slot];
-    const prefer=(predicate:(item:typeof options[number])=>boolean)=>{const filtered=options.filter(predicate);if(filtered.length)options=filtered;};
-    prefer(({hero,def})=>existing.every(q=>q.hero!==hero&&q.metric!==def.metric)&&hero!==recent?.hero&&def.metric!==recent?.metric);
-    prefer(({hero})=>existing.every(q=>q.hero!==hero));
-    prefer(({def})=>existing.every(q=>q.metric!==def.metric)&&def.metric!==recent?.metric);
-    prefer(({hero})=>hero!==recent?.hero);
+  for(const slot of vacancies){
+    const current=Object.values(next.active);
+    const basicHero=HERO_CLASSES[next.basicCompleted%HERO_CLASSES.length];
+    let options=candidates.filter(({def,hero})=>def.slot!=='basic'||hero===basicHero);
+    if(first&&slot===vacancies[0]){
+      const basic=options.filter(({def})=>def.slot==='basic');
+      if(basic.length)options=basic;
+    }
+    const prefer=(predicate:(item:typeof options[number])=>boolean)=>{
+      const preferred=options.filter(predicate);
+      if(preferred.length)options=preferred;
+    };
+    prefer(({hero,def})=>current.every(q=>q.hero!==hero&&family(q.metric)!==family(def.metric)));
+    prefer(({def})=>current.every(q=>family(q.metric)!==family(def.metric)));
+    prefer(({hero})=>current.every(q=>q.hero!==hero));
+    const recent=Object.values(next.recent);
     const score=({hero,def}:typeof options[number])=>{
-      const key=slot+':'+hero;
-      return (next.issued[key]??0)*100+(next.completed[key]??0)*10+
-        Math.min(30,next.games[hero]??0)+(next.issued[slot+':'+def.metric]??0)*45+
-        (def.strategy?(next.issued['strategy:'+def.strategy]??0)*14:0);
+      const tallyTotal=QUEST_SLOTS.reduce((total,type)=>total+(next.issued[type+':'+hero]??0),0);
+      return tallyTotal*120+(next.issued[def.slot+':'+hero]??0)*22+
+        (next.issued[def.slot+':'+def.metric]??0)*23+Math.min(30,next.games[hero]??0)+
+        (def.strategy?(next.issued['strategy:'+def.strategy]??0)*19:0)+
+        recent.filter(q=>q.hero===hero||family(q.metric)===family(def.metric)).length*35;
     };
     options.sort((a,b)=>score(a)-score(b)||
       (HERO_CLASSES.indexOf(a.hero)+9-next.serial%9)%9-(HERO_CLASSES.indexOf(b.hero)+9-next.serial%9)%9||
       a.def.id.localeCompare(b.def.id));
-    const {hero,def}=options[0],progress=slot==='basic'?Math.min(legacyOffset,def.target-1):0;
+    if(!options.length)break;
+    const {hero,def}=options[0],progress=first&&def.metric==='games'?Math.min(starterOffset,def.target-1):0;
     next.active[slot]={id:`quest-${++next.serial}`,definitionId:def.id,hero,metric:def.metric,title:def.title,unit:def.unit,target:def.target,xp:def.xp,progress};
     next.recent[slot]={hero,metric:def.metric};
-    tally(next.issued,slot+':'+hero);tally(next.issued,slot+':'+def.metric);
+    tally(next.issued,def.slot+':'+hero);tally(next.issued,def.slot+':'+def.metric);
     if(def.strategy)tally(next.issued,'strategy:'+def.strategy);
   }
+  if(first)next.calendar.legacySerial=next.serial;
   return next;
 }
 
-export function advanceQuests(state:QuestProgress,hero:HeroClass,metrics:QuestCounters) {
+export function advanceQuests(state:QuestProgress,hero:HeroClass,metrics:QuestCounters,maxSerial=state.serial) {
   const next=structuredClone(state),completed:CompletedQuest[]=[];
   let advanced=false,basicAdvanced=false;
   next.games[hero]=(next.games[hero]??0)+1;
   for(const slot of QUEST_SLOTS){
     const q=next.active[slot];
-    if(!q||q.hero!==hero)continue;
-    const increase=slot==='basic'?1:metrics[q.metric]??0;
+    if(!q||q.hero!==hero||Number(q.id.slice(6))>maxSerial)continue;
+    const basic=q.metric==='games';
+    const increase=basic?1:metrics[q.metric]??0;
     if(increase<=0)continue;
-    advanced=true;basicAdvanced ||= slot==='basic';
+    advanced=true;basicAdvanced ||= basic;
     q.progress=Math.min(q.target,q.progress+increase);
     if(q.progress===q.target){
-      completed.push({...q,rewarded:true});delete next.active[slot];tally(next.completed,slot+':'+hero);
-      if(slot==='basic')next.basicCompleted++;
+      if(!next.payments?.[q.id]){
+        completed.push({...q,rewarded:true});
+        (next.payments??={})[q.id]={hero,xp:q.xp,rewarded:true};
+      }
+      delete next.active[slot];
+      tally(next.completed,(questById.get(q.definitionId)?.slot??slot)+':'+hero);
+      if(basic)next.basicCompleted++;
     }
   }
   return {state:next,completed,advanced,basicAdvanced,xp:completed.reduce((n,q)=>n+q.xp,0)};
@@ -197,6 +241,13 @@ export function advanceQuests(state:QuestProgress,hero:HeroClass,metrics:QuestCo
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const int=(x:unknown,min=0,max=Number.MAX_SAFE_INTEGER):x is number=>typeof x==='number'&&Number.isSafeInteger(x)&&x>=min&&x<=max;
 const heroValid=(x:unknown)=>HERO_CLASSES.some(h=>x===h);
+function validCalendar(value:unknown,serial:number){
+  if(value===undefined)return true;
+  if(!object(value)||typeof value.zone!=='string'||value.zone.length>100||
+    !int(value.lastDay,-100000,3_000_000)||!int(value.legacySerial,0,serial))return false;
+  try{questDay(0,value.zone);return true;}catch{return false;}
+}
+const serialId=(id:string,serial:number)=>/^quest-[1-9]\d*$/.test(id)&&Number(id.slice(6))<=serial;
 const slotValid=(x:string)=>QUEST_SLOTS.some(slot=>x===slot);
 const validTally=(x:unknown,key:(k:string)=>boolean)=>object(x)&&Object.entries(x).every(([k,v])=>key(k)&&int(v));
 const tallyKey=(key:string)=>{
@@ -208,10 +259,12 @@ export function validQuestCounters(x:unknown):x is QuestCounters{
 }
 export function validQuestProgress(x:unknown):x is QuestProgress{
   return object(x)&&x.schema===1&&int(x.basicCompleted)&&int(x.serial)&&validTally(x.games,heroValid)&&
+    validCalendar(x.calendar,x.serial)&&
+    (x.payments===undefined||object(x.payments)&&Object.entries(x.payments).every(([id,q])=>
+      serialId(id,Number(x.serial))&&object(q)&&heroValid(q.hero)&&int(q.xp,0,100000)&&q.rewarded===true))&&
     validTally(x.issued,tallyKey)&&validTally(x.completed,tallyKey)&&object(x.recent)&&
     Object.entries(x.recent).every(([slot,q])=>slotValid(slot)&&object(q)&&heroValid(q.hero)&&typeof q.metric==='string'&&counters.has(q.metric))&&
-    object(x.active)&&Object.entries(x.active).every(([slot,q])=>slotValid(slot)&&object(q)&&typeof q.id==='string'&&/^quest-[1-9]\d*$/.test(q.id)&&
-      Number(q.id.slice(6))<=Number(x.serial)&&typeof q.definitionId==='string'&&q.definitionId.length<=80&&heroValid(q.hero)&&
+    object(x.active)&&Object.entries(x.active).every(([slot,q])=>slotValid(slot)&&object(q)&&typeof q.id==='string'&&serialId(q.id,Number(x.serial))&&(!object(x.payments)||!Object.hasOwn(x.payments,q.id))&&typeof q.definitionId==='string'&&q.definitionId.length<=80&&heroValid(q.hero)&&
       typeof q.metric==='string'&&counters.has(q.metric)&&typeof q.title==='string'&&q.title.length<=160&&typeof q.unit==='string'&&
       int(q.target,1,100000)&&int(q.progress,0,q.target-1)&&int(q.xp,0,100000));
 }

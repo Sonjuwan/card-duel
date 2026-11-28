@@ -44,3 +44,8 @@
   .quest-tile {min-height:140px;grid-template:1fr / minmax(74px,24%) minmax(0,1fr)}
   .lobby-main .preview-quests {flex:0 0 auto}
 }
+
+.quest-empty{gap:4px;text-align:center}
+.quest-empty strong{font-size:clamp(13px,2.35dvh,20px)}
+.quest-empty small{color:#d3c7b1;font-variant-numeric:tabular-nums}
+.quest-empty time{color:#ffe0a3;font-weight:700;white-space:nowrap}

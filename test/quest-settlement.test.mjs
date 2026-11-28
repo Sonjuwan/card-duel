@@ -25,24 +25,24 @@ test('legacy progress migrates without paying again or changing the original pro
   assert.deepEqual(readOfflineGrowth(migrated,growth),migrated);
 });
 
-test('a single eligible result pays multiple quests atomically, replenishes them, and survives round-trip',()=>{
+test('a single eligible result pays multiple quests atomically, leaves vacancies, and survives round-trip',()=>{
   const record=readOfflineGrowth(undefined,growth);
   const quests=record.profile.quests;
   quests.active.basic.progress=9;
-  quests.active.common={...quests.active.common,hero:'warrior',metric:'armor',progress:79,target:80};
+  quests.active.common={...quests.active.basic,id:'quest-'+(++quests.serial),definitionId:'common.armor',title:'방어도 획득',unit:'방어도',hero:'warrior',metric:'armor',progress:79,target:80};
   const initial=structuredClone(record);
   const context=createOfflineRankedInput(input,record,growth).ranked;
   const result=settleOfflineRanked(record,growth,context,match,{armor:2});
   assert.deepEqual(record,initial);
   const receipt=result.profile.recentMatches[0];
   assert.equal(receipt.completedQuests.length,2);
-  assert.equal(receipt.questBonusXp,60);
+  assert.equal(receipt.questBonusXp,1200);
   assert.equal(receipt.matchXp,rankedXpReward(1,'loss'));
-  assert.equal(result.profile.xp,receipt.matchXp+60);
+  assert.equal(result.profile.xp,receipt.matchXp+1200);
   assert.equal(result.profile.rewardRoad.paths.original.xp,result.profile.xp);
   assert.ok(receipt.unlockedCards.length>1);
-  assert.notEqual(result.profile.quests.active.basic.id,quests.active.basic.id);
-  assert.notEqual(result.profile.quests.active.common.id,quests.active.common.id);
+  assert.equal(result.profile.quests.active.basic,undefined);
+  assert.equal(result.profile.quests.active.common,undefined);
   assert.deepEqual(result.profile.quests.active.special,quests.active.special);
   const restored=decodeGrowthBackup(JSON.parse(JSON.stringify(createGrowthBackup(result,growth))),growth);
   assert.deepEqual(restored,result);
@@ -89,7 +89,41 @@ test('reward path selected after match start receives the quest XP and its own u
   record.profile=selectRewardPath(record.profile,rules,'test-expansion');
   const result=settleOfflineRanked(record,rules,context,match);
   assert.equal(result.profile.rewardRoad.paths.original.xp,0);
-  assert.equal(result.profile.rewardRoad.paths['test-expansion'].xp,rankedXpReward(1,'loss')+30);
+  assert.equal(result.profile.rewardRoad.paths['test-expansion'].xp,rankedXpReward(1,'loss')+600);
   assert.deepEqual(result.profile.recentMatches[0].unlockedCards,[unlock.cardId]);
-  assert.equal(result.profile.recentMatches[0].questBonusXp,30);
+  assert.equal(result.profile.recentMatches[0].questBonusXp,600);
+});
+
+test('v0.337 active rewards update without repricing any paid receipts',()=>{
+  const before=readOfflineGrowth(undefined,growth);
+  const context=createOfflineRankedInput(input,before,growth).ranked;
+  before.profile.quests.active.basic.progress=9;
+  const paid=settleOfflineRanked(before,growth,context,match);
+  const history=paid.profile.recentMatches[0];
+  history.completedQuests[0].xp=30;
+  history.questBonusXp=30;
+  history.xp=history.matchXp+30;
+  const state=paid.profile.quests;
+  delete state.calendar;
+  delete state.payments;
+  state.active.special={...before.profile.quests.active.basic,id:'quest-'+(++state.serial),xp:30,progress:4};
+  const migrated=readOfflineGrowth(paid,growth);
+  assert.equal(migrated.profile.quests.active.special.xp,600);
+  assert.equal(migrated.profile.quests.active.special.progress,4);
+  assert.equal(migrated.profile.quests.active.special.id,state.active.special.id);
+  assert.deepEqual(migrated.profile.recentMatches,paid.profile.recentMatches);
+  assert.equal(migrated.profile.xp,paid.profile.xp);
+});
+
+test('quests charged while a battle is paused are eligible from the next battle',()=>{
+  const now=Date.now(),next=now+86_400_000;
+  const record=readOfflineGrowth(undefined,growth,now);
+  const paused=createOfflineRankedInput(input,record,growth).ranked;
+  record.profile.quests.games.warrior=0;
+  const charged=readOfflineGrowth(record,growth,next);
+  assert.equal(charged.profile.quests.serial,2);
+  const issued=charged.profile.quests.active.common;
+  const receipt=settleOfflineRanked(charged,growth,paused,{...match,heroClass:issued.hero},{[issued.metric]:issued.target},next);
+  assert.deepEqual(receipt.profile.quests.active.common,issued);
+  assert.equal(receipt.profile.recentMatches[0].questBonusXp,0);
 });

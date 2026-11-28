@@ -14,7 +14,7 @@ const storeName='matches',growthStoreName='growth',growthKey='player';
 // Called only after readOfflineGrowth has validated the stored profile.
 function growthPresentationChanged(raw:OfflineGrowthRecord|undefined,next:OfflineGrowthRecord){
   const before=raw?.profile.ownedCards,after=next.profile.ownedCards;
-  return raw?.profile.career?.schema!==next.profile.career?.schema||raw?.profile.quests?.serial!==next.profile.quests?.serial||JSON.stringify(raw?.profile.rewardRoad)!==JSON.stringify(next.profile.rewardRoad)||!before||before.length!==after.length||before.some((id,i)=>id!==after[i]);
+  return raw?.profile.career?.schema!==next.profile.career?.schema||raw?.profile.quests?.serial!==next.profile.quests?.serial||raw?.profile.quests?.calendar?.lastDay!==next.profile.quests?.calendar?.lastDay||JSON.stringify(raw?.profile.rewardRoad)!==JSON.stringify(next.profile.rewardRoad)||!before||before.length!==after.length||before.some((id,i)=>id!==after[i]);
 }
 function sameVersion(current:Entry|undefined,expected:SaveVersion){const actual=current?.snapshot?.summary;return !!actual&&actual.code===expected.code&&actual.revision===expected.revision&&actual.savedAt===expected.savedAt;}
 export function saveWriteAllowed(current:Entry|undefined,owner:string,claim:boolean,expected?:SaveVersion|null){return claim?(expected===null?!current:!!expected&&sameVersion(current,expected)):current?.owner===owner;}

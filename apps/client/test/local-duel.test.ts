@@ -194,21 +194,21 @@ test('offline ledger preserves old receipts, guards duplicate settlement and car
   ownedDeck(basicDeck(catalog,'mage'),catalog,record.profile);assert.equal(rankInfo(record.profile.rank,growth.ranks).rank,record.profile.rank);
 });
 
-test('144 synthetic offline ranked results reach the complete ladder, cycle nine quests, and survive backup reloads',()=>{
+test('144 synthetic offline ranked results reach the complete ladder without same-day quest replacement and survive backup reloads',()=>{
   const growth=offlineGrowth(catalog);let record=readOfflineGrowth(undefined,growth),expectedXp=0,allCardsAt=0;
   const visited=new Set<number>(),questClasses=new Set<string>();let first:ReturnType<typeof createOfflineRankedInput>['ranked'];
   for(let i=0;i<144;i++){
     const profile=record.profile,quest=questStatus(profile.questGames),outcome=i%2===0?'win':'loss';
     const deck=recommendedOwnedDeck(catalog,growth,quest.heroClass,profile,i+1),ranked=createOfflineRankedInput({...savedInput,seed:i+1,code:`full-growth-${i}`,deck},record,growth),context=ranked.ranked!;
     if(i===0)first=context;visited.add(context.rank);questClasses.add(quest.heroClass);
-    expectedXp+=rankedXpReward(context.rank,outcome)+(quest.games===9?30:0);
+    expectedXp+=rankedXpReward(context.rank,outcome)+(i===9?600:0);
     record=settleOfflineRanked(record,growth,context,{matchId:ranked.code,rank:context.rank,heroClass:quest.heroClass,mode:'ranked',outcome,eligible:true,completedAt:i,turns:12});
-    assert.equal(record.profile.xp,expectedXp);assert.equal(record.profile.questGames,i+1);assert.ok(record.profile.rank>=profile.rank&&record.profile.rank<=profile.rank+1);assert.ok(profile.ownedCards.every(id=>record.profile.ownedCards.includes(id)));
+    assert.equal(record.profile.xp,expectedXp);assert.equal(record.profile.questGames,Math.min(i+1,10));assert.ok(record.profile.rank>=profile.rank&&record.profile.rank<=profile.rank+1);assert.ok(profile.ownedCards.every(id=>record.profile.ownedCards.includes(id)));
     if(!allCardsAt&&record.profile.ownedCards.length===382)allCardsAt=i+1;
     if((i+1)%30===0)record=decodeGrowthBackup(JSON.parse(JSON.stringify(createGrowthBackup(record,growth))),growth);
   }
-  assert.equal(visited.size,25);assert.equal(questClasses.size,9);assert.equal(record.profile.rank,25);assert.equal(record.profile.ownedCards.length,382);assert.ok(allCardsAt>0&&allCardsAt<144);
-  assert.equal(record.profile.matchStats?.ranked.wins,72);assert.equal(record.profile.matchStats?.ranked.losses,72);assert.equal(questStatus(record.profile.questGames).completed,14);assert.equal(record.profile.revision,144);assert.equal(record.settledMatchIds.length,144);
+  assert.equal(visited.size,25);assert.equal(questClasses.size,2);assert.equal(record.profile.rank,25);assert.equal(record.profile.ownedCards.length,382);assert.ok(allCardsAt>0&&allCardsAt<144);
+  assert.equal(record.profile.matchStats?.ranked.wins,72);assert.equal(record.profile.matchStats?.ranked.losses,72);assert.equal(questStatus(record.profile.questGames).completed,1);assert.equal(record.profile.revision,144);assert.equal(record.settledMatchIds.length,144);
   assert.equal(settleOfflineRanked(record,growth,first!,{matchId:'full-growth-0',rank:1,heroClass:'warrior',mode:'ranked',outcome:'win',eligible:true}),record);
 });
 
@@ -591,7 +591,7 @@ test('a failed ranked result write does not pay its quest receipt until the fenc
   rejectResult=false;
   await send({type:'retrySave',requestId:2});
   assert.equal(entry.snapshot.summary.phase,'finished');
-  assert.equal(record.profile.xp,rankedXpReward(1,'loss')+30);
+  assert.equal(record.profile.xp,rankedXpReward(1,'loss')+600);
   assert.equal(record.profile.recentMatches?.[0].completedQuests?.length,1);
   const paid=record;
   await send({type:'retrySave',requestId:3});

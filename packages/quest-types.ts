@@ -18,8 +18,13 @@ export interface ActiveQuest {
   id:string;definitionId:string;hero:QuestHero;metric:QuestMetric;title:string;unit:string;target:number;xp:number;progress:number;
 }
 export interface CompletedQuest extends ActiveQuest {rewarded:true}
+export interface QuestCalendar {zone:string;lastDay:number;legacySerial:number}
+export interface QuestPayment {hero:QuestHero;xp:number;rewarded:true}
+
 export interface QuestProgress {
   schema:1;basicCompleted:number;serial:number;active:Partial<Record<QuestSlot,ActiveQuest>>;
+  calendar?:QuestCalendar;
+  payments?:Record<string,QuestPayment>;
   games:Partial<Record<QuestHero,number>>;
   issued:Record<string,number>;completed:Record<string,number>;
   recent:Partial<Record<QuestSlot,{hero:QuestHero;metric:QuestMetric}>>;

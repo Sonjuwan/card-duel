@@ -67,7 +67,7 @@ export class LocalDuel{
     const ranked=input.ranked,tier=ranked??input.developerTest;
     if(input.developerFree!==undefined&&(input.developerFree!==true||tier))throw new RuleError('자유 대전 설정이 손상되었습니다.');
     if(ranked&&Object.hasOwn(ranked,'experiment')||input.developerTest?.experiment!==undefined&&input.developerTest.experiment!=='mixture-v1')throw new RuleError('실험 AI는 개발자 시험에서만 사용할 수 있습니다.');
-    if(ranked&&input.developerTest||ranked&&!integer(ranked.profileRevision,0)||tier&&(!integer(tier.rank,1,25)||!integer(tier.deckPower,1,25)||tier.intelligence!==input.difficulty||tier.opponentDeck?.heroClass!==input.heroClass))throw new RuleError('저장 랭크 설정이 손상되었습니다.');
+    if(ranked&&input.developerTest||ranked&&(!integer(ranked.profileRevision,0)||ranked.questSerial!==undefined&&!integer(ranked.questSerial,0))||tier&&(!integer(tier.rank,1,25)||!integer(tier.deckPower,1,25)||tier.intelligence!==input.difficulty||tier.opponentDeck?.heroClass!==input.heroClass))throw new RuleError('저장 랭크 설정이 손상되었습니다.');
     const chosenOpponent=input.developerOpponentDeck;
     if(chosenOpponent&&(!input.developerFree||chosenOpponent.heroClass!==input.heroClass))throw new RuleError('상대 AI 직업과 덱이 일치하지 않습니다.');
     const practiceOpponent=input.practiceOpponentDeck;

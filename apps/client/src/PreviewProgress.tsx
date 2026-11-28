@@ -1,7 +1,8 @@
+import {nextQuestMidnight} from '../../../packages/quest-calendar.ts';
 import {careerOf,totalMatches,winPercentage} from '../../../packages/career.ts';
 import {QUEST_SLOTS} from '../../../packages/quest-types.ts';
 import {LocalHeroArt} from './local-art.tsx';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import type {KeyboardEvent,MouseEvent} from 'react';
 import {RankCrest,rankTitle} from './RankCrest.tsx';
 import {playCinematicSound} from './battle-sound.ts';
@@ -137,13 +138,32 @@ export function RewardReveal({cards,rank,onClose}:{cards:string[];rank?:{before:
     </section>
   </div>;
 }
+function QuestCountdown({until}:{until:number}){
+  const [now,setNow]=useState(Date.now);
+  useEffect(()=>{
+    const update=()=>setNow(Date.now());
+    update();
+    const timer=setInterval(update,15_000);
+    return()=>clearInterval(timer);
+  },[until]);
+  const minutes=Math.max(0,Math.ceil((until-now)/60_000));
+  const hours=Math.floor(minutes/60),remainder=minutes%60;
+  const label=minutes?(hours?`${hours}시간 ${remainder}분`:`${remainder}분`):'곧 충전';
+  return <time dateTime={new Date(until).toISOString()}>{label}</time>;
+}
+
 export function PreviewQuests({profile,ready}:{profile?:AccountProfile;ready?:boolean}){
+  const calendar=profile?.quests?.calendar;
+  const until=useMemo(()=>calendar&&nextQuestMidnight(calendar.lastDay,calendar.zone),[calendar?.lastDay,calendar?.zone]);
   return <section className="preview-quests" aria-labelledby="quest-title">
     <h2 id="quest-title">퀘스트</h2>
     <div className="quest-grid">
       {QUEST_SLOTS.map(slot=>{
         const quest=profile?.quests?.active[slot];
-        if(!quest)return <div className="quest-empty" key={slot}>{ready===false?'성장 기록을 확인할 수 없습니다.':ready?'수행 가능한 퀘스트를 기다리는 중입니다.':'퀘스트를 불러오는 중입니다.'}</div>;
+        if(!quest)return <div className="quest-empty" key={slot}>
+          {until&&ready!==false?<><strong>빈 퀘스트 슬롯</strong><small>다음 충전 <QuestCountdown until={until}/></small></>:
+            ready===false?'성장 기록을 확인할 수 없습니다.':'퀘스트를 불러오는 중입니다.'}
+        </div>;
         return <article className={`quest-tile faction-${quest.hero}`} key={quest.id}>
           <div className="quest-portrait" aria-hidden="true"><LocalHeroArt heroClass={quest.hero}/></div>
           <div className="quest-content">
