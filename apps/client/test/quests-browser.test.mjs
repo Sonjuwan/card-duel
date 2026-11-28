@@ -36,7 +36,7 @@ test('the three active quests and their portraits fit desktop, tablet and narrow
     assert.equal(await quests.getByRole('progressbar').count(),3);
     assert.equal(await quests.locator('.quest-portrait [data-art-asset]').count(),3);
     const layout=await quests.evaluate(el=>{
-      const controls=[...document.querySelectorAll('.floating-home button,.compact-lobby-settings')].filter(n=>n.getClientRects().length);
+      const controls=[...document.querySelectorAll('.floating-home button,.lobby-settings-entry button')].filter(n=>n.getClientRects().length);
       const overlap=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
       return {tiles:[...el.querySelectorAll('.quest-tile')].map(node=>{
         const r=node.getBoundingClientRect(),title=node.querySelector('h3');
