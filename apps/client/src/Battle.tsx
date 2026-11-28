@@ -12,7 +12,7 @@ import type { RoomView } from '../../../packages/protocol.ts';
 import { catalog,className } from './data.ts';
 import { hasRemainingBattleAction, planAttack, planCard, planDrag, planPower, selectionCard, repositionSelection, toggleActionSelection, keyboardTargetIndex, keyboardActionSource,keyboardReturnIndex,modalTabIndex,targetPickerRows, targetAction, targetsFor } from './battle-actions.ts';
 import type { DragIntent, DragState, Intent, Selection } from './battle-actions.ts';
-import { BattleCard, BattleMinion, CardInspector, DeckPile, HeroPortrait, HeroPower, HiddenHand, ManaDisplay, Secrets, Sigil, targetRowText, WeaponSlot } from './battle-pieces.tsx';
+import { CompactHandThumbnail,BattleCard, BattleMinion, CardInspector, DeckPile, HeroPortrait, HeroPower, HiddenHand, ManaDisplay, Secrets, Sigil, targetRowText, WeaponSlot } from './battle-pieces.tsx';
 import type { Inspectable } from './battle-pieces.tsx';
 import { ClassicNamesContext, displayCardName } from './card-names.ts';
 import { fanSlot, deriveTableMotion } from './table-visuals.ts';
@@ -143,6 +143,15 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const [drag,setDrag]=useState<DragState|null>(null),dragRef=useRef<DragState|null>(null);
   const touchRef=useRef<TouchGesture|null>(null),cancelledPointer=useRef<number|null>(null),suppressClick=useRef(0);
   const [handOpen,setHandOpen]=useState(false);
+  const [compactHand,setCompactHand]=useState(false);
+  useLayoutEffect(()=>{
+    if(!compactUi)return;
+    const screen=window.matchMedia('(orientation:landscape) and (max-height:540px)');
+    const sync=()=>setCompactHand(screen.matches);
+    sync();
+    screen.addEventListener('change',sync);
+    return()=>screen.removeEventListener('change',sync);
+  },[compactUi]);
   const handPress=useRef<{id:number;x:number;y:number}|null>(null);
   const toggleHand=()=>{
     if(handOpen){setSelected(null);}
@@ -730,9 +739,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
               toggleHand();
             }}
             onClick={toggleHand}>
-            <span className="folded-cards" aria-hidden="true">{hand.slice(0,3).map(({instanceId,cardId})=><i key={instanceId}><LocalCardArt card={catalog[cardId]}/></i>)}</span>
+            <span className="folded-cards" aria-hidden="true">{hand.slice(0,3).map(({instanceId,cardId,costDiscount})=><i key={instanceId}>{compactUi?<CompactHandThumbnail card={catalog[cardId]} cost={publicCardCost(rules,seat,catalog[cardId],catalog,costDiscount)}/>:<LocalCardArt card={catalog[cardId]}/>}</i>)}</span>
             <b>{hand.length}</b>
-          </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}>{hand.map((c,i)=>{const reason=active?publicCardReason(rules,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId} data-drag-origin={currentDrag?.kind==='card'&&currentDrag.id===c.instanceId||undefined}><BattleCard inlineHand={compactUi} sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(rules,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} onClick={keyboard=>{if(keyboard)applyIntent(planCard(rules,seat,catalog,c.instanceId,boardPosition),true);}} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/>{reservationBadge('playCard',c.instanceId)}</div>;})}{!hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
+          </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}>{hand.map((c,i)=>{const reason=active?publicCardReason(rules,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId} data-drag-origin={currentDrag?.kind==='card'&&currentDrag.id===c.instanceId||undefined}><BattleCard inlineHand={compactUi} compactFace={compactHand} sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(rules,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} onClick={keyboard=>{if(keyboard)applyIntent(planCard(rules,seat,catalog,c.instanceId,boardPosition),true);}} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/>{reservationBadge('playCard',c.instanceId)}</div>;})}{!hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
       </div>
       <div className="battle-mana enemy-mana"><ManaDisplay player={s.opponent} charging={visual?.turn==='enemy'}/></div>
       <div className="battle-mana own-mana own-resources"><ManaDisplay player={rules.self} charging={visual?.turn==='own'} previewCost={dragManaCost}/></div>

@@ -278,6 +278,11 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const card=page.locator('.own-hand .battle-card').first();
     const copy=card.locator('.card-copy');
     assert.equal(await copy.isVisible(),!compact);
+    if(compact){
+      assert.equal(await card.locator('.card-copy,.card-rarity-anchor,.card-tribe').count(),0);
+      assert.equal(await page.locator('.own-hand .battle-hand [data-compact-hand]').count(),10);
+      assert.equal(await page.locator('.folded-cards .compact-hand-thumbnail').count(),3);
+    }
     const geometry=await card.evaluate(el=>{
       const art=el.querySelector('.card-art'),mana=el.querySelector('.card-mana');
       const box=art.getBoundingClientRect(),badge=mana.getBoundingClientRect();
@@ -303,7 +308,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     const original=await card.boundingBox();
     assert.ok(original);
     assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
-    const description=await copy.textContent();
+    const description=await card.getAttribute('aria-description');
     await page.touchscreen.tap(targets[0].x,targets[0].y);
     const detail=page.locator('[data-hover-preview]');
     await detail.locator('.hover-description').filter({hasText:description}).waitFor({timeout:4000});
@@ -389,7 +394,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
             edge:[box.left-frame.left-border('Left'),frame.right-box.right-border('Right'),
               box.top-frame.top-border('Top'),frame.bottom-box.bottom-border('Bottom')]};
         });
-        const digits=[...document.querySelectorAll('.own-hand .stat[data-wide-stat]')].map(stat=>{
+        const digits=[...document.querySelectorAll('.own-hand .battle-hand .stat[data-wide-stat]')].map(stat=>{
           const range=document.createRange();
           range.selectNodeContents(stat);
           const ink=range.getBoundingClientRect(),box=rect(stat),style=getComputedStyle(stat);
