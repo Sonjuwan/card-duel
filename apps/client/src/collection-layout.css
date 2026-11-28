@@ -218,3 +218,14 @@
   }
 }
 .collection-copy-badge{font-variant-numeric:tabular-nums}
+
+@media (orientation:landscape) and (max-height:540px){
+  .lobby-main .deck-builder.collection-workspace>.collection-body.compact-deck-body{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .compact-deck-list .deck-list{
+    display:flex;flex-direction:column;max-height:min(58dvh,400px);min-height:0;
+  }
+  .compact-deck-list .deck-list-scroll{flex:1 1 auto}
+  .compact-deck-list .saved-decks{flex:none}
+}
