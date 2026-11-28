@@ -1,2 +1,2 @@
-Card Duel v0.336.0 UI preview.
+RUNEHALL v0.337.0.
 This play address keeps its existing slot-specific progress and deck library.
