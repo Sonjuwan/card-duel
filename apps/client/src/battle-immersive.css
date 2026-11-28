@@ -367,7 +367,6 @@
     height:auto!important;max-height:100%!important;
     aspect-ratio:.68;box-sizing:border-box;padding:3px!important;
   }
-  .game-main .duel-screen.preview-compact .classic-mulligan .mulligan-cards .card-art{flex-basis:43%}
   .game-main .duel-screen.preview-compact .classic-mulligan .mulligan-confirm{
     grid-column:1!important;grid-row:3!important;
     justify-self:center!important;width:min(75%,370px)!important;min-width:180px!important;

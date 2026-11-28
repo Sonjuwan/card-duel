@@ -26,6 +26,23 @@ async function previewBrowser(t){
   return {browser,url:'http://127.0.0.1:'+server.address().port+'/ui-preview/'};
 }
 
+async function expectFullCard(card){
+  const geometry=await card.evaluate(element=>{
+    const face=element.getBoundingClientRect();
+    const art=element.querySelector('.card-art').getBoundingClientRect();
+    const badge=element.querySelector('.card-mana').getBoundingClientRect();
+    const copy=element.querySelector('.card-copy');
+    return {ratio:face.width/face.height,artFraction:art.height/face.height,artCenter:art.x+art.width/2-face.x-face.width/2,
+      badgeOverArt:badge.right>art.left&&badge.left<art.left+art.width/2&&badge.bottom>art.top&&badge.top<art.bottom,
+      copyHeight:copy.clientHeight,copyOverflow:getComputedStyle(copy).overflowY};
+  });
+  assert.ok(Math.abs(geometry.ratio-1/1.55)<.02,JSON.stringify(geometry));
+  assert.ok(geometry.artFraction>.43&&geometry.artFraction<.6,JSON.stringify(geometry));
+  assert.ok(Math.abs(geometry.artCenter)<1,JSON.stringify(geometry));
+  assert.ok(geometry.badgeOverArt&&geometry.copyHeight>0,JSON.stringify(geometry));
+  assert.ok(['auto','scroll'].includes(geometry.copyOverflow),JSON.stringify(geometry));
+}
+
 test('preview book, audio settings and saved match work across desktop, tablet and phone',{timeout:90000},async t=>{
   const {browser,url}=await previewBrowser(t);
   mkdirSync('ui-evidence',{recursive:true});
@@ -117,6 +134,11 @@ test('preview book, audio settings and saved match work across desktop, tablet a
     await selected.click();
     assert.equal(await selected.getAttribute('aria-pressed'),'true');
     assert.equal(await selected.locator('.mulligan-replace-cross').isVisible(),true);
+    await expectFullCard(selected);
+    const confirm=await page.locator('.mulligan-confirm').boundingBox();
+    const heading=await page.locator('.mulligan-heading').boundingBox();
+    assert.ok(confirm&&confirm.height>=44&&confirm.y+confirm.height<=height,label+' confirm fit');
+    assert.ok(heading&&heading.y>=0&&heading.y+heading.height<confirm.y,label+' heading fit');
     await page.screenshot({path:'ui-evidence/mulligan-'+label+'.png'});
     await selected.click();assert.equal(await selected.getAttribute('aria-pressed'),'false');
     const battleSettings=page.getByRole('button',{name:'전투 설정'});
@@ -320,7 +342,12 @@ test('saved match awards persist before each click-confirmed reveal on desktop, 
       assert.equal(await card.getAttribute('data-preview-card'),expected[0],label);
       assert.ok(await card.locator('.card-copy').isVisible());
       const bounds=await card.boundingBox();
+      mkdirSync('ui-evidence',{recursive:true});
+      await page.screenshot({path:`ui-evidence/reveal-${label}.png`});
       assert.ok(bounds&&bounds.height>=192&&bounds.y>=0&&bounds.y+bounds.height<=height,label+' '+JSON.stringify(bounds));
+      await expectFullCard(card);
+      const popup=await overlay.locator('.reward-reveal').boundingBox();
+      assert.ok(Math.abs(bounds.x+bounds.width/2-popup.x-popup.width/2)<1,label+' reward center');
       const record=()=>page.evaluate(async()=>{
         const req=indexedDB.open('card-duel-solo-saves-v1-ui-preview',2);
         const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});

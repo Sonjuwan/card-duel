@@ -263,7 +263,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .lobby-main .floating-home>strong{display:none}
 .game-main .compact-home-trigger{position:absolute;right:52px;top:0;z-index:12}
 .game-main .duel-title[data-settings-open=true]>.compact-home-trigger{display:none}
-.mulligan-card-frame{position:relative;flex:0 1 auto;width:min(19dvw,calc((100dvh - 130px) / 1.55),180px);min-width:0;perspective:450px}
+.mulligan-card-frame{position:relative;flex:none;min-width:0;perspective:450px}
 .game-main .classic-mulligan .mulligan-cards .mulligan-card-frame>.battle-card{
   width:100%;min-width:0;max-width:none;aspect-ratio:var(--full-card-ratio);transform:none;
 }
@@ -330,14 +330,13 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .reward-reveal[data-rarity=epic]{--reward-glow:#c599ff}
 .reward-reveal[data-rarity=legendary]{--reward-glow:#ffc864}
 .reward-reveal .preview-reward-popup-card{
-  width:min(75vw,260px,calc((92dvh - 90px) / 1.52));height:auto;
+  width:min(100%,360px,calc((92dvh - 6rem) / 1.55));height:auto;flex:none;
   display:block;aspect-ratio:var(--full-card-ratio);pointer-events:none;
   filter:drop-shadow(0 0 15px color-mix(in srgb,var(--reward-glow) 65%,transparent));
 }
-.reward-reveal .preview-reward-popup-card div,.reward-reveal .preview-reward-popup-card .battle-card{
-  width:100%;height:100%;min-width:0;min-height:0;transform:none;
+.reward-reveal .preview-reward-popup-card>.battle-card{
+  width:100%;height:auto;max-width:none;min-height:0;transform:none;
 }
-.reward-reveal .preview-reward-popup-card .card-copy{font-size:clamp(10px,3.1dvh,15px);line-height:1.12}
 .reward-reveal .reward-reveal-prompt{min-height:1.4em;margin:0}
 .reward-reveal .preview-reward-popup-card,.reward-reveal .rank-crest{animation:reward-flare .68s ease both}
 @keyframes reward-flare{from{transform:rotateY(75deg) scale(.75);opacity:.25}to{transform:none;opacity:1}}
@@ -624,7 +623,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .own-hand .battle-hand .hand-card-slot>.battle-card .card-copy { display:none }
   .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-art {
-    flex:1 1 0;
+    flex:1 1 0;height:auto;
   }
   .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-name {
     font-size:clamp(9px,16cqi,14px);white-space:normal;overflow-wrap:anywhere;line-height:1.05;
@@ -1188,12 +1187,7 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
 }
 
-.discard-reveal>.battle-card .card-art{
-  width:100%;height:auto;min-height:18%;flex:0 1 42%;aspect-ratio:auto;
-}
 .discard-reveal>.battle-card .card-name{white-space:normal;overflow-wrap:anywhere}
-.discard-reveal>.battle-card .card-copy{flex:0 0 auto;font-size:clamp(7px,8cqi,13px);line-height:1.12}
-.discard-reveal>.battle-card .card-statline{margin-top:auto}
 
 
 /* The hand's painted art can span a rectangle without changing the card or
@@ -1216,5 +1210,52 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
   }
   .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card .card-copy {
     visibility:visible;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+  }
+}
+
+/* The middle row owns the available card space. Each frame derives both
+   dimensions from one width, including while the exchange animates. */
+@media (orientation:landscape){
+  .game-main .duel-screen.phase-mulligan>.mulligan-arena.classic-mulligan{
+    position:relative;display:grid;flex:1 1 0;min-height:0;width:100%;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto;
+    gap:clamp(4px,1dvh,10px);padding:clamp(4px,1dvh,10px);
+    align-items:stretch;justify-items:center;overflow:hidden;
+  }
+  .game-main .classic-mulligan .mulligan-opponent,
+  .game-main .classic-mulligan .mulligan-self{
+    position:absolute;inset:20% auto auto 2%;max-width:12%;pointer-events:none;
+  }
+  .game-main .classic-mulligan .mulligan-self{inset:auto 2% 18% auto}
+  .game-main .duel-screen:not(.preview-compact) .classic-mulligan .mulligan-heading{
+    grid-area:1/1;flex-direction:row;flex-wrap:wrap;justify-content:center;
+    padding:4px 52px;margin:0;width:100%;gap:clamp(4px,1dvw,15px);
+    min-height:0;overflow:visible;
+  }
+  .classic-mulligan .mulligan-heading h3,.classic-mulligan .mulligan-heading p{margin:0}
+  .classic-mulligan .mulligan-inspection-controls,
+  .classic-mulligan .mulligan-inspection-controls label{flex-direction:row;align-items:center;white-space:nowrap}
+  .classic-mulligan .mulligan-inspection-controls select,
+  .classic-mulligan .mulligan-inspection-open{min-height:34px;width:auto}
+  .game-main .classic-mulligan .mulligan-cards{
+    --opening-gap:clamp(5px,1dvw,16px);
+    grid-area:2/1;container-type:size;
+    display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;
+    width:100%;height:100%;min-height:0;max-width:min(74%,1050px);padding:3px;
+    gap:var(--opening-gap);
+  }
+  .game-main .classic-mulligan .mulligan-card-frame{
+    width:min(calc((100cqw - 3 * var(--opening-gap) - 6px) / 4),calc((100cqh - 8px) / 1.55),260px);
+  }
+  .game-main .classic-mulligan .mulligan-cards .mulligan-card-frame>.battle-card{
+    width:100%;height:auto;min-width:0;max-width:none;max-height:none;
+    aspect-ratio:var(--full-card-ratio);container-type:size;
+  }
+  .game-main .duel-screen:not(.preview-compact) .classic-mulligan .mulligan-confirm{
+    grid-area:3/1;margin:0;min-height:44px;
+  }
+  .game-main .duel-screen.preview-compact .classic-mulligan .mulligan-cards{
+    max-width:100%;--opening-gap:clamp(5px,1.1dvw,17px);
   }
 }

@@ -4,8 +4,8 @@
 /* Reading surfaces share a consistent complete-card silhouette. */
 .lobby-main .collection.classic-collection.collection-book .battle-card{
   box-sizing:border-box;
-  container-type:inline-size;
-  aspect-ratio:0.68 / 1;
+  container-type:size;
+  aspect-ratio:var(--full-card-ratio);
   width:min(100%,230px,calc(25dvh - 12px));
   height:auto;
   min-height:0;
@@ -14,16 +14,6 @@
   align-self:center;
   overflow:visible;
   padding:5px 6px 3px;
-}
-.lobby-main .collection.classic-collection.collection-book .battle-card .card-art{
-  box-sizing:border-box;
-  flex:0 0 42%;
-  width:100%;
-  max-width:none;
-  height:auto;
-  min-height:0;
-  aspect-ratio:auto;
-  overflow:hidden;
 }
 .lobby-main .collection-book .battle-card .card-name{
   flex:none;
@@ -120,7 +110,7 @@
   }
   .lobby-main .collection-book .collection-blank{
     width:100%;
-    aspect-ratio:0.68/1;
+    aspect-ratio:var(--full-card-ratio);
     min-height:0;
   }
   .lobby-main .deck-panel .deck-sidebar{
@@ -234,8 +224,8 @@
   max-width:260px;
 }
 .collection-detail-body .battle-card{
-  container-type:inline-size;
-  aspect-ratio:0.68/1;
+  container-type:size;
+  aspect-ratio:var(--full-card-ratio);
   width:100%;
   height:auto;
   max-width:none;
@@ -244,14 +234,6 @@
   flex-direction:column;
   cursor:default;
   padding:8px;
-}
-.collection-detail-body .battle-card .card-art{
-  flex:0 0 42%;
-  width:100%;
-  height:auto;
-  aspect-ratio:auto;
-  min-height:0;
-  max-width:none;
 }
 .collection-detail-body .battle-card .card-name{
   font-size:clamp(15px,7.5cqi,21px);
@@ -317,25 +299,6 @@
     max-width:940px;
     gap:clamp(10px,1.4vw,24px);
     overflow:visible;
-  }
-  .game-main .mulligan-cards .battle-card{
-    box-sizing:border-box;
-    container-type:inline-size;
-    width:min(20vw,205px);
-    max-width:205px;
-    height:auto;
-    aspect-ratio:0.68/1;
-    flex:0 1 205px;
-    min-height:0;
-    overflow:visible;
-    padding:6px;
-  }
-  .game-main .mulligan-cards .card-art{
-    flex:0 0 42%;
-    width:100%;
-    height:auto;
-    min-height:0;
-    aspect-ratio:auto;
   }
   .game-main .mulligan-cards .card-name{
     flex:none;

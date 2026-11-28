@@ -6,7 +6,7 @@
 .deck-stack>span:has(.local-card-back-art),.classic-table .deck-stack>span:has(.local-card-back-art){padding:0;border-width:1px;background:#342b28;overflow:hidden}
 .battle-card{
   --paper:#ebd9b6;--paper-dark:#c1a579;--frame-edge:#705132;--frame-shine:#dfbc79;--banner:#cda66a;
-  container-type:size;box-sizing:border-box;display:flex;flex-direction:column;justify-content:start;gap:0;align-items:stretch;
+  container-type:size;position:relative;box-sizing:border-box;display:flex;flex-direction:column;justify-content:start;gap:0;align-items:stretch;
   padding:5px 5px 3px;border:3px solid var(--frame-edge);border-radius:18% 18% 9px 9px/12% 12% 9px 9px;
   background:linear-gradient(105deg,var(--paper-dark),var(--paper) 10%,var(--paper) 82%,var(--paper-dark));
   box-shadow:0 4px 7px #1b110bd1,inset 0 0 0 1px var(--frame-shine),inset 0 0 0 3px var(--frame-edge),inset 0 0 0 4px var(--frame-shine);
@@ -24,15 +24,15 @@
 .battle-card.kind-spell,.battle-card.kind-secret{border:3px solid var(--frame-edge);border-radius:14px 14px 8px 8px;background:linear-gradient(110deg,var(--paper-dark),var(--paper) 13%,var(--paper) 86%,var(--paper-dark))}
 .battle-card.kind-weapon{border:3px solid #555e63;background:linear-gradient(110deg,#8b979c,#e2e2ce 15%,#e9dfc2 85%,#929a94);border-radius:20px 20px 9px 9px}
 .battle-card.kind-coin{--paper:#fceaaa;--paper-dark:#d3a448;--frame-edge:#ae762f;--frame-shine:#ffe3a1;--banner:#edc875;border-radius:12px;border-color:var(--frame-edge);background:linear-gradient(110deg,#ac7b35,#fae3a3 14%,#fcebb6 85%,#c49345)}
-.battle-card .card-art{--card-art-square:min(62cqh,max(1px,calc(100cqh - 55px)));display:block;position:relative;flex:0 0 auto;min-height:0;height:auto;aspect-ratio:1/1;width:min(100%,var(--card-art-square));align-self:center;margin:0 auto;overflow:hidden;border:2px solid var(--frame-edge);border-radius:16% 16% 7% 7%;background:#2d2d32;box-shadow:0 1px 3px #241709,0 0 0 1px var(--frame-shine);opacity:1}
+.battle-card .card-art{--card-art-square:min(62cqh,max(1px,calc(100cqh - 55px)));display:block;position:relative;flex:none;min-height:0;height:57cqh;width:100%;align-self:center;margin:0 auto;overflow:hidden;border:2px solid var(--frame-edge);border-radius:16% 16% 7% 7%;background:#2d2d32;box-shadow:0 1px 3px #241709,0 0 0 1px var(--frame-shine);opacity:1}
 .battle-card .card-art::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 6px 1px #100b10c7;pointer-events:none}
-.battle-card.kind-spell .card-art,.battle-card.kind-secret .card-art,.battle-card.kind-coin .card-art{border-radius:7px;flex-basis:auto}
+.battle-card.kind-spell .card-art,.battle-card.kind-secret .card-art,.battle-card.kind-coin .card-art{border-radius:7px}
 .battle-card.kind-weapon .card-art{border-radius:18% 18% 7% 7%}
 .battle-card .card-name{flex:none;display:block;min-height:15px;margin:-1px -3px 0;padding:2px 2px 3px;color:#37271b;border:1px solid var(--frame-edge);border-radius:4px;background:linear-gradient(0deg,var(--banner),var(--paper) 56%,var(--banner));box-shadow:0 2px 2px #3b281f6e;font-family:system-ui,"Malgun Gothic",sans-serif;font-weight:950;letter-spacing:-.035em;line-height:1.14;text-shadow:0 1px #fff7d79e;font-size:clamp(9px,10.6cqi,15px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .battle-card.kind-spell .card-name,.battle-card.kind-secret .card-name{background:linear-gradient(0deg,var(--banner),var(--paper) 56%,var(--banner));border-color:var(--frame-edge);color:#37271b;text-shadow:0 1px #fff7d79e}
 .battle-card .card-type{flex:none;display:block;margin:1px 0;color:#6c5947;font-size:clamp(8px,7.8cqi,10.5px);font-weight:800;line-height:1.07;letter-spacing:-.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.battle-card .card-copy{display:block;flex:1;min-height:0;overflow:hidden;overflow-wrap:anywhere;padding:1px 2px;color:#35281e;font-size:clamp(8px,9.5cqi,13px);line-height:1.22;font-weight:650;text-align:center}
-.battle-card .card-mana{z-index:4;top:-6px;left:-6px;width:clamp(23px,22cqi,36px);height:clamp(25px,25cqi,41px);border:2px solid #ccecff;background:radial-gradient(circle at 31% 13%,#b8f0ff,#5299dc 30%,#1a55a0 72%,#112f71);clip-path:polygon(50% 0,91% 20%,98% 74%,67% 100%,33% 100%,2% 74%,9% 20%);font-size:clamp(15px,17cqi,24px);text-shadow:1px 1px 2px #0b214d}
+.battle-card .card-copy{display:block;flex:1;min-height:0;overflow:auto;scrollbar-width:thin;overscroll-behavior:contain;white-space:pre-wrap;overflow-wrap:anywhere;padding:1px 2px;color:#35281e;font-size:clamp(8px,9.5cqi,13px);line-height:1.22;font-weight:650;text-align:center}
+.battle-card .card-mana{position:absolute;z-index:6;inset:clamp(4px,5cqi,10px) auto auto clamp(4px,5cqi,10px);pointer-events:none;width:clamp(15px,22cqi,43px);height:clamp(17px,25cqi,47px);border:2px solid #ccecff;background:radial-gradient(circle at 31% 13%,#b8f0ff,#5299dc 30%,#1a55a0 72%,#112f71);clip-path:polygon(50% 0,91% 20%,98% 74%,67% 100%,33% 100%,2% 74%,9% 20%);font-size:clamp(10px,17cqi,27px);text-shadow:1px 1px 2px #0b214d}
 .battle-card .card-mana.discounted{background:radial-gradient(circle at 30% 20%,#c5ffbb,#438f50 44%,#177c42)}
 .battle-card .card-mana.increased{background:radial-gradient(circle at 30% 20%,#ffba93,#b84539 44%,#7f242a)}
 .battle-card .card-statline{flex:none;min-height:0;display:flex;align-items:center;margin:0 -4px -4px;position:relative;z-index:2}
@@ -153,17 +153,15 @@
 .turn-countdown{font-size:12px;color:#ffe0a0;text-align:center;font-variant-numeric:tabular-nums}
 .turn-countdown[data-urgent=true]{color:#ff8659}
 
-/* Browsing is reading, rather than playing: card frames grow to fit every
-   rule line instead of clipping text to the fixed-height battle hand. */
+/* Collection text remains readable inside the fixed card silhouette. */
 .collection.classic-collection.collection-book .battle-card{
-  container-type:inline-size;aspect-ratio:auto;height:auto;min-height:0;max-width:190px;flex:0 0 auto
+  aspect-ratio:var(--full-card-ratio);height:auto;min-height:0;max-width:190px;flex:0 0 auto
 }
-.collection-book .battle-card .card-art{width:100%;max-width:150px;aspect-ratio:1;height:auto;flex:0 0 auto}
 .collection-book .battle-card .card-name,.collection-book .battle-card .card-type{
   white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere
 }
 .collection-book .battle-card .card-copy{
-  flex:0 0 auto;height:auto;min-height:0;max-height:none;overflow:visible;white-space:pre-wrap;
+  flex:1 1 0;height:auto;min-height:0;max-height:none;white-space:pre-wrap;
   overflow-wrap:anywhere;display:block;font-size:clamp(12px,9.4cqi,14px);line-height:1.45;padding:5px 2px
 }
 .deck-panel .deck-layout>div{min-width:0}

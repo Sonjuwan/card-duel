@@ -103,15 +103,12 @@
     margin:0;align-self:center;justify-self:center;overflow:hidden;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .deck-card-add-trigger{display:none}
-  .lobby-main .collection-workspace .collection-body .collection.classic-collection.collection-book .battle-card .card-art{
-    flex:0 1 40%;min-height:18%;height:auto;
-  }
   .lobby-main .collection-workspace .collection-body .collection-book .card-name{
     font-size:clamp(9px,10cqi,17px);line-height:1.05;padding-block:2px;
     white-space:normal;overflow-wrap:anywhere;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .card-copy{
-    font-size:clamp(7px,8cqi,13px);line-height:1.1;padding:1px;flex:0 0 auto;
+    font-size:clamp(7px,8cqi,13px);line-height:1.1;padding:1px;flex:1 1 0;overflow:auto;
   }
   .lobby-main .collection-workspace .collection-body .collection-book .card-type{display:none}
   .lobby-main .collection-workspace .collection-body .collection-book .card-statline{margin-top:auto}

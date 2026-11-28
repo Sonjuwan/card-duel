@@ -6,8 +6,7 @@ import type {AccountProfile,GrowthView} from '../../../packages/account-protocol
 import {activeRewardPath,rewardPaths} from '../../../packages/reward-road.ts';
 import {rankInfo,questStatus} from '../../../packages/progression.ts';
 import {catalog,className} from './data.ts';
-import {useCardName} from './card-names.ts';
-import {BattleCard,cardDescription} from './battle-pieces.tsx';
+import {BattleCard} from './battle-pieces.tsx';
 import type {HeroClass} from '../../../packages/engine/src/index.ts';
 
 export function PreviewRank({profile,growth}:{profile?:AccountProfile;growth?:GrowthView}){
@@ -84,12 +83,6 @@ function RewardRoad({profile,growth,xp,rewards,busy,onSelect,onCatalog}:RewardPa
 const REWARD_ANIMATION_MS=680;
 const MIN_CONFIRM_INTERVAL_MS=500;
 
-function RevealedCard({card}:{card:NonNullable<(typeof catalog)[string]>}){
-  const name=useCardName(card);
-  const stats=card.kind==='minion'?`, 공격력 ${card.attack}, 생명력 ${card.health}`:card.kind==='weapon'?`, 공격력 ${card.attack}, 내구도 ${card.durability}`:'';
-  return <div role="img" aria-label={`${name}, 마나 ${card.cost}${stats}. ${cardDescription(card)}`}><div inert><BattleCard card={card} enabled/></div></div>;
-}
-
 export function RewardReveal({cards,rank,onClose}:{cards:string[];rank?:{before:number;after:number};onClose:()=>void}){
   const [index,setIndex]=useState(0);
   const card=catalog[cards[index]];
@@ -133,7 +126,7 @@ export function RewardReveal({cards,rank,onClose}:{cards:string[];rank?:{before:
     <section className="preview-card-reward-popup reward-reveal" data-rarity={rarity} key={index}>
       <h2>{card?'새로운 카드':promote&&after?rankTitle(after)+' 승급!':'보상 획득 완료'}</h2>
       {card&&<div className="preview-reward-popup-card" onAnimationEnd={event=>{if(event.target===event.currentTarget)setReadyIndex(index);}}>
-        <RevealedCard card={card}/>
+        <BattleCard card={card} enabled displayOnly/>
       </div>}
       {promote&&after&&before&&<div className="promotion-crest" data-tier-up={before.league!==after.league}><span className="promotion-previous" aria-hidden="true"><RankCrest rank={before}/></span><span className="promotion-current"><RankCrest rank={after}/></span></div>}
       <p className="reward-reveal-prompt" aria-live="polite">{ready?'화면을 눌러 계속':''}</p>
