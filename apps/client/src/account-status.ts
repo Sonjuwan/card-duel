@@ -1,6 +1,7 @@
 import type {AccountActiveRoom,AccountView,AccountExport,DeveloperRuntimeStatus,DeveloperStatus,GrowthView} from '../../../packages/account-protocol.ts';
 import {HERO_CLASSES} from '../../../packages/engine/src/index.ts';
 import {QUEST_LENGTH,WINS_PER_RANK} from '../../../packages/progression.ts';
+import {ORIGINAL_REWARD_PATH,rewardPathId} from '../../../packages/reward-road.ts';
 import {decodeAccountProfile} from '../../../packages/account-profile.ts';
 const record=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
 const integer=(value:unknown,min=0,max=Number.MAX_SAFE_INTEGER)=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=min&&value<=max;
@@ -25,8 +26,30 @@ export function decodeGrowthView(input:unknown):GrowthView{
     minXp=Number(rank.minimumXp);
   }
   const ids=new Set<string>();for(const id of input.starterIds){if(typeof id!=='string'||!id||ids.has(id))return invalid();ids.add(id);}
-  let xp=0,power=1;
-  for(const card of input.unlocks){if(!record(card)||typeof card.cardId!=='string'||!card.cardId||ids.has(card.cardId)||!integer(card.power,2,25)||Number(card.power)<power||!integer(card.xp)||Number(card.xp)<=xp)return invalid();ids.add(card.cardId);xp=Number(card.xp);power=Number(card.power);}
+  const validUnlocks=(unlocks:unknown[],seen:Set<string>)=>{
+    let xp=0;
+    for(const card of unlocks){
+      if(!record(card)||typeof card.cardId!=='string'||!card.cardId||seen.has(card.cardId)||!integer(card.power,2,25)||!integer(card.xp)||Number(card.xp)<=xp)return false;
+      seen.add(card.cardId);xp=Number(card.xp);
+    }
+    return true;
+  };
+  if(!validUnlocks(input.unlocks,new Set(ids)))return invalid();
+  if(input.rewardPaths!==undefined){
+    if(!Array.isArray(input.rewardPaths)||input.rewardPaths[0]?.id!==ORIGINAL_REWARD_PATH)return invalid();
+    const sets=new Set<string>(),memberships=new Set<string>(),unlocked=new Set(ids);
+    for(const [i,path] of input.rewardPaths.entries()){
+      if(!record(path)||!rewardPathId(path.id)||sets.has(path.id)||typeof path.name!=='string'||!path.name.trim()||
+        !['accumulate','cap'].includes(String(path.afterCompletion))||!Array.isArray(path.cardIds)||!Array.isArray(path.unlocks))return invalid();
+      sets.add(path.id);
+      const members=new Set(path.cardIds);
+      if(members.size!==path.cardIds.length)return invalid();
+      for(const id of members){if(typeof id!=='string'||!id||memberships.has(id))return invalid();memberships.add(id);}
+      if(!validUnlocks(path.unlocks,unlocked)||path.unlocks.some(item=>!members.has(item.cardId)))return invalid();
+      if(i===0&&JSON.stringify(path.unlocks)!==JSON.stringify(input.unlocks))return invalid();
+    }
+    if(memberships.size!==unlocked.size||[...unlocked].some(id=>!memberships.has(id)))return invalid();
+  }
   return input as unknown as GrowthView;
 }
 export function decodeDeveloperStatus(input:unknown):DeveloperStatus{

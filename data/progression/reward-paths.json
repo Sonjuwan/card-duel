@@ -1,0 +1,57 @@
+[
+  {
+    "id": "original",
+    "name": "오리지널 보상의 길",
+    "afterCompletion": "accumulate",
+    "order": {
+      "common": {
+        "warrior": ["harsh_overseer", "test_of_steel", "battle_rage", "war_smith", "inner_wrath", "battle_frenzy"],
+        "shaman": ["earth_shock", "forked_bolt", "lightning_debt", "storm_mace", "storm_elemental", "dust_wraith"],
+        "rogue": ["twin_strike", "cold_blade", "bandit_leader", "treachery", "shadow_step", "smoke_veil"],
+        "paladin": ["silver_protector", "noble_sacrifice", "redemption", "repentance", "wisdom_blessing", "eye_for_eye"],
+        "hunter": ["fire_trap", "freeze_trap", "hound_release", "hidden_arrow", "scavenger", "tripwire"],
+        "druid": ["nature_choice", "return_to_earth", "shape_guardian", "forest_blessing", "grove_choice", "forest_soul"],
+        "warlock": ["imp_scout", "infernal_fire", "overpower", "demon_gate", "blood_imp", "demon_seek"],
+        "mage": ["spell_tutor", "cold_cone", "mana_wyrm", "ice_lance", "ice_barrier", "mirror_entity"],
+        "priest": ["temple_guardian", "silencing_rune", "thought_echo", "healing_circle", "inner_light", "light_entity"],
+        "neutral": ["harvest_golem", "silver_squire", "fen_creeper", "silver_knight", "crystal_sentinel", "faerie_drake", "stone_warden", "iron_dwarf", "field_medic", "scarlet_knight", "jungle_tiger", "spell_breaker", "wind_farseer", "silent_owl", "pain_scholar", "harsh_sergeant", "blood_raider", "heavy_shield", "tauren_guard", "frost_elemental", "chaos_bomber", "pack_wolf", "plague_gnome", "night_cat", "venture_merc", "blade_raider", "young_brewer", "old_brewer", "moon_priestess", "wind_harpy", "young_hawk", "battle_watcher", "jungle_cat", "courier", "wisp", "cult_master", "weapon_smith", "scarred_rager", "raging_wolf", "deckhand"]
+      },
+      "rare": {
+        "warrior": ["mortal_blow", "frenzy_fighter", "blood_veteran", "weapon_upgrade", "final_stand"],
+        "shaman": ["thunderstorm", "spirit_pack", "mana_tide", "lava_burst", "ancestor_spirit"],
+        "rogue": ["masked_agent", "shadow_duelist", "blade_burst", "skull_strike", "ambush_dagger"],
+        "paladin": ["peacekeeper", "equality", "divine_favor", "blessed_champion", "holy_wrath"],
+        "hunter": ["highmane", "explosive_shot", "hunter_bow", "flare", "misdirection"],
+        "druid": ["ancient_warden", "nature_wave", "fanged_bite", "wild_surge", "fertile_land"],
+        "warlock": ["soul_drain", "doom_guard", "shadow_flame", "fel_guard", "void_devourer"],
+        "mage": ["blizzard", "ether_mage", "arcane_barrier", "vaporize", "kirin_mage"],
+        "priest": ["holy_flame", "mass_dispel", "shadow_healer", "light_well", "shadow_lease"],
+        "neutral": ["azure_drake", "sun_walker", "stampede_kodo", "injured_sword", "knife_juggler", "abomination", "silver_champion", "raven_assassin", "crowd_recruiter", "twilight_drake", "sun_protector", "tax_collector", "banner_captain", "wild_pyromancer", "violet_teacher", "imp_master", "demolisher", "mad_alchemist", "arcane_golem", "cold_oracle", "young_priestess", "blood_corsair", "auctioneer", "master_smith", "tiny_summoner", "quest_adventurer", "venom_snake", "light_warden", "ancient_watcher", "mana_addict", "ancient_mage", "cold_seer", "tide_caller", "secret_keeper", "alarm_bot", "angry_chicken"]
+      },
+      "epic": {
+        "warrior": ["brawl", "gorehowl", "shield_slam"],
+        "shaman": ["earth_elemental", "doomhammer", "far_sight"],
+        "rogue": ["patient_assassin", "preparation", "kidnapper"],
+        "paladin": ["avenging_wrath", "lay_on_hands", "sword_of_justice"],
+        "hunter": ["gladiators_longbow", "snake_trap", "bestial_wrath"],
+        "druid": ["ancient_of_lore", "ancient_of_war", "force_of_nature"],
+        "warlock": ["twisting_nether", "bane_of_doom", "pit_lord"],
+        "mage": ["pyroblast", "ice_block", "spellbender"],
+        "priest": ["cabal_shadow_priest", "shadowform", "mindgames"],
+        "neutral": ["big_game_hunter", "faceless_manipulator", "doomsayer", "sea_giant", "mountain_giant", "blood_knight", "molten_giant", "southsea_captain", "murloc_warleader", "hungry_crab", "captains_parrot"]
+      },
+      "legendary": {
+        "warrior": ["grommash_hellscream"],
+        "shaman": ["alakir"],
+        "rogue": ["edwin_vancleef"],
+        "paladin": ["tirion_fordring"],
+        "hunter": ["king_krush"],
+        "druid": ["cenarius"],
+        "warlock": ["lord_jaraxxus"],
+        "mage": ["archmage_antonidas"],
+        "priest": ["prophet_velen"],
+        "neutral": ["cairne_bloodhoof", "ragnaros", "sylvanas_windrunner", "ysera", "bloodmage_thalnos", "hogger", "the_black_knight", "harrison_jones", "onyxia", "alexstrasza", "leeroy_jenkins", "gruul", "baron_geddon", "deathwing", "king_mukla", "nat_pagle", "illidan_stormrage", "malygos", "gelbin_mekkatorque", "elite_tauren_chieftain", "the_beast", "nozdormu", "tinkmaster_overspark", "captain_greenskin", "old_murk_eye", "millhouse_manastorm", "lorewalker_cho"]
+      }
+    }
+  }
+]
