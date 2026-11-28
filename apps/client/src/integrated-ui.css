@@ -622,7 +622,15 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
     min-height:0!important;max-width:none!important;max-height:none!important;transform:none!important;translate:none!important;
     pointer-events:auto;touch-action:none;animation:none!important;
   }
-  .game-main .duel-screen .own-hand .battle-hand .hand-card-slot>.battle-card .card-copy { visibility:visible }
+  .game-main .duel-screen .own-hand .battle-hand .hand-card-slot>.battle-card .card-copy { display:none }
+  .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-art {
+    flex:1 1 0;
+  }
+  .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-name {
+    font-size:clamp(9px,16cqi,14px);white-space:normal;overflow-wrap:anywhere;line-height:1.05;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  }
+  .game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-statline { margin-top:4px }
   .game-main .duel-screen .own-hand .battle-hand .hand-card-slot:has(>.is-selected) { z-index:2 }
 }
 
@@ -1186,3 +1194,25 @@ body:has(.game-main,.lobby-main:not(.slot-entry)) #solo-app-banner:not([data-urg
 .discard-reveal>.battle-card .card-name{white-space:normal;overflow-wrap:anywhere}
 .discard-reveal>.battle-card .card-copy{flex:0 0 auto;font-size:clamp(7px,8cqi,13px);line-height:1.12}
 .discard-reveal>.battle-card .card-statline{margin-top:auto}
+
+
+/* The hand's painted art can span a rectangle without changing the card or
+   the desktop illustration's original square height. The mana badge floats
+   at its corner and the full preview stays separate from the hand card. */
+.game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-art {
+  width:100%;aspect-ratio:auto;
+}
+.game-main .duel-screen .own-hand .hand-card-slot>.battle-card .card-mana {
+  position:absolute;inset:4px auto auto 4px;pointer-events:none;
+}
+@media (orientation:landscape) and (min-height:541px){
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card .card-art {
+    height:min(100cqi,var(--card-art-square));
+  }
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card .card-mana {
+    inset:5px auto auto 5px;
+  }
+  .game-main .duel-screen .arena-field .own-hand .hand-card-slot>.battle-card .card-copy {
+    visibility:visible;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+  }
+}

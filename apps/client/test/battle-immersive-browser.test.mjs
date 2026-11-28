@@ -121,7 +121,7 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
             side.mana=side.maxMana=10;
             }
             view.self.handCount=hand;
-            view.self.hand=Array.from({length:hand},(_,i)=>({cardId:'wolf',instanceId:'fixture-card-'+i}));
+            view.self.hand=Array.from({length:hand},(_,i)=>({cardId:i===0?'spellbender':'wolf',instanceId:'fixture-card-'+i}));
             handler.call(this,new MessageEvent('message',{data:fixture}));
           };
           handler?.call(this,event);
@@ -149,6 +149,8 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
   await page.getByRole('button',{name:'선택한 덱으로 대전 시작'}).tap();
   if(enteredFullscreen)assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true);
   t.diagnostic(enteredFullscreen?'Chromium Fullscreen API entered and persisted':'Chromium showed manual rotation guidance');
+  const mulliganCard=page.locator('.mulligan-cards .battle-card').first();
+  await mulliganCard.locator('.card-copy').waitFor();
   await page.locator('.mulligan-confirm').tap();
   await page.waitForFunction(()=>Boolean(window.denseBoard));
   await page.evaluate(()=>window.denseBoard());
@@ -216,9 +218,36 @@ test('mobile fullscreen stays enter-only and dense combat fits seven units and t
     });
     assert.deepEqual(resourceGeometry,{cards:true,opponentInfo:true,stats:true},String(width));
     const card=page.locator('.own-hand .battle-card').first();
+    const copy=card.locator('.card-copy');
+    assert.equal(await copy.isVisible(),!compact);
+    const geometry=await card.evaluate(el=>{
+      const art=el.querySelector('.card-art'),mana=el.querySelector('.card-mana');
+      const box=art.getBoundingClientRect(),badge=mana.getBoundingClientRect();
+      const style=getComputedStyle(el);
+      const content=parseFloat(style.width)-['paddingLeft','paddingRight','borderLeftWidth','borderRightWidth']
+        .reduce((sum,key)=>sum+parseFloat(style[key]),0);
+      return {fillsWidth:Math.abs(box.width-content)<1,
+        badgeOverArt:badge.top<box.bottom&&badge.bottom>box.top&&badge.left<box.right&&badge.right>box.left,
+        badgePosition:getComputedStyle(mana).position};
+    });
+    assert.deepEqual(geometry,{fillsWidth:true,badgeOverArt:true,badgePosition:'absolute'});
+    if(!compact){
+      assert.ok(await copy.evaluate(el=>{
+        const oldHeight=el.clientHeight;
+        if(el.scrollHeight<=oldHeight)return false;
+        el.scrollTop=el.scrollHeight;
+        const reachedEnd=el.scrollHeight-el.scrollTop-oldHeight<=1;
+        el.scrollTop=0;
+        return reachedEnd&&el.clientHeight===oldHeight;
+      }),'the longest description scrolls to its last line without resizing');
+    }
     await page.screenshot({path:`ui-evidence/dense-${width}-hand.png`});
     const original=await card.boundingBox();
     await card.tap({force:true});
+    const detail=page.locator('[data-hover-preview]');
+    await detail.waitFor();
+    assert.equal(await detail.locator('.hover-description').textContent(),await copy.textContent());
+    assert.ok(await detail.locator('.hover-large-card .card-copy').isVisible());
     assert.deepEqual(await card.boundingBox(),original);
     assert.equal(await page.locator('.selected-card-use,.selection-cancel').count(),0);
     assert.ok(targets.every(Boolean),JSON.stringify({width,targets}));
@@ -368,6 +397,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   });
   const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
   await summon.waitFor();
+  assert.ok(await summon.locator('.fx-play-card .battle-card .card-copy').isVisible());
   assert.equal(await hand.getAttribute('aria-expanded'),'true');
   const pending=page.locator('.own-hand button[data-preview-card="mana_wyrm"]');
   await pending.waitFor();
@@ -678,6 +708,7 @@ test('desktop displays both sides’ sequential discards and scrollable public a
   ]));
   const active=side=>page.locator(`.discard-reveal[data-discard-side="${side}"]:visible`);
   await active('own').waitFor();
+  assert.ok(await active('own').locator('.battle-card .card-copy').isVisible());
   assert.equal(await active('opponent').count(),0);
   await page.screenshot({path:'ui-evidence/discard-own-v0330.png'});
   await active('opponent').waitFor();

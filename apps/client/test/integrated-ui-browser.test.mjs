@@ -318,6 +318,7 @@ test('saved match awards persist before each click-confirmed reveal on desktop, 
       await ready.waitFor();
       await page.waitForTimeout(2450);
       assert.equal(await card.getAttribute('data-preview-card'),expected[0],label);
+      assert.ok(await card.locator('.card-copy').isVisible());
       const bounds=await card.boundingBox();
       assert.ok(bounds&&bounds.height>=192&&bounds.y>=0&&bounds.y+bounds.height<=height,label+' '+JSON.stringify(bounds));
       const record=()=>page.evaluate(async()=>{

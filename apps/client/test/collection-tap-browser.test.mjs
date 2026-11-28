@@ -59,10 +59,14 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
       const save=workspace.querySelector('.deck-save-primary');
       let saveTextFits=true;
       if(save?.getBoundingClientRect().width){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
-      return {badBadges,badgeCount:badges.length,badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:(innerHeight<=540||left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5))&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
+      return {fullDescriptions:cards.every(card=>{
+        const copy=card.querySelector('.card-copy');
+        return getComputedStyle(copy).display!=='none'&&getComputedStyle(copy).visibility==='visible'&&copy.getBoundingClientRect().height>0;
+      }),badBadges,badgeCount:badges.length,badMana,pageStatusVisible:visible(status),saveTextFits,count:cards.length,book:rect(book),workspace:rect(workspace),cardRects:cards.map(rect),badCards:cards.map((c,i)=>visible(c)?null:i).filter(i=>i!==null),badTabs:tabs.filter(t=>!visible(t)).map(t=>t.textContent),badEdges:edges.filter(t=>!visible(t)).map(t=>t.textContent),badControls:row.filter(t=>!visible(t)).map(t=>t.textContent),controls:row.map(rect),overlap,toolbarAbove:row.every(el=>cards.every(card=>{const r=box(el),b=box(card);return r.bottom<=b.top+1||r.top>=b.bottom-1||r.right<=b.left+1||r.left>=b.right-1;})),order:(innerHeight<=540||left.every((el,i)=>!i||box(left[i-1]).right<=box(el).left+.5))&&right.every((el,i)=>!i||box(right[i-1]).right<=box(el).left+.5),duplicateCount:!!toolbar.querySelector(':scope>strong'),documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight};
     },mode);
     const msg=JSON.stringify({mode,width,height,...geometry});
     await page.screenshot({path:'ui-evidence/'+mode+'-'+width+'x'+height+'.png'});
+    assert.equal(geometry.fullDescriptions,true,msg);
     assert.deepEqual(geometry.badBadges,[],msg);assert.equal(geometry.badgeCount,8,msg);
     assert.equal(geometry.count,8,msg);assert.ok(geometry.book.height>100,msg);
     assert.ok(Math.max(...geometry.cardRects.map(r=>r.width))-Math.min(...geometry.cardRects.map(r=>r.width))<2,msg);
@@ -92,6 +96,7 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
   await cards.first().tap();
   const detail=page.getByRole('dialog',{name:'카드 확대 상세'});
   await detail.waitFor();
+  assert.ok(await detail.locator('.battle-card .card-copy').isVisible());
   assert.equal(await detail.getByRole('button',{name:'덱에 추가',exact:true}).count(),0);
   await detail.getByRole('button',{name:'닫기',exact:true}).tap();
   await page.getByRole('button',{name:'메인으로',exact:true}).tap();
