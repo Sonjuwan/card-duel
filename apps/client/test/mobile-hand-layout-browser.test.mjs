@@ -54,6 +54,8 @@ test('mobile hand keeps its size, visible costs and independent mana with zero t
   mkdirSync('ui-evidence',{recursive:true});
   for(const [width,height] of [[640,360],[844,390],[932,430]]){
     await page.setViewportSize({width,height});
+    const open=page.locator('.folded-hand[aria-expanded=true]');
+    if(await open.count())await open.tap();
     let first;
     for(let count=0;count<=10;count++){
       await page.evaluate(n=>window.setHandFixture(n),count);

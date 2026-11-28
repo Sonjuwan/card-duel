@@ -25,6 +25,9 @@
     right:calc(var(--rh-mobile-edge) + 51px)!important;
     max-width:none;
   }
+  .game-main .duel-screen.preview-compact .arena-field>.hidden-hand .opponent-card-slot:not(:first-child){
+    margin-left:calc(min(2.3dvh,.86dvw) - 8dvh)!important;
+  }
   .game-main .duel-screen.preview-compact .arena-right>.turn-control{
     right:var(--rh-mobile-edge)!important;
   }
@@ -47,9 +50,7 @@
   .game-main .duel-screen.preview-compact .self-hero-zone .battle-dialogue-captions{
     bottom:3px;max-height:calc(50dvh - 1.5 * var(--rh-impact-size) - 10px);
   }
-}
 
-@media (orientation:landscape) and (max-height:540px){
   /* The overlay reaches at most halfway into the friendly minion row. All
      sizing and fan calculations use this overlay, not the number of cards. */
   .game-main .duel-screen.preview-compact .arena-field>.own-hand{
@@ -68,7 +69,6 @@
   .game-main .duel-screen.preview-compact .arena-field .own-hand .battle-hand .hand-card-slot{
     width:var(--rh-card-width)!important;height:auto!important;max-height:none!important;
     max-width:none!important;flex:0 0 var(--rh-card-width);align-self:flex-end;
-    transition:margin-inline-start 120ms ease-out;
   }
   .game-main .duel-screen.preview-compact .arena-field .own-hand .battle-hand .hand-card-slot:not(:first-child){
     margin-inline-start:calc(var(--rh-card-step) - var(--rh-card-width))!important;
@@ -95,7 +95,23 @@
     width:clamp(9px,3.1dvh,15px);height:clamp(3px,1dvh,6px);
     border-radius:2px;flex:none;line-height:1;font-size:5px;
   }
+
+  .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-open=false] .battle-hand{display:none!important}
+  .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-open=true] .battle-hand{
+    display:flex!important;visibility:visible!important;opacity:1;translate:0 0;
+    transition:opacity 110ms ease-out,translate 110ms ease-out,visibility 110ms step-start;
+  }
+  .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-open=true] .battle-hand .battle-card{
+    visibility:inherit!important;
+  }
+  .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-obscured=true] .battle-hand{
+    visibility:hidden!important;opacity:0;translate:0 12px;
+    transition:opacity 110ms ease-out,translate 110ms ease-out,visibility 110ms step-end;
+  }
+  .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-obscured=true] .battle-hand .battle-card{
+    pointer-events:none!important;
+  }
   @media (prefers-reduced-motion:reduce){
-    .game-main .duel-screen.preview-compact .arena-field .own-hand .battle-hand .hand-card-slot{transition:none}
+    .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-open=true] .battle-hand{transition:none}
   }
 }

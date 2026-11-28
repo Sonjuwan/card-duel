@@ -1,4 +1,4 @@
-import {useBoardReflow} from './board-reflow.ts';
+import {useBoardReflow,useHandReflow} from './board-reflow.ts';
 import {DiscardReveal} from './discard-reveal.tsx';
 import {heroShatterMs,lethalPortraits,mulliganSlots} from './battle-cinematics.ts';
 import {LocalCardArt} from './local-art.tsx';
@@ -141,8 +141,10 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const stagedPress=useRef<{id:number;x:number;y:number;target:Target;selection:Selection}|null>(null);
   const effectPress=useRef<{id:number;choice:number;x:number;y:number}|null>(null);
   const [drag,setDrag]=useState<DragState|null>(null),dragRef=useRef<DragState|null>(null);
+  const dragGrip=useRef<{x:number;y:number}|null>(null);
   const touchRef=useRef<TouchGesture|null>(null),cancelledPointer=useRef<number|null>(null),suppressClick=useRef(0);
   const [handOpen,setHandOpen]=useState(false);
+  const handRef=useRef<HTMLDivElement|null>(null);
   const [compactHand,setCompactHand]=useState(false);
   useLayoutEffect(()=>{
     if(!compactUi)return;
@@ -305,22 +307,44 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   useEffect(()=>{const cancel=()=>{actionFocus.current=null;};const tab=(e:KeyboardEvent)=>{if(e.key==='Tab')cancel();};window.addEventListener('pointerdown',cancel,true);window.addEventListener('keydown',tab,true);return()=>{window.removeEventListener('pointerdown',cancel,true);window.removeEventListener('keydown',tab,true);};},[]);
   const stopEdgePan=()=>{if(edgePanRef.current)cancelAnimationFrame(edgePanRef.current.frame);edgePanRef.current=null;};
   useEffect(()=>()=>stopEdgePan(),[]);
-  const clearDrag=()=>{stagedPress.current=null;stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);castRef.current=false;setCasting(false);pointerPoint.current=null;castPoint.current=null;setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');};
-  const cancelActiveTouch=()=>{const interrupted=touchRef.current,guard=interruptTouch(interrupted,cancelledPointer.current,suppressClick.current,Date.now());cancelledPointer.current=guard.cancelledPointer;suppressClick.current=guard.suppressUntil;clearDrag();if(interrupted&&arenaRef.current?.hasPointerCapture(interrupted.pointerId)){try{arenaRef.current.releasePointerCapture(interrupted.pointerId);}catch{}}};
+  const clearDrag=()=>{
+    stagedPress.current=null;aimPress.current=null;effectPress.current=null;dragGrip.current=null;
+    stopEdgePan();dragRef.current=null;touchRef.current=null;setDrag(null);setTouchGhost(null);
+    castRef.current=false;setCasting(false);pointerPoint.current=null;castPoint.current=null;
+    setTouchSlot(undefined);setDropTarget(undefined);setDropFeedback(null);aimRef.current?.setAttribute('visibility','hidden');
+  };
+  const cancelActiveTouch=()=>{
+    const interrupted=touchRef.current,aim=aimPress.current;
+    const guard=interruptTouch(interrupted,cancelledPointer.current,suppressClick.current,Date.now());
+    cancelledPointer.current=guard.cancelledPointer;suppressClick.current=guard.suppressUntil;
+    clearDrag();
+    const arena=arenaRef.current;
+    for(const id of [interrupted?.pointerId,aim]){
+      if(id!=null&&arena?.hasPointerCapture(id)){try{arena.releasePointerCapture(id);}catch{}}
+    }
+  };
   const cancelCardChoice=()=>{if(selected?.kind==='cardChoice')choiceReturn.current=selected.id;setSelected(null);cancelActiveTouch();};
   useEffect(()=>{
     const interrupt=()=>{actionFocus.current=null;cancelActiveTouch();setSelected(null);setDropNotice('');};
     const hide=()=>{interrupt();stopBattleSound();stopDialogueVoice();stopBattleHaptics();setMotion(null);};
     const changed=()=>{if(document.hidden)hide();};
     document.addEventListener('visibilitychange',changed);window.addEventListener('blur',interrupt);window.addEventListener('pagehide',hide);
-    return()=>{document.removeEventListener('visibilitychange',changed);window.removeEventListener('blur',interrupt);window.removeEventListener('pagehide',hide);};
+    document.addEventListener('fullscreenchange',interrupt);
+    screen.orientation?.addEventListener?.('change',interrupt);
+    return()=>{
+      document.removeEventListener('visibilitychange',changed);window.removeEventListener('blur',interrupt);window.removeEventListener('pagehide',hide);
+      document.removeEventListener('fullscreenchange',interrupt);
+      screen.orientation?.removeEventListener?.('change',interrupt);
+    };
   },[]);
   useEffect(()=>{setSelected(null);setPosition(null);cancelActiveTouch();setDropNotice('');},[room.code,acceptedTurn,acceptedPhase,connected,opponentReady]);
   const rulesView=projected??s;
+  const hand=s&&rulesView?s.self.hand.filter(card=>rulesView.self.hand.some(real=>real.instanceId===card.instanceId)):[];
+  useHandReflow(handRef,hand.map(card=>card.instanceId).join(' '),
+    compactHand&&handOpen&&s?.phase==='playing'&&room.animationSpeed!=='instant');
   const readyToEnd=!!rulesView&&active&&!selected&&!drag&&!casting&&!busy&&!reservations.length&&!hasRemainingBattleAction(rulesView,seat,catalog);
   const lastReady=useRef('');
   useEffect(()=>{const key=room.code+':'+rulesView?.turn;if(readyToEnd&&lastReady.current!==key){playTurnReadySound();lastReady.current=key;}else if(rulesView&&active&&hasRemainingBattleAction(rulesView,seat,catalog))lastReady.current='';},[readyToEnd,room.code,rulesView,active,seat]);
-  useEffect(()=>{if(rulesView?.self.hand.length===0)setHandOpen(false);},[rulesView?.self.hand.length]);
   useLayoutEffect(()=>{
     const gesture=touchRef.current,held=dragRef.current??gesture?.drag;
     if(!held||!rulesView)return;
@@ -340,7 +364,6 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   },[casting,drag,rulesView]);
   if(!s)return <section className="panel waiting waiting-arena"><span className="waiting-sigil"><Sigil kind="deck"/></span><p className="eyebrow">{room.ownedPvp?'ACCOUNT PVP':'PRIVATE MATCH'}</p><h2>{room.ownedPvp?'다른 유저를 기다리는 중':'친구를 기다리는 중'}</h2><strong className="room-code">{room.code}</strong><p>{room.ownedPvp?'상대가 참가하면 보유 카드 대전이 시작됩니다. 친구에게 계정 대전 코드를 공유할 수도 있습니다.':'친구에게 방 코드를 알려주세요. 참가하면 자동으로 대전이 시작됩니다.'}</p><div className="waiting-actions"><button onClick={copyRoom}>{roomCopied?'코드 복사됨':'방 코드 복사'}</button><button className="secondary" onClick={leave}>방 나가기</button></div></section>;
   const rules=rulesView??s;
-  const hand=s.self.hand.filter(card=>rules.self.hand.some(real=>real.instanceId===card.instanceId));
   const applyIntent=(intent:Intent|null,keyboard=false)=>{if(!active||!intent)return;if(intent.action)perform(intent.action,keyboard);else{if(keyboard&&(intent.selection.kind==='card'||intent.selection.kind==='cardChoice'))focusRequest.current=intent.selection.kind;setSelected(old=>toggleActionSelection(old,intent.selection));}};
   const pendingPosition=selected?.kind==='card'||selected?.kind==='cardChoice'?selected.position:undefined;
   const boardPosition=Math.min(pendingPosition??position??rules.self.board.length,rules.self.board.length);
@@ -372,7 +395,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
       if(selected.kind==='cardChoice'){e.preventDefault();e.stopPropagation();cancelCardChoice();return;}
       const key=selected.kind==='attack'?`minion:${selected.id}`:selected.kind==='heroAttack'?'hero':selected.kind==='power'?'power':`card:${selected.id}`;
       const source=[...arenaRef.current?.querySelectorAll<HTMLElement>('[data-action-source]')??[]].find(el=>el.dataset.actionSource===key);
-      e.preventDefault();e.stopPropagation();setSelected(null);cancelActiveTouch();source?.focus();return;
+      e.preventDefault();e.stopPropagation();setSelected(null);cancelActiveTouch();
+      if(source)requestAnimationFrame(()=>{if(source.isConnected)source.focus();});
+      return;
     }
     let controls:HTMLElement[]=[];
     if(selected&&legalTargets.length&&e.target.closest('.battle-card,.battle-minion,.hero-portrait,.hero-power'))controls=[...arenaRef.current?.querySelectorAll<HTMLElement>('.is-targeted[aria-disabled="false"]')??[]];
@@ -389,6 +414,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const stagedMinion=stagedCard?.kind==='minion'?stagedCard:undefined;
   const stagedSpell=!currentDrag&&selected?.kind==='card'&&selected.choice!==undefined&&selectedCard?.kind==='spell';
   const stagedAim=!!stagedMinion||stagedSpell;
+  const cardTargeting=selected?.kind==='card'||selected?.kind==='cardChoice';
+  const handObscured=currentDrag?.kind==='card'||cardTargeting;
   const attackTargeting=highlight?.kind==='attack'||highlight?.kind==='heroAttack';
   const tauntBlocking=attackTargeting&&rules.opponent.board.some(unit=>unit.keywords?.includes('taunt')&&legalTargets.some(target=>target.kind==='minion'&&target.instanceId===unit.instanceId));
   const aimSource=highlight?.kind==='attack'?`minion:${highlight.id}`:highlight?.kind==='card'?(stagedMinion?'battlecry':stagedSpell?'chosen-spell':`card:${highlight.id}`):highlight?.kind==='heroAttack'?'hero':highlight?.kind==='power'?'power':null;
@@ -457,6 +484,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     if(intent.kind==='card'){
       const image=document.createElement('canvas');image.width=image.height=1;
       event.dataTransfer.setDragImage(image,0,0);
+      dragGrip.current={x:event.clientX,y:event.clientY};
       setTouchGhost(intent.id);
       dragPointer(event.clientX,event.clientY,next);
     }
@@ -518,9 +546,19 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     }));
     return target?.kind==='minion'?{...description,minionId:target.instanceId}:target?.kind==='hero'?{...description,hero:target.player===seat?'self':'enemy'}:description;
   };
-  const pointerPlan=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{
+  const pointerPlan=(hit:Element|null,x:number,y:number,d:DragState,touch=false)=>{
     const plan=planDrag(rules,seat,catalog,d.intent,boardPosition);
-    const description=pointerDescription(hit,x,d.intent,plan,touchY);
+    const description=pointerDescription(hit,x,d.intent,plan,touch?y:undefined);
+    const grip=dragGrip.current;
+    // Once the overlay hides, the original grip may be above a legal board
+    // location. Returning to that grip still cancels the play.
+    if(compactHand&&grip){
+      if(Math.hypot(x-grip.x,y-grip.y)<=14)description.hand=true;
+      else if(!description.hero&&hit?.closest('.self-hero-zone')){
+        const panel=handRef.current?.getBoundingClientRect();
+        if(panel&&x>=panel.left&&x<=panel.right)description.hand=true;
+      }
+    }
     const spell=plan?.selection?.kind==='card'&&selectionCard(rules,catalog,plan.selection)?.kind==='spell';
     const result=spell&&!castRef.current
       ?{intent:null,feedback:'cancel' as const}
@@ -528,7 +566,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     const action=result.intent?.action,target=action&&'target' in action?action.target:undefined;
     return {...result,target,slot:result.intent?description.slot:undefined};
   };
-  const updatePointerFeedback=(hit:Element|null,x:number,d:DragState,touchY?:number)=>{const plan=pointerPlan(hit,x,d,touchY);setTouchSlot(plan.slot);setDropTarget(old=>old&&plan.target&&sameTarget(old,plan.target)?old:plan.target);setDropFeedback(plan.feedback);return plan;};
+  const updatePointerFeedback=(hit:Element|null,x:number,y:number,d:DragState,touch=false)=>{const plan=pointerPlan(hit,x,y,d,touch);setTouchSlot(plan.slot);setDropTarget(old=>old&&plan.target&&sameTarget(old,plan.target)?old:plan.target);setDropFeedback(plan.feedback);return plan;};
   const edgeDelta=(row:HTMLElement,x:number,y:number,elapsed=16)=>{
     if(row.dataset.scrollable!=='true')return 0;
     const rect=row.getBoundingClientRect();if(y<Math.max(0,rect.top)||y>Math.min(document.documentElement.clientHeight,rect.bottom))return 0;
@@ -539,9 +577,9 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     const row=card?.kind==='minion'?hit?.closest<HTMLElement>('.friendly-minions'):undefined;
     const direction=row?Math.sign(edgeDelta(row,x,y)):0;if(!row||!direction){stopEdgePan();return;}
     const live=edgePanRef.current;
-    if(live&&live.row===row&&live.drag===d&&live.direction===direction){live.x=x;live.y=y;live.refresh=()=>updatePointerFeedback(document.elementFromPoint(live.x,live.y),live.x,d,live.y);return;}
+    if(live&&live.row===row&&live.drag===d&&live.direction===direction){live.x=x;live.y=y;live.refresh=()=>updatePointerFeedback(document.elementFromPoint(live.x,live.y),live.x,live.y,d,true);return;}
     stopEdgePan();const now=performance.now(),session={frame:0,row,drag:d,x,y,direction,started:now,last:now,refresh:()=>{}};
-    session.refresh=()=>updatePointerFeedback(document.elementFromPoint(session.x,session.y),session.x,d,session.y);
+    session.refresh=()=>updatePointerFeedback(document.elementFromPoint(session.x,session.y),session.x,session.y,d,true);
     const tick=(time:number)=>{
       if(edgePanRef.current!==session)return;
       if(dragRef.current!==d||document.hidden||!row.isConnected){stopEdgePan();return;}
@@ -552,8 +590,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     };
     edgePanRef.current=session;session.frame=requestAnimationFrame(tick);
   };
-  const nativeDragOver=(e:DragEvent<HTMLDivElement>)=>{const d=dragRef.current;if(!d||!active)return;dragPointer(e.clientX,e.clientY,d);const plan=updatePointerFeedback(document.elementFromPoint(e.clientX,e.clientY),e.clientX,d);if(plan.intent){e.preventDefault();e.dataTransfer.dropEffect='move';}else e.dataTransfer.dropEffect='none';};
-  const nativeDrop=(e:DragEvent<HTMLDivElement>)=>{const d=dragRef.current;if(!d||!active)return;e.preventDefault();e.stopPropagation();const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,d);clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));};
+  const nativeDragOver=(e:DragEvent<HTMLDivElement>)=>{const d=dragRef.current;if(!d||!active)return;dragPointer(e.clientX,e.clientY,d);const plan=updatePointerFeedback(document.elementFromPoint(e.clientX,e.clientY),e.clientX,e.clientY,d);if(plan.intent){e.preventDefault();e.dataTransfer.dropEffect='move';}else e.dataTransfer.dropEffect='none';};
+  const nativeDrop=(e:DragEvent<HTMLDivElement>)=>{const d=dragRef.current;if(!d||!active)return;e.preventDefault();e.stopPropagation();const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,e.clientY,d);clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));};
   const nativeDragEnd=()=>{const unfinished=!!dragRef.current;clearDrag();if(unfinished&&active)setDropNotice('드래그 취소 · 카드와 마나는 그대로 유지됩니다.');};
   const touchMove=(e:PointerEvent<HTMLDivElement>)=>{
     pointAim(e.clientX,e.clientY);
@@ -565,16 +603,19 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     if(g.phase!=='dragging'){
       try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}
       setSelected(null);setDrag(next.drag);dragRef.current=next.drag;
-      if(next.drag.intent.kind==='card')setTouchGhost(next.drag.intent.id);
+      if(next.drag.intent.kind==='card'){
+        dragGrip.current={x:g.originX,y:g.originY};
+        setTouchGhost(next.drag.intent.id);
+      }
     }
     dragPointer(e.clientX,e.clientY,next.drag);
     const hit=document.elementFromPoint(e.clientX,e.clientY);
-    updatePointerFeedback(hit,e.clientX,next.drag,e.clientY);
+    updatePointerFeedback(hit,e.clientX,e.clientY,next.drag,true);
     queueEdgePan(e.clientX,e.clientY,next.drag,hit);
     e.preventDefault();
   };
   const returnTouchCard=(arena:HTMLDivElement,intent:DragIntent)=>{
-    if(intent.kind!=='card'||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    if(compactHand||intent.kind!=='card'||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     const ghost=arena.querySelector('.touch-drag-ghost')?.getBoundingClientRect();
     const card=arena.querySelector<HTMLElement>(`[data-action-source="card:${CSS.escape(intent.id)}"]`);
     if(!ghost||!card)return;
@@ -612,7 +653,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
     suppressClick.current=Date.now()+250;
     if(outcome==='cancel'){clearDrag();return;}
     try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}
-    const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,g.drag,e.clientY);
+    const plan=pointerPlan(document.elementFromPoint(e.clientX,e.clientY),e.clientX,e.clientY,g.drag,true);
     if(!plan.intent)returnTouchCard(e.currentTarget,g.drag.intent);
     clearDrag();if(plan.intent)applyIntent(plan.intent);else setDropNotice(dropFeedbackText(plan.feedback));e.preventDefault();
   };
@@ -620,7 +661,10 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
   const guardClick=(e:MouseEvent<HTMLDivElement>)=>{
     if(Date.now()<suppressClick.current&&!independentActivation(e.nativeEvent)){e.preventDefault();e.stopPropagation();return;}
     if(!(e.target instanceof Element))return;
-    if(stagedAim&&!e.target.closest('.battle-minion,.hero-portrait,.battlecry-anchor,.chosen-spell-anchor'))setSelected(null);
+    if((stagedAim||compactHand&&cardTargeting)&&!e.target.closest('.battle-minion,.hero-portrait,.battlecry-anchor,.chosen-spell-anchor,.choice-window')){
+      setSelected(null);
+      return;
+    }
     if(handOpen&&!stagedAim&&e.target.closest('.arena-field')&&!e.target.closest('button,.own-hand,.hero-zone')){
       setSelected(null);setHandOpen(false);
     }
@@ -723,8 +767,8 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
             remainingAttacks={rules.self.board.find(unit=>unit.instanceId===m.instanceId)?.attacksRemaining} ownTurn={s.activePlayer===seat} enabled={targetReady||attackReady&&(!highlight||highlight.kind==='attack'||highlight.kind==='heroAttack')} ready={attackReady} selected={isSource} targeted={targetReady} dropTarget={!!(currentDrag||stagedMinion)&&!!dropTarget&&sameTarget(dropTarget,target)} onClick={keyboard=>{if(targetReady)choose(target,keyboard);else if(keyboard&&attackReady&&!stagedMinion)setSelected(old=>toggleActionSelection(old,planAttack(rules,seat,catalog,m.instanceId)));}} onDragStart={attackReady?e=>beginDrag(e,{kind:'attack',id:m.instanceId}):undefined} onDragEnd={nativeDragEnd}/>} {m&&reservationBadge('attack',m.instanceId)}</div>;})}{!s.self.board.length&&<div className="empty-board own-empty">{currentDrag?.kind==='card'?'여기에 카드를 놓으세요':'손패에서 하수인을 내보세요'}</div>}</div>
         </div>
         <div className="hero-zone self-hero-zone">{stagedSpell&&<button type="button" data-action-source="chosen-spell" className="chosen-spell-anchor" aria-label="주문 대상 지정">✦</button>}<DialogueCaptions captions={dialogue.captions} side={seat} mode={captionMode} catalog={catalog} hero={s.self.heroClass} heroForm={s.self.heroForm}/><WeaponSlot player={s.self} catalog={catalog}/><div className="hero-center"><Secrets count={s.self.secretCount} names={s.self.secrets.map(c=>displayCardName(catalog[c.cardId],classicNames))} cards={s.self.secrets.map(c=>catalog[c.cardId])}/><HeroPortrait mastery={mastery} shatter={shattered.own} delta={visual?.ownHeroDelta} sourceId="hero" player={s.self} label="나" preparing={reservations.some(action=>action.type==='heroAttack')} enabled={canTarget(ownHeroTarget)||canAttack()&&(!highlight||highlight.kind==='heroAttack')} ready={canAttack()} selected={highlight?.kind==='heroAttack'} targeted={canTarget(ownHeroTarget)} dropTarget={!!(currentDrag||stagedMinion)&&!!dropTarget&&sameTarget(dropTarget,ownHeroTarget)} onClick={keyboard=>{if(canTarget(ownHeroTarget))choose(ownHeroTarget,keyboard);else if(canAttack())setSelected(old=>toggleActionSelection(old,planAttack(rules,seat,catalog)));}} onDragStart={canAttack()?e=>beginDrag(e,{kind:'heroAttack'}):undefined} onDragEnd={nativeDragEnd}/></div><HeroPower sourceId="power" player={s.self} enabled={!!power} ready={!!power&&!highlight&&!currentDrag} selected={highlight?.kind==='power'} reason={powerReason} onClick={keyboard=>applyIntent(power,keyboard)} onDragStart={power?e=>beginDrag(e,{kind:'power'}):undefined} onDragEnd={nativeDragEnd}/></div>
-        <div className="own-hand" data-hand-open={handOpen&&hand.length>0} data-hand-targeting={stagedAim||undefined}>
-          <button type="button" className="folded-hand" aria-expanded={handOpen&&hand.length>0} aria-label={`내 손패 ${hand.length}장 ${handOpen?'접기':'펼치기'}`}
+        <div className="own-hand" data-hand-open={handOpen&&hand.length>0} data-hand-targeting={stagedAim||undefined} data-hand-obscured={compactHand&&handObscured||undefined}>
+          <button type="button" className="folded-hand" disabled={hand.length===0} aria-expanded={handOpen&&hand.length>0} aria-label={`내 손패 ${hand.length}장 ${handOpen&&hand.length>0?'접기':'펼치기'}`}
             data-playable={hand.some(c=>handReady(c.instanceId))} data-drawn={Boolean(visual?.drawn.size)}
             onPointerDown={event=>{
               if(event.isPrimary&&event.pointerType==='touch')handPress.current={id:event.pointerId,x:event.clientX,y:event.clientY};
@@ -742,7 +786,7 @@ function BattleView({room,send,leave,onRematch,onPause,onRetrySave,autoSaved,sav
             onClick={toggleHand}>
             <span className="folded-cards" aria-hidden="true">{hand.slice(0,3).map(({instanceId,cardId,costDiscount})=><i key={instanceId}>{compactUi?<CompactHandThumbnail card={catalog[cardId]} cost={publicCardCost(rules,seat,catalog[cardId],catalog,costDiscount)}/>:<LocalCardArt card={catalog[cardId]}/>}</i>)}</span>
             <b>{hand.length}</b>
-          </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}>{hand.map((c,i)=>{const reason=active?publicCardReason(rules,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId} data-drag-origin={currentDrag?.kind==='card'&&currentDrag.id===c.instanceId||undefined}><BattleCard inlineHand={compactUi} compactFace={compactHand} sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(rules,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} onClick={keyboard=>{if(keyboard)applyIntent(planCard(rules,seat,catalog,c.instanceId,boardPosition),true);}} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/>{reservationBadge('playCard',c.instanceId)}</div>;})}{!hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
+          </button><div className="hand-heading"><span>내 손패 <b>{hand.length}/10</b></span><span>{handHint}{active&&<small className="target-key-hint"> · 방향키 이동</small>}</span></div><div className="battle-hand" ref={handRef} inert={compactHand&&(!handOpen||handObscured)} data-count={hand.length} style={{'--hand-count':Math.max(1,hand.length)} as React.CSSProperties}>{hand.map((c,i)=>{const reason=active?publicCardReason(rules,seat,c,catalog):undefined;const ready=handReady(c.instanceId);return <div className={`hand-card-slot ${fanSlot(i,hand.length)}${visual?.drawn.has(c.instanceId)?' card-drawn':''}`} key={c.instanceId} data-hand-reflow-id={c.instanceId} data-drag-origin={currentDrag?.kind==='card'&&currentDrag.id===c.instanceId||undefined}><BattleCard inlineHand={compactUi} compactFace={compactHand} sourceId={`card:${c.instanceId}`} card={catalog[c.cardId]} cost={publicCardCost(rules,seat,catalog[c.cardId],catalog,c.costDiscount)} reason={reason} enabled={ready} ready={ready&&!highlight&&!currentDrag} onClick={keyboard=>{if(keyboard)applyIntent(planCard(rules,seat,catalog,c.instanceId,boardPosition),true);}} onDragStart={e=>beginDrag(e,{kind:'card',id:c.instanceId})} onDragEnd={nativeDragEnd}/>{reservationBadge('playCard',c.instanceId)}</div>;})}{!hand.length&&<div className="empty-hand">손패가 비어 있습니다.</div>}</div></div>
       </div>
       <div className="battle-mana enemy-mana"><ManaDisplay player={s.opponent} charging={visual?.turn==='enemy'}/></div>
       <div className="battle-mana own-mana own-resources"><ManaDisplay player={rules.self} charging={visual?.turn==='own'} previewCost={dragManaCost}/></div>

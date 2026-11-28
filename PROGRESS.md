@@ -1,3 +1,9 @@
+## 2026-11-28 — RUNEHALL v0.340.0
+
+- Class textures form a continuous bevel around all four edges. Actionable cards, units, heroes and powers use a shared green glow.
+- Battle settings host the same fullscreen request as the main menu. Short landscape battles keep the four rows, simplify the outer ornament and center the action log.
+- The expanded phone hand uses fixed-size overlapping cards and a separate vertical mana stack. The hand clears the board during card drag and target selection, then returns after the action or cancellation.
+
 ## 2026-11-28 — RUNEHALL v0.339.0
 
 - Increased hall and arena contrast while preserving the original artwork and layouts. Large deck and catalog pages fit larger typography within the original card geometry.

@@ -512,6 +512,39 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   };
   await hand.tap();
   const enemyBoard=page.locator('.enemy-board');
+  const obscured=page.locator('.own-hand[data-hand-obscured=true]');
+  const mana=page.locator('.own-mana .mana-number');
+  const liveHand=page.locator('.battle-hand');
+  const currentHand=()=>liveHand.locator('.battle-card').evaluateAll(cards=>cards.map(card=>card.dataset.actionSource));
+  const beforeCancelled=await currentHand(),manaBeforeCancelled=await mana.textContent();
+  const grip=await first.locator('.card-mana').boundingBox(),row=await field.boundingBox();
+  assert.ok(grip&&row);
+  const start={x:Math.round(grip.x+grip.width/2),y:Math.round(grip.y+grip.height/2)};
+  const lifted={x:start.x,y:Math.round(row.y+12)};
+  for(const interruption of ['grip','cancel','control']){
+    await pointer.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[start]});
+    await pointer.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[lifted]});
+    await obscured.waitFor();
+    await liveHand.waitFor({state:'hidden'});
+    const ghost=page.locator('.touch-drag-ghost .battle-card');
+    await ghost.waitFor();
+    assert.equal(await ghost.count(),1);
+    assert.equal(await turn.isVisible(),true);
+    assert.equal(await page.locator('.own-mana .mana-crystals').isVisible(),true);
+    if(interruption==='grip')await page.screenshot({path:'ui-evidence/mobile-hand-drag.png'});
+    if(interruption!=='cancel'){
+      const box=interruption==='control'?await turn.boundingBox():null;
+      const end=box?{x:Math.round(box.x+box.width/2),y:Math.round(box.y+box.height/2)}:start;
+      await pointer.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[end]});
+    }
+    await pointer.send('Input.dispatchTouchEvent',{type:interruption==='cancel'?'touchCancel':'touchEnd',touchPoints:[]});
+    await obscured.waitFor({state:'detached'});
+    await first.waitFor();
+    assert.deepEqual(await currentHand(),beforeCancelled);
+    assert.equal(await mana.textContent(),manaBeforeCancelled);
+    assert.deepEqual(await page.evaluate(()=>window.touchActions),['mulligan']);
+    assert.equal(await ghost.count(),0);
+  }
   await page.evaluate(()=>{window.dragHitReads=0;});
   await drag(first,enemyBoard,async()=>{
     const reads=await page.evaluate(()=>{
@@ -519,7 +552,7 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
       window.dragHitReads=null;
       return count;
     });
-    assert.ok(reads>0&&reads<=5,'each delivered drag move needs at most one hit test');
+    assert.ok(reads>0&&reads<=5,'each delivered drag move needs at most one hit test, received '+reads);
     t.diagnostic('Hit tests across five minion drag moves: '+reads);
   });
   const summon=page.locator('.battle-fx-layer[data-fx-kind="summon"][data-fx-side="own"]');
@@ -555,7 +588,13 @@ test('touch drag plays a minion and targeted spell while turn end waits in the q
   assert.equal(await hand.getAttribute('aria-expanded'),await page.locator('.own-hand .battle-card').count()>0?'true':'false');
   const rail=page.locator('.impact-rail');
   await rail.locator('.impact-icon').nth(4).waitFor();
-  assert.ok(await rail.evaluate(el=>el.scrollHeight>el.clientHeight));
+  assert.ok(await rail.evaluate(el=>{
+    const visible=el.getBoundingClientRect();
+    const entries=[...el.querySelectorAll('.impact-icon')].slice(0,3).map(button=>button.getBoundingClientRect());
+    const captions=[...document.querySelectorAll('.battle-dialogue-captions')].filter(node=>node.childElementCount).map(node=>node.getBoundingClientRect());
+    return el.scrollHeight>el.clientHeight&&entries.length===3&&entries.every(entry=>
+      entry.top>=visible.top-.5&&entry.bottom<=visible.bottom+.5&&captions.every(caption=>entry.bottom<=caption.top||entry.top>=caption.bottom));
+  }),'three complete action records stay clear of dialogue');
   assert.ok(await rail.locator('.impact-icon').evaluateAll(buttons=>buttons.every(button=>{
     const portrait=button.querySelector('.impact-portrait'),mark=button.querySelector('.impact-kind');
     if(!portrait||!mark)return true;
@@ -641,7 +680,7 @@ test('real worker queues two attacks while a staged battlecry validates its targ
           const [own,enemy]=state.players;
           own.board=[unit('wind_farseer','test-wind',3,3,2,['windfury']),unit('wolf','test-wolf',2,4,1)];
           enemy.board=[unit('wolf','test-enemy',2,5,0)];
-          own.hand=[{cardId:'harsh_overseer',instanceId:'test-battlecry'},{cardId:'ice_shard',instanceId:'test-spell'},{cardId:'silver_protector',instanceId:'shield-card'},{cardId:'nature_choice',instanceId:'wrath-3'},{cardId:'nature_choice',instanceId:'wrath-1'}];
+          own.hand=[{cardId:'harsh_overseer',instanceId:'test-battlecry'},{cardId:'ice_shard',instanceId:'test-spell'},{cardId:'silver_protector',instanceId:'shield-card'},{cardId:'nature_choice',instanceId:'wrath-3'},{cardId:'nature_choice',instanceId:'wrath-1'},{cardId:'iron_axe',instanceId:'test-axe',costDiscount:2}];
           own.mana=10;own.maxMana=10;
           store.put(row);
         };
@@ -748,6 +787,8 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   await drag(card,page.locator('.enemy-board'));
   const anchor=page.locator('.battlecry-anchor');
   await anchor.waitFor();
+  await page.locator('.own-hand[data-hand-obscured=true]').waitFor();
+  await page.locator('.battle-hand').waitFor({state:'hidden'});
   assert.deepEqual(await ownBoard.locator('.battle-minion').count(),2);
   assert.equal(await enemyHero.evaluate(el=>el.classList.contains('is-targeted')),false);
   assert.ok(await enemyUnit.evaluate(el=>el.classList.contains('is-targeted')));
@@ -777,12 +818,17 @@ test('real worker queues two attacks while a staged battlecry validates its targ
   for(const [index,id] of ['wrath-3','wrath-1'].entries()){
     await drag(page.locator(`[data-action-source="card:${id}"]`),page.locator('.enemy-board'));
     const choice=page.getByRole('dialog',{name:'카드 효과 선택'});
+    await page.locator('.battle-hand').waitFor({state:'hidden'});
     await choice.getByRole('button',{name:index===0?'피해 3':'피해 1 + 드로우',exact:true}).tap();
     await chosenSpell.waitFor();
     if(index===0)await enemyUnit.tap();else await drag(chosenSpell,enemyUnit);
     await page.waitForFunction(({id,index})=>window.combatActions.some(action=>action.instanceId===id&&action.choice===index),{id,index});
   }
   await page.waitForFunction(()=>!document.querySelector('[data-preview-minion="test-enemy"]'));
+  await drag(page.locator('[data-action-source="card:test-axe"]'),page.locator('.enemy-board'));
+  await page.waitForFunction(()=>window.combatActions.some(action=>action.instanceId==='test-axe'));
+  await page.locator('.self-hero-zone .weapon-slot.equipped').waitFor();
+  await page.locator('.own-hand[data-hand-open=true] .battle-card').waitFor();
   assert.equal(await page.locator('.own-hand .battle-card').count(),1);
   if(profileDragWrites)t.diagnostic('Drag style write counts (not frame timings): '+JSON.stringify(await page.evaluate(()=>window.stopDragWriteProfile())));
   const lookups=await page.evaluate(()=>window.combatAnchorLookups);
