@@ -14,3 +14,5 @@ import './slot-flow.css';
 import './battle-immersive.css';
 import './integrated-ui.css';
 import './collection-layout.css';
+
+import './card-materials.css';
