@@ -1,6 +1,7 @@
 import {HERO_CLASSES,botSearchConfig} from './engine/src/index.ts';
 import type {Catalog} from './engine/src/index.ts';
 import type {GrowthView} from './account-protocol.ts';
+import {rewardPaths} from './reward-road.ts';
 import {deckPowerTotal,rankedBotDeck} from './progression.ts';
 
 export const RANK_AUDIT_SEEDS=[0,42,123,0xffffffff] as const;
@@ -13,7 +14,7 @@ export interface RankedDeckAudit{checked:number;seeds:number[];compared:number;i
  * identical class/seed pairs across adjacent ranks. Keep custom rank tuning
  * possible; plateaus and regressions are visible, not silently overridden. */
 export function auditRankedDecks(catalog:Catalog,growth:GrowthView):RankedDeckAudit{
-  const powers=new Map(growth.unlocks.map(card=>[card.cardId,card.power])),starter=new Set(growth.starterIds),previous=new Map<string,number>(),rows:RankDeckAudit[]=[];
+  const powers=new Map(rewardPaths(growth).flatMap(path=>path.unlocks).map(card=>[card.cardId,card.power])),starter=new Set(growth.starterIds),previous=new Map<string,number>(),rows:RankDeckAudit[]=[];
   let checked=0,increased=0,unchanged=0,decreased=0;
   for(const rank of growth.ranks){
     const totals:number[]=[];let more=0,equal=0,less=0;

@@ -1,3 +1,4 @@
+import {collectionBotDeck} from '../../packages/collection-bot-deck.ts';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { applyAction, createGame, getPlayerView, RuleError, validateDeck, HERO_CLASSES, strategicDeck, DECK_STYLES, rankBotActions, isBotDifficulty, turnTimeLimitSeconds } from '../../packages/engine/src/index.ts';
 import {snapshotCatalog,snapshotBattleCatalog} from '../../packages/engine/src/catalog-snapshot.ts';
@@ -150,7 +151,7 @@ export class RoomService {
     assert(![...this.rankedResults.values()].some(r=>r.accountId===account.id),'이전 랭크 경기 결과 저장 중입니다.');
     const profile=syncOwned(account.profile,growth),tier=rankInfo(profile.rank,growth.ranks),deck=this.deck(input.deck);
     try{ownedDeck(deck,this.catalog,profile);}catch(error){throw new RuleError(error instanceof Error?error.message:'잘못된 덱입니다.');}
-    const session=this.createTierBot(socketId,deck,tier,growth),r=this.get(session.code);
+    const session=this.createTierBot(socketId,deck,tier,growth,profile),r=this.get(session.code);
     r.members[0].accountId=account.id;r.ranked={accountId:account.id,matchId:randomUUID(),rank:tier.rank,deckPower:tier.deckPower,intelligence:tier.intelligence,reward:'pending'};return session;
   }
   createDeveloperTest(socketId:string,input:unknown,account:AccountView,growth:GrowthView):Session{
@@ -159,8 +160,8 @@ export class RoomService {
     const tier=rankInfo(input.rank,growth.ranks),deck=this.deck(input.deck),session=this.createTierBot(socketId,deck,tier,growth),r=this.get(session.code);
     r.members[0].accountId=account.id;r.developerTest={rank:tier.rank,deckPower:tier.deckPower,intelligence:tier.intelligence};return session;
   }
-  private createTierBot(socketId:string,deck:Deck,tier:RankInfo,growth:GrowthView):Session{
-    const opponent=HERO_CLASSES[randomInt(HERO_CLASSES.length)],botDeck=rankedBotDeck(this.catalog,growth,opponent,tier.deckPower,randomInt(0,4294967296));
+  private createTierBot(socketId:string,deck:Deck,tier:RankInfo,growth:GrowthView,profile?:AccountProfile):Session{
+    const opponent=HERO_CLASSES[randomInt(HERO_CLASSES.length)],botDeck=profile?collectionBotDeck(this.catalog,growth,opponent,profile):rankedBotDeck(this.catalog,growth,opponent,tier.deckPower,randomInt(0,4294967296));
     const champion=readGameChampion(aiCatalogHash(this.catalog)),state=createGame(this.catalog,[deck,botDeck],{seed:randomInt(0,4294967296),runtime});
     const session=this.create(socketId,deck),r=this.get(session.code);
     r.members[1]={token:token(),socketId:null,deck:botDeck};r.state=state;r.bot={turn:0,actions:0,difficulty:tier.intelligence as BotDifficulty,weights:champion?.weights,generation:champion?.promotions??0,style:tier.deckPower<6?'starter':tier.deckPower<13?'practice':tier.deckPower<19?'synergy':'legendary'};

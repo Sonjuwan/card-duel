@@ -1,4 +1,5 @@
 import type {AccountProfile,GrowthView,MatchAward} from '../../../packages/account-protocol.ts';
+import {collectionBotDeck} from '../../../packages/collection-bot-deck.ts';
 import {decodeAccountProfile} from '../../../packages/account-profile.ts';
 import {awardMatch,buildGrowth,ownedDeck,rankInfo,rankedBotDeck,syncOwned} from '../../../packages/progression.ts';
 import type {BotDifficulty,Catalog,Deck,HeroClass} from '../../../packages/engine/src/index.ts';
@@ -55,18 +56,25 @@ export function canRestoreGrowth(record:OfflineGrowthRecord){const p=record.prof
 export function createOfflineRankedInput(input:LocalDuelInput,record:OfflineGrowthRecord,growth:GrowthView):LocalDuelInput{
   const profile=syncOwned(record.profile,growth),tier=rankInfo(profile.rank,growth.ranks);
   ownedDeck(input.deck,input.catalog,profile);
-  const test=createOfflineDeveloperInput(input,growth,tier.rank),{developerTest, ...base}=test;
-  return {...base,deviceMode:'auto',ranked:{...developerTest!,profileRevision:profile.revision}};
+  const {base,context}=tierInput(input,tier,hero=>collectionBotDeck(input.catalog,growth,hero,profile));
+  return {...base,deviceMode:'auto',ranked:{...context,profileRevision:profile.revision}};
 }
 
 /** Test mode exercises exactly the same tier opponent without granting XP. */
 export function createOfflineDeveloperInput(input:LocalDuelInput,growth:GrowthView,rank:number,experiment=false):LocalDuelInput{
-  if(!Number.isInteger(rank)||rank<1||rank>25)throw Error('개발자 시험 랭크는 1~25입니다.');const tier=rankInfo(rank,growth.ranks);
-  const seed=input.deckSeed??((input.seed^0x9ef1672)>>>0),heroClass:HeroClass=HERO_CLASSES[(input.seed>>>0)%HERO_CLASSES.length];
-  const intelligence=tier.intelligence as BotDifficulty,opponentDeck=rankedBotDeck(input.catalog,growth,heroClass,tier.deckPower,seed);
+  if(!Number.isInteger(rank)||rank<1||rank>25)throw Error('개발자 시험 랭크는 1~25입니다.');
+  const tier=rankInfo(rank,growth.ranks);
+  const {base,context}=tierInput(input,tier,(hero,seed)=>rankedBotDeck(input.catalog,growth,hero,tier.deckPower,seed));
+  return {...base,developerTest:{...context,...(experiment?{experiment:'mixture-v1' as const}:{})}};
+}
+
+function tierInput(input:LocalDuelInput,tier:ReturnType<typeof rankInfo>,opponent:(hero:HeroClass,seed:number)=>Deck){
+  const seed=input.deckSeed??((input.seed^0x9ef1672)>>>0),heroClass=HERO_CLASSES[(input.seed>>>0)%HERO_CLASSES.length];
+  const intelligence=tier.intelligence as BotDifficulty;
   const style=tier.deckPower<6?'starter':tier.deckPower<13?'practice':tier.deckPower<19?'synergy':'legendary';
   const {ranked:_,developerTest:__,...base}=input;
-  return {...base,heroClass,difficulty:intelligence,style,firstPlayer:undefined,deckSeed:seed,developerTest:{rank:tier.rank,deckPower:tier.deckPower,intelligence,opponentDeck,...(experiment?{experiment:'mixture-v1' as const}:{})}};
+  const context={rank:tier.rank,deckPower:tier.deckPower,intelligence,opponentDeck:opponent(heroClass,seed)};
+  return {base:{...base,heroClass,difficulty:intelligence,style,firstPlayer:undefined,deckSeed:seed} satisfies LocalDuelInput,context};
 }
 
 /** Ledger IDs outlive the 30 displayed match records. A stale tab cannot
