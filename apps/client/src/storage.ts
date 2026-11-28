@@ -20,7 +20,7 @@ export function localDraftStorage():Storage|undefined{try{return globalThis.loca
 
 /** Prefer the current snapshot. A new balance version may reuse the previous
  * draft only if every card is still legal; the old snapshot stays untouched. */
-export function readDraft(catalog:Catalog,hash:string,storage?:StorageReader):Deck {
+export function readDraft(catalog:Catalog,hash:string,storage?:StorageReader,fallback=()=>practiceDeck(catalog,'warrior')):Deck {
   try{
     let stored=storage?.getItem(draftKey(hash));
     if(stored===null||stored===undefined){
@@ -37,7 +37,7 @@ export function readDraft(catalog:Catalog,hash:string,storage?:StorageReader):De
     const repaired=repairDeck(catalog,raw);
     if(!repaired.discarded.length)return repaired.deck;
   }catch{/* Empty, unavailable, or invalid storage: use a legal starter deck. */}
-  return practiceDeck(catalog,'warrior');
+  return fallback();
 }
 export function saveDraft(deck:Deck,hash:string,storage?:StorageWriter):boolean{
   try{if(!storage)return false;storage.setItem(draftKey(hash),JSON.stringify(deck));try{storage.setItem(lastDraftKey,hash);}catch{/* Draft is already stored; the migration hint is optional. */}return true;}catch{return false;}
