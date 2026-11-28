@@ -45,7 +45,7 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
     try{
       const outcome=await requestLandscapeFeatures(
         async()=>{
-          if(document.fullscreenElement||alreadyAppWindow())return true;
+          if(document.fullscreenElement||window.matchMedia('(display-mode: fullscreen)').matches)return true;
           if(typeof document.documentElement.requestFullscreen!=='function')return false;
           await document.documentElement.requestFullscreen();return true;
         },
@@ -56,7 +56,8 @@ export function LandscapeExperience({menu}: {menu?:HTMLElement|null} = {}){
         }
       );
       const isLandscape=window.matchMedia('(orientation: landscape)').matches;
-      if(!outcome.fullscreen&&isLandscape)setNotice('이 브라우저에서는 전체화면이 제한되어 있어요. 홈 화면에 설치한 PWA는 주소창 없이 실행됩니다.');
+      if(!outcome.fullscreen&&alreadyAppWindow())setNotice('설치된 앱에서 운영체제 상태 표시줄 숨기기가 제한됩니다. 가로 배치는 기기를 직접 돌려 이용할 수 있습니다.');
+      else if(!outcome.fullscreen&&isLandscape)setNotice('이 브라우저에서는 전체화면이 제한되어 있어요. 홈 화면에 설치한 PWA는 주소창 없이 실행됩니다.');
       else if(!outcome.landscape)setNotice(outcome.fullscreen?'전체화면으로 전환했어요. 자동 가로 회전이 제한되어 있으니 휴대폰을 직접 가로로 돌려주세요.':'자동 화면 회전이 제한되어 있어요. 휴대폰을 직접 가로로 돌려주세요.');
       else if(!outcome.fullscreen)setNotice('가로 모드로 전환했어요. 이 브라우저에서는 전체화면이 제한되어 있어요.');
     }finally{requestPending.current=false;setBusy(false);}

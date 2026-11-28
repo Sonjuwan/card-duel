@@ -6,6 +6,7 @@ const builder=readFileSync(new URL('../apps/client/test/build-solo-app.mjs',impo
 
 test('installable PWA launches independently, without address bar, in landscape on supported platforms',()=>{
   assert.equal(soloManifest.display,'standalone');
+  assert.deepEqual(soloManifest.display_override,['fullscreen','standalone']);
   assert.equal(soloManifest.orientation,'landscape');
   assert.equal(soloManifest.start_url,'./');
   assert.equal(soloManifest.scope,'./');

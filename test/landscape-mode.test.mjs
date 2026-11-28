@@ -35,6 +35,6 @@ test('installed standalone display is already immersive even without Fullscreen 
   assert.equal(isInstalledGameDisplay(()=>false,true),true,'iOS navigator.standalone fallback');
   assert.equal(isInstalledGameDisplay(query=>query==='(display-mode: fullscreen)'),true);
   assert.equal(isInstalledGameDisplay(()=>false),false,'ordinary browser tab keeps fullscreen option');
-  assert.match(ui,/document.fullscreenElement\|\|alreadyAppWindow\(\)/);
+  assert.match(ui,/document.fullscreenElement.*display-mode: fullscreen/);
   assert.match(readFileSync(new URL('../apps/client/src/landscape-shell.css',import.meta.url),'utf8'),/@media \(display-mode:standalone\)\{\.landscape-fullscreen-control\{display:none\}\}/);
 });
