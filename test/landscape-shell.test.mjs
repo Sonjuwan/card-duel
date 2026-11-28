@@ -54,8 +54,8 @@ test('single-touch inspection displays an unplayable hand card without a manual 
   assert.doesNotMatch(battle,/setPeekCardId|selected-card-use|selected-card-inspect/);
   assert.match(pieces,/useCardHover\(info,sourceId\?\.startsWith\('card:'\)\?BATTLE_HOLD_DELAY:undefined,Boolean\(sourceId\?\.startsWith\('card:'\)&&!mulligan\)\)/);
 });
-test('battle setup uses a single canvas with secondary records in a dialog',()=>{
-  assert.match(app,/lobbyView==='play'&&lossOnExit\?<PreviewPlay/);
+test('preview uses one class deck picker and preserves access to legacy save slots',()=>{
+  assert.match(app,/lossOnExit&&\(lobbyView==='play'\|\|lobbyView==='decks'&&!previewEditHero\)/);
   assert.match(app,/<LobbyDialog label="슬롯 · 성장 · 저장 경기">/);
   assert.match(shell,/\.lobby-main \.play-hub\{display:flex;flex-direction:column\}/);
   assert.match(shell,/\.lobby-main \.play-hub>\.play-lobby\{display:flex;flex-direction:column;gap:6px;overflow:visible\}/);

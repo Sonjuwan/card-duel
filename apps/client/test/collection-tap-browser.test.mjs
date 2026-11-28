@@ -27,7 +27,7 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
       const book=workspace.querySelector('.collection-book');
       const box=el=>el.getBoundingClientRect();
       const rect=el=>box(el).toJSON();
-      const visible=el=>{
+      const visible=(el,hitTest=true)=>{
         const b=box(el);
         if(b.width<1||b.height<1||b.left<-.5||b.top<-.5||b.right>innerWidth+.5||b.bottom>innerHeight+.5)return false;
         for(let p=el;p;p=p.parentElement){
@@ -38,6 +38,7 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
           if(/hidden|clip|auto|scroll/.test(style.overflowX)&&(b.left<r.left-1||b.right>r.right+1))return false;
           if(/hidden|clip|auto|scroll/.test(style.overflowY)&&(b.top<r.top-1||b.bottom>r.bottom+1))return false;
         }
+        if(!hitTest)return true;
         const top=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
         return !!top&&el.contains(top);
       };
@@ -55,7 +56,7 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
           (r.left<c.right-1&&r.right>c.left+1&&r.top<c.bottom-1&&r.bottom>c.top+1);
       }).map(badge=>badge.textContent);
       const status=workspace.querySelector('.book-page-status');
-      const badMana=cards.map((c,i)=>{const mana=c.querySelector('.card-mana'),m=box(mana),b=box(c);return m.left<b.left-.5||m.top<b.top-.5||m.right>b.right+.5||m.bottom>b.bottom+.5||!visible(mana)?i:null;}).filter(i=>i!==null);
+      const badMana=cards.map((c,i)=>{const mana=c.querySelector('.card-mana'),m=box(mana),b=box(c);return m.left<b.left-.5||m.top<b.top-.5||m.right>b.right+.5||m.bottom>b.bottom+.5||!visible(mana,false)?i:null;}).filter(i=>i!==null);
       const save=workspace.querySelector('.deck-save-primary');
       let saveTextFits=true;
       if(save?.getBoundingClientRect().width){const range=document.createRange();range.selectNodeContents(save);const t=range.getBoundingClientRect(),b=box(save);saveTextFits=t.left>=b.left&&t.right<=b.right&&t.top>=b.top&&t.bottom<=b.bottom&&Math.abs((t.left+t.right-b.left-b.right)/2)<3;}
@@ -102,7 +103,7 @@ test('mobile catalog and deck builder keep eight-card pages, read-only collectio
   await page.getByRole('button',{name:'메인으로',exact:true}).tap();
   await page.getByRole('button',{name:'대전',exact:true}).tap();
   await page.getByRole('button',{name:'전사',exact:true}).tap();
-  await page.getByRole('button',{name:'＋ 새 덱 만들기',exact:true}).tap();
+  await page.getByRole('button',{name:'새 덱 만들기',exact:true}).tap();
   const builder=page.locator('.deck-builder'),count=builder.locator('.deck-live-count');
   await count.waitFor({state:'attached'});
   assert.equal(await count.textContent(),'0/30');

@@ -151,6 +151,7 @@
   .lobby-main .collection-workspace{gap:2px}
   .lobby-main .collection-workspace .collection-body .collection-book .card-name{font-size:clamp(8px,10cqi,13px)}
   .lobby-main .collection-workspace .collection-body .collection-book .collection-item>.battle-card{padding:3px 2px}
+  .lobby-main .collection-workspace .collection-body .collection-book .battle-card .card-art{height:53cqh}
   .lobby-main .collection-workspace .collection-body .collection-book .card-copy{font-size:clamp(6.5px,8cqi,10px);padding-inline:0}
 }
 
@@ -352,4 +353,60 @@
   .preview-lobby:has(.collection-workspace) .game-toast{
     top:max(3px,env(safe-area-inset-top));padding:1px 5px;font-size:9px;line-height:1.15;
   }
+}
+
+.lobby-main .deck-class-page{
+  display:flex;flex:1 1 0;min-height:0;min-width:0;flex-direction:column;
+}
+.lobby-main .deck-workspace [data-deck-screen=build]{position:relative}
+.workspace-deck-back{align-self:flex-start;margin:4px}
+.lobby-main :is(.preview-deck-select,.deck-class-page) .preview-deck-pages{
+  width:min(100%,960px);align-self:center;flex:1 1 auto;min-height:0;
+  grid-template-rows:minmax(0,1fr) auto;
+}
+.lobby-main .preview-deck-select{
+  display:flex;flex:1 1 0;min-height:0;flex-direction:column;justify-content:center;
+  gap:clamp(4px,1dvh,12px);padding:4px clamp(6px,2dvw,24px);
+}
+.lobby-main .preview-deck-select .preview-flow-heading{
+  position:relative;display:flex;align-items:center;min-height:44px;
+  padding-inline:48px;justify-content:center;
+}
+.lobby-main .preview-flow-heading>button{
+  position:absolute;left:46px;top:50%;transform:translateY(-50%);
+  min-height:34px;padding:4px 8px;white-space:nowrap;
+}
+.lobby-main .preview-flow-heading>strong{font-size:clamp(13px,2.9dvh,23px)}
+.lobby-main .preview-deck-select .preview-deck-grid{
+  grid-template-rows:repeat(3,minmax(0,1fr));
+  height:min(100%,430px);overflow:hidden;
+}
+.lobby-main .preview-deck-select .preview-deck-tile>strong{
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.lobby-main .preview-deck-shortcuts{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-self:center;
+  width:min(100%,590px);gap:6px;
+}
+.lobby-main .preview-deck-shortcuts .preview-deck-tile{
+  display:grid;place-items:center;min-height:clamp(36px,6dvh,56px);padding:4px;
+  font-size:clamp(12px,2.6dvh,17px);font-weight:850;line-height:1.2;
+}
+.lobby-main .preview-deck-select .preview-deck-actions{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);
+  grid-template-rows:auto;gap:4px;align-items:center;justify-items:center;
+}
+.lobby-main .preview-deck-actions .slot-deck-primary{
+  grid-area:1/2;width:min(100%,410px);min-height:36px;
+}
+.lobby-main .preview-deck-actions .deck-delete{
+  grid-area:1/3;min-height:34px;padding:4px 9px;
+}
+.lobby-main .preview-deck-actions .deck-selection-status{
+  grid-area:1/1;padding-inline:2px;text-align:center;
+}
+@media (orientation:landscape) and (max-height:540px){
+  .lobby-main .preview-deck-select .preview-flow-heading{min-height:36px}
+  .lobby-main .preview-deck-select .preview-deck-actions{min-height:36px}
+  .lobby-main .preview-deck-select .preview-deck-tile{gap:2px}
 }

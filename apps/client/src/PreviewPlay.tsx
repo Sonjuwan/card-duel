@@ -1,9 +1,10 @@
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import type {Deck,HeroClass} from '../../../packages/engine/src/index.ts';
 import {HERO_CLASSES} from '../../../packages/engine/src/index.ts';
 import type {AccountProfile} from '../../../packages/account-protocol.ts';
 import type {SlotStorage} from './solo-slots.ts';
-import {readDecks,type NamedDeck} from './named-decks.ts';
+import {checkedDeckLibrary,deckLibraryAfterWriteFailure,deleteNamedDeck,withDeckLibraryLock,type NamedDeck} from './named-decks.ts';
+import {watchDeckLibraryChanges} from './deck-library-sync.ts';
 import {catalog,className} from './data.ts';
 import {LocalHeroArt} from './local-art.tsx';
 import {collectionPage} from './table-visuals.ts';
@@ -16,25 +17,9 @@ export function HeroChoice({onChoose}:{onChoose:(value:HeroClass)=>void}){
     {HERO_CLASSES.map(hero=><button type="button" key={hero} className={`preview-hero-tile faction-${hero}`} onClick={()=>onChoose(hero)}><span className="preview-hero-art"><LocalHeroArt heroClass={hero}/></span><strong>{className[hero]}</strong></button>)}
   </div></section>;
 }
-type Props={storage:SlotStorage;profile?:AccountProfile;deck:Deck;ready?:boolean;blocked?:boolean;busy:boolean;onDeck:(deck:Deck)=>void;onStart:()=>void;onBuild:(hero:HeroClass)=>void;onEdit:(entry:NamedDeck)=>void;savedMatch?:LocalSaveSummary|null;saveAvailable?:boolean;onResume:()=>void;onForfeitSaved:()=>void};
-export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onStart,onBuild,onEdit,savedMatch,saveAvailable,onResume,onForfeitSaved}:Props){
-  const [deckPage,setDeckPage]=useState(0);
-  const [hero,setHero]=useState<HeroClass|null>(null);
-  const [selectedName,setSelectedName]=useState<string|null>(null);
-  const [message,setMessage]=useState('');
-  // Storage is slot-scoped; never silently recover a saved deck from a different slot.
-  const saved=readDecks(storage).filter(item=>item.deck.heroClass===hero);
-  const selected=saved.find(item=>item.name===selectedName);
-  const active=selected?.deck??(hero===deck.heroClass?deck:null);
-  let playable=false;
-  try{if(active&&profile){ownedDeck(active,catalog,profile);playable=ready===true&&!blocked&&!busy;}}catch{}
-  const choose=(value:HeroClass)=>{
-    setDeckPage(0);setHero(value);setSelectedName(null);setMessage('');
-    const first=readDecks(storage).find(item=>item.deck.heroClass===value);
-    if(first){onDeck(structuredClone(first.deck));setSelectedName(first.name);return;}
-    onDeck(basicDeck(catalog,value));
-  };
-  if(savedMatch&&savedMatch.phase!=='finished')return <section className="preview-resume-gate" aria-label="진행 중인 저장 경기">
+type SavedGateProps={savedMatch:LocalSaveSummary;saveAvailable?:boolean;busy:boolean;onResume:()=>void;onForfeitSaved:()=>void};
+export function SavedMatchGate({savedMatch,saveAvailable,busy,onResume,onForfeitSaved}:SavedGateProps){
+  return <section className="preview-resume-gate" aria-label="진행 중인 저장 경기">
     <div className="resume-hero"><LocalHeroArt heroClass={savedMatch.heroClass}/></div>
     <h2>진행 중인 저장 경기</h2>
     <p>{savedMatch.turn}턴 · {className[savedMatch.heroClass]} 대전</p>
@@ -44,24 +29,71 @@ export function PreviewPlay({storage,profile,deck,ready,blocked,busy,onDeck,onSt
     </div>
     <small>새 게임을 시작하면 이전 경기는 패배로 기록됩니다.</small>
   </section>;
-  if(!hero)return <HeroChoice onChoose={choose}/>;
+}
+
+type PickerProps={storage:SlotStorage;hero:HeroClass;initialName?:string|null;profile?:AccountProfile;requireOwned?:boolean;
+  ready?:boolean;blocked?:boolean;busy?:boolean;onChangeHero:()=>void;onStart?:(deck:Deck)=>void;
+  onBuild:(hero:HeroClass)=>void;onEdit:(entry:NamedDeck)=>void};
+
+export function ClassDeckPicker({storage,hero,initialName,profile,requireOwned,ready=true,blocked,busy,onChangeHero,onStart,onBuild,onEdit}:PickerProps){
+  const [library,setLibrary]=useState(()=>checkedDeckLibrary([],storage));
+  const [selectedName,setSelectedName]=useState(()=>initialName===undefined?
+    library.decks.find(entry=>entry.deck.heroClass===hero)?.name??null:initialName);
+  const saved=library.decks.filter(item=>item.deck.heroClass===hero);
+  const selected=saved.find(item=>item.name===selectedName);
+  const [deckPage,setDeckPage]=useState(()=>Math.floor(Math.max(0,saved.findIndex(item=>item.name===selectedName))/9));
+  const [message,setMessage]=useState('');
+  const [deleting,setDeleting]=useState(false);
+  const currentLibrary=useRef(library.decks);
+  currentLibrary.current=library.decks;
+  const mutation=useRef(false);
+  useEffect(()=>watchDeckLibraryChanges({store:storage,current:()=>currentLibrary.current,canRefresh:()=>!mutation.current,
+    onChange:decks=>{setLibrary({decks,warning:null});setSelectedName(null);},
+    onError:warning=>setLibrary(current=>({...current,warning})),
+    onRecovered:()=>setLibrary(current=>({...current,warning:null}))}),[storage,deleting]);
+  const active=selected?.deck??basicDeck(catalog,hero);
+  let valid=active.cards.length===30;
+  if(requireOwned){
+    try{if(profile)ownedDeck(active,catalog,profile);else valid=false;}catch{valid=false;}
+  }
+  const playable=valid&&ready&&!blocked&&!busy&&!deleting&&!library.warning;
+  const remove=async()=>{
+    if(!selected||mutation.current||!window.confirm(`${selected.name} 덱을 삭제할까요?`))return;
+    mutation.current=true;setDeleting(true);
+    try{
+      const decks=await withDeckLibraryLock(()=>deleteNamedDeck(selected,storage));
+      setLibrary({decks,warning:null});setSelectedName(null);setMessage('저장 덱 삭제 완료');
+    }catch(error){
+      setLibrary(current=>({...current,decks:deckLibraryAfterWriteFailure(current.decks,storage)}));
+      setMessage(error instanceof Error?error.message:'저장 공간을 사용할 수 없습니다.');
+    }finally{mutation.current=false;setDeleting(false);}
+  };
   const {items,page,pages}=collectionPage(saved,deckPage,9);
   return <section className={`preview-deck-select faction-${hero}`} aria-label={`${className[hero]} 덱 선택`}>
-    <div className="preview-flow-heading"><button type="button" className="secondary" onClick={()=>{setHero(null);setSelectedName(null);}}>← 직업 변경</button><strong>{className[hero]} · 사용할 덱 선택</strong></div>
+    <div className="preview-flow-heading"><button type="button" className="secondary" onClick={onChangeHero}>← 직업 변경</button><strong>{className[hero]} · 덱 선택</strong></div>
     <nav className="preview-deck-pages" aria-label="덱 페이지">
       <button type="button" className="secondary" aria-label="이전 덱 페이지" disabled={page===0} onClick={()=>setDeckPage(page-1)}>◀</button>
-      <div className="preview-deck-grid">
-      {items.map(item=><button type="button" key={item.name} className={`preview-deck-tile${selectedName===item.name?' chosen':''}`} aria-pressed={selectedName===item.name} onClick={()=>{setSelectedName(item.name);onDeck(structuredClone(item.deck));setMessage('');}}><strong>{item.name}</strong><small>{item.deck.cards.length}/30장</small></button>)}
-      {Array.from({length:9-items.length},(_,i)=><span key={i} className="preview-deck-empty" aria-hidden="true"/>)}
+      <div className="preview-deck-grid" aria-label="저장한 덱">
+        {items.map(item=><button type="button" key={item.name} className={`preview-deck-tile${selected?.name===item.name?' chosen':''}`}
+          aria-pressed={selected?.name===item.name} onClick={()=>{setSelectedName(item.name);setMessage('');}}>
+          <strong>{item.name}</strong><small>{item.deck.cards.length}/30장</small>
+        </button>)}
+        {Array.from({length:9-items.length},(_,index)=><span key={index} className="preview-deck-empty" aria-hidden="true"/>)}
       </div>
       <button type="button" className="secondary" aria-label="다음 덱 페이지" disabled={page+1===pages} onClick={()=>setDeckPage(page+1)}>▶</button>
       <small className="preview-deck-page-count">{page+1} / {pages}</small>
     </nav>
     <div className="preview-deck-shortcuts">
-      <button type="button" className={`preview-deck-tile${selectedName===null?' chosen':''}`} aria-pressed={selectedName===null} onClick={()=>{setSelectedName(null);onDeck(basicDeck(catalog,hero));setMessage('');}}><strong>기본 덱</strong><small>30장</small></button>
-      <button type="button" className="preview-deck-tile preview-create-deck" onClick={()=>onBuild(hero)}><strong>＋ 새 덱 만들기</strong></button>
-      <button type="button" className="preview-deck-tile" onClick={()=>onEdit(selected??{name:'',deck:basicDeck(catalog,hero)})}>{selected?'편집':'기본 덱 복제 · 편집'}</button>
+      <button type="button" className={`preview-deck-tile${!selected?' chosen':''}`} aria-pressed={!selected} onClick={()=>{setSelectedName(null);setMessage('');}}>기본 덱</button>
+      <button type="button" className="preview-deck-tile" onClick={()=>onBuild(hero)}>새 덱 만들기</button>
+      <button type="button" className="preview-deck-tile" disabled={!selected||deleting||!!library.warning} onClick={()=>selected&&onEdit(selected)}>편집</button>
     </div>
-    <div className="preview-deck-actions"><button type="button" className="slot-deck-primary" disabled={!playable||!active} onClick={onStart}>선택한 덱으로 대전 시작</button><small className={playable?'good':'warn'}>{message||(!profile?'보유 카드 확인 중…':blocked?'이전 버전 진행 중 경기 확인 필요':!playable?'선택한 덱에 미보유 카드가 있거나 저장소 준비 중입니다.':'30장 덱 준비 완료')}</small></div>
+    <div className="preview-deck-actions">
+      {onStart&&<button type="button" className="slot-deck-primary" disabled={!playable}
+        onClick={()=>onStart(structuredClone(active))}>선택한 덱으로 대전 시작</button>}
+      <button type="button" className="secondary deck-delete" disabled={!selected||deleting||!!library.warning} onClick={()=>void remove()}>덱 삭제</button>
+      <small className="deck-selection-status" role="status">{library.warning||message||(blocked?'이전 버전 진행 중 경기 확인 필요':
+        !ready?'저장소 확인 중…':!valid?'사용할 수 없는 덱입니다.':'')}</small>
+    </div>
   </section>;
 }

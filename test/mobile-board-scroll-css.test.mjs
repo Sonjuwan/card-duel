@@ -66,12 +66,11 @@ test('a scrolled long target list keeps Close visible and arrow-key focus unobsc
   assert.match(css,/\.target-picker-panel\{[^}]*overflow:auto/);
 });
 
-test('saved-deck screen navigation and failed deletes preserve last verified rows',()=>{
-  assert.match(app,/if\(next==='saved'\)\{const checked=checkedDeckLibrary\(saved,storage\);setSaved\(checked.decks\);if\(checked.warning\)setMessage\(checked.warning\);else setMessage/);
-  assert.match(app,/deleteSaved=async\(entry:NamedDeck\)=>[\s\S]*?catch\(e\)\{setSaved\(current=>deckLibraryAfterWriteFailure\(current,storage\)\)/);
-  assert.doesNotMatch(app,/setSaved\(readDecks\(storage\)\)/);
+const picker=readFileSync(new URL('../apps/client/src/PreviewPlay.tsx',import.meta.url),'utf8');
+test('class deck selection and failed deletes preserve last verified rows',()=>{
+  assert.match(picker,/checkedDeckLibrary\(\[\],storage\)/);
+  assert.match(picker,/deckLibraryAfterWriteFailure\(current.decks,storage\)/);
 });
-
 
 test('target list text includes public shield and immune statuses without exposing hidden cards',()=>{
   const actions=readFileSync(new URL('../apps/client/src/battle-actions.ts',import.meta.url),'utf8');
@@ -110,16 +109,12 @@ test('mobile target picker text grows instead of shrinking to fit crowded lists'
 });
 
 
-test('direct saved-deck navigation warns on corrupt storage and clears stale warning after successful retry',()=>{
-  assert.match(app,/initialScreen==='saved'\?checkedDeckLibrary\(\[\],storage\)\.warning/);
-  assert.match(app,/current\.startsWith\('저장 덱을 확인할 수 없습니다\.'\)\?'저장 덱 확인 완료':current/);
-});
-
-
-test('deck editor startup warns when an inaccessible store makes its saved deck list appear empty',()=>{
+test('the class picker and editor warn when storage becomes unavailable',()=>{
+  assert.match(picker,/onError:warning=>setLibrary/);
+  assert.match(picker,/onRecovered:\(\)=>setLibrary/);
+  assert.match(picker,/\{library.warning\|\|message/);
   assert.match(app,/\[storageMessage,setStorageMessage\]=useState\(\(\)=>checkedDeckLibrary\(\[\],storage\)\.warning\?\?''\)/);
-  assert.match(app,/\[message,setMessage\]=useState\(\(\)=>initialScreen==='saved'\?checkedDeckLibrary/);
-  assert.match(app, /\{storageMessage&&<small role="status">\{storageMessage\}<\/small>\}/);
+  assert.match(app,/\{storageMessage&&<small role="status">\{storageMessage\}<\/small>\}/);
 });
 
 test('landscape touch combat buttons do not collapse to 23-36px hit targets',()=>{

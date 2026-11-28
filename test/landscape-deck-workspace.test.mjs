@@ -19,5 +19,6 @@ test('deck browsing uses pages while live deck rows retain contained scrolling',
   assert.doesNotMatch(editor,/<CollectionBook[^>]+continuous/);
   assert.match(integrated,/\.deck-list-scroll\{overflow:auto;overscroll-behavior:contain/);
   assert.match(integrated,/\.deck-builder \.book-with-tabs \.collection-book \{ overflow:hidden/);
-  assert.match(app,/savedRows\.items\.map/);
+  const picker=readFileSync(new URL('../apps/client/src/PreviewPlay.tsx',import.meta.url),'utf8');
+  assert.match(picker,/collectionPage\(saved,deckPage,9\)/);
 });

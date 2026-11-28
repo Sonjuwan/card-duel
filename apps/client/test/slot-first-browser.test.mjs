@@ -66,9 +66,11 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
   await page.getByRole('button',{name:'메인으로',exact:true}).click();
   assert.equal(await page.locator('.preview-lobby > .app-header').evaluate(el=>getComputedStyle(el).display),'none','the large header is removed');
   await page.getByRole('button',{name:'덱 목록',exact:true}).click();
-  const library=page.locator('.saved-workspace');
+  await page.getByRole('button',{name:'전사',exact:true}).click();
+  const library=page.locator('.preview-deck-select');
   assert.equal(await library.locator('.preview-deck-grid>*').count(),9);
   const edit=library.getByRole('button',{name:'편집',exact:true});
+  await library.getByRole('button',{name:'기본 덱',exact:true}).click();
   assert.ok(await edit.isDisabled());
   const savedTile=library.getByRole('button',{name:entries[1].name,exact:false});
   await savedTile.click();
@@ -269,10 +271,18 @@ test('UI preview opens the active save slot and preserves slot-scoped decks, che
       const range=document.createRange();
       range.selectNodeContents(text);
       const bottom=stats?.getBoundingClientRect().top??card.getBoundingClientRect().bottom;
-      return {name:card.querySelector('.card-name').textContent,overflow:range.getBoundingClientRect().bottom-bottom};
+      const style=getComputedStyle(text);
+      const canScroll=text.scrollHeight>text.clientHeight&&style.overflowY==='auto';
+      if(canScroll)text.scrollTop=text.scrollHeight;
+      const copyBottom=text.getBoundingClientRect().bottom;
+      const result={name:card.querySelector('.card-name').textContent,
+        readable:text.clientHeight>=parseFloat(style.lineHeight)-1&&copyBottom<=bottom+1&&
+          range.getBoundingClientRect().bottom<=copyBottom+1};
+      if(canScroll)text.scrollTop=0;
+      return result;
     }));
     rendered+=cards.length;
-    assert.ok(cards.every(card=>card.overflow<=1),JSON.stringify(cards.filter(card=>card.overflow>1)));
+    assert.ok(cards.every(card=>card.readable),JSON.stringify(cards.filter(card=>!card.readable)));
     if(await nextCardPage.isDisabled())break;
     await nextCardPage.evaluate(button=>button.click());
   }
