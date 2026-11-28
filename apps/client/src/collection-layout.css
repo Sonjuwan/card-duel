@@ -261,3 +261,14 @@
     --copy-badge-width:28px;
   }
 }
+
+@media (orientation:landscape) and (min-height:541px) and (max-width:1150px){
+  .lobby-main .collection-workspace .collection-body .book-with-tabs,
+  .lobby-main.preview-lobby .collection-workspace .collection-body .book-with-tabs{
+    grid-template-columns:34px minmax(0,1fr);
+  }
+  .lobby-main .collection-workspace .collection-body .book-with-tabs>.collection-spread,
+  .lobby-main.preview-lobby .collection-workspace .collection-body .book-with-tabs>.collection-spread{
+    grid-template-columns:23px minmax(0,1fr) 23px;
+  }
+}
