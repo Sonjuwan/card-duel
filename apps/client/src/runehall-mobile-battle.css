@@ -115,3 +115,12 @@
     .game-main .duel-screen.preview-compact .arena-field .own-hand[data-hand-open=true] .battle-hand{transition:none}
   }
 }
+
+@media (orientation:landscape) and (max-height:340px){
+  /* Short viewports reserve room for the deck above the mana and the hand
+     below it. Two vertical stacks keep all ten crystals legible. */
+  .game-main .duel-screen.preview-compact .battle-arena:has(.own-hand[data-hand-open=true])>.own-mana .mana-crystals{
+    display:grid!important;grid-template-columns:repeat(2,max-content);
+    grid-template-rows:repeat(5,auto);grid-auto-flow:column;
+  }
+}

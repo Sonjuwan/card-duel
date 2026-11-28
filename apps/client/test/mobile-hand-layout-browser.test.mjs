@@ -52,7 +52,7 @@ test('mobile hand keeps its size, visible costs and independent mana with zero t
   await page.locator('.mulligan-confirm').click();
   await page.waitForFunction(()=>typeof window.setHandFixture==='function');
   mkdirSync('ui-evidence',{recursive:true});
-  for(const [width,height] of [[640,360],[844,390],[932,430]]){
+  for(const [width,height] of [[568,320],[640,360],[844,390],[932,430]]){
     await page.setViewportSize({width,height});
     const open=page.locator('.folded-hand[aria-expanded=true]');
     if(await open.count())await open.tap();
@@ -88,7 +88,7 @@ test('mobile hand keeps its size, visible costs and independent mana with zero t
         const overlaps=(a,b)=>a.left<b.right-.5&&a.right>b.left+.5&&a.top<b.bottom-.5&&a.bottom>b.top+.5;
         const fieldClear=cards.every(card=>!overlaps(card,enemy)&&!overlaps(card,mana)&&!overlaps(card,turn));
         const boardClear=[...document.querySelectorAll('.minion-row .battle-minion')].every(unit=>!overlaps(unit.getBoundingClientRect(),turn));
-        return {cards,fieldClear,boardClear,vertical:gems.display==='flex'&&gems.flexDirection.startsWith('column'),separate:!overlaps(mana,deck),
+        return {cards,fieldClear,boardClear,vertical:gems.display==='grid'?gems.gridAutoFlow==='column':gems.display==='flex'&&gems.flexDirection.startsWith('column'),separate:!overlaps(mana,deck),
           overlap:(friendly.bottom-cards[0].top)/friendly.height,
           center:(cards[0].left+cards.at(-1).right)/2,
           full:cards[0].top<hero.top&&cards[0].bottom>hero.bottom-18,
