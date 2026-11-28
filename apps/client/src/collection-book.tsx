@@ -1,3 +1,4 @@
+import {useReadableBook} from './collection-type.ts';
 import {useRef} from 'react';
 import type { ReactNode, RefObject, KeyboardEvent } from 'react';
 import type { Card, Catalog } from '../../../packages/engine/src/index.ts';
@@ -27,6 +28,8 @@ export function ManaFilter({value,onChange}:{value:string;onChange:(value:string
 
 type BookNavigation={page:number;pages:number;label:string;onPage:(page:number)=>void};
 export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,continuous=false}:{cards:readonly T[];renderCard:(card:T)=>ReactNode;size?:number;paging?:BookNavigation;continuous?:boolean}){
+  const book=useRef<HTMLDivElement>(null);
+  useReadableBook(book);
   const perLeaf=size/2;
   const swipeStart=useRef<{x:number;y:number}|null>(null);
   const navigate=(event:KeyboardEvent<HTMLDivElement>)=>{
@@ -44,7 +47,7 @@ export function CollectionBook<T extends Card>({cards,renderCard,size=8,paging,c
     if(paging&&event.target instanceof HTMLElement&&event.target.matches('.book-edge')&&['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();turn(event.key==='ArrowLeft'?-1:1);}
   }}>
   {paging&&<button type="button" className="book-edge secondary" disabled={paging.page===0} onClick={()=>turn(-1)} aria-label="이전 페이지">◀</button>}
-  <div className={`collection classic-collection collection-book${continuous?' collection-continuous':''}`} data-book-size={size} onTouchStart={event=>{
+  <div ref={book} className={`collection classic-collection collection-book${continuous?' collection-continuous':''}`} data-book-size={size} onTouchStart={event=>{
       const touch=event.touches[0];
       swipeStart.current=event.touches.length===1?{x:touch.clientX,y:touch.clientY}:null;
     }} onTouchCancel={()=>{swipeStart.current=null;}} onTouchEnd={event=>{

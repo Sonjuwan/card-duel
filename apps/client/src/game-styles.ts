@@ -21,3 +21,4 @@ import './quests.css';
 import './runehall.css';
 import './runehall-graphics.css';
 import './runehall-combat.css';
+import './runehall-book-type.css';

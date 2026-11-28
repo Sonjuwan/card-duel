@@ -1,0 +1,34 @@
+@media (orientation:landscape) and (min-height:541px){
+  .lobby-main .collection-workspace .collection-body .collection-book .card-name{
+    font-size:var(--rh-readable-size,clamp(11px,12.5cqi,24px));
+    block-size:calc(clamp(9px,10cqi,17px)*1.05 + 6px);
+    padding-block:0;display:grid;align-content:center;line-height:1;word-break:keep-all;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-book .card-copy{
+    color:#271e1a;font-size:var(--rh-readable-size,clamp(9px,10.7cqi,18px));
+    line-height:1.22;text-wrap:pretty;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-book .card-mana{font-size:clamp(12px,18cqi,29px)}
+  .lobby-main .collection-workspace .collection-body .collection-book .stat{font-size:clamp(12px,17cqi,27px)}
+  .lobby-main .collection-workspace .collection-body .collection-book .card-tribe{font-size:clamp(9px,11.1cqi,18px)}
+  .lobby-main .collection-workspace .collection-body .collection-book .collection-copy-badge{
+    font-size:clamp(11px,1.19dvw,16px);padding-inline:1px;
+  }
+  .lobby-main .collection-workspace .collection-body .collection-spread>.book-page-status{
+    font-size:clamp(12px,1.1dvw,17px);line-height:1.2;
+  }
+  .lobby-main .collection-workspace .book-with-tabs>.book-class-tabs button{font-size:clamp(14px,1.65dvw,22px)}
+  .lobby-main .collection-workspace .deck-list h3{font-size:clamp(15px,1.6dvw,23px)}
+  .lobby-main .collection-workspace .deck-list .saved-decks input{font-size:clamp(13px,1.4dvw,20px)}
+  .lobby-main .collection-workspace .deck-list .deck-inspect-row,
+  .lobby-main .collection-workspace .deck-list .deck-list-scroll>p{font-size:clamp(12px,1.22dvw,18px)}
+  .lobby-main .collection-workspace .collection-toolbar>button,
+  .lobby-main .collection-workspace .deck-list .deck-save-primary,
+  .lobby-main.preview-lobby .preview-workspace .preview-deck-back{font-size:clamp(13px,1.25dvw,19px)}
+  .lobby-main .collection-workspace .catalog-inline-filters,
+  .lobby-main .collection-workspace .catalog-inline-filters :is(button,input,select){
+    font-size:clamp(12px,1.1dvw,16px);
+  }
+  .lobby-main .collection-workspace .catalog-inline-filters strong{font-size:clamp(15px,1.4dvw,20px)}
+  .lobby-main .collection-workspace .catalog-inline-filters small{font-size:clamp(11px,.94dvw,14px)}
+}
