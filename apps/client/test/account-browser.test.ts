@@ -19,7 +19,7 @@ test('browser: desktop registration, mobile login and shared deck, account-only 
     const desktop=await browser.newContext({viewport:{width:1366,height:768}}),mobile=await browser.newContext({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
     const a=await desktop.newPage(),b=await mobile.newPage();const errors:string[]=[];for(const page of [a,b])page.on('pageerror',error=>errors.push(error.message));
     await Promise.all([a.goto(url),b.goto(url)]);
-    for(const page of [a,b]){await page.getByText('서버 연결됨').waitFor();await page.locator('.account-panel>summary').click();await page.getByRole('textbox',{name:'이메일'}).fill('browser@example.test');await page.getByLabel('비밀번호',{exact:true}).fill('test-password');}
+    for(const page of [a,b]){await page.getByText('서버 연결됨').waitFor();await page.getByRole('button',{name:'대전',exact:true}).click();await page.getByRole('button',{name:'계정',exact:true}).click();await page.locator('.account-panel>summary').click();await page.getByRole('textbox',{name:'이메일'}).fill('browser@example.test');await page.getByLabel('비밀번호',{exact:true}).fill('test-password');}
     await a.getByRole('textbox',{name:'이메일'}).fill('pending@example.test');await a.getByRole('button',{name:'새 계정 등록'}).click();
     await a.getByText(/이메일 확인 대기 중/).waitFor();assert.equal(await a.getByLabel('비밀번호',{exact:true}).inputValue(),'');assert.equal(await a.getByRole('button',{name:'랭크 AI 대전 시작'}).count(),0);assert.equal((await desktop.cookies()).some(cookie=>cookie.name==='duel_account'),false);
     await a.getByRole('textbox',{name:'이메일'}).fill('browser@example.test');await a.getByLabel('비밀번호',{exact:true}).fill('test-password');
@@ -29,7 +29,9 @@ test('browser: desktop registration, mobile login and shared deck, account-only 
     await b.getByText('서버 연결됨').waitFor();await b.locator('.account-panel>summary').click();assert.equal(await b.locator('.account-panel').evaluate(element=>(element as HTMLDetailsElement).open),false);
     await a.getByLabel('서버 덱 이름').fill('실시간 동기화');await a.getByRole('button',{name:'현재 덱 저장'}).click();await b.getByText('실시간 동기화',{exact:true}).waitFor({state:'attached'});assert.equal(await b.locator('.account-panel').evaluate(element=>(element as HTMLDetailsElement).open),false);
     await b.locator('.account-panel>summary').click();await b.getByText('실시간 동기화',{exact:true}).waitFor();
+    for(const page of [a,b])await page.getByRole('dialog',{name:'계정',exact:true}).getByRole('button',{name:'닫기',exact:true}).click();
     await a.locator('.hero-gallery').getByRole('button',{name:'마법사'}).click();await b.locator('.hero-gallery').getByRole('button',{name:'전사'}).click();
+    for(const page of [a,b])await page.getByRole('button',{name:'계정',exact:true}).click();
     await a.getByLabel('서버 덱 이름').fill('PC 별도 덱');await b.getByLabel('서버 덱 이름').fill('모바일 별도 덱');
     await Promise.all([a,b].map(page=>page.getByRole('button',{name:'현재 덱 저장'}).click()));
     for(const page of [a,b])for(const name of ['PC 별도 덱','모바일 별도 덱'])await page.getByText(name,{exact:true}).waitFor();
@@ -39,6 +41,8 @@ test('browser: desktop registration, mobile login and shared deck, account-only 
     await a.getByLabel('서버 덱 이름').fill('동시 충돌');await a.getByRole('button',{name:'현재 덱 저장'}).click();await a.getByText('동시 충돌',{exact:true}).waitFor();releaseEdit();
     await b.getByText(/다른 기기의 변경 내용을 불러왔습니다/).waitFor();await b.getByText('현재 선택한 덱 · 전사',{exact:true}).waitFor();assert.equal(await b.getByLabel('서버 덱 이름').inputValue(),'동시 충돌');
     const profile=await b.evaluate(async()=>(await fetch('/api/account/me')).json() as Promise<AccountView>);assert.equal(profile.profile.decks.find(item=>item.name==='동시 충돌')?.deck.heroClass,'mage');
+    await b.getByRole('heading',{name:'오리지널 보상의 길'}).waitFor();
+    assert.equal(profile.profile.ownedCards.length,133);
     await b.getByRole('button',{name:'퀘스트 직업 기본 덱'}).click();await b.getByRole('button',{name:'랭크 AI 대전 시작'}).waitFor();
     assert.ok(await b.getByRole('button',{name:'랭크 AI 대전 시작'}).isEnabled());assert.equal(await b.getByRole('button',{name:'서버 패치·운영 상태 확인'}).count(),0);
     await b.getByRole('button',{name:'랭크 AI 대전 시작'}).click();await b.getByText('시작 카드 선택',{exact:true}).waitFor();
